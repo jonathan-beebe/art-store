@@ -35,6 +35,39 @@ final readonly class AnalyticsVisit
     ) {}
 
     /**
+     * A visit built from known facts, with no request to read them off —
+     * a console command driving a scripted visitor, for instance, where
+     * the session id, landing path, and channel all come from the script.
+     * `$utm` carries whichever of `source`, `medium`, `campaign`,
+     * `content`, and `term` the visit names; a key it omits, or names null,
+     * leaves that field null. Every capped value goes through the same
+     * 255-character limit {@see fromRequest()} applies.
+     *
+     * @param  array{source?: ?string, medium?: ?string, campaign?: ?string, content?: ?string, term?: ?string}  $utm
+     */
+    public static function of(
+        string $sessionId,
+        DateTimeImmutable $firstSeenAt,
+        string $landingPath,
+        ?string $referrerHost,
+        array $utm,
+        ?string $actorId,
+    ): self {
+        return new self(
+            $sessionId,
+            $firstSeenAt,
+            $landingPath,
+            $referrerHost === null ? null : self::cap($referrerHost),
+            self::cappedUtm($utm, 'source'),
+            self::cappedUtm($utm, 'medium'),
+            self::cappedUtm($utm, 'campaign'),
+            self::cappedUtm($utm, 'content'),
+            self::cappedUtm($utm, 'term'),
+            $actorId,
+        );
+    }
+
+    /**
      * `$facts->sessionId` is the row's key — null when the request carries
      * no session at all, which never happens on a real HTTP request since
      * `RequestFacts` falls back to the cookie `NameRequestVisitor` just
@@ -114,5 +147,15 @@ final readonly class AnalyticsVisit
     private static function cap(string $value): string
     {
         return mb_substr($value, 0, self::VALUE_LENGTH);
+    }
+
+    /**
+     * @param  array{source?: ?string, medium?: ?string, campaign?: ?string, content?: ?string, term?: ?string}  $utm
+     */
+    private static function cappedUtm(array $utm, string $key): ?string
+    {
+        $value = $utm[$key] ?? null;
+
+        return $value === null ? null : self::cap($value);
     }
 }

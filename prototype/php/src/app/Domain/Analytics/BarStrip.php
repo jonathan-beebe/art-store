@@ -29,4 +29,27 @@ final class BarStrip
             $counts,
         );
     }
+
+    /**
+     * A daily series as {@see BarStripBar} values: each count's scaled
+     * height paired with a tooltip naming its day, ready for
+     * `x-admin.analytics.bar-strip` to render.
+     *
+     * @param  list<int>  $counts
+     * @param  list<string>  $dayLabels  same length as `$counts`, oldest first
+     * @return list<BarStripBar>
+     */
+    public static function bars(array $counts, array $dayLabels, int $maxPx): array
+    {
+        $heights = self::heights($counts, $maxPx);
+
+        return array_map(
+            fn (int $height, int $index): BarStripBar => new BarStripBar(
+                $height,
+                AnalyticsRange::dayCaption($dayLabels[$index]).': '.number_format($counts[$index]),
+            ),
+            $heights,
+            array_keys($heights),
+        );
+    }
 }

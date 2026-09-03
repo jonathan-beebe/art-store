@@ -19,3 +19,14 @@ it('renders every bar at the minimum height when every count is zero', function 
 it('scales an empty series to an empty list of heights', function (): void {
     expect(BarStrip::heights([], 26))->toBe([]);
 });
+
+it('pairs each scaled height with a tooltip naming its day', function (): void {
+    $bars = BarStrip::bars([10, 20], ['2026-08-19', '2026-08-20'], 100);
+
+    expect($bars)->toHaveCount(2)
+        ->and($bars[0]->height)->toBe(50)
+        ->and($bars[0]->tip)->toBe('Aug 19: 10')
+        ->and($bars[0]->hot)->toBeFalse()
+        ->and($bars[1]->height)->toBe(100)
+        ->and($bars[1]->tip)->toBe('Aug 20: 20');
+});

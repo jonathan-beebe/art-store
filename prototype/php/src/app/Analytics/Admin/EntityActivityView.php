@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Domain\Analytics\BarStripBar;
+
 /**
  * A listing's or an actor's whole drill-in page —
  * {@see EntityActivity::forListing()}/{@see EntityActivity::forActor()}'s
@@ -20,7 +22,7 @@ final readonly class EntityActivityView
     /**
      * @param  list<EntityFact>  $facts
      * @param  list<EventTile>  $tiles  exactly five, in the page's own order
-     * @param  list<EntityStripBar>  $strip
+     * @param  list<BarStripBar>  $strip
      * @param  list<EntityFeedRow>  $feed  newest first, capped at {@see EntityActivity::FEED_LIMIT}
      * @param  list<\App\Analytics\ActorVisitRow>  $visits  newest first, capped at {@see EntityActivity::VISITS_LIMIT}
      */

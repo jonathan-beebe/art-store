@@ -227,3 +227,14 @@ it('shows page views by day in the daily bar tooltip', function (): void {
     $response->assertOk();
     expect($response->getContent())->toContain('Aug 20: 3');
 });
+
+it('draws ninety daily bars per event row at range=90, one rect per day', function (): void {
+    $this->travelTo($this->moment('2026-09-02 12:00:00'));
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?range=90');
+
+    $response->assertOk();
+
+    $rowCount = count(AnalyticsEventName::cases()) + 1; // named events plus the page.view roll-up
+    expect(substr_count((string) $response->getContent(), '<rect'))->toBe(90 * $rowCount);
+});

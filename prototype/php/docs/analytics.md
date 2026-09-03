@@ -538,6 +538,73 @@ null: `RequestFacts` gates on the request-id attribute
 request and never on the synthetic request the console kernel binds for
 an artisan run.
 
+## Seeded activity
+
+`make seed-activity` (`App\Console\Commands\SeedActivity`, `App\Domain\Seeding\ActivityPlan`)
+fills a `make fresh`-seeded store with ninety-plus days of deterministic
+history, so the funnel, the channel table, the leaderboard, and the log
+viewer all have a season's worth of traffic to read rather than a
+developer's own clicks. Local dev only; it refuses in production and
+refuses a second run against a database that already carries its marker
+(`seed_runs`).
+
+**The ramp.** `ActivityPlan`'s day-by-day counts start small and surge: a
+real 92-day run lands near 59 / 110 / 360 new customers a month (signups
+plus anonymous visits), verified signups themselves climbing from a
+handful in the first month to a surge in the third — near 8 / 30 / 80,
+roughly 115 overall — while anonymous visitors carry most of the traffic
+in every month. Daily listing views read in the tens early on and climb
+into the hundreds by the end of the window — a visibly rising strip of
+daily bars at `/admin/analytics?range=90`. Listing creation ramps the
+same way, so the catalog itself grows from `make fresh`'s 37 listings to
+upward of 150 by the third month.
+
+**Two bad actors.** Scripted once per plan, outside the day-by-day ramp,
+once the window reaches a third month:
+
+- **The scraper** — one anonymous visitor, one evening five days from the
+  end of the window, requesting a listing page every eight to ten seconds
+  for most of an hour, rotating between two addresses in the
+  `185.220.101.0/24` hosting range. Every request is a plain listing view
+  carrying the real dedupe key, resolved against the live catalog rather
+  than the plan's own fixed pool — the only way a burst this shape clears
+  `ActorVelocity::THRESHOLD_PER_HOUR` (100) under real per-listing-per-hour
+  dedupe, since a smaller catalog cannot cross the threshold no matter how
+  fast the requests come. No favorite, cart, or checkout step ever appears
+  in its script. Findable from `/admin/analytics` (top of the "Actors by
+  velocity" leaderboard), from `/admin/analytics/actors?q=185.220.101` (an
+  ip search), and its own actor page carries the flagged banner and
+  `FlaggedActorSummary`'s sentence.
+- **The prober** — one anonymous visitor scanning credential and admin
+  paths (`App\Domain\Seeding\ProbePaths`: `.env`, `.aws/credentials`,
+  `.git/config`, `wp-login.php`, `/admin`, and about twenty more) across
+  five nights roughly a week apart, one to two seconds apart, from a fixed
+  ip. Every probe answers 404 (or 302 for `/admin`) and
+  `PageViewCountability` keeps a non-2xx response out of the roll-up by
+  design, so a probe writes no analytics event and no domain story
+  line — only the log store carries it. A couple of ordinary listing
+  views open the session; without them the prober would carry no
+  analytics event and no ip at all, and an admin could not find it by ip
+  search. Findable from `/admin/analytics/actors?q=45.155.205.233` (the
+  one real event its opening views left behind) and from
+  `/admin/logs?actor=<its id>`, where its 404 trail shows in full.
+
+**Log lines.** Every simulated request — each ordinary step, the
+scraper's and prober's own, the magic-link request and consume a sign-up
+or a returning visitor's verification would have produced — gets the
+`http.request` will/did pair a real request would have written
+(`App\Logging\LogLine::parse()` via `LogStore::append()` directly, the
+exact shape `docs/log-store.md` documents). The real domain actions this
+command drives (`AddToCart`, `PlaceOrder`, and the rest) already write
+their own story lines through the ordinary `Log` facade — nothing extra
+was needed for those.
+
+**Retention.** `ANALYTICS_RETENTION_DAYS` (30 by default) prunes
+`analytics_events`/`analytics_visits` rows older than the cutoff on the
+next `orders:sweep` — enough to delete roughly two thirds of a 92-day
+seeded run's history. Widen the window (or set it `off`) in local dev
+before running `orders:sweep` if the seeded season needs to survive it.
+
 ## Retention
 
 An `ip` is personal data, and a `session_id` joins a browser's visits

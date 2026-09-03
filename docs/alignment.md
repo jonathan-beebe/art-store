@@ -621,6 +621,12 @@ container, the per-commit gate described in §6.2. It is not (yet) shared
 vocabulary — node and rails have no equivalent target, so it is not in the
 table above; a sibling ticket in each may add one, matching name pending.
 
+php also answers `seed-activity` (FEAT-048): fills a `make fresh`-seeded
+database with ninety-plus days of deterministic store activity, local dev
+only — php's `docs/analytics.md` § "Seeded activity" and its README's
+"Seeded accounts" section. Node and Rails have no equivalent; a sibling
+ticket in each may add one, matching name pending.
+
 ### 6.2 Commit gate
 
 `.githooks/pre-commit` at the repository root runs each prototype's
@@ -866,3 +872,18 @@ channel" fact, and `analytics_visits` retention on FEAT-047 —
 `prototype/php/docs/analytics.md` § "Channels" is the reference; node and
 rails owe the same capture, derivation, and pages once their admin
 analytics drill-ins reach this ticket's starting point.
+
+2026-09-03, seeded activity: §6.1 gains the php-local `seed-activity`
+target — a deterministic ninety-plus day ramp of store activity over a
+`make fresh`-seeded database, local dev only, so the funnel, the channel
+table, the leaderboard, and the log viewer all have a season's worth of
+traffic to read. Two anonymous bad actors are scripted among the ordinary
+traffic: a scraper whose burst trips §2.6's `ActorVelocity` threshold, and
+a prober whose credential- and admin-path scan writes no analytics event
+by §2.6's own roll-up rule (a non-2xx response) and is findable only
+through the §2.5 log store. PHP ships the plan, the seed command, and the
+log-line writing that gives every simulated request the §2.1 envelope a
+real one would have carried, on FEAT-048 —
+`prototype/php/docs/analytics.md` § "Seeded activity" is the reference;
+node and rails have no equivalent seed and owe one only if a sibling
+ticket is filed.

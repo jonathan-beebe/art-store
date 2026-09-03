@@ -178,6 +178,25 @@ Art Store Support carries one admin reply she has not read; and Hermione's
 open "Missing confirmation email" thread, tied to her awaiting-shipment
 order, is waiting on the desk.
 
+`make seed-activity`, run once after `make fresh`, adds ninety-plus days of
+store activity ending now: verified signups ramping from a handful to a
+surge across the three months (near 8 / 30 / 80 on a real 92-day run),
+anonymous visitors browsing, favoriting, and abandoning or completing
+carts, some of them verifying partway through and folding their history
+into a signed-up account, sellers creating and publishing new listings
+(the catalog grows from 37 toward 150+), orders placed, paid, shipped,
+delivered, or cancelled, listing questions and support conversations, and
+weekly payouts — everything `/admin/analytics` and the seller and admin
+portals need to show a store that has been open for a season. Two
+anonymous visitors behave badly: a scraper hammering listing pages fast
+enough to trip the fraud lens's velocity flag, and a prober scanning for
+`.env`, `wp-login.php`, `/admin`, and similar paths, findable from the
+analytics actor search (by ip) and `/admin/logs` (see `docs/analytics.md`
+§ "Seeded activity"). It refuses in production and refuses a second run
+against a database that already carries its marker row (`seed_runs`);
+every person it names is drawn from `App\Domain\Seeding\HogwartsRoster`,
+the same Harry Potter universe rule as the rest of the demo data.
+
 ## Magic links
 
 Passwordless on both sides. Ask for a link at `/seller/login` or `/login` with

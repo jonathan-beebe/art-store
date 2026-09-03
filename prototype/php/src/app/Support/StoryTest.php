@@ -290,6 +290,78 @@ it('puts the request marks on every line for the rest of the request', function 
         ->toHaveKey('actor_id', 'cus_01J00000000000000000000ABC');
 });
 
+it('binds the request marks for the body of asRequest and nothing outside it', function (): void {
+    $log = CapturedStory::capture();
+
+    Story::asRequest('req_01J00000000000000000000ABC', 'ses_01J00000000000000000000ABC', ActorType::Customer, 'cus_01J00000000000000000000ABC', function (): void {
+        Story::for(StoryEvent::CartAdd)->did('added the listing to the cart');
+    });
+
+    Story::for(StoryEvent::LedgerWrite)->did('wrote a ledger entry');
+
+    $bound = $log->line('cart.add', 'did');
+    $unbound = $log->line('ledger.write', 'did');
+
+    expect($bound)
+        ->toHaveKey('request_id', 'req_01J00000000000000000000ABC')
+        ->toHaveKey('session_id', 'ses_01J00000000000000000000ABC')
+        ->toHaveKey('actor_type', 'customer')
+        ->toHaveKey('actor_id', 'cus_01J00000000000000000000ABC');
+
+    expect($unbound)->not->toHaveKey('request_id')
+        ->and($unbound)->not->toHaveKey('session_id')
+        ->and($unbound)->not->toHaveKey('actor_type')
+        ->and($unbound)->not->toHaveKey('actor_id');
+});
+
+it('clears the request marks asRequest bound even when the body throws', function (): void {
+    $log = CapturedStory::capture();
+
+    $broke = fn () => Story::asRequest('req_01J00000000000000000000ABC', null, null, null, function (): never {
+        throw new RuntimeException('the step broke');
+    });
+
+    expect($broke)->toThrow(RuntimeException::class);
+
+    Story::for(StoryEvent::LedgerWrite)->did('wrote a ledger entry');
+
+    expect($log->line('ledger.write', 'did'))->not->toHaveKey('request_id');
+});
+
+it('leaves a mark unbound rather than writing it as an empty string', function (): void {
+    $log = CapturedStory::capture();
+
+    Story::asRequest('req_01J00000000000000000000ABC', null, null, null, function (): void {
+        Story::for(StoryEvent::CartAdd)->did('added the listing to the cart');
+    });
+
+    $line = $log->line('cart.add', 'did');
+
+    expect($line)->toHaveKey('request_id', 'req_01J00000000000000000000ABC')
+        ->and($line)->not->toHaveKey('session_id')
+        ->and($line)->not->toHaveKey('actor_type')
+        ->and($line)->not->toHaveKey('actor_id');
+});
+
+it('unbinds a request one asRequest call left off the marks the previous call bound', function (): void {
+    $log = CapturedStory::capture();
+
+    Story::asRequest('req_01J00000000000000000000ABC', 'ses_01J00000000000000000000ABC', ActorType::Customer, 'cus_01J00000000000000000000ABC', function (): void {
+        //
+    });
+
+    Story::asRequest('req_01J00000000000000000000DEF', null, null, null, function (): void {
+        Story::for(StoryEvent::CartAdd)->did('added the listing to the cart');
+    });
+
+    $line = $log->line('cart.add', 'did');
+
+    expect($line)->toHaveKey('request_id', 'req_01J00000000000000000000DEF')
+        ->and($line)->not->toHaveKey('session_id')
+        ->and($line)->not->toHaveKey('actor_type')
+        ->and($line)->not->toHaveKey('actor_id');
+});
+
 it('leaves a fact nobody has off the line rather than writing it as null', function (): void {
     $log = CapturedStory::capture();
 

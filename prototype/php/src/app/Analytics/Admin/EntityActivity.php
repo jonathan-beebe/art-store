@@ -10,6 +10,7 @@ use App\Domain\Analytics\ActorVelocity;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\BarStrip;
+use App\Domain\Analytics\BarStripBar;
 use App\Domain\Analytics\FlaggedActorSummary;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
@@ -291,25 +292,15 @@ final class EntityActivity
     /**
      * @param  list<int>  $daily
      * @param  list<string>  $dayLabels
-     * @return list<EntityStripBar>
+     * @return list<BarStripBar>
      */
     private static function dailyStripBars(array $daily, array $dayLabels): array
     {
-        $heights = BarStrip::heights($daily, self::STRIP_HEIGHT_PX);
-
-        return array_map(
-            fn (int $height, int $index): EntityStripBar => new EntityStripBar(
-                $height,
-                AnalyticsRange::dayCaption($dayLabels[$index]).': '.number_format($daily[$index]),
-                false,
-            ),
-            $heights,
-            array_keys($heights),
-        );
+        return BarStrip::bars($daily, $dayLabels, self::STRIP_HEIGHT_PX);
     }
 
     /**
-     * @return list<EntityStripBar>
+     * @return list<BarStripBar>
      */
     private static function hourlyStripBars(string $actorId, DateTimeImmutable $dayStart): array
     {
@@ -336,7 +327,7 @@ final class EntityActivity
         $heights = BarStrip::heights(array_values($byHour), self::STRIP_HEIGHT_PX);
 
         return array_map(
-            fn (int $height, int $hour): EntityStripBar => new EntityStripBar(
+            fn (int $height, int $hour): BarStripBar => new BarStripBar(
                 $height,
                 sprintf('%02d:00 UTC: %s', $hour, number_format($byHour[$hour])),
                 $byHour[$hour] >= ActorVelocity::THRESHOLD_PER_HOUR,

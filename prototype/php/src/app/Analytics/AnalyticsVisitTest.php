@@ -117,6 +117,51 @@ it('caps a utm value at 255 characters', function (): void {
     expect($visit?->utmSource)->toHaveLength(255);
 });
 
+it('builds a visit from known facts rather than a request', function (): void {
+    $at = new DateTimeImmutable('2026-09-02T10:00:00+00:00');
+
+    $visit = AnalyticsVisit::of(
+        'ses_01J00000000000000000000ABC',
+        $at,
+        '/art/starry-night',
+        'daily-prophet.example',
+        ['source' => 'owl-post', 'medium' => 'newsletter', 'campaign' => 'sept-launch'],
+        'cus_XYZ',
+    );
+
+    expect($visit->sessionId)->toBe('ses_01J00000000000000000000ABC')
+        ->and($visit->firstSeenAt)->toBe($at)
+        ->and($visit->landingPath)->toBe('/art/starry-night')
+        ->and($visit->referrerHost)->toBe('daily-prophet.example')
+        ->and($visit->utmSource)->toBe('owl-post')
+        ->and($visit->utmMedium)->toBe('newsletter')
+        ->and($visit->utmCampaign)->toBe('sept-launch')
+        ->and($visit->utmContent)->toBeNull()
+        ->and($visit->utmTerm)->toBeNull()
+        ->and($visit->actorId)->toBe('cus_XYZ');
+});
+
+it('leaves every field null a direct visit names none of', function (): void {
+    $visit = AnalyticsVisit::of('ses_01J00000000000000000000ABC', new DateTimeImmutable, '/', null, [], null);
+
+    expect($visit->referrerHost)->toBeNull()
+        ->and($visit->utmSource)->toBeNull()
+        ->and($visit->utmMedium)->toBeNull()
+        ->and($visit->utmCampaign)->toBeNull()
+        ->and($visit->utmContent)->toBeNull()
+        ->and($visit->utmTerm)->toBeNull()
+        ->and($visit->actorId)->toBeNull();
+});
+
+it('caps a directly built visit\'s referrer host and utm values at 255 characters', function (): void {
+    $long = str_repeat('a', 300);
+
+    $visit = AnalyticsVisit::of('ses_01J00000000000000000000ABC', new DateTimeImmutable, '/', $long, ['source' => $long], null);
+
+    expect($visit->referrerHost)->toHaveLength(255)
+        ->and($visit->utmSource)->toHaveLength(255);
+});
+
 it('carries the row analytics_visits expects', function (): void {
     $request = Request::create(
         'https://store.example.test/art/starry-night?utm_source=newsletter',

@@ -48,11 +48,15 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Analytics/Admin/EventBreakdownRow.php' => 'value carrier; exercised through EventDetailTest',
         'app/Analytics/Admin/EventDetailView.php' => 'value carrier; exercised through EventDetailTest',
         'app/Analytics/Admin/EntityFact.php' => 'value carrier; exercised through EntityActivityTest',
-        'app/Analytics/Admin/EntityStripBar.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Analytics/Admin/EntityFeedRow.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Analytics/Admin/EntityActivityView.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Logging/Admin/LogRequestGroup.php' => 'plain DTO; built and asserted through LogRowQueryTest',
         'app/Support/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
+        'app/Domain/Seeding/ChannelPick.php' => 'value carrier; exercised through ActivityPlanTest',
+        'app/Domain/Seeding/VisitStep.php' => 'value carrier; exercised through ActivityPlanTest',
+        'app/Domain/Seeding/Session.php' => 'value carrier; exercised through ActivityPlanTest',
+        'app/Domain/Seeding/NewListingStep.php' => 'value carrier; exercised through ActivityPlanTest',
+        'app/Domain/Analytics/BarStripBar.php' => 'value carrier; exercised through BarStripTest and EntityActivityTest',
     ];
 
     $base = dirname(__DIR__);

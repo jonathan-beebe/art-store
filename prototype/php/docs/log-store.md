@@ -495,6 +495,17 @@ retention prune's batching and both directions of failure isolation beside
 the stale-order sweep's own tests. `make coverage` holds the whole suite,
 this code included, to the project's 100%-line coverage gate.
 
+## Seeded activity
+
+`make seed-activity` (`docs/analytics.md` § "Seeded activity") writes
+directly to this store rather than through the `Log` facade: it never runs
+inside a real HTTP request, so `LogRequestStory`'s `http.request` will/did
+pair never fires on its own, and `App\Console\Commands\SeedActivity` builds
+that same JSON shape by hand and hands it to
+`LogStore::append(LogLine::parse(...))` for every request it simulates.
+The real domain actions it drives still log the ordinary way, through
+`Log`, since they are the same action objects a real request would call.
+
 ## Alignment
 
 [`docs/logging.md`](../../../docs/logging.md) is the reference definition:

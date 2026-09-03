@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use PDO;
+use RuntimeException;
 use stdClass;
 use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
@@ -103,6 +104,108 @@ it('records the ip, session, and request id of the request current when the even
     expect($row->ip)->toBe('203.0.113.9')
         ->and($row->session_id)->toBe('ses_01J00000000000000000000ABC')
         ->and(decodedData($row))->toBe(['request_id' => 'req_01J00000000000000000000ABC']);
+});
+
+it('leaves an event\'s own ip and session alone rather than filling them from the current request', function (): void {
+    $request = Request::create('/', server: ['REMOTE_ADDR' => '203.0.113.9']);
+    $request->attributes->set(LogRequestStory::REQUEST_ID_ATTRIBUTE, 'req_01J00000000000000000000ABC');
+    $this->app->instance('request', $request);
+
+    $event = new AnalyticsEvent(
+        name: AnalyticsEventName::ListingView,
+        occurredAt: new DateTimeImmutable,
+        subjectType: 'listing',
+        subjectId: 'lst_ABC',
+        actorId: 'cus_XYZ',
+        dedupeKey: null,
+        ip: '198.51.100.7',
+        sessionId: 'ses_EXPLICIT',
+    );
+
+    $analytics = new Analytics;
+    $analytics->recordEvent($event);
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+
+    expect($row->ip)->toBe('198.51.100.7')
+        ->and($row->session_id)->toBe('ses_EXPLICIT');
+});
+
+it('carries a scoped request\'s facts onto every event recorded inside it', function (): void {
+    $facts = RequestFacts::of('203.0.113.55', 'ses_SCOPED', 'req_SCOPED');
+    $analytics = new Analytics;
+
+    $analytics->asRequest($facts, function () use ($analytics): void {
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    });
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+
+    expect($row->ip)->toBe('203.0.113.55')
+        ->and($row->session_id)->toBe('ses_SCOPED')
+        ->and(decodedData($row))->toBe(['request_id' => 'req_SCOPED']);
+});
+
+it('lets a scoped request\'s facts win over a request bound in the container', function (): void {
+    $request = Request::create('/', server: ['REMOTE_ADDR' => '203.0.113.9']);
+    $request->attributes->set(LogRequestStory::REQUEST_ID_ATTRIBUTE, 'req_CONTAINER');
+    $this->app->instance('request', $request);
+
+    $facts = RequestFacts::of('203.0.113.55', 'ses_SCOPED', 'req_SCOPED');
+    $analytics = new Analytics;
+
+    $analytics->asRequest($facts, function () use ($analytics): void {
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    });
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->sole()->ip)->toBe('203.0.113.55');
+});
+
+it('returns the scoped closure\'s own return value', function (): void {
+    $analytics = new Analytics;
+
+    $result = $analytics->asRequest(RequestFacts::of(null, null, null), fn (): string => 'the closure ran');
+
+    expect($result)->toBe('the closure ran');
+});
+
+it('restores the enclosing scope once a nested asRequest call returns', function (): void {
+    $outer = RequestFacts::of('203.0.113.1', 'ses_OUTER', null);
+    $inner = RequestFacts::of('203.0.113.2', 'ses_INNER', null);
+    $analytics = new Analytics;
+
+    $analytics->asRequest($outer, function () use ($analytics, $inner): void {
+        $analytics->asRequest($inner, function () use ($analytics): void {
+            $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+        });
+
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    });
+    $analytics->flush();
+
+    $sessions = DB::connection('analytics')->table('analytics_events')->orderBy('id')->pluck('session_id')->all();
+
+    expect($sessions)->toBe(['ses_INNER', 'ses_OUTER']);
+});
+
+it('restores the enclosing scope even when the scoped closure throws', function (): void {
+    $analytics = new Analytics;
+
+    try {
+        $analytics->asRequest(RequestFacts::of(null, 'ses_SCOPED', null), function (): void {
+            throw new RuntimeException('boom');
+        });
+    } catch (RuntimeException) {
+        // The scope must unwind before this catch runs.
+    }
+
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->sole()->session_id)->toBeNull();
 });
 
 it('does nothing when flushed with an empty buffer', function (): void {
