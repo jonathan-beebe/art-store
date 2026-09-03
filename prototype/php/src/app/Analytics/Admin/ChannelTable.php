@@ -18,8 +18,7 @@ use stdClass;
  * per raw attribution tuple SQL groups by and rows whose derived key
  * matches are folded into one — two raw tuples can derive the same
  * channel (`twitter.com` and `x.com` both read `social:x/twitter`), which
- * is why the fold happens in PHP after the SQL grouping rather than in
- * the query itself.
+ * is why the fold happens in PHP after the SQL grouping.
  */
 final class ChannelTable
 {

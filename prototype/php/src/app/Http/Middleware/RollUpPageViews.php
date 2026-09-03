@@ -16,15 +16,14 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Counts page views rather than logging them: one row per site, route
- * pattern, and day, so the admin analytics pages read traffic without a
- * table that grows per hit ({@see \App\Models\PageViewCount}). Also where a
- * storefront session's first-touch visit is captured
- * ({@see AnalyticsVisit}) — this class already computes the
- * two facts that decide whether a request counts (`PageViewCountability`)
- * and which site it belongs to, so capturing here reuses both rather than
- * repeating them in `NameRequestVisitor`, which runs before the response
- * exists and cannot know either.
+ * Counts page views as one row per site, route pattern, and day, so the
+ * admin analytics pages read traffic without a table that grows per hit
+ * ({@see \App\Models\PageViewCount}). Also where a storefront session's
+ * first-touch visit is captured ({@see AnalyticsVisit}) — this class
+ * already computes the two facts that decide whether a request counts
+ * (`PageViewCountability`) and which site it belongs to, so capturing here
+ * reuses both. `NameRequestVisitor` runs before the response exists and
+ * cannot know either.
  *
  * Registered once at the root of the global middleware stack, because a
  * middleware added there runs for every site, and the site a hit belongs to
@@ -72,8 +71,8 @@ final readonly class RollUpPageViews
     /**
      * `AnalyticsVisit::fromRequest()` reads null when the request carries
      * no session, which never happens on a real storefront hit. Recording
-     * runs on every countable storefront request rather than only the one
-     * that minted the `sid` cookie: `Analytics::recordVisit()` writes
+     * runs on every countable storefront request, including every one
+     * after the `sid` cookie was minted: `Analytics::recordVisit()` writes
      * `INSERT OR IGNORE` on the session id, so only the first request of a
      * session ever changes a row and every later one is a no-op write.
      */
