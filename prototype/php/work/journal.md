@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:21:05:34 — FEAT-048 — started
+
 - 2026-09-02:20:15:32 — FEAT-047 — done: admin channel pages, an actor's visits panel, and analytics_visits retention
 
 - 2026-09-02:19:17:40 — FEAT-049 — defined: admins define funnels as ordered event names
