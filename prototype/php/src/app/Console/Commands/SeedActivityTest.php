@@ -25,6 +25,15 @@ use stdClass;
 use Tests\LogStoreFixtures as Fixtures;
 
 /**
+ * Every test in this file runs seed:activity end to end and executes most of
+ * app/. Pest 4.7 has no coversNothing(); covers() maps to PHPUnit's
+ * #[CoversClass] and applies to the whole file, since one Pest file compiles
+ * to one PHPUnit test class. This narrows every test's recorded coverage to
+ * the command itself.
+ */
+covers(SeedActivity::class);
+
+/**
  * `$this->artisan()` hands back an exit code when console output is not
  * mocked and a pending command when it is — {@see RunWeeklyPayoutsTest}'s
  * own fixture, the same shape here.
