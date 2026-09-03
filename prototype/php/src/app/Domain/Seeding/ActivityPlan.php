@@ -21,12 +21,6 @@ use DateTimeImmutable;
  */
 final readonly class ActivityPlan
 {
-    /** Roughly one seller publishing a new listing every dozen days. */
-    private const int LISTING_CREATION_INTERVAL_DAYS = 12;
-
-    /** The day-of-week offset a new listing lands on within its interval. */
-    private const int LISTING_CREATION_DAY_OFFSET = 5;
-
     private function __construct(
         public int $seed,
         public DateTimeImmutable $startDay,
@@ -83,8 +77,10 @@ final readonly class ActivityPlan
                 $sessionCounter, $eligibleToReturn,
             ));
 
-            if ($sellerPoolSize > 0 && self::createsListingOn($dayIndex)) {
-                $listingCreations[] = self::buildListingCreation($lcg, $dayIndex, $day, $sellerPoolSize, $templateCount);
+            if ($sellerPoolSize > 0) {
+                for ($i = self::listingCreationCountForDay($dayIndex, $dayCount); $i > 0; $i--) {
+                    $listingCreations[] = self::buildListingCreation($lcg, $dayIndex, $day, $sellerPoolSize, $templateCount);
+                }
             }
         }
 
@@ -159,39 +155,54 @@ final readonly class ActivityPlan
     }
 
     /**
-     * A few signups a day in the first third of the window, several more
-     * in the second, and a surge — capped so a long window never asks for
-     * more people than a roster can name — in the last.
+     * A handful of signups a week in the first third of the window, a few
+     * every couple of days in the second, and a rising surge in the last —
+     * capped so a long window never asks for more people than a roster can
+     * name.
      */
     private static function signupCountForDay(int $dayIndex, int $dayCount): int
     {
         $third = max(1, intdiv($dayCount, 3));
 
         return match (true) {
-            $dayIndex < $third => $dayIndex % 3 === 0 ? 1 : 0,
-            $dayIndex < 2 * $third => 1,
-            default => min(4, 2 + intdiv($dayIndex - 2 * $third, 8)),
+            $dayIndex < $third => $dayIndex % 7 === 0 ? 1 : 0,
+            $dayIndex < 2 * $third => $dayIndex % 3 === 0 ? 1 : 0,
+            default => min(5, 1 + intdiv($dayIndex - 2 * $third, 4)),
         };
     }
 
     /**
-     * Anonymous traffic ramps the same way signups do, at a higher volume:
-     * most visits never sign up at all.
+     * Anonymous traffic ramps the same way signups do, at several times the
+     * volume: most visits never sign up at all. The third month's rise
+     * outpaces the first two by far — the surge {@see \App\Domain\Analytics\BarStrip}
+     * draws as a visibly rising strip of daily bars.
      */
     private static function visitCountForDay(int $dayIndex, int $dayCount): int
     {
         $third = max(1, intdiv($dayCount, 3));
 
         return match (true) {
-            $dayIndex < $third => 3,
-            $dayIndex < 2 * $third => 6,
-            default => 10 + intdiv($dayIndex - 2 * $third, 10),
+            $dayIndex < $third => 2,
+            $dayIndex < 2 * $third => 3,
+            default => 5 + intdiv($dayIndex - 2 * $third, 3),
         };
     }
 
-    private static function createsListingOn(int $dayIndex): bool
+    /**
+     * How many listings a seller creates on a given day: rare in the first
+     * third, a little more common in the second, and rising steeply in the
+     * third — the catalog itself grows through the same surge that brings
+     * the third month's flood of visitors.
+     */
+    private static function listingCreationCountForDay(int $dayIndex, int $dayCount): int
     {
-        return $dayIndex % self::LISTING_CREATION_INTERVAL_DAYS === self::LISTING_CREATION_DAY_OFFSET;
+        $third = max(1, intdiv($dayCount, 3));
+
+        return match (true) {
+            $dayIndex < $third => $dayIndex % 9 === 0 ? 1 : 0,
+            $dayIndex < 2 * $third => $dayIndex % 4 === 0 ? 1 : 0,
+            default => min(6, 1 + intdiv($dayIndex - 2 * $third, 5)),
+        };
     }
 
     private static function isWeekend(DateTimeImmutable $day): bool
@@ -258,7 +269,7 @@ final readonly class ActivityPlan
      */
     private static function viewSteps(Lcg $lcg, DateTimeImmutable &$cursor, int $listingPoolSize): array
     {
-        $viewCount = $lcg->nextInt(3) + 1;
+        $viewCount = $lcg->nextInt(9) + 2;
         $steps = [];
 
         for ($i = 0; $i < $viewCount; $i++) {
