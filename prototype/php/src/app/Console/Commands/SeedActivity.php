@@ -224,27 +224,37 @@ final class SeedActivity extends Command
         match ($session->kind) {
             SessionKind::Scraper => $this->runScraperSession($session, $analytics, $logStore),
             SessionKind::Prober => $this->runProberSession($session, $analytics, $logStore),
-            default => $this->runOrdinarySession($session, $roster, $listings, $analytics),
+            default => $this->runOrdinarySession($session, $roster, $listings, $analytics, $logStore),
         };
     }
 
     /**
-     * Resolves who the session is, records its first-touch visit, then
-     * drives every step in order, each under its own minted request id and
-     * `Analytics::asRequest()` scope so the ip, session, and request id an
-     * action's own `recordEvent()` call fills in match the ones this
-     * session's visit and log lines carry.
+     * Resolves who the session is, records its first-touch visit, writes
+     * the magic-link lines a sign-up or a returning visitor's verification
+     * would have produced, then drives every step in order, each under its
+     * own minted request id and `Analytics::asRequest()` scope so the ip,
+     * session, and request id an action's own `recordEvent()` call fills
+     * in match the ones this session's visit and log lines carry. Every
+     * step that succeeds also gets the `http.request` log line a real
+     * request for it would have written — the real action a step drives
+     * (`AddToCart`, `PlaceOrder`, and the rest) writes its own domain story
+     * line already, the same as it would answering a real request; only
+     * the request envelope itself is missing without this.
      *
      * @param  list<array{name: string, email: string}>  $roster
      * @param  list<Listing>  $listings
      */
-    private function runOrdinarySession(Session $session, array $roster, array $listings, Analytics $analytics): void
+    private function runOrdinarySession(Session $session, array $roster, array $listings, Analytics $analytics, LogStore $logStore): void
     {
         $customer = $this->resolveCustomer($session, $roster);
         $this->currentOrder = null;
 
         Story::inSession($session->sessionId);
         Story::actorIs(ActorType::Customer, $customer->id);
+
+        if ($session->kind === SessionKind::NewSignup || $session->kind === SessionKind::ReturningVerify) {
+            $this->logSignInLines($logStore, $session, $customer);
+        }
 
         $analytics->recordVisit(AnalyticsVisit::of(
             $session->sessionId,
@@ -268,9 +278,12 @@ final class SeedActivity extends Command
                 $analytics->asRequest($facts, function () use ($step, $customer, $listings, $analytics): void {
                     $this->runStep($step, $customer, $listings, $analytics);
                 });
+                $this->logStepRequest($logStore, $step, $listings, $requestId, $session->sessionId, $customer->id, $analytics);
             } catch (Throwable) {
                 // A drawn step can collide with real store state — see this
-                // class's own docblock. Skipped, not fatal.
+                // class's own docblock. Skipped, not fatal — and no
+                // request line either, the same as a browser whose click
+                // never reached the server.
             }
         }
     }
@@ -397,10 +410,10 @@ final class SeedActivity extends Command
     }
 
     /**
-     * The lines one real listing-page load writes: the page-view roll-up
-     * and the `http.request` pair — {@see \App\Http\Middleware\LogRequestStory}'s
-     * own shape, captured with `Tests\CapturedStory` against a running
-     * request before this was written.
+     * The lines one real listing-page load writes: the page-view roll-up,
+     * the `http.request` pair, and the `listing.view` story line
+     * `ListingController` writes on the way out — `did` only, since a page
+     * view opens no unit of work of its own.
      */
     private function logListingRequest(LogStore $logStore, Listing $listing, string $requestId, string $sessionId, string $actorId, DateTimeImmutable $at, Analytics $analytics): void
     {
@@ -409,6 +422,105 @@ final class SeedActivity extends Command
 
         $analytics->recordPageView(PageViewSite::Shop, $path, $at);
         $this->logHttpLine($logStore, 'GET', $path, 200, $at, $requestId, $sessionId, $actorId, $durationMs);
+        $this->appendLine($logStore, $at, $requestId, $sessionId, $actorId, 'listing.view', 'did', 'viewed a listing', [
+            'listing_id' => $listing->id,
+            'seller_id' => $listing->seller_id,
+            'status' => $listing->status->value,
+        ], null);
+    }
+
+    /**
+     * The `http.request` will/did pair a real request for this step would
+     * have written, plus — for a step whose action a real controller
+     * fronts with a page of its own (`GET /checkout`) — the page-view roll-up
+     * that page's middleware would have counted. `ListingView` is handled
+     * by {@see logListingRequest()} instead, since it also carries the
+     * domain story line `App\Http\Controllers\Shop\ListingController`
+     * writes for a real view.
+     *
+     * @param  list<Listing>  $listings
+     */
+    private function logStepRequest(LogStore $logStore, VisitStep $step, array $listings, string $requestId, string $sessionId, string $actorId, Analytics $analytics): void
+    {
+        if ($step->kind === StepKind::ListingView) {
+            $this->logListingRequest($logStore, $this->listingFor($step, $listings), $requestId, $sessionId, $actorId, $step->at, $analytics);
+
+            return;
+        }
+
+        $shape = $this->requestShapeFor($step, $listings);
+        $durationMs = $this->fakeDuration($requestId);
+
+        if ($shape['method'] === 'GET' && $shape['status'] < 300) {
+            $analytics->recordPageView(PageViewSite::Shop, $shape['path'], $step->at);
+        }
+
+        $this->logHttpLine($logStore, $shape['method'], $shape['path'], $shape['status'], $step->at, $requestId, $sessionId, $actorId, $durationMs);
+    }
+
+    /**
+     * The method, path, and status a real request for one ordinary step
+     * would have carried — `routes/shop.php`'s own paths, and the status a
+     * Laravel redirect-back form handler answers every one of these with
+     * except the two plain page loads. `OrderPay` and `OrderCancel` name
+     * the order this run's own `OrderPlace` step just placed, the same
+     * order `$this->currentOrder` holds by the time either can be drawn.
+     *
+     * @param  list<Listing>  $listings
+     * @return array{method: string, path: string, status: int}
+     */
+    private function requestShapeFor(VisitStep $step, array $listings): array
+    {
+        $orderId = $this->currentOrder === null ? '' : $this->currentOrder->id;
+
+        return match ($step->kind) {
+            StepKind::Favorite, StepKind::Unfavorite => ['method' => 'POST', 'path' => "/art/{$this->listingFor($step, $listings)->slug}/favorite", 'status' => 302],
+            StepKind::CartAdd => ['method' => 'POST', 'path' => "/cart/{$this->listingFor($step, $listings)->slug}", 'status' => 302],
+            StepKind::CheckoutOpen => ['method' => 'GET', 'path' => '/checkout', 'status' => 200],
+            StepKind::OrderPlace => ['method' => 'POST', 'path' => '/checkout', 'status' => 302],
+            StepKind::OrderPay => ['method' => 'POST', 'path' => "/orders/{$orderId}/pay", 'status' => 302],
+            StepKind::OrderCancel => ['method' => 'POST', 'path' => "/orders/{$orderId}/cancel", 'status' => 302],
+            StepKind::ListingQuestion => ['method' => 'POST', 'path' => "/art/{$this->listingFor($step, $listings)->slug}/questions", 'status' => 302],
+            StepKind::SupportQuestion => ['method' => 'POST', 'path' => '/support', 'status' => 302],
+            default => ['method' => 'GET', 'path' => '/', 'status' => 200],
+        };
+    }
+
+    /**
+     * The lines a sign-up or a returning visitor's verification would have
+     * written: the request that asked for a sign-in link, and, `expiry_minutes`
+     * later at most, the one that consumed it — {@see \App\Actions\Auth\SendMagicLink}
+     * and {@see \App\Http\Controllers\Auth\MagicLinkVerificationController}'s
+     * own shapes, each under its own `http.request` envelope the way two
+     * separate requests would carry. This command never mints a real
+     * `App\Models\MagicLink` row for either — nobody ever clicks a link
+     * here — so `magic_link_id` names an id no row backs.
+     */
+    private function logSignInLines(LogStore $logStore, Session $session, Customer $customer): void
+    {
+        $actorType = ActorType::Customer->value;
+        $requestAt = $session->at->modify('-3 minutes');
+        $expiryMinutes = (int) config('magic_links.expiry_minutes');
+        $magicLinkId = IdMint::of('mlk');
+
+        $sendRequestId = IdMint::of('req');
+        $sendDuration = $this->fakeDuration($sendRequestId);
+        $this->logHttpLine($logStore, 'POST', '/login', 302, $requestAt, $sendRequestId, $session->sessionId, $customer->id, $sendDuration);
+        $this->appendLine($logStore, $requestAt, $sendRequestId, $session->sessionId, $customer->id, 'magic_link.request', 'will', 'issuing a sign-in link', ['actor_type' => $actorType], null);
+        $this->appendLine($logStore, $requestAt, $sendRequestId, $session->sessionId, $customer->id, 'magic_link.request', 'did', 'issued a sign-in link', [
+            'magic_link_id' => $magicLinkId,
+            'actor_type' => $actorType,
+            'expiry_minutes' => $expiryMinutes,
+        ], $sendDuration);
+
+        $consumeRequestId = IdMint::of('req');
+        $consumeDuration = $this->fakeDuration($consumeRequestId);
+        $this->logHttpLine($logStore, 'GET', '/auth/magic/{token}', 302, $session->at, $consumeRequestId, $session->sessionId, $customer->id, $consumeDuration);
+        $this->appendLine($logStore, $session->at, $consumeRequestId, $session->sessionId, $customer->id, 'magic_link.consume', 'will', 'verifying a sign-in link', [], null);
+        $this->appendLine($logStore, $session->at, $consumeRequestId, $session->sessionId, $customer->id, 'magic_link.consume', 'did', 'signed the actor in from the link', [
+            'magic_link_id' => $magicLinkId,
+            'actor_type' => $actorType,
+        ], $consumeDuration);
     }
 
     /**

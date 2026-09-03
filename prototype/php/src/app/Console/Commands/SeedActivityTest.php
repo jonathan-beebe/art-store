@@ -104,6 +104,40 @@ it('refuses when make fresh\'s sellers and listings have not been seeded', funct
         ->assertFailed();
 });
 
+it('writes log lines for the requests it simulates, sharing ids with the analytics store', function (): void {
+    $store = LogStore::open(Fixtures::tempFile());
+    $this->app->instance(LogStore::class, $store);
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 92]);
+
+    $connection = Fixtures::connectionOrFail($store);
+
+    expect(Fixtures::rowCount($connection))->toBeGreaterThan(0);
+
+    $events = Fixtures::column($connection, 'SELECT DISTINCT event FROM log_lines');
+    expect($events)->toContain('http.request')
+        ->toContain('magic_link.request')
+        ->toContain('magic_link.consume');
+
+    // The very first session the plan ever scripts carries this id — see
+    // ActivityPlan::buildSession()'s sprintf('ses%05d', ...) — and every
+    // one of its steps' http.request lines should carry it too.
+    $firstSessionLines = Fixtures::column($connection, "SELECT event FROM log_lines WHERE session_id = 'ses00000'");
+    expect($firstSessionLines)->not->toBe([]);
+
+    // Every will/did pair shares one request id.
+    $orphanedWills = Fixtures::scalar($connection, <<<'SQL'
+        SELECT COUNT(*) FROM log_lines w
+        WHERE w.event = 'http.request' AND w.phase = 'will'
+        AND NOT EXISTS (
+            SELECT 1 FROM log_lines d
+            WHERE d.event = 'http.request' AND d.phase = 'did' AND d.request_id = w.request_id
+        )
+        SQL);
+    expect($orphanedWills)->toBe(0);
+});
+
 it('tolerates a disabled log store', function () use ($pending): void {
     $this->app->instance(LogStore::class, LogStore::open('off'));
     $this->seed(DatabaseSeeder::class);
