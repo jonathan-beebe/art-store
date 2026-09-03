@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 11
 - ARCH: 1
-- FEAT: 50
+- FEAT: 51
 - IMPRV: 30
 - MAINT: 8
 - A11Y: 1
@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-09-03:17:19:00 — FEAT-050 — done: domain tabs and one Type/Status popover replace the inbox chips in the seller and admin portals; unread first; 4081 tests
+- 2026-09-03:16:28:49 — FEAT-050 — started
+- 2026-09-03:16:28:49 — FEAT-050 — defined: The inboxes filter by domain tab and one popover
 - 2026-09-03:15:09:31 — IMPRV-029 — done: one pane-row component renders the nine seller and admin list panes as the stacked-list row; 4058 tests
 - 2026-09-03:14:24:25 — IMPRV-029 — started
 - 2026-09-03:14:21:52 — IMPRV-028 — done: four admin form components hold one field, primary, and clear idiom across the seven filter forms; 4053 tests

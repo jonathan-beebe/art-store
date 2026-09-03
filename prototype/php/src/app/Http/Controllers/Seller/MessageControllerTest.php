@@ -14,6 +14,20 @@ use App\Models\Message;
 use App\Support\ActorDisplay;
 use Illuminate\Support\Facades\Config;
 
+/**
+ * The query string a row's own `href` carries, decoded into an array —
+ * `type[]`/`status[]` come back as ordinary arrays rather than a raw
+ * `type%5B%5D=...` string to match against.
+ *
+ * @return array<int|string, mixed>
+ */
+function sellerRowQuery(string $url): array
+{
+    parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
+
+    return $params;
+}
+
 it('lists the sellers threads newest first with who, what, and unread count', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
@@ -41,6 +55,30 @@ it('lists the sellers threads newest first with who, what, and unread count', fu
     $response->assertSeeInOrder(['Do you ship to France?', 'Is this framed?']);
     $response->assertSee('Harbour at Dusk');
     $response->assertSee('1 unread');
+});
+
+it('lists unread threads before read ones regardless of last_message_at', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $readNewer = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'title' => 'Read but newer',
+        'last_message_at' => $this->moment('2026-08-21 09:00:00'),
+    ]);
+    Message::factory()->from($seller)->read()->create(['conversation_id' => $readNewer->id]);
+    $unreadOlder = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'title' => 'Unread but older',
+        'last_message_at' => $this->moment('2026-08-20 09:00:00'),
+    ]);
+    Message::factory()->from($customer)->unread()->create(['conversation_id' => $unreadOlder->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Unread but older', 'Read but newer']);
 });
 
 it('keeps another sellers threads off the inbox', function (): void {
@@ -96,9 +134,8 @@ it('renders the inbox on a fixed number of queries however many threads the sell
         // the list pane's window total (`ListPaneWindow`, DSGN-006
         // follow-up) — a `count()` alongside the capped fetch, so the pane
         // and its footer can say how many conversations exist beyond the
-        // window; +2 for the filter bar's cheap chip counts (unread,
-        // questions).
-        ->expectsDatabaseQueryCount(12)
+        // window.
+        ->expectsDatabaseQueryCount(10)
         ->get('/seller/messages');
 
     $response->assertOk();
@@ -144,7 +181,7 @@ it('answers not found for a thread id that matches nothing', function (): void {
     $response->assertNotFound();
 });
 
-it('carries the current filter and status from an inbox row into the shows own pane', function (): void {
+it('carries the current domain, type, and status from an inbox row into the shows own pane', function (): void {
     $seller = $this->seller();
     $resolved = Conversation::factory()->listingQuestion()->create([
         'seller_id' => $seller->id,
@@ -152,21 +189,21 @@ it('carries the current filter and status from an inbox row into the shows own p
         'resolved_at' => $this->moment('2026-08-20 10:00:00'),
     ]);
 
-    $index = $this->actingAs($seller, 'seller')->get('/seller/messages?status=all');
+    $index = $this->actingAs($seller, 'seller')->get('/seller/messages?status[]=open&status[]=resolved');
     $index->assertOk();
     preg_match('#href="([^"]*'.preg_quote($resolved->id, '#').'[^"]*)"#', (string) $index->getContent(), $matches);
     $rowHref = html_entity_decode($matches[1] ?? '');
-    expect($rowHref)->toContain('status=all');
+    expect(sellerRowQuery($rowHref)['status'] ?? null)->toBe(['open', 'resolved']);
 
     $show = $this->actingAs($seller, 'seller')->get($rowHref);
 
     $show->assertOk();
     // Rendered once in the transcript header and once in the pane's own
-    // row beside it — the pane the old default-filtered query left empty.
+    // row beside it.
     expect(substr_count((string) $show->getContent(), 'Resolved question'))->toBeGreaterThanOrEqual(2);
 });
 
-it('prepends the selected thread to its pane when the default filter would otherwise exclude it', function (): void {
+it('defaults the show routes pane to every status, so a resolved thread lands in its own pane', function (): void {
     $seller = $this->seller();
     $resolved = Conversation::factory()->listingQuestion()->create([
         'seller_id' => $seller->id,
@@ -174,12 +211,24 @@ it('prepends the selected thread to its pane when the default filter would other
         'resolved_at' => $this->moment('2026-08-20 10:00:00'),
     ]);
 
-    // No query string at all: the default status=open would otherwise
-    // leave a resolved thread out of its own pane.
+    // No query string at all: the index route's own default (status=open
+    // only) would otherwise leave a resolved thread out of its pane.
     $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$resolved->id}");
 
     $response->assertOk();
     expect(substr_count((string) $response->getContent(), 'Resolved question'))->toBeGreaterThanOrEqual(2);
+});
+
+it('prepends the selected thread to its pane when an explicit domain excludes it', function (): void {
+    $seller = $this->seller();
+    // `support` scopes to the seller's own desk thread, which a listing
+    // question never matches.
+    $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A framing question']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}?domain=support");
+
+    $response->assertOk();
+    $response->assertSee('A framing question');
 });
 
 it('appends a reply and returns to the thread with it visible', function (): void {
@@ -189,21 +238,31 @@ it('appends a reply and returns to the thread with it visible', function (): voi
     $response = $this->actingAs($seller, 'seller')
         ->post("/seller/messages/{$conversation->id}", ['body' => 'It ships within 3 days.']);
 
-    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
+    $response->assertRedirect(route('seller.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'all',
+        'type' => ['questions', 'orders', 'support'],
+        'status' => ['open', 'resolved'],
+    ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'It ships within 3 days.')->exists())->toBeTrue();
     $this->actingAs($seller, 'seller')
         ->get(route('seller.messages.show', $conversation))
         ->assertSee('It ships within 3 days.');
 });
 
-it('carries the panes filter and status onward through a replys redirect', function (): void {
+it('carries the panes domain, type, and status onward through a replys redirect', function (): void {
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
 
     $response = $this->actingAs($seller, 'seller')
-        ->post("/seller/messages/{$conversation->id}?filter=questions&status=all", ['body' => 'It ships within 3 days.']);
+        ->post("/seller/messages/{$conversation->id}?domain=buyers&type[]=questions&status[]=open", ['body' => 'It ships within 3 days.']);
 
-    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'questions', 'status' => 'all']));
+    $response->assertRedirect(route('seller.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'buyers',
+        'type' => ['questions'],
+        'status' => ['open'],
+    ]));
 });
 
 it('leaves the thread unread when the reply is refused', function (): void {
@@ -253,6 +312,10 @@ it('offers publish as faq prefilled from the question and the sellers latest ans
     // to it (docs/messaging.md § "Open and resolved": publishing resolves
     // the thread) rather than landing on the listing's own FAQ page.
     $response->assertSee('name="conversation_id" value="'.$conversation->id.'"', escape: false);
+    // The disclosure's hidden fields carry the pane's own selection onward.
+    $response->assertSee('name="domain" value="all"', escape: false);
+    $response->assertSee('name="type[]" value="questions"', escape: false);
+    $response->assertSee('name="status[]" value="open"', escape: false);
 });
 
 it('offers no publish as faq section for a support thread', function (): void {
@@ -280,46 +343,21 @@ it('moves the thread to the top of the inbox after a reply', function (): void {
     expect($conversation->fresh()?->last_message_at?->greaterThan($this->moment('2026-08-01 09:00:00')))->toBeTrue();
 });
 
-it('narrows the inbox to unread threads when filter=unread', function (): void {
+it('narrows the inbox to a domain', function (): void {
     $seller = $this->seller();
-    $listing = $this->listing($seller);
-    $unreadCustomer = $this->verifiedCustomer();
-    $unread = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'listing_id' => $listing->id]);
-    Message::factory()->from($unreadCustomer)->unread()->create(['conversation_id' => $unread->id, 'body' => 'Ships to France?']);
-    $read = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'listing_id' => $listing->id]);
-    Message::factory()->from($seller)->create(['conversation_id' => $read->id, 'body' => 'All set.']);
+    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => 'Payout timing']);
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=unread');
+    $buyers = $this->actingAs($seller, 'seller')->get('/seller/messages?domain=buyers');
+    $buyers->assertSee('A question about this piece');
+    $buyers->assertDontSee('Payout timing');
 
-    $response->assertOk();
-    $response->assertSee('Ships to France?');
-    $response->assertDontSee('All set.');
+    $support = $this->actingAs($seller, 'seller')->get('/seller/messages?domain=support');
+    $support->assertSee('Payout timing');
+    $support->assertDontSee('A question about this piece');
 });
 
-it('counts the unread chip like the nav badge, ignoring the default status filter', function (): void {
-    $seller = $this->seller();
-    $customer = $this->verifiedCustomer();
-    $resolved = Conversation::factory()->listingQuestion()->create([
-        'seller_id' => $seller->id,
-        'customer_id' => $customer->id,
-        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
-    ]);
-    Message::factory()->from($customer)->unread()->create(['conversation_id' => $resolved->id, 'body' => 'One more thing?']);
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/messages');
-
-    $response->assertOk();
-    // The default view scopes its rows to status=open, which would
-    // otherwise hide the resolved thread from the chip's count the same
-    // way it hides it from the list — the chip has to count past that.
-    preg_match('#href="[^"]*filter=unread[^"]*"[^>]*>.*?<span[^>]*>(\d+)</span>#s', (string) $response->getContent(), $matches);
-    expect($matches[1] ?? null)->toBe('1');
-
-    $unreadOnly = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=unread');
-    $unreadOnly->assertSee('One more thing?');
-});
-
-it('narrows the inbox to listing questions when filter=questions', function (): void {
+it('narrows the inbox to listing questions when type[]=questions', function (): void {
     $seller = $this->seller();
     $question = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
@@ -327,69 +365,31 @@ it('narrows the inbox to listing questions when filter=questions', function (): 
     $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
     Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'fulfillment_id' => $fulfillment->id]);
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=questions');
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?type[]=questions');
 
     $response->assertOk();
     $response->assertSee('A question about this piece');
     $response->assertDontSee("Order {$fulfillment->order_id}");
 });
 
-it('narrows the inbox to order threads when filter=orders', function (): void {
+it('ORs multiple types together, rather than requiring every one', function (): void {
     $seller = $this->seller();
     Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
     app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
     $fulfillment = Fulfillment::where('seller_id', $seller->id)->sole();
     Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'fulfillment_id' => $fulfillment->id]);
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=orders');
-
-    $response->assertOk();
-    $response->assertSee("Order {$fulfillment->order_id}");
-    $response->assertDontSee('A question about this piece');
-});
-
-it('narrows the inbox to support threads when filter=support', function (): void {
-    $seller = $this->seller();
-    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => 'Payout timing']);
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=support');
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?type[]=questions&type[]=orders');
 
     $response->assertOk();
-    $response->assertSee('Payout timing');
-    $response->assertDontSee('A question about this piece');
+    $response->assertSee('A question about this piece');
+    $response->assertSee("Order {$fulfillment->order_id}");
+    $response->assertDontSee('Payout timing');
 });
 
-it('names an empty filter in its own words, with a way past a narrowing status', function (): void {
-    $seller = $this->seller();
-    Conversation::factory()->listingQuestion()->create([
-        'seller_id' => $seller->id,
-        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
-    ]);
-
-    $questions = $this->actingAs($seller, 'seller')->get('/seller/messages?filter=support');
-    $questions->assertSee('No support conversations.');
-    $questions->assertSee(route('seller.messages.index', ['filter' => 'support', 'status' => 'all']));
-
-    // The default status=open hides the seller's only (resolved) thread —
-    // the empty state names that, with a link past it.
-    $open = $this->actingAs($seller, 'seller')->get('/seller/messages');
-    $open->assertSee('No open conversations.');
-    $open->assertSee(route('seller.messages.index', ['filter' => 'all', 'status' => 'all']));
-});
-
-it('names an empty inbox with nothing narrowing it, and offers no way past it', function (): void {
-    $seller = $this->seller();
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?status=all');
-
-    $response->assertOk();
-    $response->assertSee('No conversations yet.');
-    $response->assertDontSee('Show all');
-});
-
-it('hides resolved threads by default and shows them under status=resolved', function (): void {
+it('ORs multiple statuses together, rather than requiring every one', function (): void {
     $seller = $this->seller();
     Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'Open question']);
     Conversation::factory()->listingQuestion()->create([
@@ -402,13 +402,56 @@ it('hides resolved threads by default and shows them under status=resolved', fun
     $default->assertSee('Open question');
     $default->assertDontSee('Resolved question');
 
-    $resolved = $this->actingAs($seller, 'seller')->get('/seller/messages?status=resolved');
-    $resolved->assertSee('Resolved question');
-    $resolved->assertDontSee('Open question');
+    $resolvedOnly = $this->actingAs($seller, 'seller')->get('/seller/messages?status[]=resolved');
+    $resolvedOnly->assertSee('Resolved question');
+    $resolvedOnly->assertDontSee('Open question');
 
-    $all = $this->actingAs($seller, 'seller')->get('/seller/messages?status=all');
-    $all->assertSee('Open question');
-    $all->assertSee('Resolved question');
+    $both = $this->actingAs($seller, 'seller')->get('/seller/messages?status[]=open&status[]=resolved');
+    $both->assertSee('Open question');
+    $both->assertSee('Resolved question');
+});
+
+it('narrows the inbox to support threads when domain=support', function (): void {
+    $seller = $this->seller();
+    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'title' => 'A question about this piece']);
+    Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => 'Payout timing']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?domain=support');
+
+    $response->assertOk();
+    $response->assertSee('Payout timing');
+    $response->assertDontSee('A question about this piece');
+});
+
+it('names an empty domain in its own words, with a way past a narrowing status', function (): void {
+    $seller = $this->seller();
+    Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
+    ]);
+
+    $support = $this->actingAs($seller, 'seller')->get('/seller/messages?domain=support');
+    $support->assertSee('No support conversations.');
+
+    // The default status (Open only) hides the seller's only (resolved)
+    // thread — the empty state names that, with a link past it.
+    $open = $this->actingAs($seller, 'seller')->get('/seller/messages');
+    $open->assertSee('No open conversations.');
+    $open->assertSee(route('seller.messages.index', [
+        'domain' => 'all',
+        'type' => ['questions', 'orders', 'support'],
+        'status' => ['open', 'resolved'],
+    ]));
+});
+
+it('names an empty inbox with nothing narrowing it, and offers no way past it', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/messages?status[]=open&status[]=resolved');
+
+    $response->assertOk();
+    $response->assertSee('No conversations yet.');
+    $response->assertDontSee('Show all');
 });
 
 it('shows the reply-to block when reply_to names a message of the thread', function (): void {

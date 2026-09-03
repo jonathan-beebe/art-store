@@ -4,23 +4,35 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Messaging\InboxQuery;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 /**
- * `/admin/messages`'s two filters — docs/messaging.md § "Inbox filters and
- * the seller's queue" fixes the admin vocabulary, docs/alignment.md §5 says
- * an unrecognised value answers 400 rather than the framework's default
- * redirect. The desk's default landing is its work queue: `needs-reply`
- * threads that are `open`.
+ * `/admin/messages`'s `?domain=`, `?type[]=`, and `?status[]=`
+ * (docs/messaging.md § "Inbox filters and the seller's queue"): an absent or
+ * emptied `domain` reads as the default, and an unrecognised value —
+ * including an unknown member of `type[]`/`status[]`, or a `type`/`status`
+ * that isn't an array at all — answers a bare 400 (docs/alignment.md §5)
+ * rather than the framework's default redirect back with flashed errors.
  */
 final class MessagesQueryRequest extends FormRequest
 {
-    private const array FILTERS = ['needs-reply', 'all', 'sellers', 'customers', 'orders', 'questions'];
+    public const string DEFAULT_DOMAIN = 'all';
 
-    private const array STATUSES = ['open', 'resolved', 'all'];
+    public const array DOMAINS = ['all', 'sellers', 'customers'];
+
+    public const array TYPES = ['questions', 'orders', 'support'];
+
+    public const array STATUSES = ['open', 'resolved', 'needs-reply'];
+
+    public const array DEFAULT_STATUSES = ['open'];
+
+    /** Every conversation is one or the other — the show route's own
+     * default, so a resolved thread still lands in its own pane. */
+    public const array EVERY_STATUS = ['open', 'resolved'];
 
     /**
      * @return array<string, list<mixed>>
@@ -28,61 +40,60 @@ final class MessagesQueryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'filter' => ['nullable', 'string', Rule::in(self::FILTERS)],
-            'status' => ['nullable', 'string', Rule::in(self::STATUSES)],
+            'domain' => ['nullable', Rule::in(self::DOMAINS)],
+            'type' => ['nullable', 'array'],
+            'type.*' => [Rule::in(self::TYPES)],
+            'status' => ['nullable', 'array'],
+            'status.*' => [Rule::in(self::STATUSES)],
         ];
     }
 
-    /** An emptied `<select>`'s "blank" option reads as absent rather than
-     * as a value neither rule above would admit. */
+    /** An emptied `domain` reads as absent rather than as a value the rule
+     * above would otherwise have to admit. */
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'filter' => $this->input('filter') === '' ? null : $this->input('filter'),
-            'status' => $this->input('status') === '' ? null : $this->input('status'),
+            'domain' => $this->filled('domain') ? $this->input('domain') : null,
         ]);
     }
 
-    /** docs/alignment.md §5: an unrecognised filter value answers a bare
-     * 400, not the framework's redirect-back-with-errors. */
+    /** docs/alignment.md §5: an unrecognised value answers a bare 400, not
+     * the framework's redirect-back-with-errors. */
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response('', 400));
     }
 
-    public function filter(): string
+    /** The index route's query: an absent `status[]` defaults to Open only. */
+    public function inboxQuery(): InboxQuery
     {
-        return $this->stringOrNull('filter') ?? 'needs-reply';
+        return $this->buildQuery(self::DEFAULT_STATUSES);
     }
 
-    public function status(): string
+    /** The show route's list pane: an absent `status[]` defaults to every
+     * status, so a direct or bookmarked visit to a resolved thread still
+     * lands in its own pane. */
+    public function paneQuery(): InboxQuery
     {
-        return $this->stringOrNull('status') ?? 'open';
+        return $this->buildQuery(self::EVERY_STATUS);
     }
 
     /**
-     * The show route's own default: unlike the index route, a thread page
-     * with no `filter`/`status` of its own (a direct or bookmarked visit,
-     * or a link from outside the inbox) reads as the desk's full,
-     * unscoped list rather than its work queue — `needs-reply` would
-     * otherwise exclude an oversight or already-answered thread from its
-     * own pane. A row link out of a filtered inbox still carries its
-     * `filter`/`status` onward, so this default only applies absent one.
+     * @param  list<string>  $defaultStatuses
      */
-    public function paneFilter(): string
+    private function buildQuery(array $defaultStatuses): InboxQuery
     {
-        return $this->stringOrNull('filter') ?? 'all';
-    }
+        $domain = $this->input('domain');
 
-    public function paneStatus(): string
-    {
-        return $this->stringOrNull('status') ?? 'all';
-    }
+        /** @var list<string>|null $types */
+        $types = $this->input('type');
+        /** @var list<string>|null $statuses */
+        $statuses = $this->input('status');
 
-    private function stringOrNull(string $field): ?string
-    {
-        $value = $this->input($field);
-
-        return is_string($value) ? $value : null;
+        return new InboxQuery(
+            is_string($domain) && $domain !== '' ? $domain : self::DEFAULT_DOMAIN,
+            $types ?? self::TYPES,
+            $statuses ?? $defaultStatuses,
+        );
     }
 }

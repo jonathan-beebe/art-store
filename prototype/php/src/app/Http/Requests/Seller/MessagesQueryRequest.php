@@ -4,26 +4,35 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Support\Messaging\InboxQuery;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 /**
- * The seller inbox's `?filter=` and `?status=` (docs/messaging.md § "Inbox
- * filters and the seller's queue"): an absent or empty value reads as the
- * default, an unrecognised one answers a bare 400 (docs/alignment.md §5)
+ * The seller inbox's `?domain=`, `?type[]=`, and `?status[]=`
+ * (docs/messaging.md § "Inbox filters and the seller's queue"): an absent or
+ * emptied `domain` reads as the default, and an unrecognised value —
+ * including an unknown member of `type[]`/`status[]`, or a `type`/`status`
+ * that isn't an array at all — answers a bare 400 (docs/alignment.md §5)
  * rather than the framework's default redirect back with flashed errors.
  */
 final class MessagesQueryRequest extends FormRequest
 {
-    public const string DEFAULT_FILTER = 'all';
+    public const string DEFAULT_DOMAIN = 'all';
 
-    public const string DEFAULT_STATUS = 'open';
+    public const array DOMAINS = ['all', 'buyers', 'support'];
 
-    private const array FILTERS = ['all', 'unread', 'questions', 'orders', 'support'];
+    public const array TYPES = ['questions', 'orders', 'support'];
 
-    private const array STATUSES = ['open', 'resolved', 'all'];
+    public const array STATUSES = ['open', 'resolved'];
+
+    public const array DEFAULT_STATUSES = ['open'];
+
+    /** Every status — the show route's own default, so a resolved thread
+     * still lands in its own pane. */
+    public const array EVERY_STATUS = ['open', 'resolved'];
 
     /**
      * @return array<string, list<mixed>>
@@ -31,17 +40,20 @@ final class MessagesQueryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'filter' => ['nullable', Rule::in(self::FILTERS)],
-            'status' => ['nullable', Rule::in(self::STATUSES)],
+            'domain' => ['nullable', Rule::in(self::DOMAINS)],
+            'type' => ['nullable', 'array'],
+            'type.*' => [Rule::in(self::TYPES)],
+            'status' => ['nullable', 'array'],
+            'status.*' => [Rule::in(self::STATUSES)],
         ];
     }
 
-    /** An emptied value reads as absent rather than as a value the rule above would otherwise have to admit. */
+    /** An emptied `domain` reads as absent rather than as a value the rule
+     * above would otherwise have to admit. */
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'filter' => $this->filled('filter') ? $this->input('filter') : null,
-            'status' => $this->filled('status') ? $this->input('status') : null,
+            'domain' => $this->filled('domain') ? $this->input('domain') : null,
         ]);
     }
 
@@ -50,26 +62,36 @@ final class MessagesQueryRequest extends FormRequest
         throw new HttpResponseException(response('', 400));
     }
 
-    public function filter(): string
+    /** The index route's query: an absent `status[]` defaults to Open only. */
+    public function inboxQuery(): InboxQuery
     {
-        return $this->stringOrDefault('filter', self::DEFAULT_FILTER);
+        return $this->buildQuery(self::DEFAULT_STATUSES);
     }
 
-    public function status(): string
+    /** The show route's list pane: an absent `status[]` defaults to every
+     * status, so a direct or bookmarked visit to a resolved thread still
+     * lands in its own pane. */
+    public function paneQuery(): InboxQuery
     {
-        return $this->stringOrDefault('status', self::DEFAULT_STATUS);
+        return $this->buildQuery(self::EVERY_STATUS);
     }
 
     /**
-     * `input($key, $default)` falls back to `$default` only when the key is
-     * entirely absent — `prepareForValidation` above leaves a blanked value
-     * present with a `null` value, which `input()` returns as-is rather than
-     * defaulting, so the fallback is applied here instead.
+     * @param  list<string>  $defaultStatuses
      */
-    private function stringOrDefault(string $key, string $default): string
+    private function buildQuery(array $defaultStatuses): InboxQuery
     {
-        $value = $this->input($key);
+        $domain = $this->input('domain');
 
-        return is_string($value) && $value !== '' ? $value : $default;
+        /** @var list<string>|null $types */
+        $types = $this->input('type');
+        /** @var list<string>|null $statuses */
+        $statuses = $this->input('status');
+
+        return new InboxQuery(
+            is_string($domain) && $domain !== '' ? $domain : self::DEFAULT_DOMAIN,
+            $types ?? self::TYPES,
+            $statuses ?? $defaultStatuses,
+        );
     }
 }

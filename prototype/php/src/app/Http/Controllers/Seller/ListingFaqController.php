@@ -41,7 +41,7 @@ final class ListingFaqController extends SellerController
 
         if ($conversation !== null) {
             return redirect()
-                ->route('seller.messages.show', ['conversation' => $conversation, 'filter' => $queryRequest->filter(), 'status' => $queryRequest->status()])
+                ->route('seller.messages.show', ['conversation' => $conversation, ...$queryRequest->paneQuery()->toRouteParams()])
                 ->with('status', 'Published to the listing.');
         }
 

@@ -11,43 +11,38 @@
     supplies its own card wrapper the same way every other admin index's
     below-`lg` list does.
 --}}
-@props(['conversations', 'viewer', 'showRoute', 'selected' => null, 'filter' => null, 'status' => null, 'indexRoute' => null])
+@props(['conversations', 'viewer', 'showRoute', 'query', 'selected' => null, 'indexRoute' => null])
 
 @if ($conversations->isEmpty())
     @php
         // Context-aware in place of a bare "Nothing yet.": what the current
-        // filter/status combination is empty of, narrowest first — a filter
-        // reads on its own regardless of status (an empty `needs-reply`
-        // queue says so, not "no open conversations"), so it takes
-        // precedence.
+        // selection is empty of, narrowest first — the domain tab reads on
+        // its own regardless of type or status, since it names the whole
+        // inbox the reader chose.
+        $domainNames = ['sellers' => 'seller', 'customers' => 'customer'];
+        $typesAreDefault = count($query->types) === 3;
+        $statusExcludesResolved = ! $query->hasStatus('resolved');
         $emptyMessage = match (true) {
-            $filter === 'needs-reply' => 'No conversations need a reply.',
-            $filter === 'sellers' => 'No seller conversations.',
-            $filter === 'customers' => 'No customer conversations.',
-            $filter === 'orders' => 'No order conversations.',
-            $filter === 'questions' => 'No questions waiting.',
-            $status === 'resolved' => 'No resolved conversations.',
-            $status === 'open' => 'No open conversations.',
+            $query->domain !== 'all' => 'No '.$domainNames[$query->domain].' conversations.',
+            ! $typesAreDefault => 'No matching conversations.',
+            $query->hasStatus('needs-reply') && count($query->statuses) === 1 => 'No conversations need a reply.',
+            $statusExcludesResolved => 'No open conversations.',
             default => 'No conversations yet.',
         };
-        $isNarrowed = ($filter !== null && $filter !== 'all') || ($status !== null && $status !== 'all');
     @endphp
     <p class="p-6 text-sm text-stone-500 dark:text-stone-500">
         {{ $emptyMessage }}
-        @if ($isNarrowed && $indexRoute !== null)
-            <a href="{{ route($indexRoute, ['filter' => $filter, 'status' => 'all']) }}" class="underline hover:text-stone-700 dark:hover:text-stone-300">Show all</a>
+        @if ($statusExcludesResolved && $indexRoute !== null)
+            <a href="{{ route($indexRoute, ['domain' => $query->domain, 'type' => $query->types, 'status' => ['open', 'resolved']]) }}" class="underline hover:text-stone-700 dark:hover:text-stone-300">Show all</a>
         @endif
     </p>
 @else
     @php
-        // A row's own link carries the pane's current filter/status, so the
-        // show route it points at can render the same pane back — the
-        // window a filtered pane left it in, rather than resetting to an
-        // unfiltered one.
-        $rowRouteParams = fn ($conversation) => array_filter(
-            ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
-            fn ($value) => $value !== null,
-        );
+        // A row's own link carries the pane's current selection, so the show
+        // route it points at can render the same pane back — the window a
+        // filtered pane left it in, rather than resetting to an unfiltered
+        // one.
+        $rowRouteParams = fn ($conversation) => ['conversation' => $conversation, ...$query->toRouteParams()];
     @endphp
     <ul role="list" class="divide-y divide-stone-100 dark:divide-white/5">
         @foreach ($conversations as $conversation)
@@ -89,6 +84,12 @@
                                 <span class="sr-only">{{ $conversation->unread_count }} unread</span>
                             @endif
                             <span class="min-w-0 flex-1 truncate">{{ $conversation->counterpartName($viewer) }}</span>
+                            @if ($conversation->resolved_at !== null)
+                                <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="size-3.5 shrink-0 text-stone-400 dark:text-stone-500">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" />
+                                </svg>
+                                <span class="sr-only">Resolved</span>
+                            @endif
                             <span class="shrink-0 text-xs/5 text-stone-500 dark:text-stone-400">{{ $conversation->last_message_at?->diffForHumans() }}</span>
                         </p>
                     </x-slot:title>

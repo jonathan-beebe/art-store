@@ -543,8 +543,9 @@ layout is per stack.
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
-| `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread; `filter=`/`status=`; open a  |
-| `POST /admin/sellers/:id/messages`, `/admin/customers/:id/messages`     | titled thread from the seller/customer detail page (PHP: `messaging.md`) |
+| `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread; PHP: `domain=`/`type[]=`/    |
+| `POST /admin/sellers/:id/messages`, `/admin/customers/:id/messages`     | `status[]=` (`messaging.md`); node/rails: `filter=`/`status=` until a    |
+|                                                                          | parity ticket; open a titled thread from the seller/customer detail page |
 
 Decisions carried by this table:
 

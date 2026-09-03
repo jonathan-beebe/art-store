@@ -17,13 +17,12 @@ final class ResolveConversationController extends AdminController
 
         $resolve($conversation, $this->admin(), $this->now());
 
-        // The form's own action URL carries the pane's `filter`/`status`
+        // The form's own action URL carries the pane's current selection
         // onward, so resolving a thread doesn't snap its pane back to the
         // desk's unscoped default.
         return redirect()->route('admin.messages.show', [
             'conversation' => $conversation,
-            'filter' => $request->paneFilter(),
-            'status' => $request->paneStatus(),
+            ...$request->paneQuery()->toRouteParams(),
         ]);
     }
 }

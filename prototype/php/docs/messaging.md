@@ -365,20 +365,44 @@ desk is waited on there.
 
 ## Inbox filters and the seller's queue
 
-Every inbox takes `?filter=` and `?status=`; unknown values answer 400 the way
-`docs/alignment.md` §5 says.
+The seller and admin inboxes each take one domain tab (`?domain=`) plus a
+popover of two checkbox groups (`?type[]=`, `?status[]=`); unknown values —
+including an unrecognised member of `type[]`/`status[]`, or a `type`/`status`
+that isn't an array at all — answer 400 the way `docs/alignment.md` §5 says.
+Choices within a group are OR'd; the domain, Type, and Status groups are
+AND'd against each other. `App\Http\Requests\{Seller,Admin}\MessagesQueryRequest`
+own validation and defaulting; `App\Support\Messaging\InboxQuery` is the small
+value object both hand back (`domain`, `types`, `statuses`), which the
+controllers read to build the Eloquent query and the `x-messaging.inbox-filters`
+component reads to render the tabs and the popover's checked state. The shop
+inbox is unchanged: it still takes `?filter=` and `?status=` (`all`/`unread`
+and `open`/`resolved`/`all`).
 
-| Site   | `filter` values                                         | Default sort                                     |
-| ------ | ------------------------------------------------------- | ------------------------------------------------ |
-| Seller | `all`, `unread`, `questions`, `orders`, `support`       | `last_message_at` desc; `questions` lists        |
-|        |                                                         | unanswered first (last message not the seller's) |
-| Admin  | `needs-reply`, `all`, `sellers`, `customers`, `orders`, | `last_message_at` desc                           |
-|        | `questions`                                             |                                                  |
-| Shop   | `all`, `unread`                                         | `last_message_at` desc                           |
+| Site   | `domain` values               | `type[]` values                  | `status[]` values                 |
+| ------ | ----------------------------- | -------------------------------- | --------------------------------- |
+| Seller | `all`, `buyers`, `support`    | `questions`, `orders`, `support` | `open`, `resolved`                |
+| Admin  | `all`, `sellers`, `customers` | `questions`, `orders`, `support` | `open`, `resolved`, `needs-reply` |
 
-`needs-reply` on the admin site is the desk's work queue: open desk threads
-whose latest message is not an admin's. `orders` and `questions` on the admin
-site are the oversight lists.
+`domain` defaults to `all`; an absent `type[]` means every type; an absent
+`status[]` means Open only (the show route's list pane instead defaults to
+every status, so a resolved thread lands in its own pane). Rows sort unread
+threads first, then newest `last_message_at` (`Conversation::unreadFirst`).
+
+Domain and Type both narrow by `ConversationKind`, intersected
+(`InboxQuery::intersectKinds`) rather than added: seller Buyers is
+`ListingQuestion` + `Fulfillment`, Support is `AdminSeller`; admin Sellers is
+`AdminSeller`, Customers is `AdminCustomer`, admin All is every kind — desk and
+oversight together. Type Questions is `ListingQuestion`, Orders is
+`Fulfillment`, Support is the desk kind(s) (`AdminSeller` for the seller;
+`AdminSeller` + `AdminCustomer` for the admin, since the admin's Support isn't
+split by counterpart). A combination that shares no kind (Sellers domain with
+the Questions type, say) answers an empty list rather than every row.
+
+`needs-reply` is the desk's work queue — open desk threads whose latest
+message is not an admin's (`Conversation::needsReply`) — already a subset of
+Open; checking it alongside Open is the same as Open alone. The popover's
+Needs reply row shows its own count, scoped to the current domain the same
+way the list itself is.
 
 ## Telling the other side
 

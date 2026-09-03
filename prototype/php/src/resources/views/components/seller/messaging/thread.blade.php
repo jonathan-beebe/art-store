@@ -6,7 +6,7 @@
     alone, the back link is the only way to the inbox, so it stays out of
     the `lg:hidden` list pane.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'replyTo' => null, 'faqPrefill' => null, 'filter' => null, 'status' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'query', 'replyTo' => null, 'faqPrefill' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -16,12 +16,9 @@
     $viewerSelf = fn ($threadMessage): bool => $threadMessage->sender_type === $viewer->value && $threadMessage->sender_id === $conversation->participantIdFor($viewer);
     $previousDay = null;
     // Every action on this page — reply, resolve, reopen — returns to this
-    // same thread; carrying the pane's current filter/status onward is what
+    // same thread; carrying the pane's current selection onward is what
     // keeps the pane from snapping back to the index route's defaults.
-    $paneRouteParams = array_filter(
-        ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
-        fn ($value) => $value !== null,
-    );
+    $paneRouteParams = ['conversation' => $conversation, ...$query->toRouteParams()];
 @endphp
 
 <div class="px-6 py-4">
@@ -61,12 +58,17 @@
                             <input type="hidden" name="source_message_id" value="{{ old('source_message_id', $faqPrefill?->sourceMessageId) }}">
                             {{-- Publishing resolves the thread (docs/messaging.md §
                                  "Open and resolved") — carrying it and the pane's
-                                 own filter/status is what returns the seller to it,
+                                 own selection is what returns the seller to it,
                                  now marked resolved, rather than the listing's FAQ
                                  page. --}}
                             <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $conversation->id) }}">
-                            <input type="hidden" name="filter" value="{{ old('filter', $filter) }}">
-                            <input type="hidden" name="status" value="{{ old('status', $status) }}">
+                            <input type="hidden" name="domain" value="{{ old('domain', $query->domain) }}">
+                            @foreach (old('type', $query->types) as $type)
+                                <input type="hidden" name="type[]" value="{{ $type }}">
+                            @endforeach
+                            @foreach (old('status', $query->statuses) as $status)
+                                <input type="hidden" name="status[]" value="{{ $status }}">
+                            @endforeach
 
                             <div>
                                 <label for="question" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Question</label>

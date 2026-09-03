@@ -349,21 +349,6 @@ class Conversation extends Model
     }
 
     /**
-     * The seller's `questions` filter: unanswered threads first (the latest
-     * message is not the seller's own), then newest first within each group.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function unansweredFirst(Builder $query): void
-    {
-        $query->orderByRaw(
-            '(select sender_type from messages where messages.conversation_id = conversations.id order by messages.sent_at desc, messages.id desc limit 1) = ?',
-            [ActorType::Seller->value],
-        )->orderByDesc('last_message_at');
-    }
-
-    /**
      * The desk's work queue: open desk threads whose latest message is not
      * an admin's.
      *
@@ -393,6 +378,19 @@ class Conversation extends Model
             /** @var Builder<Message> $messages */
             $messages->unreadBy($reader);
         }]);
+    }
+
+    /**
+     * An inbox's row order: unread threads first, then newest
+     * `last_message_at` within each group. Reads the `unread_count` column
+     * `withUnreadCountFor` adds, so it always runs after that scope.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function unreadFirst(Builder $query): void
+    {
+        $query->orderByRaw('unread_count > 0 desc')->orderByDesc('last_message_at');
     }
 
     /**

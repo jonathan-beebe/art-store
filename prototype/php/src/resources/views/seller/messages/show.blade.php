@@ -2,12 +2,16 @@
     <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>
-                <div class="flex items-baseline justify-between gap-x-2">
-                    <h2 class="text-base font-semibold text-gray-900 dark:text-white">Messages</h2>
-                    <a href="{{ route('seller.support') }}" class="rounded text-sm font-medium text-indigo-600 hover:text-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-indigo-400 dark:hover:text-indigo-300">New conversation</a>
-                </div>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Messages</h2>
                 <div class="mt-3">
-                    <x-seller.messaging.filters :filter="$filter" :status="$status" :counts="$filterCounts" />
+                    <x-messaging.inbox-filters
+                        accent="indigo"
+                        :query="$query"
+                        index-route="seller.messages.index"
+                        :domains="['all' => 'All', 'buyers' => 'Buyers', 'support' => 'Support']"
+                        :statuses="['open' => 'Open', 'resolved' => 'Resolved']"
+                        :default-statuses="\App\Http\Requests\Seller\MessagesQueryRequest::DEFAULT_STATUSES"
+                    />
                 </div>
             </x-slot:listHeader>
 
@@ -19,8 +23,7 @@
                     :selected="$conversation"
                     :total="$cellConversationsTotal"
                     index-route="seller.messages.index"
-                    :filter="$filter"
-                    :status="$status"
+                    :query="$query"
                 />
             </x-slot:list>
 
@@ -31,8 +34,7 @@
                 store-route="seller.messages.store"
                 :reply-to="$replyTo"
                 :faq-prefill="$faqPrefill"
-                :filter="$filter"
-                :status="$status"
+                :query="$query"
             />
         </x-seller.list-detail>
     </div>

@@ -17,11 +17,11 @@ final class ReopenConversationController extends SellerController
 
         $reopenConversation($conversation, $this->seller());
 
-        // The form's own action URL carries the pane's `filter`/`status`
+        // The form's own action URL carries the pane's current selection
         // onward, so reopening a thread doesn't snap its pane back to the
         // index route's defaults.
         return redirect()
-            ->route('seller.messages.show', ['conversation' => $conversation, 'filter' => $request->filter(), 'status' => $request->status()])
+            ->route('seller.messages.show', ['conversation' => $conversation, ...$request->paneQuery()->toRouteParams()])
             ->with('status', 'Reopened.');
     }
 }

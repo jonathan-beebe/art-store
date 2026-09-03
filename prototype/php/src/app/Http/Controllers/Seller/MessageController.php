@@ -8,7 +8,6 @@ use App\Actions\Messaging\MarkConversationRead;
 use App\Actions\Messaging\PostMessage;
 use App\Domain\Auth\ActorType;
 use App\Domain\Messaging\ConversationKind;
-use App\Domain\Messaging\ConversationStatus;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\MessagesQueryRequest;
@@ -17,6 +16,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
+use App\Support\Messaging\InboxQuery;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,21 +29,27 @@ use Illuminate\View\View;
 
 final class MessageController extends SellerController
 {
+    /** The Type checkbox → kind mapping (docs/messaging.md § "Inbox
+     * filters and the seller's queue"). Support is the seller's own desk
+     * kind — the seller never sees `AdminCustomer`. */
+    private const array TYPE_KINDS = [
+        'questions' => [ConversationKind::ListingQuestion],
+        'orders' => [ConversationKind::Fulfillment],
+        'support' => [ConversationKind::AdminSeller],
+    ];
+
     public function index(MessagesQueryRequest $request): View
     {
         $seller = $this->seller();
-        $filter = $request->filter();
-        $status = $request->status();
+        $query = $request->inboxQuery();
 
-        $window = ListPaneWindow::of($this->conversationsQuery($seller, $filter, $status));
+        $window = ListPaneWindow::of($this->conversationsQuery($seller, $query));
 
         return view('seller.messages.index', [
             'conversations' => $window->items,
             'conversationsTotal' => $window->total,
             'viewer' => ActorType::Seller,
-            'filter' => $filter,
-            'status' => $status,
-            'filterCounts' => $this->filterCounts($seller, $status),
+            'query' => $query,
         ]);
     }
 
@@ -54,35 +60,33 @@ final class MessageController extends SellerController
         $seller = $this->seller();
         $markRead($conversation, $seller, $this->now());
 
-        // The list pane reads the same `filter`/`status` the inbox row that
-        // linked here carried (validated the same way index's own query is,
-        // so an unrecognised value still answers 400) — `paneFor` below is
-        // what keeps the selected thread in the pane even where it falls
-        // outside that window.
-        $filter = $request->filter();
-        $status = $request->status();
+        // The list pane reads the same `domain`/`type`/`status` the inbox
+        // row that linked here carried (validated the same way index's own
+        // query is, so an unrecognised value still answers 400) — an absent
+        // one defaults to every status rather than index's Open-only, so a
+        // direct or bookmarked visit to a resolved thread still lands in its
+        // own pane. `paneFor` below is what keeps the selected thread in the
+        // pane even where it falls outside that window.
+        $query = $request->paneQuery();
 
-        $pane = $this->paneFor($seller, $filter, $status, $conversation);
+        $pane = $this->paneFor($seller, $query, $conversation);
 
         return view('seller.messages.show', [
             ...$this->threadView($conversation, $this->replyToId($request)),
             'cellConversations' => $pane['items'],
             'cellConversationsTotal' => $pane['total'],
-            'filter' => $filter,
-            'status' => $status,
-            'filterCounts' => $this->filterCounts($seller, $status),
+            'query' => $query,
         ]);
     }
 
     public function store(PostMessageRequest $request, Conversation $conversation, MessagesQueryRequest $queryRequest, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
         $seller = $this->seller();
-        // The composer's own action URL carries the pane's `filter`/`status`
-        // onward (`$paneRouteParams` in the thread component), so reading it
-        // here is what keeps a reply's redirect from snapping the pane back
-        // to the index route's defaults.
-        $filter = $queryRequest->filter();
-        $status = $queryRequest->status();
+        // The composer's own action URL carries the pane's current
+        // selection onward (`$paneRouteParams` in the thread component), so
+        // reading it here is what keeps a reply's redirect from snapping the
+        // pane back to the index route's defaults.
+        $query = $queryRequest->paneQuery();
 
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $seller->id);
@@ -92,69 +96,63 @@ final class MessageController extends SellerController
             // seller was reading re-renders with the reply still in the box.
             $request->flash();
 
-            $pane = $this->paneFor($seller, $filter, $status, $conversation);
+            $pane = $this->paneFor($seller, $query, $conversation);
 
             return $this->tooManyRequests($exceeded, 'seller.messages.show', [
                 ...$this->threadView($conversation, $this->replyToId($request)),
                 'cellConversations' => $pane['items'],
                 'cellConversationsTotal' => $pane['total'],
-                'filter' => $filter,
-                'status' => $status,
-                'filterCounts' => $this->filterCounts($seller, $status),
+                'query' => $query,
             ]);
         }
 
         $postMessage($conversation, $seller, $request->body(), $this->now(), $request->replyTo());
 
-        return redirect()->route('seller.messages.show', ['conversation' => $conversation, 'filter' => $filter, 'status' => $status]);
+        return redirect()->route('seller.messages.show', ['conversation' => $conversation, ...$query->toRouteParams()]);
     }
 
     /**
-     * The seller's inbox, narrowed by `filter` and `status` — the one query
-     * the index route, the show route's list pane, and the chip counts all
-     * read through, so a chip's own count and the rows it links to can never
-     * disagree about what they're counting.
+     * The seller's inbox, narrowed by the current domain tab and the
+     * popover's Type/Status choices — the one query the index route and the
+     * show route's list pane both read through.
      *
      * @return Builder<Conversation>
      */
-    private function conversationsQuery(Seller $seller, string $filter, string $status): Builder
+    private function conversationsQuery(Seller $seller, InboxQuery $query): Builder
     {
-        $query = Conversation::query()->withParticipant($seller);
+        $eloquent = Conversation::query()->withParticipant($seller);
 
-        match ($filter) {
-            'unread' => $query->unreadOnly($seller),
-            'questions' => $query->ofKind(ConversationKind::ListingQuestion),
-            'orders' => $query->ofKind(ConversationKind::Fulfillment),
-            'support' => $query->ofKind(ConversationKind::AdminSeller),
-            default => null,
+        $domainKinds = match ($query->domain) {
+            'buyers' => [ConversationKind::ListingQuestion, ConversationKind::Fulfillment],
+            'support' => [ConversationKind::AdminSeller],
+            default => null, // 'all': every kind the seller participates in.
         };
+        $kinds = InboxQuery::intersectKinds($domainKinds, $this->typeKinds($query->types));
 
-        // `unread` mirrors the nav badge (every unread thread, open or
-        // resolved) rather than the status scope every other filter reads
-        // through, so the chip and the badge never disagree.
-        if ($filter !== 'unread' && $status !== 'all') {
-            $query->withStatus(ConversationStatus::from($status));
+        if ($kinds !== null) {
+            $eloquent->ofKind(...$kinds);
         }
 
-        $query->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
-            ->withUnreadCountFor($seller);
+        $this->applyStatuses($eloquent, $query->statuses);
 
-        return $filter === 'questions' ? $query->unansweredFirst() : $query->orderByDesc('last_message_at');
+        return $eloquent
+            ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
+            ->withUnreadCountFor($seller)
+            ->unreadFirst();
     }
 
     /**
      * A thread's list pane, guaranteed to include it. `ListPaneWindow`'s own
      * `mustInclude` only rescues a row that sorts outside the window's SIZE
-     * cap — it re-reads the same filtered query, so a filter or status that
-     * excludes the thread outright (a direct or bookmarked visit to a
-     * resolved thread under the default `status=open`) leaves it out too.
-     * This adds one more, unscoped fetch for exactly that case.
+     * cap — it re-reads the same filtered query, so a domain, type, or
+     * status that excludes the thread outright leaves it out too. This adds
+     * one more, unscoped fetch for exactly that case.
      *
      * @return array{items: Collection<int, Model>, total: int}
      */
-    private function paneFor(Seller $seller, string $filter, string $status, Conversation $conversation): array
+    private function paneFor(Seller $seller, InboxQuery $query, Conversation $conversation): array
     {
-        $window = ListPaneWindow::of($this->conversationsQuery($seller, $filter, $status), $conversation);
+        $window = ListPaneWindow::of($this->conversationsQuery($seller, $query), $conversation);
         $items = $window->items;
 
         if (! $items->contains('id', '=', $conversation->id)) {
@@ -171,28 +169,49 @@ final class MessageController extends SellerController
     }
 
     /**
-     * The two chip counts cheap enough to show on every row of the filter
-     * bar: how many of the seller's threads are unread, and how many
-     * (within the current status scope) are listing questions. `unread`
-     * ignores the status scope, the same rule `conversationsQuery` applies
-     * to the `unread` filter's own rows, so this chip always equals the nav
-     * badge's total.
+     * The Type group's kind restriction, or null when every type is
+     * selected (nothing to restrict).
      *
-     * @return array{unread: int, questions: int}
+     * @param  list<string>  $types
+     * @return list<ConversationKind>|null
      */
-    private function filterCounts(Seller $seller, string $status): array
+    private function typeKinds(array $types): ?array
     {
-        $withParticipant = Conversation::query()->withParticipant($seller);
-        $scoped = clone $withParticipant;
-
-        if ($status !== 'all') {
-            $scoped->withStatus(ConversationStatus::from($status));
+        if (count($types) === count(MessagesQueryRequest::TYPES)) {
+            return null;
         }
 
-        return [
-            'unread' => (clone $withParticipant)->unreadOnly($seller)->count(),
-            'questions' => (clone $scoped)->ofKind(ConversationKind::ListingQuestion)->count(),
-        ];
+        $kinds = [];
+        foreach ($types as $type) {
+            array_push($kinds, ...self::TYPE_KINDS[$type]);
+        }
+
+        return $kinds;
+    }
+
+    /**
+     * The Status group's predicate, OR'd within the group — skipped
+     * entirely when both Open and Resolved are selected, since together
+     * they cover every conversation.
+     *
+     * @param  Builder<Conversation>  $query
+     * @param  list<string>  $statuses
+     */
+    private function applyStatuses(Builder $query, array $statuses): void
+    {
+        if (in_array('open', $statuses, true) && in_array('resolved', $statuses, true)) {
+            return;
+        }
+
+        $query->where(function (Builder $scoped) use ($statuses): void {
+            foreach ($statuses as $status) {
+                match ($status) {
+                    'open' => $scoped->orWhereNull('resolved_at'),
+                    'resolved' => $scoped->orWhereNotNull('resolved_at'),
+                    default => null, // MessagesQueryRequest already refused anything else.
+                };
+            }
+        });
     }
 
     /**

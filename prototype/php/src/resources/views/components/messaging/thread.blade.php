@@ -10,7 +10,7 @@
     posts into a desk thread, so `$message->sender instanceof Admin` is
     already exactly the messages that belong on the right.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'replyTo' => null, 'filter' => null, 'status' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'query', 'replyTo' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -19,12 +19,9 @@
         ? \App\Support\ActorDisplay::nameOf($conversation->resolvedBy)
         : null;
     // Every action on this page — reply, resolve, reopen — returns to this
-    // same thread; carrying the pane's current filter/status onward is what
+    // same thread; carrying the pane's current selection onward is what
     // keeps the pane from snapping back to the unscoped default.
-    $paneRouteParams = array_filter(
-        ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
-        fn ($value) => $value !== null,
-    );
+    $paneRouteParams = ['conversation' => $conversation, ...$query->toRouteParams()];
 @endphp
 
 <x-admin.back-link :route="route($indexRoute)" label="Messages" />
@@ -141,7 +138,7 @@
 </ol>
 
 @can('post', $conversation)
-    <x-messaging.body-form :conversation="$conversation" :action="route($storeRoute, $paneRouteParams)" :reply-to="$replyTo" :filter="$filter" :status="$status" />
+    <x-messaging.body-form :conversation="$conversation" :action="route($storeRoute, $paneRouteParams)" :reply-to="$replyTo" :query="$query" />
 @endcan
 
 {{ $slot }}
