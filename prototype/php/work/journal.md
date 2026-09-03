@@ -15,6 +15,7 @@
 ## Log
 
 - 2026-09-03:08:21:46 — DSGN-009 — done: funnel design accepted — shared-borders stats grid, sessions per step, favorites out of the main funnel; docs/funnel.md fixes the step contract; FEAT-049 implements
+- 2026-09-03:08:06:24 — FEAT-049 — started
 
 - 2026-09-03:07:55:15 — DSGN-009 — started
 
