@@ -317,12 +317,28 @@ and dashboard, seller and admin listing detail) query the store directly and
 are unguarded — an unavailable store surfaces there as an error, the way any
 missing data source would.
 
+`analytics_visits` holds one row per browser session, keyed by the `sid`
+cookie's value (`session_id`, primary key): `first_seen_at`, `landing_path`,
+`referrer_host` (a foreign host only — absent on a direct visit and on
+same-site navigation), the five UTM fields (`utm_source`, `utm_medium`,
+`utm_campaign`, `utm_content`, `utm_term`, stored as given and capped at
+255 characters), and `actor_id` (filled when the first request already
+resolved one). A visit is first-touch: the row is written `INSERT OR
+IGNORE` on `session_id`, so only the session's first request — of the
+cookie's whole year-long life — ever changes it. A channel derives from a
+visit's raw columns: a campaign named by `utm_source`/`utm_medium`/`utm_campaign`
+wins, then `referrer_host` mapped to a search engine, a social network, or
+a bare referral, then direct — the one precedence every channel reader
+goes through, so two prototypes reading the same rows never disagree on
+what channel they belong to.
+
 An `ip` and a `session_id` are personal data, so the store does not keep
 them forever: `ANALYTICS_RETENTION_DAYS` (default `30`, `off` disables)
-bounds `analytics_events`' history the way `LOG_RETENTION_DAYS` bounds the
-log store's — the maintenance sweep prunes rows whose `occurred_at` is
-older than the window. `page_view_counts` carries no personal data and is
-never pruned.
+bounds `analytics_events`' and `analytics_visits`' history the way
+`LOG_RETENTION_DAYS` bounds the log store's — the maintenance sweep prunes
+`analytics_events` rows whose `occurred_at` and `analytics_visits` rows
+whose `first_seen_at` are older than the window. `page_view_counts` carries
+no personal data and is never pruned.
 
 ## 3. Rate limits
 
@@ -506,10 +522,14 @@ layout is per stack.
 | `/admin/analytics/actors?range=&sort=active\|recent&actors=&q=&page=`   | every actor that carried an event in the range, paged, sorted by most    |
 |                                                                         | active or most recent                                                    |
 | `/admin/analytics/actors/:customer?range=&event=`                       | the actor's identity, range tiles, a daily or (once flagged) hourly      |
-|                                                                         | strip, and its event feed newest first; links to the customer, the log   |
-|                                                                         | viewer, and the block form                                               |
+|                                                                         | strip, its own visits (channel, landing path, referrer), and its event   |
+|                                                                         | feed newest first; links to the customer, the log viewer, and the block  |
+|                                                                         | form                                                                     |
 | `/admin/analytics/listings/:listing?range=&event=`                      | the listing's identity, range tiles, a daily strip, and its event feed   |
 |                                                                         | newest first; links to the listing                                       |
+| `/admin/analytics/channels?range=`                                      | every channel — visitors, listing views, cart adds, orders placed, and   |
+|                                                                         | orders paid, against the range before — ordered by visitors              |
+| `/admin/analytics/channels/:key?range=&page=`                           | one channel's own visits in the range, paged, newest first               |
 | `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
 | `&actor=&msg=&key=&value=&from=&to=&group=&health=&viewer=`             | `key`/`value` filters on any attribute of the stored line; `group=1`     |
 |                                                                         | collapses to one summarized row per request; health checks and the       |
@@ -834,3 +854,15 @@ PHP ships the query, the three pages, and the feed fix on FEAT-046 —
 `prototype/php/docs/analytics.md` § "The funnel" is the reference; node
 and rails owe the same funnel once their admin analytics drill-ins reach
 this ticket's starting point.
+
+2026-09-02, attribution: §2.6 gains `analytics_visits` (the first-touch
+visit row a session's `sid` cookie ever writes: landing path, referrer
+host, the five UTM fields) and the channel derivation precedence — a
+named campaign, then the referrer host, then direct. §5 gains
+`/admin/analytics/channels` and `/admin/analytics/channels/:key`; the
+actor page's own row gains its visits panel. PHP ships capture, channel
+derivation, the two channel pages, the actor page's visits and "First
+channel" fact, and `analytics_visits` retention on FEAT-047 —
+`prototype/php/docs/analytics.md` § "Channels" is the reference; node and
+rails owe the same capture, derivation, and pages once their admin
+analytics drill-ins reach this ticket's starting point.

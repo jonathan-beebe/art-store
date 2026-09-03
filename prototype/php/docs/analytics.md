@@ -278,6 +278,26 @@ most first.
   `social:x/twitter`), which is why the fold happens after the SQL
   grouping rather than in the query itself.
 
+**The channel pages.** `GET /admin/analytics/channels?range=`
+(`admin.analytics.channels.index`) renders `ChannelTable::forRange()`'s rows
+as a table (a card-list fallback below `sm`) ordered by visitors, most
+first, each cell carrying the range's own count and the `RangeChange`
+against the range before in the tone classes every other admin analytics
+page uses; the whole row taps through to that channel's own visitors.
+`GET /admin/analytics/channels/{key}?range=&page=`
+(`admin.analytics.channels.show`) is that drill-in:
+`App\Analytics\Admin\ChannelVisits::forRange()` derives every visit in the
+range the way `ChannelTable` does and keeps the ones whose key matches,
+paged the all-actors page's own way (`App\Support\Page`, `x-admin.pager`).
+A channel key names no stored row — "found" means at least one visit in
+the range derives to it, so a key nothing derives to answers 404. Each row
+lists when the visit started, where it landed, and the visitor: the
+actor's own id chip, linked to their page, when the visit already carried
+one, the session id chip otherwise. The entry page (`/admin/analytics`)
+names the top three channels by visitors and their counts in a "Channels"
+section, with an "All channels" link to the first page above — the same
+shape its "Actors by velocity" section already uses for `/admin/analytics/actors`.
+
 `App\Models\PageViewCount`'s own static methods (`totalForWeek`,
 `totalsByDay`, `totalsByPattern`) read `page_view_counts` directly and are
 unchanged.
@@ -328,7 +348,15 @@ Every class in it is a static, stateless reader — no writer lives here.
   query and formatting helper between the two; the listing and actor pages.
   An actor's feed reads its rows' own subject — a listing, an order, or a
   cart — rather than assuming every subject is a listing; see "The funnel"
-  below for the order and cart shape.
+  below for the order and cart shape. `forActor()` also reads
+  `AnalyticsReport::visitsForActor()` once: the identity card's "First
+  channel" fact reads the earliest visit's `Channel` (the list comes back
+  newest first, so the earliest is its last element), and the same list,
+  capped at 20 and still newest first, is the actor page's "Visits" panel
+  between the identity card and the tiles — first seen, channel label,
+  landing path, and referrer host when the visit carried a foreign one.
+  `forListing()` carries no visits — a visit belongs to a session, not to
+  a listing — so the panel never renders there.
 - `Funnel::forRange()` / `forListing()` / `forSeller()` — the whole
   storefront funnel, visitors through paid orders, for the store, one
   listing, or one seller; see "The funnel" below.
@@ -377,15 +405,29 @@ regresses into a query per row:
 
 | Page                                 | Fixture                 | Default | Analytics |
 | ------------------------------------ | ----------------------- | ------- | --------- |
-| `/admin/analytics`                   | 12 actors               | 2       | 10        |
+| `/admin/analytics`                   | 12 actors               | 2       | 12        |
 | `/admin/analytics/events/:name`      | 8 listings (by-listing) | 4       | 5         |
 | `/admin/analytics/actors`            | 15 actors               | 2       | 4         |
-| `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 11        |
+| `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 12        |
 | `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 10        |
+| `/admin/analytics/channels`          | 3 channels              | 1       | 3         |
+| `/admin/analytics/channels/:key`     | 15 visits               | 1       | 2         |
 
-The entry and listing pages' analytics-connection count each carry two
-statements for the funnel (`Funnel::forRange()` / `forListing()`, below) on
-top of the total the row named before it shipped.
+Every row's own analytics-connection count carries one statement no page
+here reads on purpose: `App\Http\Middleware\RollUpPageViews` upserts
+`page_view_counts` for every countable admin hit the same way it does for
+the storefront, so every page in this table pays one write on top of its
+own reads. The entry and listing pages' analytics-connection count also
+each carry two statements for the funnel (`Funnel::forRange()` /
+`forListing()`, below) on top of the total the row named before it
+shipped. The entry page's own total also carries `ChannelTable::forRange()`'s
+two statements (the channels section's top-three summary), and the actor
+page's own total carries one more for `AnalyticsReport::visitsForActor()`
+(the visits panel and the identity card's "First channel" fact). The two
+channel pages' own default count is one lower than every other page here:
+neither resolves a `Customer` or `Listing` row by id, so their one
+default-connection query is the admin chrome's own tallies, with no
+identity lookup added on top.
 
 ## The funnel
 
@@ -501,14 +543,17 @@ an artisan run.
 An `ip` is personal data, and a `session_id` joins a browser's visits
 together whether or not anyone signs in — keeping either forever turns a
 usage log into a standing record of who visited what. `ANALYTICS_RETENTION_DAYS`
-(default `30`, `off` disables) bounds `analytics_events`' history:
-`App\Analytics\Analytics::prune($cutoff)` deletes rows whose `occurred_at`
-is before the cutoff, batched and looped until none change — the same
-shape `App\Logging\LogStore::prune()` uses (`docs/log-store.md`).
-`orders:sweep` runs it as a third step alongside the stale-order sweep and
-the log-store prune, each independent of the others' success. `page_view_counts`
-carries no personal data (a route pattern and a day, never an ip or a
-session) and is never pruned.
+(default `30`, `off` disables) bounds both tables' history:
+`App\Analytics\Analytics::prune($cutoff)` deletes `analytics_events` rows
+whose `occurred_at` and `analytics_visits` rows whose `first_seen_at` are
+before the cutoff, each batched and looped until none change — the same
+shape `App\Logging\LogStore::prune()` uses (`docs/log-store.md`) — and
+returns the two tables' combined delete count. `orders:sweep` runs it as a
+third step alongside the stale-order sweep and the log-store prune, each
+independent of the others' success, and prints the combined count
+("N analytics row(s) pruned."). `page_view_counts` carries no personal
+data (a route pattern and a day, never an ip or a session) and is never
+pruned.
 
 ## Open items
 
@@ -516,11 +561,6 @@ session) and is never pruned.
   ships the one-entry-point, buffered-and-flushed version on FEAT-039, and
   the request-facts columns and retention window on FEAT-044. Node and
   Rails still write analytics inline in the request, carry no request
-  facts, and prune nothing — tickets not yet filed.
-- **Channel page.** `ChannelTable::forRange()` and `AnalyticsReport::visitsForActor()`
-  read the store; no admin page or actor-page section renders either yet
-  (FEAT-047 stage B).
-- **`analytics_visits` retention.** `Analytics::prune()` deletes stale
-  `analytics_events` rows only; `analytics_visits` — carrying a
-  `session_id` and, once an actor signs in, an `actor_id` — is not yet
-  swept by `orders:sweep`.
+  facts, and prune nothing — tickets not yet filed. FEAT-047 (first-touch
+  capture, channel derivation, the channel and actor-visits pages, visits
+  retention) is PHP-only too.
