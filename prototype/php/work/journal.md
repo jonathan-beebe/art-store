@@ -10,7 +10,7 @@
 - MAINT: 8
 - A11Y: 1
 - RFCTR: 14
-- BUG: 15
+- BUG: 16
 
 ## Log
 
@@ -22,6 +22,10 @@
 - 2026-09-03:08:06:24 — FEAT-049 — started
 
 - 2026-09-03:07:55:15 — DSGN-009 — started
+
+- 2026-09-03:07:46:23 — BUG-015 — started
+
+- 2026-09-03:07:46:23 — BUG-015 — defined: the log viewer scrolls in group mode
 
 - 2026-09-02:23:27:12 — FEAT-048 — done: a deterministic 92-day activity ramp with a scraper and a prober among the visitors, and log-store lines for every simulated request
 
