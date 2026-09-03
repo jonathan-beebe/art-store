@@ -13,9 +13,8 @@ use Illuminate\Support\Collection;
 /**
  * One tile per admin-defined funnel, in position order, for the analytics
  * home. Reads the funnel rows in one query, then one {@see Funnel} query
- * per tile — the home never issues a query per step, only per funnel.
- * Capped at eight: a row wider than that reads as a list, not a row of
- * tiles, and `admin.funnels.index` is where the rest of them live.
+ * per tile — a fixed cost per funnel. Capped at eight, the width a row
+ * of tiles reads as; `admin.funnels.index` is where the rest of them live.
  */
 final class FunnelTiles
 {
@@ -42,8 +41,8 @@ final class FunnelTiles
     }
 
     /**
-     * The last step's sessions as a share of visitors — "—" rather than a
-     * division when the range held no visitors at all.
+     * The last step's sessions as a share of visitors — "—" when the range
+     * held no visitors to divide by.
      */
     private static function conversionText(int $visitors, int $lastStepCurrent): string
     {

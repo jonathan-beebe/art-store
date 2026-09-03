@@ -59,8 +59,7 @@ final readonly class FunnelDefinition
     /**
      * The built-in storefront funnel: a shopper viewing a listing through
      * to paying for it. Favorites sits off this path — docs/funnel.md
-     * renders it as a side count on the viewed step instead of a step of
-     * its own.
+     * renders it as a side count on the viewed step.
      */
     public static function storefront(): self
     {

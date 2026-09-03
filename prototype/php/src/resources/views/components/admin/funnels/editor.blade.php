@@ -1,8 +1,8 @@
 {{-- A funnel's name and its ordered step list, editable with plain form
      posts — no JavaScript. Every button beyond "Save" carries its own
      `op` and posts back to the same `$action`; the controller reads it as
-     an editor action, not a save, and re-renders this same form with the
-     step list `App\Support\Admin\FunnelStepListOp` produces.
+     an editor action and re-renders this same form with the step list
+     `App\Support\Admin\FunnelStepListOp` produces.
      `$name`/`$steps` are the form's current values; `$eventNames` is
      `AnalyticsEventName::cases()`. --}}
 @props(['action', 'method', 'name', 'steps', 'eventNames', 'submitLabel'])

@@ -262,7 +262,7 @@ it('counts an order once for each listing it spans on that listing\'s own funnel
     expect(Funnel::forListing($definition, $listingOne->id, $range)->steps[4]->current)->toBe(1)
         ->and(Funnel::forListing($definition, $listingTwo->id, $range)->steps[4]->current)->toBe(1)
         // The unscoped, store-wide funnel counts the same session once — it
-        // reads the one order.place row, not one row per listing it spans.
+        // reads the one order.place row the order wrote.
         ->and(Funnel::forRange($definition, $range)->steps[4]->current)->toBe(1);
 
     // One order, read from the app database, spans both.

@@ -222,8 +222,8 @@ final class Funnel
     /**
      * Distinct `session_id`s per name, current and previous window, over the
      * scope's own events — the shape {@see visitorTotals()} reads for the
-     * funnel's first step, grouped by name instead of read as one total, so
-     * the funnel never issues a query per step.
+     * funnel's first step, grouped by name in one query, so the funnel
+     * never issues a query per step.
      *
      * @param  list<string>|null  $listingIds
      * @param  list<AnalyticsEventName>  $names

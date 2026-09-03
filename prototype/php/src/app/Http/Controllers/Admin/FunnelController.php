@@ -18,7 +18,7 @@ use Illuminate\View\View;
  * analytics vocabulary. `store()`/`update()` also carry the editor's "Add
  * step", "Remove", "Move up", and "Move down" buttons — every one of them
  * posts back to the same route with an `op` naming the action, and gets
- * the form re-rendered with the working step list rather than saved; only
+ * the form re-rendered with the working step list, unsaved; only
  * `op=save` (the form's default) validates a complete funnel and persists.
  */
 final class FunnelController extends Controller

@@ -11,9 +11,9 @@ use Illuminate\Database\Seeder;
 
 /**
  * The built-in storefront funnel, seeded as a `Funnel` row like any other
- * an admin defines. Runs unconditionally alongside `AdminSeeder` — the
- * analytics home reads it as one of its tiles, not as demo data a seeded
- * database might already carry.
+ * an admin defines. Runs unconditionally alongside `AdminSeeder`, ahead of
+ * the demo data a seeded database might already carry — the analytics
+ * home reads it as one of its tiles regardless.
  */
 class FunnelSeeder extends Seeder
 {
