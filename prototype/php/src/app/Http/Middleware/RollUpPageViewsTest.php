@@ -8,20 +8,10 @@ use App\Domain\Analytics\PageViewSite;
 use App\Models\PageViewCount;
 use DateTimeImmutable;
 use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use stdClass;
 use Tests\AnalyticsStoreFixtures;
 use Tests\CapturedStory;
-
-/**
- * @return Collection<int, stdClass>
- */
-function analyticsVisits(): Collection
-{
-    return DB::connection('analytics')->table('analytics_visits')->get();
-}
 
 it('rolls a countable GET up into one row', function (): void {
     $this->get('/admin/login');
@@ -103,7 +93,7 @@ it("records the first storefront visit's landing path, referrer, and campaign", 
 
     $this->get('/?utm_source=newsletter&utm_medium=email&utm_campaign=sept', ['Referer' => 'https://google.com/search']);
 
-    $row = analyticsVisits()->sole();
+    $row = AnalyticsStoreFixtures::visits()->sole();
 
     expect($row->landing_path)->toBe('/')
         ->and($row->referrer_host)->toBe('google.com')
@@ -116,12 +106,12 @@ it("records the first storefront visit's landing path, referrer, and campaign", 
 it('changes nothing on a second request from the same session carrying different utm values', function (): void {
     $this->get('/?utm_source=newsletter&utm_medium=email&utm_campaign=sept', ['Referer' => 'https://google.com/search']);
     /** @var string $sessionId */
-    $sessionId = analyticsVisits()->sole()->session_id;
+    $sessionId = AnalyticsStoreFixtures::visits()->sole()->session_id;
 
     $this->withCookie(NameRequestVisitor::SESSION_COOKIE, $sessionId)
         ->get('/?utm_source=ads&utm_medium=cpc&utm_campaign=fall');
 
-    $row = analyticsVisits()->sole();
+    $row = AnalyticsStoreFixtures::visits()->sole();
 
     expect($row->utm_source)->toBe('newsletter')
         ->and($row->utm_campaign)->toBe('sept');
@@ -130,13 +120,13 @@ it('changes nothing on a second request from the same session carrying different
 it('stores no referrer host for a same-host referrer', function (): void {
     $this->get('/', ['Referer' => 'http://localhost/from-page']);
 
-    expect(analyticsVisits()->sole()->referrer_host)->toBeNull();
+    expect(AnalyticsStoreFixtures::visits()->sole()->referrer_host)->toBeNull();
 });
 
 it('records no visit for an admin page', function (): void {
     $this->get('/admin/login');
 
-    expect(analyticsVisits())->toHaveCount(0);
+    expect(AnalyticsStoreFixtures::visits())->toHaveCount(0);
 });
 
 it('records a visit for a first-ever request, carrying the session id it was just given', function (): void {
@@ -144,7 +134,7 @@ it('records a visit for a first-ever request, carrying the session id it was jus
 
     $sessionId = $response->getCookie(NameRequestVisitor::SESSION_COOKIE)?->getValue();
 
-    expect(analyticsVisits()->sole()->session_id)->toBe($sessionId);
+    expect(AnalyticsStoreFixtures::visits()->sole()->session_id)->toBe($sessionId);
 });
 
 it('writes the visit through the analytics connection, never the default one', function (): void {

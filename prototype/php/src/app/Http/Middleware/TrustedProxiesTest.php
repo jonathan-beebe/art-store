@@ -20,14 +20,13 @@ use Illuminate\Support\Env;
  */
 
 /** The absolute URL the storefront's stylesheet link carries. */
-function stylesheetUrl(string|false $content): string
-{
+$stylesheetUrl = function (string|false $content): string {
     preg_match('/href="([^"]*\/build\/assets\/[^"]*\.css[^"]*)"/', (string) $content, $matches);
 
     return $matches[1] ?? '';
-}
+};
 
-it('generates https asset urls when a trusted proxy forwards the scheme', function (): void {
+it('generates https asset urls when a trusted proxy forwards the scheme', function () use ($stylesheetUrl): void {
     Env::getRepository()->set('TRUSTED_PROXIES', '*');
 
     try {
@@ -37,15 +36,15 @@ it('generates https asset urls when a trusted proxy forwards the scheme', functi
         $response = $this->get('/', ['X-Forwarded-Proto' => 'https']);
 
         $response->assertOk();
-        expect(stylesheetUrl($response->getContent()))->toStartWith('https://');
+        expect($stylesheetUrl($response->getContent()))->toStartWith('https://');
     } finally {
         Env::getRepository()->clear('TRUSTED_PROXIES');
     }
 });
 
-it('ignores a forwarded scheme when no proxy is trusted', function (): void {
+it('ignores a forwarded scheme when no proxy is trusted', function () use ($stylesheetUrl): void {
     $response = $this->get('/', ['X-Forwarded-Proto' => 'https']);
 
     $response->assertOk();
-    expect(stylesheetUrl($response->getContent()))->toStartWith('http://');
+    expect($stylesheetUrl($response->getContent()))->toStartWith('http://');
 });
