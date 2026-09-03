@@ -7,8 +7,8 @@ namespace App\Domain\Analytics;
 /**
  * Whether one response is a page view worth rolling up. A GET that answered
  * with a page is traffic; a form POST, a redirect, a JSON fragment, and a
- * failed request are not — counting them would make `/admin/stats` read as
- * hits on endpoints nobody browsed.
+ * failed request are not — counting them would make the admin analytics
+ * pages read as hits on endpoints nobody browsed.
  */
 final class PageViewCountability
 {

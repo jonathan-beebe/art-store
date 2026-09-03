@@ -4,11 +4,26 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin\Analytics;
 
+use App\Actions\Favorites\ToggleFavorite;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\PageViewSite;
 use App\Http\Middleware\LogRequestStory;
 use Illuminate\Http\Request;
+
+it('redirects /admin/stats to /admin/analytics permanently for a signed-in admin', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/stats');
+
+    $response->assertStatus(301);
+    $response->assertRedirect('/admin/analytics');
+});
+
+it('sends a guest hitting /admin/stats to admin sign-in, not the redirect', function (): void {
+    $response = $this->get('/admin/stats');
+
+    $response->assertRedirect(route('auth.admin.login'));
+});
 
 it('renders 200 with the range compared against the range before it', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics');
@@ -131,4 +146,38 @@ it('shows no jump row when the search matches nothing uniquely', function (): vo
 
     $response->assertOk();
     $response->assertDontSee('Open its events');
+});
+
+it('shows every listing event name at least once, zero-filled for one nobody has triggered', function (): void {
+    $listing = $this->listing($this->seller());
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-20 09:00:00')));
+    app(ToggleFavorite::class)($customer, $listing, $this->moment('2026-08-20 09:00:00'));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?range=7');
+
+    $response->assertOk()
+        ->assertSeeInOrder([
+            'listing.view', '1',
+            'listing.favorite', '1',
+            'listing.unfavorite', '0',
+            'listing.cart_add', '0',
+        ]);
+});
+
+it('shows page views by day in the daily bar tooltip', function (): void {
+    $analytics = app(Analytics::class);
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $this->moment('2026-08-20 09:00:00'));
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $this->moment('2026-08-20 15:00:00'));
+    $analytics->recordPageView(PageViewSite::Seller, '/seller', $this->moment('2026-08-20 09:00:00'));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?range=7');
+
+    $response->assertOk();
+    expect($response->getContent())->toContain('Aug 20: 3');
 });

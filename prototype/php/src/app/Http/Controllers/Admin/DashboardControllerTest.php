@@ -50,7 +50,7 @@ it('carries every admin link into the off-canvas drawer, below lg', function ():
     foreach ([
         route('admin.sellers.index'), route('admin.customers.index'), route('admin.listings.index'),
         route('admin.orders.index'), route('admin.fulfillments.index'), route('admin.accounting'),
-        route('admin.ledger'), route('admin.payouts.index'), route('admin.stats'), route('admin.logs.index'),
+        route('admin.ledger'), route('admin.payouts.index'), route('admin.analytics.index'), route('admin.logs.index'),
         route('admin.messages.index'),
     ] as $href) {
         // Each link renders at least twice — the lg+ rail and the below-lg
@@ -70,7 +70,7 @@ it('links every status drill row to its filtered list, below sm', function (): v
     $response->assertSee('href="'.route('admin.orders.index', ['status' => 'awaiting_payment']).'"', escape: false);
     $response->assertSee('href="'.route('admin.fulfillments.index', ['status' => 'awaiting_shipment']).'"', escape: false);
     $response->assertSee('href="'.route('admin.accounting').'"', escape: false);
-    $response->assertSee('href="'.route('admin.stats').'"', escape: false);
+    $response->assertSee('href="'.route('admin.analytics.index').'"', escape: false);
 });
 
 it('marks the Dashboard nav link current in the rail and the drawer', function (): void {

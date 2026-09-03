@@ -79,7 +79,7 @@
         </div>
 
         <div class="rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
-            <a href="{{ route('admin.stats') }}" class="flex min-h-11 items-center justify-between gap-3 px-4 text-stone-600 dark:text-stone-400" data-stat="page-views-week">
+            <a href="{{ route('admin.analytics.index') }}" class="flex min-h-11 items-center justify-between gap-3 px-4 text-stone-600 dark:text-stone-400" data-stat="page-views-week">
                 <span>Page views this week</span>
                 <span class="flex items-center gap-2">
                     <span class="font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ number_format($pageViewsThisWeek) }}</span>
@@ -181,7 +181,7 @@
             <li><a href="{{ route('admin.fulfillments.index') }}" class="text-stone-700 dark:text-stone-300 underline">Fulfillments</a></li>
             <li><a href="{{ route('admin.accounting') }}" class="text-stone-700 dark:text-stone-300 underline">Accounting</a></li>
             <li><a href="{{ route('admin.ledger') }}" class="text-stone-700 dark:text-stone-300 underline">Ledger</a></li>
-            <li><a href="{{ route('admin.stats') }}" class="text-stone-700 dark:text-stone-300 underline">Site stats</a></li>
+            <li><a href="{{ route('admin.analytics.index') }}" class="text-stone-700 dark:text-stone-300 underline">Analytics</a></li>
         </ul>
     </div>
 </x-layouts.admin>

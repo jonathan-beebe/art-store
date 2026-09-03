@@ -66,6 +66,20 @@ it('renders 200 for page.view, always by pattern', function (): void {
         ->assertSee('/art/{listing}');
 });
 
+it('shows page views by route pattern, busiest first, with the recorded counts', function (): void {
+    $analytics = app(Analytics::class);
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $this->moment('2026-08-20 09:00:00'));
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $this->moment('2026-08-20 15:00:00'));
+    $analytics->recordPageView(PageViewSite::Seller, '/seller', $this->moment('2026-08-20 09:00:00'));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics/events/page.view?range=7');
+
+    $response->assertOk()
+        ->assertSeeInOrder(['shop', '/art/{listing}', '2', 'seller', '/seller', '1']);
+});
+
 it('carries range through the by links', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics/events/listing.view?range=7');
 

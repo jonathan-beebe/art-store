@@ -42,8 +42,7 @@ sign in through the same magic link sellers and customers use
 |                                                                         | set                                                                      |
 | `GET /admin/payouts?seller=`, `POST /admin/payouts`                     | payout history; run the weekly payout for every seller (`as_of`          |
 |                                                                         | optional)                                                                |
-| `GET /admin/stats`                                                      | page views by day (7-day window) and by route pattern, listing event     |
-|                                                                         | tallies                                                                  |
+| `GET /admin/stats`                                                      | permanent redirect to `/admin/analytics`                                 |
 | `GET /admin/analytics?range=&actors=&q=`                                | every event name compared with the range before it, a daily bar strip,   |
 |                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
 |                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
@@ -174,8 +173,8 @@ names the owner is noise on the owner's own page.
 `cases()`. A `group by` only answers for the statuses that have rows, and a
 dashboard that hid `payment_failed` because nobody has hit it yet would be
 lying about the state machine — so every status the enum names appears, at
-zero if that is the true count. `/admin/stats`'s listing-event tally
-(`ListingEventTally`) and the `admin.balance` tiles on the seller and platform
+zero if that is the true count. `/admin/analytics`'s event-name tally
+(`EventTotals`) and the `admin.balance` tiles on the seller and platform
 money sections follow the same rule.
 
 Platform money — held, available, paid out, fees earned, fees refunded,
@@ -191,7 +190,8 @@ a partial balance rather than the platform's.
 
 ## Page views, rolled up
 
-Question: how does a request become a row on `/admin/stats`?
+Question: how does a request become a row on the `page.view` event page
+(`/admin/analytics/events/page.view`)?
 
 ```mermaid
 sequenceDiagram
@@ -521,7 +521,7 @@ that has no below-`xl` counterpart to match.
 
 ```mermaid
 flowchart TD
-    mode{"mode prop"} -->|content / content-wide| single["one content pane<br/>(dashboard, accounting, ledger,<br/>payouts, stats, logs)"]
+    mode{"mode prop"} -->|content / content-wide| single["one content pane<br/>(dashboard, accounting, ledger,<br/>payouts, logs)"]
     mode -->|list| indexPane["cells pane + empty-detail prompt<br/>(an index route)"]
     mode -->|detail| detailPane["cells pane + $slot as the detail pane<br/>(a show route)"]
 ```
@@ -580,5 +580,5 @@ pattern — it already carried the facts an inbox needs.
 `count()` per section — Sellers, Customers, Listings, Orders,
 Fulfillments — run on every admin page a signed-in admin views, the same
 place the unread-message count was already computed. Accounting, ledger,
-payouts, stats, logs, and the dashboard itself carry no rail count: nothing
+payouts, analytics, logs, and the dashboard itself carry no rail count: nothing
 about them is a single cheap query the way a row count is.

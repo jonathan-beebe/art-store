@@ -482,8 +482,8 @@ layout is per stack.
 | `/admin/ledger?seller=&type=`                                           | ledger browser with folded totals for the filtered set                   |
 | `/admin/payouts?seller=`, `POST /admin/payouts`                         | payout history; run the weekly payout for every seller (`as_of`          |
 |                                                                         | optional)                                                                |
-| `/admin/stats`                                                          | page views by day (7-day window) and by route pattern, listing event     |
-|                                                                         | tallies                                                                  |
+| `/admin/stats`                                                          | Node and Rails: page views by day (7-day window) and by route pattern,   |
+|                                                                         | listing event tallies. PHP: permanent redirect to `/admin/analytics`     |
 | `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | every event name compared with the range before it, a daily bar strip,   |
 |                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
 |                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
@@ -790,3 +790,11 @@ strip, and its event feed newest first). `ActorVelocity::THRESHOLD_PER_HOUR`
 leaderboard and an actor's own page share. `/admin/stats` is unchanged. PHP
 ships the drill-in on FEAT-045; node and rails owe the same parity as every
 other §2.6/§5 gap.
+
+2026-09-02, site stats retired (PHP): `/admin/stats`, its controller, view,
+and the domain values only it used are gone — every number it showed (page
+views by day and by route pattern, the listing-event tally) is on
+`/admin/analytics` and its drill-in pages. `/admin/stats` is now a
+permanent redirect to `/admin/analytics`, behind the same admin guard. §5's
+`/admin/stats` row reworded to match. PHP ships this on MAINT-006; node and
+rails keep the page until they ship the drill-in.

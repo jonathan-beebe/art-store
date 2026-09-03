@@ -28,7 +28,6 @@ use App\Http\Controllers\Admin\ResolveConversationController;
 use App\Http\Controllers\Admin\RunPayoutController;
 use App\Http\Controllers\Admin\SellerController;
 use App\Http\Controllers\Admin\SellerMessageController;
-use App\Http\Controllers\Admin\StatsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function (): void {
@@ -62,12 +61,12 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('ledger', LedgerController::class)->name('ledger');
     Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
     Route::post('payouts', RunPayoutController::class)->name('payouts.run');
-    Route::get('stats', StatsController::class)->name('stats');
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     Route::get('analytics/events/{name}', [EventController::class, 'show'])->name('analytics.events.show');
     Route::get('analytics/actors', [ActorController::class, 'index'])->name('analytics.actors.index');
     Route::get('analytics/actors/{customer}', [ActorController::class, 'show'])->name('analytics.actors.show');
     Route::get('analytics/listings/{listing}', [AnalyticsListingController::class, 'show'])->name('analytics.listings.show');
+    Route::permanentRedirect('stats', '/admin/analytics');
 
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');

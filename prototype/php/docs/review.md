@@ -134,9 +134,9 @@ with no component library and no font download; `Dockerfile` and
 |                                             |        | `admin.fulfillments.*`                       | `Admin\ListingControllerTest`,               |
 |                                             |        |                                              | `Admin\OrderControllerTest`,                 |
 |                                             |        |                                              | `Admin\FulfillmentControllerTest`            |
-| Accounting, ledger browser, site stats      | done   | `admin.accounting`, `admin.ledger`,          | `Admin\AccountingControllerTest`,            |
-|                                             |        | `admin.stats`                                | `Admin\LedgerControllerTest`,                |
-|                                             |        |                                              | `Admin\StatsControllerTest`                  |
+| Accounting, ledger browser, analytics       | done   | `admin.accounting`, `admin.ledger`,          | `Admin\AccountingControllerTest`,            |
+|                                             |        | `admin.analytics.index`                      | `Admin\LedgerControllerTest`,                |
+|                                             |        |                                              | `Admin\Analytics\AnalyticsControllerTest`    |
 | Listing removals, temporary and permanent   | done   | `admin.listings.removals.store`/`.lift`      | `Actions\Listings\RemoveListingTest`,        |
 |                                             |        |                                              | `Actions\Listings\LiftListingRemovalTest`    |
 | Page views rolled up, listing views         | done   | — (middleware)                               | `Http\Middleware\RollUpPageViewsTest`,       |
