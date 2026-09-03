@@ -83,7 +83,7 @@ it('lists the admins threads newest first with who, what, and unread count', fun
     $response->assertSee('1 unread');
 });
 
-it('lists unread threads before read ones regardless of last_message_at', function (): void {
+it('orders rows by last_message_at alone, so reading a thread does not move it', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
     $readNewer = Conversation::factory()->adminSeller()->create([
@@ -99,10 +99,15 @@ it('lists unread threads before read ones regardless of last_message_at', functi
     ]);
     Message::factory()->from($seller)->unread()->create(['conversation_id' => $unreadOlder->id]);
 
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $index = $this->actingAs($admin, 'admin')->get('/admin/messages');
+    $index->assertOk();
+    $index->assertSeeInOrder(['Read but newer', 'Unread but older']);
 
-    $response->assertOk();
-    $response->assertSeeInOrder(['Unread but older', 'Read but newer']);
+    // Opening the unread thread marks it read; the pane beside it keeps
+    // the same order, since nothing about reading touches the sort key.
+    $show = $this->actingAs($admin, 'admin')->get("/admin/messages/{$unreadOlder->id}");
+    $show->assertOk();
+    $show->assertSeeInOrder(['Read but newer', 'Unread but older']);
 });
 
 it('lists an unread resolved desk thread under the default Open-only view, and hides a read one', function (): void {

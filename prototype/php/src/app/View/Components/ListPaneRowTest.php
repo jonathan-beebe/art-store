@@ -141,9 +141,9 @@ function seedPanePages(CommerceTestCase $test): array
     $test->paidFulfillmentFor($seller, $hermione, 4999);
     $test->paidFulfillmentFor($seller, $luna, 7500);
 
-    // Both inboxes' rows carry an unread message so the unread-first sort
-    // (Conversation::unreadFirst) puts them in a predictable, newest-unread
-    // order on the unfiltered index page these tests render.
+    // Both inboxes' rows carry an unread message so the pane renders its
+    // unread dot, and distinct `last_message_at` values fix their order on
+    // the unfiltered index page these tests render.
     $adminSellerThread = Conversation::factory()->adminSeller()->create([
         'seller_id' => $seller->id,
         'last_message_at' => $test->moment('2026-08-20 09:00:00'),

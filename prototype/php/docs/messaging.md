@@ -389,8 +389,10 @@ every status, so a resolved thread lands in its own pane). A thread the reader
 has not read yet passes the Status group whatever it says — a reply to a
 resolved thread reopens it in the reader's eyes, and the nav badge already
 counts it — so the default view lists it; for the admin only desk threads are
-ever unread, matching the row's own dot. Rows sort unread
-threads first, then newest `last_message_at` (`Conversation::unreadFirst`).
+ever unread, matching the row's own dot. Rows sort by `last_message_at`,
+newest first, and by nothing else: reading a thread changes nothing about its
+sort key, so opening a row never moves it; the unread dot alone says which
+rows are new.
 
 Domain and Type both narrow by `ConversationKind`, intersected
 (`InboxQuery::intersectKinds`) rather than added: seller Buyers is

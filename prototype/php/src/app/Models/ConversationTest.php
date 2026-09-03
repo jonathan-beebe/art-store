@@ -325,26 +325,6 @@ it('orders the desk\'s needs-reply queue to open threads awaiting a non-admin re
     expect(Conversation::query()->needsReply()->pluck('id')->all())->toBe([$awaiting->id]);
 });
 
-it('orders unread threads first, then newest last_message_at within each group', function (): void {
-    $seller = $this->seller();
-    $customer = $this->verifiedCustomer();
-    $readNewer = Conversation::factory()->listingQuestion()->create([
-        'seller_id' => $seller->id,
-        'customer_id' => $customer->id,
-        'last_message_at' => now(),
-    ]);
-    Message::factory()->from($seller)->create(['conversation_id' => $readNewer->id, 'sent_at' => now()]);
-    $unreadOlder = Conversation::factory()->listingQuestion()->create([
-        'seller_id' => $seller->id,
-        'customer_id' => $customer->id,
-        'last_message_at' => now()->subHour(),
-    ]);
-    Message::factory()->from($customer)->unread()->create(['conversation_id' => $unreadOlder->id, 'sent_at' => now()->subHour()]);
-
-    expect(Conversation::query()->where('seller_id', $seller->id)->withUnreadCountFor($seller)->unreadFirst()->pluck('id')->all())
-        ->toBe([$unreadOlder->id, $readNewer->id]);
-});
-
 it('counts the messages a reader has not read on each thread', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();

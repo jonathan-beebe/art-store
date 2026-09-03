@@ -381,19 +381,6 @@ class Conversation extends Model
     }
 
     /**
-     * An inbox's row order: unread threads first, then newest
-     * `last_message_at` within each group. Reads the `unread_count` column
-     * `withUnreadCountFor` adds, so it always runs after that scope.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function unreadFirst(Builder $query): void
-    {
-        $query->orderByRaw('unread_count > 0 desc')->orderByDesc('last_message_at');
-    }
-
-    /**
      * Rebuilds this fulfillment thread's key for its new customer, and folds
      * it into the thread the verified customer already holds for that
      * subject when there is one.

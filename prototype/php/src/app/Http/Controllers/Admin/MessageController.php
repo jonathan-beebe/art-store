@@ -140,7 +140,7 @@ final class MessageController extends AdminController
 
         $this->applyStatuses($eloquent, $admin, $query->statuses);
 
-        return $eloquent->unreadFirst();
+        return $eloquent->orderByDesc('last_message_at');
     }
 
     /**

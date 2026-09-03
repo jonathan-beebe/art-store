@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-03:17:38:21 — FEAT-050 — follow-up: rows order by last_message_at alone so reading never moves a row
 - 2026-09-03:17:31:41 — FEAT-050 — follow-up: unread threads list under the default view regardless of status
 - 2026-09-03:17:19:00 — FEAT-050 — done: domain tabs and one Type/Status popover replace the inbox chips in the seller and admin portals; unread first; 4081 tests
 - 2026-09-03:16:28:49 — FEAT-050 — started

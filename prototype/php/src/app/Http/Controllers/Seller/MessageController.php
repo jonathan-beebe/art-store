@@ -138,7 +138,7 @@ final class MessageController extends SellerController
         return $eloquent
             ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
             ->withUnreadCountFor($seller)
-            ->unreadFirst();
+            ->orderByDesc('last_message_at');
     }
 
     /**
