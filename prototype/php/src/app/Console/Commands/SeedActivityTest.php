@@ -260,4 +260,14 @@ it('flags the scraper on the leaderboard and leaves the prober findable only by 
         $proberActorId,
     ));
     expect((int) $notFoundLines)->toBeGreaterThan(0);
+
+    // The same store the seed just wrote to is what the log viewer's own
+    // grouped view (the "Open in logs" page a founder lands on from the
+    // actor page) reads — its will/did pairs render there the same way
+    // they were captured.
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/logs?actor={$proberActorId}&group=1");
+
+    $response->assertOk()
+        ->assertSee('/wp-login.php')
+        ->assertSee('404');
 });
