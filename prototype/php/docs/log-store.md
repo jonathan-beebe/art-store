@@ -33,14 +33,12 @@ Three invariants govern the design:
 
 The store is its own SQLite file, opened on its own `PDO` handle.
 `LOG_DATABASE_FILE` names it (default `storage/logs.sqlite3`, beside the
-commerce file; the literal `off` disables the store). Two hazards make the
-separate file load-bearing rather than tidy:
-
-- A log INSERT on the commerce connection issued inside a business
-  transaction joins that transaction — a rollback would erase the very
-  `failed` line that explains it.
-- `make fresh` deletes the commerce file. Log history survives a rebuild;
-  retention is the one sanctioned way log rows die.
+commerce file; the literal `off` disables the store). The separate file is
+load-bearing: a log INSERT on the commerce connection issued inside a
+business transaction joins that transaction, and a rollback would erase the
+very `failed` line that explains it. `make fresh` clears this file along with
+every other database; in the deployed app, retention is the one way log rows
+die.
 
 Schema creation is ensure-on-open, versioned by `PRAGMA user_version` — the
 commerce database's Eloquent migrations own nothing here. `LogStore::open()`

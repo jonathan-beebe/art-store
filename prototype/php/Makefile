@@ -74,8 +74,8 @@ check: lint assets coverage ## lint -> assets -> coverage; the pre-PR gate
 migrate: ## apply pending migrations
 	docker compose run --rm app php artisan migrate
 
-fresh: ## drop everything, re-migrate, re-seed the demo data
-	docker compose run --rm app php artisan migrate:fresh --seed
+fresh: ## clear every database and re-seed the demo data
+	docker compose run --rm app sh -c 'f="$${LOG_DATABASE_FILE:-storage/logs.sqlite3}"; rm -f "$$f" "$$f-wal" "$$f-shm"; php artisan migrate:fresh --seed'
 
 seed: ## add the platform admins and demo data
 	docker compose run --rm app php artisan db:seed

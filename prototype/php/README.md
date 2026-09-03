@@ -58,7 +58,7 @@ target.
 | `make analyse`   | `docker compose run --rm --no-deps --entrypoint composer app analyse`                          |
 | `make check`     | `lint`, then `assets`, then `coverage` — the commit gate                                       |
 | `make migrate`   | `docker compose run --rm app php artisan migrate`                                              |
-| `make fresh`     | `docker compose run --rm app php artisan migrate:fresh --seed`                                 |
+| `make fresh`     | clears every database and re-seeds the demo data                                               |
 | `make seed`      | `docker compose run --rm app php artisan db:seed`                                              |
 | `make routes`    | `docker compose run --rm app php artisan route:list`                                           |
 | `make payouts`   | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))`          |
@@ -136,12 +136,10 @@ in memory and leave the log store off.
 
 ```sh
 make migrate    # apply new migrations
-make fresh      # drop everything, re-migrate, re-seed the demo data
+make fresh      # clear every database, re-seed the demo data
 ```
 
-`make fresh` rebuilds the analytics database along with the app database.
-Deleting `src/database/database.sqlite` and running `make up` also rebuilds it
-from scratch.
+`make fresh` clears all three and re-seeds the demo data.
 
 ## Seeded accounts
 
