@@ -135,6 +135,28 @@ it('re-points analytics visits to the verified customer', function (): void {
         ->and(DB::connection('analytics')->table('analytics_visits')->where('actor_id', $bystander->id)->count())->toBe(1);
 });
 
+it('shows a visit made anonymously on the verified actor\'s page after the merge', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $analytics = app(Analytics::class);
+    $analytics->recordVisit(new AnalyticsVisit(
+        'ses_01J00000000000000000000ANON',
+        $this->moment('2026-08-19 09:00:00'),
+        '/art/starry-night',
+        null, null, null, null, null, null,
+        $anonymous->id,
+    ));
+    $analytics->flush();
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $verified));
+
+    $response->assertOk();
+    $response->assertSee('/art/starry-night');
+});
+
 it('still merges and logs a warning when the analytics store is unwritable', function (): void {
     $log = CapturedStory::capture();
     $anonymous = Customer::factory()->anonymous()->create();
