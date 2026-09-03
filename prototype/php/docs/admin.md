@@ -44,11 +44,11 @@ sign in through the same magic link sellers and customers use
 | `GET /admin/payouts?seller=`, `POST /admin/payouts`                     | payout history; run the weekly payout for every seller (`as_of`          |
 |                                                                         | optional)                                                                |
 | `GET /admin/stats`                                                      | permanent redirect to `/admin/analytics`                                 |
-| `GET /admin/analytics?range=&actors=&q=`                                | the storefront funnel, visitors through paid orders; every event name    |
-|                                                                         | compared with the range before it, a daily bar strip, distinct           |
-|                                                                         | subject/actor counts, and the actors with the highest events-per-hour    |
-|                                                                         | peak; `q` narrows both tables and a pasted listing or customer id or a   |
-|                                                                         | shared ip jumps straight to it                                           |
+| `GET /admin/analytics?range=&actors=&q=`                                | one tile per funnel (end-to-end conversion, change vs the range before)  |
+|                                                                         | above every event name compared with the range before it, a daily bar    |
+|                                                                         | strip, distinct subject/actor counts, and the actors with the highest    |
+|                                                                         | events-per-hour peak; `q` narrows both tables and a pasted listing or    |
+|                                                                         | customer id or a shared ip jumps straight to it                          |
 | `GET /admin/analytics/events/{name}?range=&by=`                         | one event name's range tiles, daily bars, and a breakdown by listing,    |
 |                                                                         | actor, or — for `page.view` — route pattern                              |
 | `GET /admin/analytics/actors?range=&sort=&actors=&q=&page=`             | every actor that carried an event in the range, paged, sorted by most    |
@@ -58,9 +58,15 @@ sign in through the same magic link sellers and customers use
 |                                                                         | log viewer, and the block form                                           |
 | `GET /admin/analytics/listings/{listing}?range=&event=`                 | the listing's identity, range tiles, its own funnel, a daily strip, and  |
 |                                                                         | its event feed newest first, with a link to the listing                  |
+| `GET /admin/analytics/funnels/{funnel}?range=`                          | one funnel's own steps, drawn by `x-admin.analytics.funnel`, with the    |
+|                                                                         | range control; linked from its tile on the entry page and from          |
+|                                                                         | `/admin/funnels`                                                        |
 | `GET /admin/analytics/channels?range=`                                  | every channel — visitors, listing views, cart adds, orders placed, and   |
 |                                                                         | orders paid, compared with the range before it — ordered by visitors     |
 | `GET /admin/analytics/channels/{key}?range=&page=`                      | one channel's own visits in the range, paged, newest first               |
+| `GET /admin/funnels`, `GET /admin/funnels/create`,                      | admin-defined funnels: a name and an ordered list of event names, two    |
+| `POST /admin/funnels`, `GET /admin/funnels/{funnel}/edit`,              | or more, validated through `FunnelDefinition`; the editor is a plain     |
+| `PUT /admin/funnels/{funnel}`, `DELETE /admin/funnels/{funnel}`         | form — add, remove, and reorder steps all post back and re-render        |
 | `GET\|POST /admin/messages`, `/admin/messages/{conversation}`,          | the shared desk: every admin sees every thread; `filter=`/`status=`      |
 | `.../resolve`, `.../reopen`                                             | queues; oversight (seller ↔ customer) threads read-only                  |
 |                                                                         | ([`messaging.md`](messaging.md))                                         |
@@ -286,17 +292,18 @@ its event was kept.
 ## Analytics drill-in
 
 Question: from "what happened in this range" to "who did it" to "everything
-that one did" — how do the seven analytics pages reach each other?
+that one did" — how do the eight analytics pages reach each other?
 
 ```mermaid
 flowchart LR
-    entry["/admin/analytics<br/>event totals + leaderboard"]
+    entry["/admin/analytics<br/>funnel tiles + event totals + leaderboard"]
     event["/admin/analytics/events/:name<br/>range tiles + breakdown"]
     actors["/admin/analytics/actors<br/>every actor, paged"]
     listing["/admin/analytics/listings/:listing<br/>identity + feed"]
     actor["/admin/analytics/actors/:customer<br/>identity + feed + visits"]
     channels["/admin/analytics/channels<br/>every channel, ordered by visitors"]
     channel["/admin/analytics/channels/:key<br/>one channel's visits, paged"]
+    funnel["/admin/analytics/funnels/:funnel<br/>one funnel's own steps"]
 
     entry -->|"event name"| event
     entry -->|"leaderboard row"| actor
@@ -304,6 +311,7 @@ flowchart LR
     entry -->|"pasted id or ip"| actor
     entry -->|"All actors"| actors
     entry -->|"All channels"| channels
+    entry -->|"funnel tile"| funnel
     actors -->|"row"| actor
     event -->|"by-listing row"| listing
     event -->|"by-actor row"| actor
@@ -359,20 +367,47 @@ visits, paged. A channel key names no stored row, so a key nothing in the
 range derives to answers 404, the same "found" test the entry page's jump
 row uses for a pasted id.
 
-**The funnel.** `App\Analytics\Admin\Funnel` (`docs/analytics.md` § "The
-funnel") reads the whole storefront funnel — visitors through paid orders —
-for a range, a listing, or a seller, and the entry, listing, and seller
-pages each render it as a row of tiles (`x-admin.analytics.funnel`): the
-entry page above the events table, the listing page below its tiles, and
-the seller page (`/admin/sellers/{seller}`) as its own "Funnel, last 30
-days" panel, since that page carries no range control and always reads the
-last 30 days. Every tile carries the step's count, its rate from the step
-before it, and its change against the range before; the paid tile also
-carries the range's cancelled count as a note. An actor's own feed also
-names the order and cart subjects the four steps beyond the cart carry —
-an order links to `/admin/orders/{order}`, a cart does not, since it has
-no page of its own — each with the listing titles `data.listing_ids`
-names.
+**Funnels.** A funnel is admin data — `/admin/funnels` (below) — a name and
+an ordered list of event names `App\Domain\Analytics\FunnelDefinition`
+validates, seeded with one built-in "Storefront" funnel. `App\Analytics\Admin\Funnel`
+(`docs/analytics.md` § "The funnel") reads any funnel's steps — visitors
+through its last named step — for a range, a listing, or a seller.
+The listing and seller pages always render the storefront funnel as a
+shared-borders grid (`x-admin.analytics.funnel`): the listing page below
+its own tiles, and the seller page (`/admin/sellers/{seller}`) as its own
+"Funnel, last 30 days" panel, since that page carries no range control
+and always reads the last 30 days. The entry page instead shows one small
+tile per funnel, in `position` order — its name, its end-to-end
+conversion for the range (the last step's sessions as a share of
+visitors), and the change in the last step's own count against the range
+before — each linking to `/admin/analytics/funnels/{funnel}`: a
+breadcrumb back to the entry page carrying the range, the funnel's name
+with its step chain as mono chips, the range control, then the same grid.
+Every cell carries its count, its rate from the step before it, its
+change against the range before, two bars (this range's and the previous
+range's own share of the first step), and the "largest drop" badge on the
+one step with the lowest rate; an `order.pay` step's cell also carries the
+range's cancelled sessions as a note, and a `listing.view` step's cell
+carries the range's favorited sessions as a side count. An actor's own
+feed also names the order and cart subjects the four steps beyond the
+cart carry — an order links to `/admin/orders/{order}`, a cart does not,
+since it has no page of its own — each with the listing titles
+`data.listing_ids` names.
+
+**Managing funnels.** `/admin/funnels` (`admin.funnels.index|create|store
+|edit|update|destroy`) is a plain CRUD resource: an admin names a funnel
+and picks its steps from `AnalyticsEventName::cases()`, two or more, in
+order. The editor is server-rendered with no JavaScript — "Add step",
+"Remove", "Move up", and "Move down" are all submit buttons that post
+back to the same `store`/`update` route with an `op` naming the action;
+the controller applies it to the working step list
+(`App\Support\Admin\FunnelStepListOp`) and re-renders the form rather
+than saving, so only the "Save" button (`op=save`) runs
+`FunnelDefinition` and persists. An unknown or repeated step name, or a
+slug already used by another funnel, is a validation error on the form.
+The index lists every funnel with its step chain ("Listing views → Cart
+adds → …"), linking to its analytics detail page; deleting a funnel is a
+plain POST form.
 
 ## What a removal or a block actually does
 

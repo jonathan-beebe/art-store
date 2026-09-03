@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
     {
         $seeders = [
             AdminSeeder::class,
+            FunnelSeeder::class,
             TaxonomySeeder::class,
             SellerSeeder::class,
             ListingSeeder::class,
@@ -36,10 +37,12 @@ class DatabaseSeeder extends Seeder
             'seeder_count' => count($seeders),
         ]);
 
-        // The admins re-run safely (firstOrCreate); the demo half only fits
-        // an empty schema, so a database that already holds a seller keeps
-        // what it has. Deploys chain `db:seed` on every boot and rely on this.
+        // The admins and the built-in funnel re-run safely (firstOrCreate);
+        // the demo half only fits an empty schema, so a database that
+        // already holds a seller keeps what it has. Deploys chain `db:seed`
+        // on every boot and rely on this.
         $this->call(AdminSeeder::class);
+        $this->call(FunnelSeeder::class);
 
         if (Seller::query()->exists()) {
             $story->did('demo data already seeded, skipping', ['skipped' => true]);
@@ -47,7 +50,7 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        $this->call(array_slice($seeders, 1));
+        $this->call(array_slice($seeders, 2));
 
         $story->did('seeded the demo data', ['seeder_count' => count($seeders)]);
     }

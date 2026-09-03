@@ -84,6 +84,7 @@ simply unused there):
 | messages                                  | `msg`  |
 | notifications                             | `ntf`  |
 | outbox_messages                           | `obx`  |
+| funnels                                   | `fnl`  |
 | page_view_counts                          | `pvc`  |
 | rate_limit_windows                        | `rlw`  |
 | sessions (the `sid` cookie value, §2)     | `ses`  |
@@ -512,11 +513,11 @@ layout is per stack.
 |                                                                         | optional)                                                                |
 | `/admin/stats`                                                          | Node and Rails: page views by day (7-day window) and by route pattern,   |
 |                                                                         | listing event tallies. PHP: permanent redirect to `/admin/analytics`     |
-| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | the storefront funnel (visitors through paid orders) above every event   |
-|                                                                         | name compared with the range before it, a daily bar strip, distinct      |
-|                                                                         | subject/actor counts, and the actors with the highest events-per-hour    |
-|                                                                         | peak; `q` narrows both tables and a pasted listing or customer id or a   |
-|                                                                         | shared ip jumps straight to it                                           |
+| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | one tile per funnel (end-to-end conversion, change vs the range before,  |
+|                                                                         | `position` order) above every event name compared with the range before |
+|                                                                         | it, a daily bar strip, distinct subject/actor counts, and the actors     |
+|                                                                         | with the highest events-per-hour peak; `q` narrows both tables and a     |
+|                                                                         | pasted listing or customer id or a shared ip jumps straight to it        |
 | `/admin/analytics/events/:name?range=&by=listing\|actor\|pattern`       | one event name's range tiles, daily bars, and a breakdown by listing,    |
 |                                                                         | actor, or — for `page.view` — route pattern                              |
 | `/admin/analytics/actors?range=&sort=active\|recent&actors=&q=&page=`   | every actor that carried an event in the range, paged, sorted by most    |
@@ -527,9 +528,14 @@ layout is per stack.
 |                                                                         | form                                                                     |
 | `/admin/analytics/listings/:listing?range=&event=`                      | the listing's identity, range tiles, a daily strip, and its event feed   |
 |                                                                         | newest first; links to the listing                                       |
+| `/admin/analytics/funnels/:funnel?range=`                               | one funnel's own steps (visitors through its last named step), the      |
+|                                                                         | range control; linked from its tile above and from `/admin/funnels`      |
 | `/admin/analytics/channels?range=`                                      | every channel — visitors, listing views, cart adds, orders placed, and   |
 |                                                                         | orders paid, against the range before — ordered by visitors              |
 | `/admin/analytics/channels/:key?range=&page=`                           | one channel's own visits in the range, paged, newest first               |
+| `/admin/funnels`, `/admin/funnels/create`, `POST /admin/funnels`,       | admin-defined funnels: a name and an ordered list of two or more event   |
+| `/admin/funnels/:funnel/edit`, `PUT /admin/funnels/:funnel`,            | names, validated against the analytics vocabulary; a built-in            |
+| `/admin/funnels/:funnel/delete`, `DELETE /admin/funnels/:funnel`        | "Storefront" funnel is seeded; `/delete` confirms before the DELETE      |
 | `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
 | `&actor=&msg=&key=&value=&from=&to=&group=&health=&viewer=`             | `key`/`value` filters on any attribute of the stored line; `group=1`     |
 |                                                                         | collapses to one summarized row per request; health checks and the       |
@@ -585,6 +591,11 @@ Decisions carried by this table:
   events) flags it on the leaderboard and on its own page, in the admin
   analytics drill-in; the leaderboard and the actor page share the one
   threshold, so the two never disagree about who is flagged.
+- A funnel step counts distinct sessions that produced its own event name,
+  never a raw event count, so a session acting on the same subject twice
+  still counts once and no step's count can exceed the one before it. A
+  tile's end-to-end conversion is the last step's sessions over visitors,
+  "—" rather than a division when the range held no visitors.
 
 ## 6. Workflows
 
@@ -887,3 +898,27 @@ real one would have carried, on FEAT-048 —
 `prototype/php/docs/analytics.md` § "Seeded activity" is the reference;
 node and rails have no equivalent seed and owe one only if a sibling
 ticket is filed.
+
+2026-09-03, admin-defined funnels: §1 gains `funnels` (`fnl`); §5 gains
+`/admin/funnels` (a plain CRUD resource: name plus an ordered list of two
+or more event names, validated against the analytics vocabulary, edited
+with a JavaScript-free add/remove/reorder editor) and
+`/admin/analytics/funnels/:funnel`, and the `/admin/analytics` row now
+names funnel tiles (one per funnel, `position` order, end-to-end
+conversion and its change) rather than the one fixed storefront funnel; a
+decisions bullet fixes the sessions-per-step unit and the tile's
+conversion formula. The built-in storefront funnel (`listing.view`,
+`listing.cart_add`, `checkout.open`, `order.place`, `order.pay` —
+favorites rides along as a side count on the viewed step rather than a
+step of its own) is seeded as one funnel row among any an admin adds. PHP
+ships the model, the query, the admin resource, and the home's tiles on
+FEAT-049 — `prototype/php/docs/analytics.md` § "The funnel" and
+`prototype/php/docs/admin.md` § "Analytics drill-in" are the reference.
+The funnel detail page, the listing page, and the seller page all draw
+DSGN-009's accepted design: a shared-borders grid, one cell per step, a
+delta glyph beside the label, two stacked bars (this range's share of the
+first step and the previous range's own share), the "largest drop" badge
+on the step with the lowest rate, and the footer/side/note lines —
+`prototype/php/docs/funnel.md` is the reference. Node and rails owe the
+whole feature — each still ships only its own fixed, hard-coded funnel,
+the deviation this entry queues.

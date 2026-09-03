@@ -431,41 +431,64 @@ identity lookup added on top.
 
 ## The funnel
 
-`App\Analytics\Admin\Funnel` reads the whole storefront funnel — from a
-visitor's first event to a paid order — for a range, one listing, or one
-seller, and returns an ordered `FunnelView` of seven `FunnelStep`s:
-visitors, listing views, favorites, cart adds, checkouts opened, orders
-placed, orders paid. Each step carries its count for the range, its count
-for the range before, the `RangeChange` between them, and its rate from
-its own prerequisite step — `App\Domain\Analytics\FunnelRate`, a whole
-percentage and the ratio it rounds from, plus the prerequisite's own label
-for the "N% of {label}" a page renders; null on the visitors step, which
-has no prerequisite. A step's prerequisite is not always the step drawn
-before it: cart adds' prerequisite is listing views, since a shopper adds
-to cart from a listing page they viewed, never from having favorited it —
-favorites and cart adds are two independent things a viewer may do, not a
-chain. Every other step's prerequisite is the step drawn immediately
-before it: views read against visitors, favorites against views, checkouts
-opened against cart adds, orders placed against checkouts opened, orders
-paid against orders placed. Orders cancelled is not a step; the paid
-step's `note` carries the range's cancelled count ("N cancelled") instead,
-so a placed order that never pays is still visible without a denominator
-of its own.
+A funnel is admin data: `App\Models\Funnel` stores a name, a unique slug,
+a `steps` JSON list of event names in order, and a `position` that orders
+its tile on the analytics home. `App\Domain\Analytics\FunnelDefinition`
+validates that list — two or more names, each a known
+`AnalyticsEventName`, none repeated — and exposes it as a
+`list<AnalyticsEventName>`; the model's `steps()` method and
+`App\Http\Requests\Admin\FunnelRequest` both build one before trusting a
+funnel's steps. Visitors is every funnel's implied first step and is
+never stored — a two-name `steps` list reads as a three-tile funnel.
+`FunnelDefinition::storefront()` is the built-in default (`listing.view`,
+`listing.cart_add`, `checkout.open`, `order.place`, `order.pay` —
+favorites sits off this list; see below), seeded as the "Storefront"
+funnel by `Database\Seeders\FunnelSeeder`, which runs unconditionally
+alongside `AdminSeeder` so the row exists on every `make fresh` and every
+deploy, not only a freshly seeded demo database. Admins create, edit,
+reorder, and remove funnels at `/admin/funnels`
+(`docs/admin.md` § "Analytics drill-in").
 
-Definitions:
+`App\Analytics\Admin\Funnel::forRange()`/`forListing()`/`forSeller()` take
+a `FunnelDefinition` and a range (`forListing()`/`forSeller()` also the
+scope) and return an ordered `FunnelView` of `FunnelStep`s: visitors, then
+one step per name in the definition, in order. Each step carries:
 
-- **Visitors** — distinct `session_id` among the scope's own events, null
-  session ids excluded (FEAT-047's visits will refine this). For a listing
-  or seller scope this is sessions that touched that scope specifically —
-  see "Scopes" below — not a share of the whole store's traffic, so the
-  rate below it reads as "how many of the people who touched this listing
-  bought".
-- **Listing views, favorites, cart adds** — `listing.view`, `listing.favorite`,
-  and `listing.cart_add` event counts by name.
-- **Checkouts opened, orders placed, orders paid** — `checkout.open`,
-  `order.place`, and `order.pay` event counts by name.
-- **Orders cancelled** (the paid step's note only) — `order.cancel` event
-  count for the range, not compared against the range before.
+- `key` — the event name it counts, or `visitors` for the first step.
+- `label` — `AnalyticsEventName::pluralLabel()`, or `Visitors`.
+- `current`/`previous` — the step's count for the range and the range
+  before.
+- `change` — `RangeChange` between them.
+- `rate` — `App\Domain\Analytics\FunnelRate` against the step immediately
+  before it in the definition (visitors for the first named step), a
+  whole percentage and the ratio it rounds from, plus the prerequisite's
+  own label, lowercased, for the "N% of {label}" a page renders; null on
+  the visitors step, which has no prerequisite.
+- `shareOfFirst`/`previousShareOfFirst` — `App\Domain\Analytics\FunnelShare`:
+  the step's count as a percentage of the funnel's own first step
+  (visitors), for this range and the range before, floored at 2% so a
+  real, nonzero share still reads as a sliver rather than an empty cell;
+  0% when the first step itself is zero.
+- `isLargestDrop` — true on the one step whose `rate` is the lowest among
+  every step that carries one.
+- `note` — only on an `order.pay` step: the range's cancelled *sessions*
+  ("N cancelled"), always present even at zero. Orders cancelled is not a
+  step of its own, so a placed order that never pays is still visible
+  without a denominator.
+- `side` — only on a `listing.view` step: the range's favorited
+  *sessions* ("N favorited"), always present even at zero. Favorites sits
+  off the buying path — a viewer may favorite a listing they never add to
+  cart — so it never becomes a step of its own; it rides along as a side
+  count on the viewed step instead.
+
+**The unit.** Every named step counts distinct `session_id`s among the
+events that carry its own name, a session id, and the scope — never a raw
+event count, so a session that views the same listing three times still
+counts once. Visitors, the funnel's own first step, counts distinct
+session ids among *every* event in the scope, the same way. A step is
+therefore a subset of the sessions "visitors" counts, and the store-wide
+funnel's own first-step count is every session that touched the store in
+the range.
 
 Scopes: `forRange()` reads every event in the range, unscoped. `forListing()`
 and `forSeller()` (the seller's listing ids read from the app database in
@@ -483,27 +506,45 @@ SQLite files. An order that spans two listings counts once on each
 listing's own funnel — the scope test is per listing, not a split of one
 order across the two.
 
-Recorded through `App\Analytics\Analytics::recordEvent()` the same as every
-other event (see "The second database" above), `Funnel::forRange()`
+Recorded through `App\Analytics\Analytics::recordEvent()` the same as
+every other event (see "The second database" above), `Funnel::forRange()`
 computes every step in two statements against `analytics_events`: one
-grouped by name for the six event-count steps (`order.cancel` read
-alongside them for the note, never becoming a step), one for the distinct-session
-visitor count. `forListing()`/`forSeller()` run the same two statements
-with the listing scope's `WHERE` clause added, so the funnel never issues a
-query per step.
+grouped by name, distinct session ids, for every name the definition's
+steps need (plus `order.cancel` when `order.pay` is a step, plus
+`listing.favorite` when `listing.view` is a step); one for the distinct
+session visitor count. `forListing()`/`forSeller()` run the same two
+statements with the listing scope's `WHERE` clause added — the funnel
+never issues a query per step, whatever the definition's length.
 
 A test seeds orders through `App\Actions\Orders\PlaceOrder` and
-`FinalizeOrder`, flushes the analytics buffer, and asserts the funnel's
-placed and paid counts against `Order::query()`'s own counts for the same
-range — the funnel's numbers agree with the app database's.
+`FinalizeOrder`, binding a distinct session per order, flushes the
+analytics buffer, and asserts the funnel's placed and paid counts against
+`Order::query()`'s own counts for the same range — the funnel's numbers
+agree with the app database's.
 
 **On the admin pages.** `x-admin.analytics.funnel` renders a `FunnelView`
-as a row of tiles, each with a bar under it sized to its share of the
-first step's count, so the row narrows the way a funnel does — see
-`docs/admin.md` § "Analytics drill-in" for where it is mounted. `docs/funnel.md`
-fixes the boundary between this query and that component: the step
-contract `FunnelStep` carries, the drawing rules the accepted design fixes,
-and what an admin-defined funnel needs from both sides.
+as a shared-borders grid, one cell per step, each with two stacked bars
+(this range's share of the first step, the previous range's own share
+beneath it) and the "largest drop" badge on the one step `isLargestDrop`
+marks — see `docs/admin.md` § "Analytics drill-in" for where it is
+mounted: the listing and seller pages always render the storefront funnel
+this way; the analytics home shows a small tile per funnel instead
+(below) and links each one to its own detail page, drawn by this same
+component, with a range control. `docs/funnel.md` fixes the boundary
+between this query and that component — the step contract `FunnelStep`
+carries and the drawing rules the component follows.
+
+**Tiles on the analytics home.** `App\Analytics\Admin\FunnelTiles::forRange()`
+reads every funnel in `position` order, capped at eight — a row wider
+than that reads as a list, not a row of tiles, and `/admin/funnels` is
+where the rest of them live — and returns one `App\Analytics\Admin\FunnelTile`
+per funnel: its name, its end-to-end conversion for the range (the last
+step's sessions as a share of visitors, "—" rather than a division when
+the range held no visitors), and the change in the last step's own count
+against the range before. One `Funnel::forRange()` read per tile, the
+same fixed-cost-per-funnel shape the query already keeps — the home never
+issues a query per step or per actor. Each tile links to
+`admin.analytics.funnels.show`.
 
 ## Test isolation
 

@@ -8,6 +8,7 @@ use App\Analytics\Admin\EntityActivity;
 use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\FunnelDefinition;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AnalyticsEntityQueryRequest;
 use App\Models\Listing;
@@ -34,7 +35,7 @@ final class ListingController extends Controller
 
         return view('admin.analytics.entities.show', [
             'activity' => $activity,
-            'funnel' => Funnel::forListing($listing->id, $range),
+            'funnel' => Funnel::forListing(FunnelDefinition::storefront(), $listing->id, $range),
             'now' => $this->now(),
             'rangeCaption' => $range->caption(),
             'rangeLinks' => $this->entityRangeLinks($listing->id, $roundTripped, $rangeDays),

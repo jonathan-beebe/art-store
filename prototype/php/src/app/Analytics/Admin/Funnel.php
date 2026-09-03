@@ -6,7 +6,9 @@ namespace App\Analytics\Admin;
 
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\FunnelDefinition;
 use App\Domain\Analytics\FunnelRate;
+use App\Domain\Analytics\FunnelShare;
 use App\Domain\Analytics\RangeChange;
 use App\Models\Listing;
 use App\Models\Seller;
@@ -14,10 +16,10 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The storefront funnel, visitors through paid orders — docs/analytics.md
- * names every step's definition. `forRange()` reads the whole store;
- * `forListing()` and `forSeller()` narrow every step to the events that
- * belong to one listing or one seller's listings.
+ * A funnel's steps for a range, a listing, or a seller — docs/analytics.md
+ * § "The funnel" names every scope's own read. `forRange()` reads the whole
+ * store; `forListing()` and `forSeller()` narrow every step to the events
+ * that belong to one listing or one seller's listings.
  *
  * A listing view, favorite, or cart add belongs to a listing the way every
  * other admin analytics page already reads it: `subject_type = 'listing'`,
@@ -28,94 +30,158 @@ use Illuminate\Support\Facades\DB;
  * `Shop\CheckoutController::show` write onto it; this is the one place
  * that array is read back out, via SQLite's `json_each`.
  *
- * `visitors`, the funnel's first step, counts distinct `session_id`s among
- * every event that belongs to the scope — a listing's own view, favorite,
- * and cart-add rows plus the checkout and order rows whose listing ids
- * include it — the same scope every other step reads, so the rate below
- * it reads as "how many of the people who touched this listing bought",
- * not a share of the whole store's traffic.
+ * `visitors`, a funnel's implied first step, counts distinct `session_id`s
+ * among every event that belongs to the scope, null session ids excluded.
+ * Every other step counts distinct sessions among the events that carry its
+ * own name and a session id, so a step's count never exceeds the one
+ * before it. Its rate is read against the step immediately before it in
+ * the definition's ordered list, visitors for the first named step.
  */
 final class Funnel
 {
-    /** `analytics_events.name` values the funnel reads. `OrderCancel` is
-     * queried alongside the rest but never becomes a step of its own — see
-     * {@see cancelledNote()}. */
-    private const array EVENT_NAMES = [
-        AnalyticsEventName::ListingView,
-        AnalyticsEventName::ListingFavorite,
-        AnalyticsEventName::ListingCartAdd,
-        AnalyticsEventName::CheckoutOpen,
-        AnalyticsEventName::OrderPlace,
-        AnalyticsEventName::OrderPay,
-        AnalyticsEventName::OrderCancel,
-    ];
+    private const string VISITORS_KEY = 'visitors';
 
-    public static function forRange(AnalyticsRange $range): FunnelView
+    private const string VISITORS_LABEL = 'Visitors';
+
+    public static function forRange(FunnelDefinition $definition, AnalyticsRange $range): FunnelView
     {
-        return self::build($range, null);
+        return self::build($definition, $range, null);
     }
 
-    public static function forListing(string $listingId, AnalyticsRange $range): FunnelView
+    public static function forListing(FunnelDefinition $definition, string $listingId, AnalyticsRange $range): FunnelView
     {
-        return self::build($range, [$listingId]);
+        return self::build($definition, $range, [$listingId]);
     }
 
     /**
      * `$seller`'s listing ids come from the app database in one query.
      */
-    public static function forSeller(Seller $seller, AnalyticsRange $range): FunnelView
+    public static function forSeller(FunnelDefinition $definition, Seller $seller, AnalyticsRange $range): FunnelView
     {
         /** @var list<string> $listingIds */
         $listingIds = Listing::query()->where('seller_id', $seller->id)->pluck('id')->all();
 
-        return self::build($range, $listingIds);
+        return self::build($definition, $range, $listingIds);
     }
 
     /**
      * @param  list<string>|null  $listingIds  null reads every event in the
      *                                         range; a list narrows to events that belong to those listings.
      */
-    private static function build(AnalyticsRange $range, ?array $listingIds): FunnelView
+    private static function build(FunnelDefinition $definition, AnalyticsRange $range, ?array $listingIds): FunnelView
     {
         $previousRange = $range->previous();
-        $byName = self::nameTotals($range, $previousRange, $listingIds);
+        $sessionsByName = self::sessionsByName($range, $previousRange, $listingIds, self::namesToQuery($definition));
         $visitors = self::visitorTotals($range, $previousRange, $listingIds);
-        $cancelled = $byName[AnalyticsEventName::OrderCancel->value]['current'];
 
-        $views = $byName[AnalyticsEventName::ListingView->value];
-        $favorites = $byName[AnalyticsEventName::ListingFavorite->value];
-        $cartAdds = $byName[AnalyticsEventName::ListingCartAdd->value];
-        $checkoutsOpened = $byName[AnalyticsEventName::CheckoutOpen->value];
-        $ordersPlaced = $byName[AnalyticsEventName::OrderPlace->value];
-        $ordersPaid = $byName[AnalyticsEventName::OrderPay->value];
+        $drafts = self::drafts($definition, $sessionsByName, $visitors['current']);
+        $largestDropIndex = self::largestDropIndex($drafts);
 
-        return new FunnelView([
-            self::step('Visitors', $visitors, null, ''),
-            self::step(AnalyticsEventName::ListingView->pluralLabel(), $views, $visitors['current'], 'visitors'),
-            self::step(AnalyticsEventName::ListingFavorite->pluralLabel(), $favorites, $views['current'], 'views'),
-            self::step(AnalyticsEventName::ListingCartAdd->pluralLabel(), $cartAdds, $views['current'], 'views'),
-            self::step(AnalyticsEventName::CheckoutOpen->pluralLabel(), $checkoutsOpened, $cartAdds['current'], 'cart adds'),
-            self::step(AnalyticsEventName::OrderPlace->pluralLabel(), $ordersPlaced, $checkoutsOpened['current'], 'checkouts opened'),
-            self::step(AnalyticsEventName::OrderPay->pluralLabel(), $ordersPaid, $ordersPlaced['current'], 'orders placed', self::cancelledNote($cancelled)),
-        ]);
+        $steps = [self::visitorsStep($visitors)];
+
+        foreach ($drafts as $index => $draft) {
+            $steps[] = self::toStep($draft, $visitors, $sessionsByName, $index === $largestDropIndex);
+        }
+
+        return new FunnelView($steps);
     }
 
     /**
-     * `$ofPrevious`/`$ofLabel` name this step's own prerequisite, which is
-     * not always the step drawn immediately before it — see
-     * {@see FunnelRate}. `$ofLabel` is unused when `$ofPrevious` is null.
+     * Every named step's totals and its rate against its own prerequisite —
+     * the step immediately before it, visitors for the first one — built
+     * once so {@see largestDropIndex()} can read every rate before any
+     * {@see FunnelStep} is constructed.
      *
-     * @param  array{current: int, previous: int}  $totals
+     * @param  array<string, array{current: int, previous: int}>  $sessionsByName
+     * @return list<array{name: AnalyticsEventName, totals: array{current: int, previous: int}, rate: ?FunnelRate}>
      */
-    private static function step(string $label, array $totals, ?int $ofPrevious, string $ofLabel, ?string $note = null): FunnelStep
+    private static function drafts(FunnelDefinition $definition, array $sessionsByName, int $visitorsCurrent): array
     {
+        $drafts = [];
+        $prerequisiteCurrent = $visitorsCurrent;
+        $prerequisiteLabel = strtolower(self::VISITORS_LABEL);
+
+        foreach ($definition->steps as $name) {
+            $totals = $sessionsByName[$name->value];
+
+            $drafts[] = [
+                'name' => $name,
+                'totals' => $totals,
+                'rate' => FunnelRate::of($totals['current'], $prerequisiteCurrent, $prerequisiteLabel),
+            ];
+
+            $prerequisiteCurrent = $totals['current'];
+            $prerequisiteLabel = strtolower($name->pluralLabel());
+        }
+
+        return $drafts;
+    }
+
+    /**
+     * The index of the one draft whose rate is the lowest among every draft
+     * that carries one — null when none does.
+     *
+     * @param  list<array{name: AnalyticsEventName, totals: array{current: int, previous: int}, rate: ?FunnelRate}>  $drafts
+     */
+    private static function largestDropIndex(array $drafts): ?int
+    {
+        $lowestIndex = null;
+        $lowestRatio = null;
+
+        foreach ($drafts as $index => $draft) {
+            if ($draft['rate'] === null) {
+                continue;
+            }
+
+            if ($lowestRatio === null || $draft['rate']->ratio < $lowestRatio) {
+                $lowestRatio = $draft['rate']->ratio;
+                $lowestIndex = $index;
+            }
+        }
+
+        return $lowestIndex;
+    }
+
+    /**
+     * @param  array{name: AnalyticsEventName, totals: array{current: int, previous: int}, rate: ?FunnelRate}  $draft
+     * @param  array{current: int, previous: int}  $visitors
+     * @param  array<string, array{current: int, previous: int}>  $sessionsByName
+     */
+    private static function toStep(array $draft, array $visitors, array $sessionsByName, bool $isLargestDrop): FunnelStep
+    {
+        $name = $draft['name'];
+        $totals = $draft['totals'];
+
         return new FunnelStep(
-            $label,
+            $name->value,
+            $name->pluralLabel(),
             $totals['current'],
             $totals['previous'],
             RangeChange::between($totals['current'], $totals['previous']),
-            $ofPrevious === null ? null : FunnelRate::of($totals['current'], $ofPrevious, $ofLabel),
-            $note,
+            $draft['rate'],
+            FunnelShare::of($totals['current'], $visitors['current']),
+            FunnelShare::of($totals['previous'], $visitors['previous']),
+            $isLargestDrop,
+            $name === AnalyticsEventName::OrderPay ? self::cancelledNote($sessionsByName[AnalyticsEventName::OrderCancel->value]['current']) : null,
+            $name === AnalyticsEventName::ListingView ? self::favoritedSide($sessionsByName[AnalyticsEventName::ListingFavorite->value]['current']) : null,
+        );
+    }
+
+    /**
+     * @param  array{current: int, previous: int}  $visitors
+     */
+    private static function visitorsStep(array $visitors): FunnelStep
+    {
+        return new FunnelStep(
+            self::VISITORS_KEY,
+            self::VISITORS_LABEL,
+            $visitors['current'],
+            $visitors['previous'],
+            RangeChange::between($visitors['current'], $visitors['previous']),
+            null,
+            FunnelShare::of($visitors['current'], $visitors['current']),
+            FunnelShare::of($visitors['previous'], $visitors['previous']),
+            false,
         );
     }
 
@@ -124,33 +190,65 @@ final class Funnel
         return number_format($cancelled).' cancelled';
     }
 
+    private static function favoritedSide(int $favorited): string
+    {
+        return number_format($favorited).' favorited';
+    }
+
     /**
-     * Every event name's current-versus-previous count in one pass over
-     * `analytics_events`, the same shape {@see EventTotals} reads for the
-     * entry page's events table.
+     * The names {@see sessionsByName()} must read: every step in the
+     * definition, plus order cancellations when orders paid is a step (the
+     * paid step's note) and favorites when listing views is a step (the
+     * viewed step's side count).
+     *
+     * @return list<AnalyticsEventName>
+     */
+    private static function namesToQuery(FunnelDefinition $definition): array
+    {
+        $names = $definition->steps;
+        $extra = [];
+
+        if (in_array(AnalyticsEventName::OrderPay, $names, true) && ! in_array(AnalyticsEventName::OrderCancel, $names, true)) {
+            $extra[] = AnalyticsEventName::OrderCancel;
+        }
+
+        if (in_array(AnalyticsEventName::ListingView, $names, true) && ! in_array(AnalyticsEventName::ListingFavorite, $names, true)) {
+            $extra[] = AnalyticsEventName::ListingFavorite;
+        }
+
+        return [...$names, ...$extra];
+    }
+
+    /**
+     * Distinct `session_id`s per name, current and previous window, over the
+     * scope's own events — the shape {@see visitorTotals()} reads for the
+     * funnel's first step, grouped by name in one query, so the funnel
+     * never issues a query per step.
      *
      * @param  list<string>|null  $listingIds
+     * @param  list<AnalyticsEventName>  $names
      * @return array<string, array{current: int, previous: int}>
      */
-    private static function nameTotals(AnalyticsRange $range, AnalyticsRange $previousRange, ?array $listingIds): array
+    private static function sessionsByName(AnalyticsRange $range, AnalyticsRange $previousRange, ?array $listingIds, array $names): array
     {
         $currentStart = SqlInstant::format($range->start);
 
         $query = DB::connection('analytics')->table('analytics_events')
-            ->whereIn('name', array_map(fn (AnalyticsEventName $name): string => $name->value, self::EVENT_NAMES))
+            ->whereIn('name', array_map(fn (AnalyticsEventName $name): string => $name->value, $names))
+            ->whereNotNull('session_id')
             ->whereBetween('occurred_at', [SqlInstant::format($previousRange->start), SqlInstant::format($range->end)]);
 
         self::scopeToListings($query, $listingIds);
 
         $rows = $query
             ->select('name')
-            ->selectRaw('sum(case when occurred_at >= ? then 1 else 0 end) as current', [$currentStart])
-            ->selectRaw('sum(case when occurred_at < ? then 1 else 0 end) as previous', [$currentStart])
+            ->selectRaw('count(distinct case when occurred_at >= ? then session_id end) as current', [$currentStart])
+            ->selectRaw('count(distinct case when occurred_at < ? then session_id end) as previous', [$currentStart])
             ->groupBy('name')
             ->get();
 
         $totals = [];
-        foreach (self::EVENT_NAMES as $name) {
+        foreach ($names as $name) {
             $totals[$name->value] = ['current' => 0, 'previous' => 0];
         }
 
@@ -170,7 +268,7 @@ final class Funnel
 
     /**
      * Distinct `session_id`s in the current and the previous window, over
-     * the same scope {@see nameTotals()} reads.
+     * the same scope {@see sessionsByName()} reads.
      *
      * @param  list<string>|null  $listingIds
      * @return array{current: int, previous: int}

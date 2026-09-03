@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Messaging\OpenThread;
 use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\FunnelDefinition;
 use App\Domain\Messaging\ThreadOpening;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
@@ -77,7 +78,7 @@ final class SellerMessageController extends AdminController
 
         return [
             'seller' => $seller,
-            'funnel' => Funnel::forSeller($seller, AnalyticsRange::of(self::FUNNEL_RANGE_DAYS, $this->now())),
+            'funnel' => Funnel::forSeller(FunnelDefinition::storefront(), $seller, AnalyticsRange::of(self::FUNNEL_RANGE_DAYS, $this->now())),
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
             'listings' => $seller->listings()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'fulfillments' => $seller->fulfillments()->with('order')->orderByDesc('created_at')->orderByDesc('id')->get(),

@@ -14,6 +14,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\Fulfillment;
+use App\Models\Funnel;
 use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
@@ -168,6 +169,13 @@ it('seeds the two platform admins who can sign in at /admin/login', function ():
     }
 });
 
+it('seeds the storefront funnel', function (): void {
+    $funnel = Funnel::query()->where('slug', 'storefront')->sole();
+
+    expect($funnel->name)->toBe('Storefront')
+        ->and($funnel->steps)->toBe(['listing.view', 'listing.cart_add', 'checkout.open', 'order.place', 'order.pay']);
+});
+
 it('seeds one conversation of every messaging kind and one published FAQ', function (): void {
     // Two listing questions (one answered, one not) plus one of each other kind.
     expect(Conversation::count())->toBe(5)
@@ -183,6 +191,7 @@ it('keeps the database on a second run, only confirming the admins', function ()
         ->and(Listing::count())->toBe(46)
         ->and(Order::count())->toBe(3)
         ->and(Admin::count())->toBe(2)
+        ->and(Funnel::count())->toBe(1)
         ->and($log->line('seed.run', 'did')['data'])->toHaveKey('skipped', true);
 });
 
@@ -190,5 +199,5 @@ it('tells the story of the seed run', function () use ($seedRun): void {
     $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
 
     expect($log->outline())->toContain('seed.run will', 'seed.run did')
-        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 10);
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 11);
 });

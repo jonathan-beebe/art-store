@@ -5,15 +5,25 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Actions\Favorites\ToggleFavorite;
-use App\Actions\Orders\CancelOrder;
-use App\Actions\Orders\FinalizeOrder;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 use App\Http\Middleware\LogRequestStory;
+use App\Models\Funnel;
+use App\Support\RequestMarks;
 use Illuminate\Http\Request;
+
+/**
+ * Binds an in-flight request carrying the given session cookie, so the next
+ * recorded event reads it back from {@see \App\Analytics\RequestFacts::current()}.
+ */
+$bindSession = function (string $sessionId): void {
+    $request = Request::create('/', cookies: [RequestMarks::SESSION_COOKIE => $sessionId]);
+    $request->attributes->set(LogRequestStory::REQUEST_ID_ATTRIBUTE, 'req_01J00000000000000000000ABC');
+    app()->instance('request', $request);
+};
 
 it('redirects /admin/stats to /admin/analytics permanently for a signed-in admin', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/stats');
@@ -57,27 +67,30 @@ it('shows the right counts, changes, and labels for a seeded event', function ()
         ->assertSeeInOrder(['listing.view', '2', '1', '+100.0%']);
 });
 
-it('shows the funnel above the events table, with its rates and the cancelled note', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
+it('shows a tile per funnel above the events table, with its end-to-end conversion', function () use ($bindSession): void {
+    $listing = $this->listing($this->seller());
     $customer = $this->verifiedCustomer();
     $analytics = app(Analytics::class);
+    Funnel::factory()->create(['name' => 'Storefront', 'steps' => ['listing.view', 'listing.cart_add']]);
 
+    $bindSession('sess-1');
     $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00'), 'a'));
-    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, $customer->id, $this->moment('2026-08-19 09:05:00')));
-
-    $paid = $this->orderFor($customer, $listing);
-    $cancelled = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
-    app(FinalizeOrder::class)($paid, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
-    app(CancelOrder::class)($cancelled, $this->moment('2026-08-20 11:00:00'));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingCartAdd, $listing->id, $customer->id, $this->moment('2026-08-19 09:05:00')));
     $analytics->flush();
 
     $this->travelTo($this->moment('2026-08-24 12:00:00'));
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?range=7');
 
     $response->assertOk();
-    $response->assertSeeInOrder(['Funnel', 'Visitors', 'Orders paid', 'Events']);
-    $response->assertSee('1 cancelled');
+    $response->assertSeeInOrder(['Funnels', 'Storefront', '100%', 'Events']);
+});
+
+it('shows a message and a link to define one when there are no funnels', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics');
+
+    $response->assertOk();
+    $response->assertSee('No funnels yet.');
+    $response->assertSee('href="'.route('admin.funnels.create').'"', escape: false);
 });
 
 it('carries q through the range links', function (): void {
@@ -113,7 +126,7 @@ it('narrows the actor leaderboard by search', function (): void {
     $response->assertDontSee('ron@example.com');
 });
 
-it('renders the entry page on a fixed number of queries however many actors the range holds', function (): void {
+it('renders the entry page on a fixed number of queries however many actors or funnels the range holds', function (): void {
     $listing = $this->listing($this->seller());
     $analytics = app(Analytics::class);
 
@@ -123,9 +136,14 @@ it('renders the entry page on a fixed number of queries however many actors the 
     }
     $analytics->flush();
 
+    // Two funnels: one funnel query (two analytics statements) per tile —
+    // a fixed cost per funnel, never per step or per actor.
+    Funnel::factory()->create(['name' => 'Storefront', 'position' => 1, 'steps' => ['listing.view', 'listing.cart_add']]);
+    Funnel::factory()->create(['name' => 'Channel', 'position' => 2, 'steps' => ['checkout.open', 'order.pay']]);
+
     $response = $this->actingAs($this->admin(), 'admin')
-        ->expectsDatabaseQueryCount(2, 'sqlite')
-        ->expectsDatabaseQueryCount(12, 'analytics')
+        ->expectsDatabaseQueryCount(3, 'sqlite')
+        ->expectsDatabaseQueryCount(14, 'analytics')
         ->get('/admin/analytics');
 
     $response->assertOk();
@@ -153,8 +171,6 @@ it('narrows the events table by event name', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics?q=favorite');
 
     $response->assertOk();
-    // The funnel above the table always shows every step's label, so the
-    // search is asserted by the machine name only the table row carries.
     $response->assertSee('listing.favorite');
     $response->assertDontSee('listing.view');
     $response->assertDontSee('listing.cart_add');

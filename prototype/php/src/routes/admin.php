@@ -7,12 +7,15 @@ use App\Http\Controllers\Admin\Analytics\ActorController;
 use App\Http\Controllers\Admin\Analytics\AnalyticsController;
 use App\Http\Controllers\Admin\Analytics\ChannelController;
 use App\Http\Controllers\Admin\Analytics\EventController;
+use App\Http\Controllers\Admin\Analytics\FunnelController as AnalyticsFunnelController;
 use App\Http\Controllers\Admin\Analytics\ListingController as AnalyticsListingController;
 use App\Http\Controllers\Admin\CustomerBlockController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerMessageController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FulfillmentController;
+use App\Http\Controllers\Admin\FunnelController;
+use App\Http\Controllers\Admin\FunnelDeleteController;
 use App\Http\Controllers\Admin\LedgerController;
 use App\Http\Controllers\Admin\LiftCustomerBlockController;
 use App\Http\Controllers\Admin\LiftListingRemovalController;
@@ -58,6 +61,9 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('fulfillments/{fulfillment}', [FulfillmentController::class, 'show'])->name('fulfillments.show');
     Route::post('fulfillments/{fulfillment}/refund', RefundController::class)->name('fulfillments.refund');
 
+    Route::resource('funnels', FunnelController::class)->except('show');
+    Route::get('funnels/{funnel}/delete', FunnelDeleteController::class)->name('funnels.delete');
+
     Route::get('accounting', AccountingController::class)->name('accounting');
     Route::get('ledger', LedgerController::class)->name('ledger');
     Route::get('payouts', [PayoutController::class, 'index'])->name('payouts.index');
@@ -67,6 +73,7 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::get('analytics/actors', [ActorController::class, 'index'])->name('analytics.actors.index');
     Route::get('analytics/actors/{customer}', [ActorController::class, 'show'])->name('analytics.actors.show');
     Route::get('analytics/listings/{listing}', [AnalyticsListingController::class, 'show'])->name('analytics.listings.show');
+    Route::get('analytics/funnels/{funnel}', [AnalyticsFunnelController::class, 'show'])->name('analytics.funnels.show');
     Route::get('analytics/channels', [ChannelController::class, 'index'])->name('analytics.channels.index');
     Route::get('analytics/channels/{key}', [ChannelController::class, 'show'])->name('analytics.channels.show');
     Route::permanentRedirect('stats', '/admin/analytics');

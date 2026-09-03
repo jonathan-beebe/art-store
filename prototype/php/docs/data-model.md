@@ -30,6 +30,7 @@ prototypes share.
 | messages         | `msg`  | payouts          | `pyt`  |
 | notifications    | `ntf`  | refunds          | `rfd`  |
 | listing_removals | `rmv`  | page_view_counts | `pvc`  |
+| funnels          | `fnl`  |                  |        |
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock
@@ -70,6 +71,13 @@ erDiagram
         string email UK
         string name "nullable"
         timestamp email_verified_at "nullable"
+    }
+    funnels {
+        text id PK
+        string name
+        string slug UK
+        json steps "ordered list of AnalyticsEventName values"
+        integer position "tile order on the analytics home"
     }
     customer_blocks {
         text id PK
@@ -322,6 +330,11 @@ Caveats:
   magic link only for an address that already has a row, and
   `App\Actions\Auth\SignInAdmin` answers 404 rather than creating one. It
   holds no foreign key, so it is drawn without a relationship line above.
+- `funnels` holds no foreign key either, so it too is drawn without a
+  relationship line above. `steps` never stores visitors, every funnel's
+  implied first step; the built-in "Storefront" row is seeded the same way
+  `admins` is, unconditionally, so it survives a database that already
+  holds demo data. See `docs/analytics.md` § "The funnel".
 - `customer_blocks` keeps every block a customer has ever had; the active one
   is the row with `lifted_at` null. "At most one active block" is
   `BlockCustomer`'s rule rather than a partial unique index, which SQLite does

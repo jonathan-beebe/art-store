@@ -9,7 +9,7 @@ use App\Analytics\Admin\AnalyticsJump;
 use App\Analytics\Admin\ChannelRow;
 use App\Analytics\Admin\ChannelTable;
 use App\Analytics\Admin\EventTotals;
-use App\Analytics\Admin\Funnel;
+use App\Analytics\Admin\FunnelTiles;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Http\Controllers\Controller;
@@ -55,7 +55,7 @@ final class AnalyticsController extends Controller
             'now' => $now,
             'rangeCaption' => $range->caption(),
             'dayLabels' => $range->dayLabels(),
-            'funnel' => Funnel::forRange($range),
+            'funnelTiles' => FunnelTiles::forRange($range),
             'events' => EventTotals::forRange($range, $search),
             'actors' => ActorLeaderboard::forRange($range, $actorKind, $search, self::LEADERBOARD_LIMIT),
             'channelsSummary' => $this->channelsSummary($channels),
