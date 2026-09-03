@@ -1,7 +1,7 @@
 ---
 id: MAINT-007
 type: maintenance
-status: doing
+status: resolved
 created: 2026-09-03
 ---
 
