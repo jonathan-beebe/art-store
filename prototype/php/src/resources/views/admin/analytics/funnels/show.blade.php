@@ -4,10 +4,18 @@
 @endphp
 
 <x-layouts.admin :title="$funnel->name.' — Art Store admin'">
-    <p><a href="{{ route('admin.analytics.index') }}" class="text-stone-700 dark:text-stone-300 underline">&larr; Analytics</a></p>
+    <p><a href="{{ route('admin.analytics.index', ['range' => $rangeDays]) }}" class="text-stone-700 dark:text-stone-300 underline">&larr; Analytics</a></p>
 
-    <div class="mt-2 flex flex-wrap items-baseline gap-3">
+    <div class="mt-2 flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ $funnel->name }}</h1>
+        <div class="flex flex-wrap items-center gap-1.5">
+            @foreach ($stepChain as $index => $label)
+                @if ($index > 0)
+                    <span class="text-stone-400 dark:text-stone-600" aria-hidden="true">&rarr;</span>
+                @endif
+                <span class="inline-flex items-center rounded-md bg-stone-100 dark:bg-stone-400/10 px-2 py-0.5 font-mono text-xs text-stone-700 dark:text-stone-300 inset-ring inset-ring-stone-500/10 dark:inset-ring-stone-400/20">{{ $label }}</span>
+            @endforeach
+        </div>
         <span class="text-stone-600 dark:text-stone-400">{{ $rangeCaption }}</span>
         <a href="{{ route('admin.funnels.edit', $funnel) }}" class="ml-auto text-stone-700 dark:text-stone-300 underline">Edit funnel</a>
     </div>

@@ -46,6 +46,15 @@ it('links to the funnel\'s own edit page', function (): void {
     $response->assertSee('href="'.route('admin.funnels.edit', $funnel).'"', escape: false);
 });
 
+it('breadcrumbs back to the analytics index carrying the range', function (): void {
+    $funnel = Funnel::factory()->create();
+
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.funnels.show', ['funnel' => $funnel, 'range' => 7]));
+
+    $response->assertOk();
+    $response->assertSee('href="'.route('admin.analytics.index', ['range' => 7]).'"', escape: false);
+});
+
 it('answers 400 for an unrecognised range', function (): void {
     $funnel = Funnel::factory()->create();
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Analytics\Admin\Funnel as FunnelQuery;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\FunnelDefinition;
 use App\Http\Controllers\Controller;
@@ -29,8 +30,10 @@ final class FunnelController extends Controller
         return view('admin.analytics.funnels.show', [
             'funnel' => $funnel,
             'funnelView' => FunnelQuery::forRange(FunnelDefinition::of($funnel->steps), $range),
+            'rangeDays' => $rangeDays,
             'rangeCaption' => $range->caption(),
             'rangeLinks' => $this->rangeLinks($funnel, $rangeDays),
+            'stepChain' => self::stepChain($funnel),
         ]);
     }
 
@@ -47,5 +50,13 @@ final class FunnelController extends Controller
             ],
             AnalyticsRange::SIZES,
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function stepChain(Funnel $funnel): array
+    {
+        return array_map(fn (AnalyticsEventName $name): string => $name->pluralLabel(), $funnel->steps());
     }
 }
