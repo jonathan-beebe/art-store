@@ -7,12 +7,13 @@ slower. `App\Analytics\Analytics` is the one entry point: every recording
 call appends to an in-memory buffer and does no I/O; a later flush is what
 turns the buffer into rows.
 
-Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,ListingEventCounts,RequestFacts}.php`,
+Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ListingEventCounts,RequestFacts}.php`,
 `app/Domain/Analytics/AnalyticsEventName.php`,
 `app/Providers/AnalyticsServiceProvider.php`, the `analytics` connection in
 `config/database.php`, `config/analytics.php`, `app/Support/RequestMarks.php`,
 `app/Support/RetentionDays.php`, `database/migrations/*_create_analytics_events_table.php`,
 `database/migrations/*_create_page_view_counts_table.php`,
+`database/migrations/*_create_analytics_visits_table.php`,
 `app/Models/PageViewCount.php`, `app/Domain/Listings/ListingViewCollapse.php`,
 `app/Domain/Analytics/{PageViewCountability,PageViewDay,PageViewSite,PageViewWeek}.php`,
 `app/Http/Middleware/RollUpPageViews.php`, `App\Console\Commands\SweepOrders`'s
@@ -143,6 +144,47 @@ Indexes: `(subject_id, name)`, `(name, occurred_at)`, `actor_id`, `ip`, `session
 
 `page_view_counts` is unchanged by this ticket: `id` (prefix `pvc`), `site`,
 `path_pattern`, `day`, `count`, unique on `(site, path_pattern, day)`.
+
+`analytics_visits`:
+
+| Column          | Type                | Notes                                          |
+| --------------- | ------------------- | ----------------------------------------------- |
+| `session_id`    | text(30) PK         | the `sid` cookie's value                         |
+| `first_seen_at` | timestamp           | UTC; the moment the row was captured             |
+| `landing_path`  | string              | the path of the first request that carried this session |
+| `referrer_host` | string, nullable    | the `Referer` header's host, foreign hosts only  |
+| `utm_source`    | string(255), nullable | stored as given, capped at 255                 |
+| `utm_medium`    | string(255), nullable | stored as given, capped at 255                 |
+| `utm_campaign`  | string(255), nullable | stored as given, capped at 255                 |
+| `utm_content`   | string(255), nullable | stored as given, capped at 255                 |
+| `utm_term`      | string(255), nullable | stored as given, capped at 255                 |
+| `actor_id`      | text(30), nullable  | references e.g. `customers.id`, no FK; filled when the request already has one |
+
+Indexes: `first_seen_at`, `(utm_source, utm_medium)`, `actor_id`.
+
+**A visit is first-touch per session cookie.** The `sid` cookie lives a
+year, but `analytics_visits` holds one row per session for its whole
+life: `App\Analytics\Analytics::recordVisit()` buffers whatever
+`App\Analytics\AnalyticsVisit::fromRequest()` builds off the current
+request, and `flush()` writes it `INSERT OR IGNORE` on `session_id`, so
+only the first request of a session ever changes a row — every later
+request in that session's year is a no-op write. First-touch is the
+simpler definition and the one that answers "which channel brought this
+visitor", the question a marketing decision waits on; a thirty-minute
+session-gap definition was considered and set aside for that reason.
+
+**Where it is captured.** `App\Http\Middleware\RollUpPageViews::terminate()`
+records the visit, not `NameRequestVisitor` where the `sid` cookie is
+minted: `RollUpPageViews` already computes whether a response is
+countable (`PageViewCountability`) and which site a route pattern belongs
+to (`PageViewSite`), and both are only knowable once the response exists
+— `NameRequestVisitor` runs in `handle()`, before there is a response to
+ask. A visit is captured only for the storefront (`PageViewSite::Shop`);
+an admin or seller page records nothing. `App\Analytics\RequestFacts`
+supplies the session id, including its fallback to the cookie
+`NameRequestVisitor` just queued for a browser's first-ever request, so
+the very first request a new visitor makes still records a visit under
+the id it was just given.
 
 ## Vocabulary
 

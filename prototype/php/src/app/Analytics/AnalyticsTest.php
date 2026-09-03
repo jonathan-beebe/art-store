@@ -26,6 +26,11 @@ function listingViewedAt(DateTimeImmutable $at, ?string $dedupeKey = null): Anal
     return AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', $at, $dedupeKey);
 }
 
+function visitFor(string $sessionId, DateTimeImmutable $at, string $landingPath = '/art/starry-night'): AnalyticsVisit
+{
+    return new AnalyticsVisit($sessionId, $at, $landingPath, null, null, null, null, null, null, null);
+}
+
 /**
  * @return array<string, mixed>
  */
@@ -160,6 +165,54 @@ it('counts a page view toward pending() once per distinct key, not once per hit'
     expect($analytics->pending())->toBe(2);
 });
 
+it('buffers a recorded visit without writing it', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', new DateTimeImmutable));
+
+    expect($analytics->pending())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+});
+
+it('writes the buffered visit on flush', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:32:07+00:00');
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $at, '/art/starry-night'));
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_visits')->sole();
+
+    expect($row->session_id)->toBe('ses_01J00000000000000000000ABC')
+        ->and($row->first_seen_at)->toBe('2026-08-22 14:32:07')
+        ->and($row->landing_path)->toBe('/art/starry-night');
+});
+
+it('keeps the first visit recorded for a session within one buffer', function (): void {
+    $analytics = new Analytics;
+    $first = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+    $second = new DateTimeImmutable('2026-08-22T15:00:00+00:00');
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $first, '/art/first'));
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $second, '/art/second'));
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->landing_path)->toBe('/art/first');
+});
+
+it('keeps the first visit recorded for a session across two flushes', function (): void {
+    $analytics = new Analytics;
+    $first = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+    $second = new DateTimeImmutable('2026-08-22T15:00:00+00:00');
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $first, '/art/first'));
+    $analytics->flush();
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $second, '/art/second'));
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->landing_path)->toBe('/art/first');
+});
+
 it('flushes automatically at the row cap', function (): void {
     $analytics = new Analytics;
 
@@ -189,6 +242,22 @@ it('flushes automatically at the row cap when only page views are buffered', fun
 
     expect($analytics->pending())->toBe(0)
         ->and(PageViewCount::query()->count())->toBe(256);
+});
+
+it('flushes automatically at the row cap when only visits are buffered', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    for ($i = 0; $i < 255; $i++) {
+        $analytics->recordVisit(visitFor("ses_{$i}", $at));
+    }
+
+    expect(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+
+    $analytics->recordVisit(visitFor('ses_255', $at));
+
+    expect($analytics->pending())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(256);
 });
 
 it('commits through its own BEGIN IMMEDIATE transaction against a real file outside any outer transaction', function (): void {
