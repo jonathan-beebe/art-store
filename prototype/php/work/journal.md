@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 9
+- DSGN: 10
 - ARCH: 1
 - FEAT: 49
 - IMPRV: 26
@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:19:11:39 — DSGN-009 — defined: the funnel draws as a funnel
 
 - 2026-09-02:18:58:47 — FEAT-047 — started
 
