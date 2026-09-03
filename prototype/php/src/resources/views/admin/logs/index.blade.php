@@ -202,7 +202,7 @@
             @if (count($groups) === 0)
                 <x-admin.nothing class="mt-4">No log lines match these filters.</x-admin.nothing>
             @else
-                <div class="overflow-hidden rounded-b-lg border-x border-b border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
+                <div class="shrink-0 overflow-hidden rounded-b-lg border-x border-b border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
                     <div aria-hidden="true" class="hidden sm:grid {{ $rowGridCols }} gap-3.5 border-b border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-800/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
                         <span></span>
                         <span>Time</span>

@@ -267,6 +267,48 @@ it('groups by request and tints the group by its worst line', function (): void 
     expect($match[1] ?? null)->toBe('2');
 });
 
+/**
+ * The admin shell scrolls each pane inside `main` (`lg:overflow-y-auto`).
+ * `main` is also `lg:flex lg:flex-col`, so a direct child with no
+ * `shrink-0` of its own gets flex-shrunk to fit `main`'s height. The
+ * grouped-list panel carries `overflow-hidden` for its rounded corners,
+ * so a shrunk panel clips a long group. `shrink-0` keeps the panel at
+ * its natural height, so `main` scrolls it.
+ */
+it('wraps the grouped request list in a shrink-0 panel so a long group scrolls inside main instead of being clipped', function (): void {
+    $lines = [Fixtures::line(['request_id' => 'req_big', 'ts' => '2026-08-24T09:00:00.000Z', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/big', 'data' => ['method' => 'GET', 'path' => '/admin/big']])];
+    for ($i = 1; $i < 300; $i++) {
+        $lines[] = Fixtures::line(['request_id' => 'req_big', 'ts' => sprintf('2026-08-24T09:%02d:%02d.000Z', intdiv($i, 60), $i % 60), 'msg' => "step {$i}"]);
+    }
+    $store = Fixtures::store($lines);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?group=1');
+
+    $response->assertOk()
+        ->assertSee('data-group="req_big"', false)
+        ->assertSee('class="shrink-0 overflow-hidden rounded-b-lg', false);
+
+    $html = (string) $response->getContent();
+    preg_match('/data-cell="line-count"[^>]*>\s*(\d+)/s', $html, $match);
+    expect($match[1] ?? null)->toBe('300');
+});
+
+it('leaves the ungrouped Lines table wrapper without shrink-0 — it has no vertical overflow-hidden to clip', function (): void {
+    $store = Fixtures::store([Fixtures::line(['msg' => 'an ordinary line'])]);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs?domain=');
+
+    // The nav rail's `lg:shrink-0` also contains the substring
+    // `shrink-0`, so this checks the wrapper's own class attribute.
+    $response->assertOk()->assertSee('class="overflow-x-auto rounded-b-lg', false);
+
+    $html = (string) $response->getContent();
+    preg_match('/class="overflow-x-auto rounded-b-lg[^"]*"/', $html, $match);
+    expect($match[0] ?? '')->not->toContain('shrink-0');
+});
+
 it('tints a group yellow when its worst line only warns, never fails', function (): void {
     $store = Fixtures::store([
         Fixtures::line(['request_id' => 'req_1', 'ts' => '2026-08-24T09:00:00.000Z', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
@@ -382,6 +424,19 @@ it('shows a cap notice past 1000 stored lines', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs/requests/req_many');
 
     $response->assertOk()->assertSee('Showing the first 1000 of 1005 lines.');
+});
+
+it('wraps the request story\'s line list in the same shrink-0 panel so a long story scrolls inside main', function (): void {
+    $lines = [];
+    for ($i = 0; $i < 300; $i++) {
+        $lines[] = Fixtures::line(['request_id' => 'req_big', 'ts' => sprintf('2026-08-24T09:%02d:%02d.000Z', intdiv($i, 60), $i % 60), 'msg' => "step {$i}"]);
+    }
+    $store = Fixtures::store($lines);
+    $this->app->instance(LogStore::class, $store);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/logs/requests/req_big');
+
+    $response->assertOk()->assertSee('class="mt-4 shrink-0 overflow-hidden rounded-lg', false);
 });
 
 it('links a prefixed id inside a disclosed data block', function (): void {

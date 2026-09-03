@@ -10,7 +10,7 @@
 - MAINT: 8
 - A11Y: 1
 - RFCTR: 14
-- BUG: 15
+- BUG: 16
 
 ## Log
 
@@ -21,7 +21,13 @@
 - 2026-09-03:08:21:46 — DSGN-009 — done: funnel design accepted — shared-borders stats grid, sessions per step, favorites out of the main funnel; docs/funnel.md fixes the step contract; FEAT-049 implements
 - 2026-09-03:08:06:24 — FEAT-049 — started
 
+- 2026-09-03:07:56:12 — BUG-015 — done: shrink-0 on the grouped-list and request-story panels stops main's flex-shrink from clipping a long expanded group instead of scrolling it
+
 - 2026-09-03:07:55:15 — DSGN-009 — started
+
+- 2026-09-03:07:46:23 — BUG-015 — started
+
+- 2026-09-03:07:46:23 — BUG-015 — defined: the log viewer scrolls in group mode
 
 - 2026-09-02:23:27:12 — FEAT-048 — done: a deterministic 92-day activity ramp with a scraper and a prober among the visitors, and log-store lines for every simulated request
 
