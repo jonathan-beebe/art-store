@@ -6,7 +6,7 @@
 - DSGN: 10
 - ARCH: 1
 - FEAT: 50
-- IMPRV: 26
+- IMPRV: 27
 - MAINT: 8
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-09-03:13:16:19 — IMPRV-026 — done: the seller and admin sign-in pages are one centered column in a new auth layout; 4043 tests
+- 2026-09-03:12:55:04 — IMPRV-026 — started
+- 2026-09-03:12:50:26 — IMPRV-026 — defined: The seller and admin sign-in pages are one centered column in the portal's chrome
 - 2026-09-03:11:55:28 — MAINT-007 — done: make fresh deletes the log store file before migrate:fresh; README and docs/log-store.md updated; 4029 tests
 - 2026-09-03:11:51:17 — MAINT-007 — started
 - 2026-09-03:11:50:56 — MAINT-007 — defined: make fresh also resets the log store
