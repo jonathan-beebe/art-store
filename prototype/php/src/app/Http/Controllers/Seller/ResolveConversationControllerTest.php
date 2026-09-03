@@ -15,24 +15,20 @@ it('marks an open thread the seller answers resolved', function (): void {
     $response->assertRedirect(route('seller.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     $response->assertSessionHas('status', 'Marked resolved.');
     expect($conversation->fresh()?->resolved_at)->not->toBeNull();
 });
 
-it('carries the panes domain, type, and status onward through the redirect', function (): void {
+it('carries the panes domain onward through the redirect', function (): void {
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
 
-    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}/resolve?domain=buyers&type[]=questions&status[]=open");
+    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}/resolve?domain=buyers");
 
     $response->assertRedirect(route('seller.messages.show', [
         'conversation' => $conversation,
         'domain' => 'buyers',
-        'type' => ['questions'],
-        'status' => ['open'],
     ]));
 });
 

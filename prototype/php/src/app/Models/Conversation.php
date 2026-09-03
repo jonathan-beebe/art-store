@@ -349,23 +349,6 @@ class Conversation extends Model
     }
 
     /**
-     * The desk's work queue: open desk threads whose latest message is not
-     * an admin's.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function needsReply(Builder $query): void
-    {
-        $query->whereIn('kind', [ConversationKind::AdminSeller, ConversationKind::AdminCustomer])
-            ->whereNull('resolved_at')
-            ->whereHas('latestMessage', function (Builder $message): void {
-                /** @var Builder<Message> $message */
-                $message->where('sender_type', '!=', ActorType::Admin->value);
-            });
-    }
-
-    /**
      * The per-thread unread badge an inbox row carries, counted in SQL for
      * the whole page rather than per row.
      *

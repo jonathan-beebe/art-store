@@ -6,7 +6,7 @@
     alone, the back link is the only way to the inbox, so it stays out of
     the `lg:hidden` list pane.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'query', 'replyTo' => null, 'faqPrefill' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'domain', 'replyTo' => null, 'faqPrefill' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -16,9 +16,9 @@
     $viewerSelf = fn ($threadMessage): bool => $threadMessage->sender_type === $viewer->value && $threadMessage->sender_id === $conversation->participantIdFor($viewer);
     $previousDay = null;
     // Every action on this page — reply, resolve, reopen — returns to this
-    // same thread; carrying the pane's current selection onward is what
-    // keeps the pane from snapping back to the index route's defaults.
-    $paneRouteParams = ['conversation' => $conversation, ...$query->toRouteParams()];
+    // same thread; carrying the pane's current domain onward is what keeps
+    // the pane from snapping back to the index route's default.
+    $paneRouteParams = ['conversation' => $conversation, 'domain' => $domain];
 @endphp
 
 <div class="px-6 py-4">
@@ -62,13 +62,7 @@
                                  now marked resolved, rather than the listing's FAQ
                                  page. --}}
                             <input type="hidden" name="conversation_id" value="{{ old('conversation_id', $conversation->id) }}">
-                            <input type="hidden" name="domain" value="{{ old('domain', $query->domain) }}">
-                            @foreach (old('type', $query->types) as $type)
-                                <input type="hidden" name="type[]" value="{{ $type }}">
-                            @endforeach
-                            @foreach (old('status', $query->statuses) as $status)
-                                <input type="hidden" name="status[]" value="{{ $status }}">
-                            @endforeach
+                            <input type="hidden" name="domain" value="{{ old('domain', $domain) }}">
 
                             <div>
                                 <label for="question" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Question</label>

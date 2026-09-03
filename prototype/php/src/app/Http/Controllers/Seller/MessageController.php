@@ -16,7 +16,6 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
-use App\Support\Messaging\InboxQuery;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -29,27 +28,18 @@ use Illuminate\View\View;
 
 final class MessageController extends SellerController
 {
-    /** The Type checkbox → kind mapping (docs/messaging.md § "Inbox
-     * filters and the seller's queue"). Support is the seller's own desk
-     * kind — the seller never sees `AdminCustomer`. */
-    private const array TYPE_KINDS = [
-        'questions' => [ConversationKind::ListingQuestion],
-        'orders' => [ConversationKind::Fulfillment],
-        'support' => [ConversationKind::AdminSeller],
-    ];
-
     public function index(MessagesQueryRequest $request): View
     {
         $seller = $this->seller();
-        $query = $request->inboxQuery();
+        $domain = $request->domain();
 
-        $window = ListPaneWindow::of($this->conversationsQuery($seller, $query));
+        $window = ListPaneWindow::of($this->conversationsQuery($seller, $domain));
 
         return view('seller.messages.index', [
             'conversations' => $window->items,
             'conversationsTotal' => $window->total,
             'viewer' => ActorType::Seller,
-            'query' => $query,
+            'domain' => $domain,
         ]);
     }
 
@@ -60,33 +50,31 @@ final class MessageController extends SellerController
         $seller = $this->seller();
         $markRead($conversation, $seller, $this->now());
 
-        // The list pane reads the same `domain`/`type`/`status` the inbox
-        // row that linked here carried (validated the same way index's own
-        // query is, so an unrecognised value still answers 400) — an absent
-        // one defaults to every status rather than index's Open-only, so a
-        // direct or bookmarked visit to a resolved thread still lands in its
-        // own pane. `paneFor` below is what keeps the selected thread in the
-        // pane even where it falls outside that window.
-        $query = $request->paneQuery();
+        // The list pane reads the same `domain` the inbox row that linked
+        // here carried (validated the same way index's own query is, so an
+        // unrecognised value still answers 400). `paneFor` below is what
+        // keeps the selected thread in the pane even where it falls outside
+        // the current domain tab.
+        $domain = $request->domain();
 
-        $pane = $this->paneFor($seller, $query, $conversation);
+        $pane = $this->paneFor($seller, $domain, $conversation);
 
         return view('seller.messages.show', [
             ...$this->threadView($conversation, $this->replyToId($request)),
             'cellConversations' => $pane['items'],
             'cellConversationsTotal' => $pane['total'],
-            'query' => $query,
+            'domain' => $domain,
         ]);
     }
 
     public function store(PostMessageRequest $request, Conversation $conversation, MessagesQueryRequest $queryRequest, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
         $seller = $this->seller();
-        // The composer's own action URL carries the pane's current
-        // selection onward (`$paneRouteParams` in the thread component), so
-        // reading it here is what keeps a reply's redirect from snapping the
-        // pane back to the index route's defaults.
-        $query = $queryRequest->paneQuery();
+        // The composer's own action URL carries the pane's current domain
+        // onward (`$paneRouteParams` in the thread component), so reading it
+        // here is what keeps a reply's redirect from snapping the pane back
+        // to the index route's default.
+        $domain = $queryRequest->domain();
 
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $seller->id);
@@ -96,44 +84,41 @@ final class MessageController extends SellerController
             // seller was reading re-renders with the reply still in the box.
             $request->flash();
 
-            $pane = $this->paneFor($seller, $query, $conversation);
+            $pane = $this->paneFor($seller, $domain, $conversation);
 
             return $this->tooManyRequests($exceeded, 'seller.messages.show', [
                 ...$this->threadView($conversation, $this->replyToId($request)),
                 'cellConversations' => $pane['items'],
                 'cellConversationsTotal' => $pane['total'],
-                'query' => $query,
+                'domain' => $domain,
             ]);
         }
 
         $postMessage($conversation, $seller, $request->body(), $this->now(), $request->replyTo());
 
-        return redirect()->route('seller.messages.show', ['conversation' => $conversation, ...$query->toRouteParams()]);
+        return redirect()->route('seller.messages.show', ['conversation' => $conversation, 'domain' => $domain]);
     }
 
     /**
-     * The seller's inbox, narrowed by the current domain tab and the
-     * popover's Type/Status choices — the one query the index route and the
-     * show route's list pane both read through.
+     * The seller's inbox, narrowed by the current domain tab — the one
+     * query the index route and the show route's list pane both read
+     * through. Every status is listed; only the domain narrows it.
      *
      * @return Builder<Conversation>
      */
-    private function conversationsQuery(Seller $seller, InboxQuery $query): Builder
+    private function conversationsQuery(Seller $seller, string $domain): Builder
     {
         $eloquent = Conversation::query()->withParticipant($seller);
 
-        $domainKinds = match ($query->domain) {
+        $kinds = match ($domain) {
             'buyers' => [ConversationKind::ListingQuestion, ConversationKind::Fulfillment],
             'support' => [ConversationKind::AdminSeller],
             default => null, // 'all': every kind the seller participates in.
         };
-        $kinds = InboxQuery::intersectKinds($domainKinds, $this->typeKinds($query->types));
 
         if ($kinds !== null) {
             $eloquent->ofKind(...$kinds);
         }
-
-        $this->applyStatuses($eloquent, $seller, $query->statuses);
 
         return $eloquent
             ->with(['seller', 'customer', 'admin', 'listing', 'fulfillment', 'latestMessage'])
@@ -144,15 +129,15 @@ final class MessageController extends SellerController
     /**
      * A thread's list pane, guaranteed to include it. `ListPaneWindow`'s own
      * `mustInclude` only rescues a row that sorts outside the window's SIZE
-     * cap — it re-reads the same filtered query, so a domain, type, or
-     * status that excludes the thread outright leaves it out too. This adds
-     * one more, unscoped fetch for exactly that case.
+     * cap — it re-reads the same filtered query, so a domain that excludes
+     * the thread outright leaves it out too. This adds one more, unscoped
+     * fetch for exactly that case.
      *
      * @return array{items: Collection<int, Model>, total: int}
      */
-    private function paneFor(Seller $seller, InboxQuery $query, Conversation $conversation): array
+    private function paneFor(Seller $seller, string $domain, Conversation $conversation): array
     {
-        $window = ListPaneWindow::of($this->conversationsQuery($seller, $query), $conversation);
+        $window = ListPaneWindow::of($this->conversationsQuery($seller, $domain), $conversation);
         $items = $window->items;
 
         if (! $items->contains('id', '=', $conversation->id)) {
@@ -166,57 +151,6 @@ final class MessageController extends SellerController
         }
 
         return ['items' => $items, 'total' => $window->total];
-    }
-
-    /**
-     * The Type group's kind restriction, or null when every type is
-     * selected (nothing to restrict).
-     *
-     * @param  list<string>  $types
-     * @return list<ConversationKind>|null
-     */
-    private function typeKinds(array $types): ?array
-    {
-        if (count($types) === count(MessagesQueryRequest::TYPES)) {
-            return null;
-        }
-
-        $kinds = [];
-        foreach ($types as $type) {
-            array_push($kinds, ...self::TYPE_KINDS[$type]);
-        }
-
-        return $kinds;
-    }
-
-    /**
-     * The Status group's predicate, OR'd within the group — skipped
-     * entirely when both Open and Resolved are selected, since together
-     * they cover every conversation. A thread the seller has not read yet
-     * passes whatever the group says: a customer who replies to a resolved
-     * thread reopens it in the seller's eyes, and the nav badge counts it,
-     * so the inbox lists it under the default Open-only view too.
-     *
-     * @param  Builder<Conversation>  $query
-     * @param  list<string>  $statuses
-     */
-    private function applyStatuses(Builder $query, Seller $seller, array $statuses): void
-    {
-        if (in_array('open', $statuses, true) && in_array('resolved', $statuses, true)) {
-            return;
-        }
-
-        $query->where(function (Builder $scoped) use ($seller, $statuses): void {
-            foreach ($statuses as $status) {
-                match ($status) {
-                    'open' => $scoped->orWhereNull('resolved_at'),
-                    'resolved' => $scoped->orWhereNotNull('resolved_at'),
-                    default => null, // MessagesQueryRequest already refused anything else.
-                };
-            }
-
-            $scoped->orWhere(fn (Builder $unread) => $unread->unreadOnly($seller));
-        });
     }
 
     /**

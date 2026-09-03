@@ -14,7 +14,6 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Fulfillment;
-use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Support\ActorDisplay;
@@ -48,8 +47,8 @@ $chromeListItemCount = function (TestCase $test, Admin $admin): int {
 
 /**
  * The query string a row's own `href` carries, decoded into an array —
- * `type[]`/`status[]` come back as ordinary arrays rather than a raw
- * `type%5B%5D=...` string to match against.
+ * `domain` comes back as an ordinary scalar rather than a raw
+ * `domain=...` string to match against.
  *
  * @return array<int|string, mixed>
  */
@@ -110,34 +109,29 @@ it('orders rows by last_message_at alone, so reading a thread does not move it',
     $show->assertSeeInOrder(['Read but newer', 'Unread but older']);
 });
 
-it('lists an unread resolved desk thread under the default Open-only view, and hides a read one', function (): void {
+it('lists resolved threads alongside open ones on the default view', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $unreadResolved = Conversation::factory()->adminSeller()->create([
-        'seller_id' => $seller->id,
-        'title' => 'Resolved but replied to',
-        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
-    ]);
-    Message::factory()->from($seller)->unread()->create(['conversation_id' => $unreadResolved->id]);
-    $readResolved = Conversation::factory()->adminSeller()->create([
+    $resolved = Conversation::factory()->adminSeller()->create([
         'seller_id' => $seller->id,
         'title' => 'Resolved and read',
         'resolved_at' => $this->moment('2026-08-20 10:00:00'),
     ]);
-    Message::factory()->from($seller)->read()->create(['conversation_id' => $readResolved->id]);
+    Message::factory()->from($seller)->read()->create(['conversation_id' => $resolved->id]);
+    $open = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => 'Open one']);
 
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
-    $response->assertSee('Resolved but replied to');
-    $response->assertDontSee('Resolved and read');
+    $response->assertSee('Resolved and read');
+    $response->assertSee('Open one');
 });
 
 it('shows a support thread to every admin, the desk is collective', function (): void {
     $seller = $this->seller('Other Studio');
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'admin_id' => $this->admin()->id]);
 
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?domain=all&status[]=open&status[]=resolved');
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
 
     $response->assertOk();
     $response->assertSee('Other Studio');
@@ -150,7 +144,7 @@ it('names a seller support thread and a customer support thread on the inbox', f
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
     Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id]);
 
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=all&status[]=open&status[]=resolved');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
     $response->assertSee('Blue Kiln Studio');
@@ -180,24 +174,6 @@ it('shows every message in order and marks the thread read', function (): void {
     $response->assertDontSee('&#8984;', escape: false);
 });
 
-it('defaults the show routes pane to every status, so a resolved oversight thread lands in its own pane', function (): void {
-    $admin = $this->admin();
-    $seller = $this->seller();
-    $customer = $this->verifiedCustomer();
-    // The index route's own default (status=open only) would otherwise
-    // exclude this resolved thread from its pane.
-    $conversation = Conversation::factory()->fulfillment()->create([
-        'seller_id' => $seller->id,
-        'customer_id' => $customer->id,
-        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
-    ]);
-
-    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}");
-
-    $response->assertOk();
-    $response->assertSee($conversation->counterpartName(\App\Domain\Auth\ActorType::Admin));
-});
-
 it('prepends the selected thread to its pane when an explicit domain excludes it', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
@@ -206,26 +182,22 @@ it('prepends the selected thread to its pane when an explicit domain excludes it
     // (seller <-> customer, oversight) thread never matches.
     $conversation = Conversation::factory()->fulfillment()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
 
-    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}?domain=sellers&status[]=open");
+    $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$conversation->id}?domain=sellers");
 
     $response->assertOk();
     $response->assertSee($conversation->counterpartName(\App\Domain\Auth\ActorType::Admin));
 });
 
-it('carries the current domain, type, and status from an inbox row into the shows own pane', function (): void {
+it('carries the current domain from an inbox row into the shows own pane', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
-    $resolved = Conversation::factory()->fulfillment()->create([
-        'seller_id' => $seller->id,
-        'resolved_at' => $this->moment('2026-08-20 10:00:00'),
-    ]);
+    $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => 'Payout timing']);
 
-    $index = $this->actingAs($admin, 'admin')->get('/admin/messages?type[]=orders&status[]=open&status[]=resolved');
+    $index = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=sellers');
     $index->assertOk();
-    preg_match('#href="([^"]*'.preg_quote($resolved->id, '#').'[^"]*)"#', (string) $index->getContent(), $matches);
+    preg_match('#href="([^"]*'.preg_quote($conversation->id, '#').'[^"]*)"#', (string) $index->getContent(), $matches);
     $rowHref = html_entity_decode($matches[1] ?? '');
-    expect(adminRowQuery($rowHref)['type'] ?? null)->toBe(['orders'])
-        ->and(adminRowQuery($rowHref)['status'] ?? null)->toBe(['open', 'resolved']);
+    expect(adminRowQuery($rowHref)['domain'] ?? null)->toBe('sellers');
 
     $show = $this->actingAs($admin, 'admin')->get($rowHref);
 
@@ -261,7 +233,7 @@ it('caps the list pane at the window size, however many conversations exist', fu
     }
 
     $chromeListItems = $chromeListItemCount($this, $admin);
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?status[]=open&status[]=resolved');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
     // The index route renders the same capped list twice — the `lg`-and-up
@@ -299,15 +271,11 @@ it('says how many conversations the list pane is not showing, linked to the full
         Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller("Seller {$i}")->id]);
     }
 
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?status[]=open&status[]=resolved');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
     $response->assertSee('Showing 50 of', false);
-    $response->assertSee('href="'.htmlspecialchars(route('admin.messages.index', [
-        'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
-    ])).'"', escape: false);
+    $response->assertSee('href="'.htmlspecialchars(route('admin.messages.index', ['domain' => 'all'])).'"', escape: false);
 });
 
 it('says nothing about a window that already holds every conversation', function (): void {
@@ -345,8 +313,6 @@ it('appends a reply and returns to the thread with it visible', function (): voi
     $response->assertRedirect(route('admin.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', "I'll take a look.")->exists())->toBeTrue();
     $this->actingAs($admin, 'admin')
@@ -354,19 +320,17 @@ it('appends a reply and returns to the thread with it visible', function (): voi
         ->assertSee("I'll take a look.");
 });
 
-it('carries the panes domain, type, and status onward through a replys redirect', function (): void {
+it('carries the panes domain onward through a replys redirect', function (): void {
     $admin = $this->admin();
     $seller = $this->seller();
     $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
 
     $response = $this->actingAs($admin, 'admin')
-        ->post("/admin/messages/{$conversation->id}?domain=sellers&type[]=support&status[]=open", ['body' => "I'll take a look."]);
+        ->post("/admin/messages/{$conversation->id}?domain=sellers", ['body' => "I'll take a look."]);
 
     $response->assertRedirect(route('admin.messages.show', [
         'conversation' => $conversation,
         'domain' => 'sellers',
-        'type' => ['support'],
-        'status' => ['open'],
     ]));
 });
 
@@ -459,8 +423,6 @@ it('carries a sellers support request to the admin and the answer back', functio
         ->assertRedirect(route('admin.messages.show', [
             'conversation' => $conversation,
             'domain' => 'all',
-            'type' => ['questions', 'orders', 'support'],
-            'status' => ['open', 'resolved'],
         ]));
 
     $this->actingAs($seller, 'seller')->get('/seller/messages')->assertSee('>1</span>', escape: false);
@@ -504,8 +466,6 @@ it('lets the admin answer a blocked customer', function (): void {
         ->assertRedirect(route('admin.messages.show', [
             'conversation' => $conversation,
             'domain' => 'all',
-            'type' => ['questions', 'orders', 'support'],
-            'status' => ['open', 'resolved'],
         ]));
     expect(Message::where('conversation_id', $conversation->id)->count())->toBe(1);
 });
@@ -531,14 +491,13 @@ it('renders the inbox on a fixed number of queries however many threads the admi
         // +1 for the list pane's window total (`ListPaneWindow`, DSGN-006
         // follow-up) — a `count()` alongside the capped fetch, so the pane
         // and its footer can say how many conversations exist beyond the
-        // window. +1 for the Needs reply popover count, scoped to the
-        // current domain. No eager-load query for `admin`: none of these
-        // threads has one yet, so the relation's key list is empty and
-        // Eloquent skips the query rather than running an empty `whereIn`.
+        // window. No eager-load query for `admin`: none of these threads
+        // has one yet, so the relation's key list is empty and Eloquent
+        // skips the query rather than running an empty `whereIn`.
         // +2 for `latestMessage.sender`: a polymorphic eager load runs one
         // query per distinct sender type among the fetched rows, and this
         // fixture carries both a seller and a customer sender.
-        ->expectsDatabaseQueryCount(10)
+        ->expectsDatabaseQueryCount(9)
         ->get('/admin/messages');
 
     $response->assertOk();
@@ -571,56 +530,20 @@ it('trips the message-post limit on the admin site, handing the thread back with
         ->and($data['key'])->toBe($admin->id);
 });
 
-it('status[]=needs-reply lists only open desk threads waiting on the desk', function (): void {
-    $admin = $this->admin();
-    $seller = $this->seller('Blue Kiln Studio');
-    $waiting = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
-    Message::factory()->from($seller)->create(['conversation_id' => $waiting->id, 'body' => 'Still waiting.']);
-
-    $answered = Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller('Rye Press')->id]);
-    Message::factory()->read()->create(['conversation_id' => $answered->id, 'body' => 'First ask.']);
-    Message::factory()->from($admin)->create(['conversation_id' => $answered->id, 'body' => 'Already answered.']);
-
-    // Read, so the thread stays out on its status alone — an unread reply
-    // would list it under any Status choice.
-    $resolvedSeller = $this->seller('Third Studio');
-    $resolved = Conversation::factory()->adminSeller()->create(['seller_id' => $resolvedSeller->id, 'resolved_at' => now()]);
-    Message::factory()->from($resolvedSeller)->read()->create(['conversation_id' => $resolved->id, 'body' => 'Resolved already.']);
-
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?status[]=needs-reply');
-
-    $response->assertOk();
-    $response->assertSee('Still waiting.');
-    $response->assertDontSee('Already answered.');
-    $response->assertDontSee('Resolved already.');
-});
-
-it('filters the inbox by domain and type', function (): void {
+it('filters the inbox by domain', function (): void {
     $admin = $this->admin();
     $seller = $this->seller('Blue Kiln Studio');
     $customer = $this->verifiedCustomer();
     Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id, 'title' => ThreadTitle::of('Payout timing')->value]);
     Conversation::factory()->adminCustomer()->create(['customer_id' => $customer->id, 'title' => ThreadTitle::of('Where is my order?')->value]);
-    $orderThread = Conversation::factory()->fulfillment()->create();
-    $questionThread = Conversation::factory()->listingQuestion()->create();
-    $fulfillment = Fulfillment::findOrFail($orderThread->fulfillment_id);
-    $listing = Listing::findOrFail($questionThread->listing_id);
 
-    $sellers = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=sellers&status[]=open&status[]=resolved');
+    $sellers = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=sellers');
     $sellers->assertSee('Payout timing');
     $sellers->assertDontSee('Where is my order?');
 
-    $customers = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=customers&status[]=open&status[]=resolved');
+    $customers = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=customers');
     $customers->assertSee('Where is my order?');
     $customers->assertDontSee('Payout timing');
-
-    $orders = $this->actingAs($admin, 'admin')->get('/admin/messages?type[]=orders&status[]=open&status[]=resolved');
-    $orders->assertSee("Order {$fulfillment->order_id}");
-    $orders->assertDontSee('Payout timing');
-
-    $questions = $this->actingAs($admin, 'admin')->get('/admin/messages?type[]=questions&status[]=open&status[]=resolved');
-    $questions->assertSee($listing->title);
-    $questions->assertDontSee('Payout timing');
 });
 
 it('domain=all lists desk and oversight threads together, by default', function (): void {
@@ -636,52 +559,20 @@ it('domain=all lists desk and oversight threads together, by default', function 
     $response->assertSee("Order {$fulfillment->order_id}");
 });
 
-it('status[]=resolved lists only resolved threads, both statuses list both', function (): void {
+it('names an empty domain in its own words, with a way back to all domains', function (): void {
     $admin = $this->admin();
-    Conversation::factory()->adminSeller()->create(['title' => ThreadTitle::of('Open one')->value]);
-    Conversation::factory()->adminSeller()->create(['title' => ThreadTitle::of('Resolved one')->value, 'resolved_at' => now()]);
+    Conversation::factory()->adminSeller()->create();
 
-    $resolvedView = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=sellers&status[]=resolved');
-    $resolvedView->assertSee('Resolved one');
-    $resolvedView->assertDontSee('Open one');
+    $customers = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=customers');
 
-    $allView = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=sellers&status[]=open&status[]=resolved');
-    $allView->assertSee('Resolved one');
-    $allView->assertSee('Open one');
-});
-
-it('names an empty domain in its own words, with a way past a narrowing status', function (): void {
-    $admin = $this->admin();
-    Conversation::factory()->adminSeller()->create(['resolved_at' => now()]);
-
-    $customers = $this->actingAs($admin, 'admin')->get('/admin/messages?domain=customers&status[]=open&status[]=resolved');
     $customers->assertSee('No customer conversations.');
-
-    // The default status (Open only) excludes the admin's only (resolved)
-    // thread — the empty state names that, with a link past it.
-    $default = $this->actingAs($admin, 'admin')->get('/admin/messages');
-    $default->assertSee('No open conversations.');
-    $default->assertSee(route('admin.messages.index', [
-        'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
-    ]));
-});
-
-it('names an empty needs-reply queue in its own words', function (): void {
-    $admin = $this->admin();
-    Conversation::factory()->adminSeller()->create(['resolved_at' => now()]);
-
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?status[]=needs-reply');
-
-    $response->assertOk();
-    $response->assertSee('No conversations need a reply.');
+    $customers->assertSee(route('admin.messages.index', ['domain' => 'all']));
 });
 
 it('names an empty inbox with nothing narrowing it, and offers no way past it', function (): void {
     $admin = $this->admin();
 
-    $response = $this->actingAs($admin, 'admin')->get('/admin/messages?status[]=open&status[]=resolved');
+    $response = $this->actingAs($admin, 'admin')->get('/admin/messages');
 
     $response->assertOk();
     $response->assertSee('No conversations yet.');
@@ -791,8 +682,6 @@ it('ignores a reply_to_message_id naming a message from another thread on post, 
     $response->assertRedirect(route('admin.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     $reply = Message::where('conversation_id', $conversation->id)->where('body', 'Reply anyway.')->sole();
     expect($reply->reply_to_message_id)->toBeNull();

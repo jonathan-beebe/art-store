@@ -17,12 +17,12 @@ final class ReopenConversationController extends AdminController
 
         $reopen($conversation, $this->admin());
 
-        // The form's own action URL carries the pane's current selection
+        // The form's own action URL carries the pane's current domain
         // onward, so reopening a thread doesn't snap its pane back to the
         // desk's unscoped default.
         return redirect()->route('admin.messages.show', [
             'conversation' => $conversation,
-            ...$request->paneQuery()->toRouteParams(),
+            'domain' => $request->domain(),
         ]);
     }
 }

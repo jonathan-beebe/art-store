@@ -363,52 +363,32 @@ oversight threads (seller ↔ customer) are listed on the admin inbox through a
 separate scope and never count toward the admin's badge, since nobody on the
 desk is waited on there.
 
-## Inbox filters and the seller's queue
+## Inbox domains
 
-The seller and admin inboxes each take one domain tab (`?domain=`) plus a
-popover of two checkbox groups (`?type[]=`, `?status[]=`); unknown values —
-including an unrecognised member of `type[]`/`status[]`, or a `type`/`status`
-that isn't an array at all — answer 400 the way `docs/alignment.md` §5 says.
-Choices within a group are OR'd; the domain, Type, and Status groups are
-AND'd against each other. `App\Http\Requests\{Seller,Admin}\MessagesQueryRequest`
-own validation and defaulting; `App\Support\Messaging\InboxQuery` is the small
-value object both hand back (`domain`, `types`, `statuses`), which the
-controllers read to build the Eloquent query and the `x-messaging.inbox-filters`
-component reads to render the tabs and the popover's checked state. The shop
-inbox is unchanged: it still takes `?filter=` and `?status=` (`all`/`unread`
-and `open`/`resolved`/`all`).
+The seller and admin inboxes each take one domain tab (`?domain=`); an
+unrecognised value answers 400 the way `docs/alignment.md` §5 says.
+`App\Http\Requests\{Seller,Admin}\MessagesQueryRequest` own validation and
+defaulting (`domain(): string`), which the controllers read to build the
+Eloquent query and the `x-messaging.inbox-tabs` component reads to render the
+tabs. The shop inbox is unchanged: it still takes `?filter=` and `?status=`
+(`all`/`unread` and `open`/`resolved`/`all`).
 
-| Site   | `domain` values               | `type[]` values                  | `status[]` values                 |
-| ------ | ----------------------------- | -------------------------------- | --------------------------------- |
-| Seller | `all`, `buyers`, `support`    | `questions`, `orders`, `support` | `open`, `resolved`                |
-| Admin  | `all`, `sellers`, `customers` | `questions`, `orders`, `support` | `open`, `resolved`, `needs-reply` |
+| Site   | `domain` values               |
+| ------ | ------------------------------ |
+| Seller | `all`, `buyers`, `support`     |
+| Admin  | `all`, `sellers`, `customers`  |
 
-`domain` defaults to `all`; an absent `type[]` means every type; an absent
-`status[]` means Open only (the show route's list pane instead defaults to
-every status, so a resolved thread lands in its own pane). A thread the reader
-has not read yet passes the Status group whatever it says — a reply to a
-resolved thread reopens it in the reader's eyes, and the nav badge already
-counts it — so the default view lists it; for the admin only desk threads are
-ever unread, matching the row's own dot. Rows sort by `last_message_at`,
-newest first, and by nothing else: reading a thread changes nothing about its
-sort key, so opening a row never moves it; the unread dot alone says which
-rows are new.
+`domain` defaults to `all`. A domain tab is the only thing that narrows an
+inbox: every conversation in the domain lists, open and resolved alike,
+ordered by `last_message_at` desc and by nothing else — reading a thread
+changes nothing about its sort key, so opening a row never moves it. The
+unread dot and the resolved check glyph on a row are the only signals the
+list itself carries; there is no separate filter.
 
-Domain and Type both narrow by `ConversationKind`, intersected
-(`InboxQuery::intersectKinds`) rather than added: seller Buyers is
-`ListingQuestion` + `Fulfillment`, Support is `AdminSeller`; admin Sellers is
-`AdminSeller`, Customers is `AdminCustomer`, admin All is every kind — desk and
-oversight together. Type Questions is `ListingQuestion`, Orders is
-`Fulfillment`, Support is the desk kind(s) (`AdminSeller` for the seller;
-`AdminSeller` + `AdminCustomer` for the admin, since the admin's Support isn't
-split by counterpart). A combination that shares no kind (Sellers domain with
-the Questions type, say) answers an empty list rather than every row.
-
-`needs-reply` is the desk's work queue — open desk threads whose latest
-message is not an admin's (`Conversation::needsReply`) — already a subset of
-Open; checking it alongside Open is the same as Open alone. The popover's
-Needs reply row shows its own count, scoped to the current domain the same
-way the list itself is.
+Domain narrows by `ConversationKind`: seller Buyers is `ListingQuestion` +
+`Fulfillment`, Support is `AdminSeller`; admin Sellers is `AdminSeller`,
+Customers is `AdminCustomer`, admin All is every kind — desk and oversight
+together.
 
 ## Telling the other side
 

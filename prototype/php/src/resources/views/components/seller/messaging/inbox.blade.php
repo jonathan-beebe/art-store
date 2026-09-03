@@ -4,37 +4,28 @@
     exact same list — the list-detail pane on the left and, below `lg`, the
     whole screen.
 --}}
-@props(['conversations', 'viewer', 'showRoute', 'query', 'selected' => null, 'total' => null, 'indexRoute' => null])
+@props(['conversations', 'viewer', 'showRoute', 'domain', 'selected' => null, 'total' => null, 'indexRoute' => null])
 
 @if ($conversations->isEmpty())
     @php
         // Context-aware in place of a bare "Nothing yet.": what the current
-        // selection is empty of, narrowest first — the domain tab reads on
-        // its own regardless of type or status, since it names the whole
-        // inbox the reader chose.
+        // domain tab is empty of, else the bare fallback.
         $domainNames = ['buyers' => 'buyer', 'support' => 'support'];
-        $typesAreDefault = count($query->types) === 3;
-        $statusExcludesResolved = ! $query->hasStatus('resolved');
-        $emptyMessage = match (true) {
-            $query->domain !== 'all' => 'No '.$domainNames[$query->domain].' conversations.',
-            ! $typesAreDefault => 'No matching conversations.',
-            $statusExcludesResolved => 'No open conversations.',
-            default => 'No conversations yet.',
-        };
+        $emptyMessage = $domain !== 'all' ? 'No '.$domainNames[$domain].' conversations.' : 'No conversations yet.';
     @endphp
     <p class="p-6 text-sm text-gray-500 dark:text-gray-500">
         {{ $emptyMessage }}
-        @if ($statusExcludesResolved && $indexRoute !== null)
-            <a href="{{ route($indexRoute, ['domain' => $query->domain, 'type' => $query->types, 'status' => ['open', 'resolved']]) }}" class="underline hover:text-gray-700 dark:hover:text-gray-300">Show all</a>
+        @if ($domain !== 'all' && $indexRoute !== null)
+            <a href="{{ route($indexRoute, ['domain' => 'all']) }}" class="underline hover:text-gray-700 dark:hover:text-gray-300">Show all</a>
         @endif
     </p>
 @else
     @php
-        // A row's own link carries the pane's current selection, so the show
-        // route it points at can render the same pane back — the window a
-        // filtered or narrowed inbox left it in, rather than resetting to
-        // the show route's defaults.
-        $rowRouteParams = fn ($conversation) => ['conversation' => $conversation, ...$query->toRouteParams()];
+        // A row's own link carries the pane's current domain, so the show
+        // route it points at can render the same pane back — the window the
+        // current domain tab left it in, rather than resetting to the show
+        // route's default.
+        $rowRouteParams = fn ($conversation) => ['conversation' => $conversation, 'domain' => $domain];
     @endphp
     <ul role="list" class="divide-y divide-gray-100 dark:divide-white/5">
         @foreach ($conversations as $conversation)

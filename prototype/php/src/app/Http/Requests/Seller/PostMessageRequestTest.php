@@ -62,8 +62,6 @@ it('ignores a reply-to naming a message from another thread, rather than refusin
     $response->assertRedirect(route('seller.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'It ships within 3 days.')->sole()->reply_to_message_id)
         ->toBeNull();
@@ -81,8 +79,6 @@ it('ignores a reply-to naming no message at all, rather than refusing the reply'
     $response->assertRedirect(route('seller.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'It ships within 3 days.')->sole()->reply_to_message_id)
         ->toBeNull();
@@ -101,8 +97,6 @@ it('reads a reply-to naming a message of the same thread', function (): void {
     $response->assertRedirect(route('seller.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Yes, it does.')->sole()->reply_to_message_id)
         ->toBe($quoted->id);

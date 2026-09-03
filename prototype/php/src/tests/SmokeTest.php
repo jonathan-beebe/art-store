@@ -170,8 +170,6 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
         ])->assertRedirect(route('seller.messages.show', [
             'conversation' => $conversation,
             'domain' => 'all',
-            'type' => ['questions', 'orders', 'support'],
-            'status' => ['open', 'resolved'],
         ]));
 
         $answer = Message::where('body', 'Yes, it ships ready to hang with the wire already attached.')->sole();

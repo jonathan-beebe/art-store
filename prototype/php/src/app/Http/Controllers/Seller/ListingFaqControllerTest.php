@@ -62,7 +62,7 @@ it('returns to the thread it was published from, now resolved', function (): voi
     ]);
     $message = Message::factory()->from($seller)->create(['conversation_id' => $conversation->id]);
 
-    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/faqs?domain=buyers&type[]=questions&status[]=open&status[]=resolved", [
+    $response = $this->actingAs($seller, 'seller')->post("/seller/listings/{$listing->id}/faqs?domain=buyers", [
         'question' => 'Do you ship internationally?',
         'answer' => 'Yes, worldwide.',
         'source_message_id' => $message->id,
@@ -72,8 +72,6 @@ it('returns to the thread it was published from, now resolved', function (): voi
     $response->assertRedirect(route('seller.messages.show', [
         'conversation' => $conversation,
         'domain' => 'buyers',
-        'type' => ['questions'],
-        'status' => ['open', 'resolved'],
     ]));
     $response->assertSessionHas('status', 'Published to the listing.');
     expect($conversation->fresh()?->resolved_at)->not->toBeNull();

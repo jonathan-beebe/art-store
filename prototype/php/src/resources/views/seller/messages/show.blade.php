@@ -4,13 +4,11 @@
             <x-slot:listHeader>
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white">Messages</h2>
                 <div class="mt-3">
-                    <x-messaging.inbox-filters
+                    <x-messaging.inbox-tabs
                         accent="indigo"
-                        :query="$query"
+                        :domain="$domain"
                         index-route="seller.messages.index"
                         :domains="['all' => 'All', 'buyers' => 'Buyers', 'support' => 'Support']"
-                        :statuses="['open' => 'Open', 'resolved' => 'Resolved']"
-                        :default-statuses="\App\Http\Requests\Seller\MessagesQueryRequest::DEFAULT_STATUSES"
                     />
                 </div>
             </x-slot:listHeader>
@@ -23,7 +21,7 @@
                     :selected="$conversation"
                     :total="$cellConversationsTotal"
                     index-route="seller.messages.index"
-                    :query="$query"
+                    :domain="$domain"
                 />
             </x-slot:list>
 
@@ -34,7 +32,7 @@
                 store-route="seller.messages.store"
                 :reply-to="$replyTo"
                 :faq-prefill="$faqPrefill"
-                :query="$query"
+                :domain="$domain"
             />
         </x-seller.list-detail>
     </div>

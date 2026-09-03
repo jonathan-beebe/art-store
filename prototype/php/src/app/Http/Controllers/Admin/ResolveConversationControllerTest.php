@@ -15,23 +15,19 @@ it('marks a desk thread resolved', function (): void {
     $response->assertRedirect(route('admin.messages.show', [
         'conversation' => $conversation,
         'domain' => 'all',
-        'type' => ['questions', 'orders', 'support'],
-        'status' => ['open', 'resolved'],
     ]));
     expect($conversation->fresh()?->resolved_at)->not->toBeNull();
 });
 
-it('carries the panes domain, type, and status onward through the redirect', function (): void {
+it('carries the panes domain onward through the redirect', function (): void {
     $admin = $this->admin();
     $conversation = Conversation::factory()->adminSeller()->create();
 
-    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/resolve?domain=sellers&type[]=support&status[]=open");
+    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/resolve?domain=sellers");
 
     $response->assertRedirect(route('admin.messages.show', [
         'conversation' => $conversation,
         'domain' => 'sellers',
-        'type' => ['support'],
-        'status' => ['open'],
     ]));
 });
 
