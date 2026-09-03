@@ -1,7 +1,7 @@
 ---
 id: BUG-015
 type: bug
-status: doing
+status: resolved
 created: 2026-09-03
 ---
 
@@ -77,3 +77,42 @@ view.
 - DSGN-006 — the admin shell this bug lives inside (nav rail, `main`'s
   own-pane scroll)
 - DSGN-004 — log viewer redesign (the grouped `<details>` rows)
+
+## Working
+
+Root cause: `main` (`resources/views/components/layouts/admin.blade.php`)
+is `lg:flex lg:flex-col`, so its direct children are flex items with the
+default `shrink` behavior. `resources/views/admin/logs/index.blade.php`'s
+grouped-list panel and `resources/views/admin/logs/show.blade.php`'s
+request-story panel each carry `overflow-hidden` for their rounded
+corners and no `shrink-0` of their own, so a long panel gets flex-shrunk
+to fit `main`'s height and the part past that shrunk height is clipped
+instead of scrolled — `main` never sees the overflow that would make it
+scroll.
+
+Fix: `shrink-0` added to both panels' wrapper `<div>`, so each keeps its
+natural height and `main`'s `lg:overflow-y-auto` carries it instead.
+Verified live (a seeded 300-line request group, real browser, desktop
+width): before the fix, removing `overflow-hidden` from the panel made
+`main.scrollHeight` exceed `main.clientHeight`; the shipped fix
+(`shrink-0` kept alongside `overflow-hidden`) gets the same result —
+`main` scrolls, the panel's own `scrollHeight` equals its `clientHeight`
+(no content clipped), and the page header, filter bar, and nav stay in
+place while the group's last line becomes reachable. Below `lg`, `main`
+carries no `lg:flex`/`lg:overflow-y-auto` at all, so the page scrolls in
+normal document flow the same as before — unaffected either way.
+
+The ungrouped `Lines` table wrapper (`overflow-x-auto`, horizontal only)
+has no vertical `overflow-hidden` to clip and needed no change.
+
+Test: `App\Http\Controllers\Admin\LogControllerTest` —
+`it('wraps the grouped request list in a shrink-0 panel so a long group
+scrolls inside main instead of being clipped')` builds a 300-line
+request group and asserts the panel's class attribute; `it('wraps the
+request story\'s line list in the same shrink-0 panel so a long story
+scrolls inside main')` does the same for `/admin/logs/requests/{id}`;
+`it('leaves the ungrouped Lines table wrapper without shrink-0 — it has
+no vertical overflow-hidden to clip')` locks the unchanged wrapper.
+
+`make precommit`: Pint clean, PHPStan `[OK] No errors`, 3947 tests
+passed (32714 assertions).
