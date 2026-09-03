@@ -65,11 +65,30 @@
         </a>
     @endif
 
-    {{-- funnel --}}
-    <section aria-labelledby="analytics-funnel-heading" class="mt-6">
-        <h2 id="analytics-funnel-heading" class="font-semibold text-stone-700 dark:text-stone-300">Funnel</h2>
+    {{-- funnel tiles --}}
+    <section aria-labelledby="analytics-funnels-heading" class="mt-6">
+        <div class="flex flex-wrap items-baseline gap-3">
+            <h2 id="analytics-funnels-heading" class="font-semibold text-stone-700 dark:text-stone-300">Funnels</h2>
+            <a href="{{ route('admin.funnels.index') }}" class="ml-auto text-stone-700 dark:text-stone-300 underline">Manage funnels</a>
+        </div>
 
-        <x-admin.analytics.funnel :funnel="$funnel" />
+        @if (count($funnelTiles) === 0)
+            <p class="mt-2 text-stone-600 dark:text-stone-400">No funnels yet. <a href="{{ route('admin.funnels.create') }}" class="underline">Define one</a> to see it here.</p>
+        @else
+            <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+                @foreach ($funnelTiles as $tile)
+                    <a href="{{ route('admin.analytics.funnels.show', $tile->funnelId) }}" class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4 hover:bg-stone-50 dark:hover:bg-stone-800/50">
+                        <dt class="text-stone-600 dark:text-stone-400">{{ $tile->name }}</dt>
+                        <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $tile->conversionText }}</dd>
+
+                        <div class="mt-1 text-xs">
+                            <span class="{{ $deltaClass($tile->change) }}">{{ $tile->change->text }}</span>
+                            <span class="text-stone-500 dark:text-stone-400">vs previous range</span>
+                        </div>
+                    </a>
+                @endforeach
+            </dl>
+        @endif
     </section>
 
     {{-- events --}}

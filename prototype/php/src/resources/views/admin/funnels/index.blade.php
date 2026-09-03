@@ -21,7 +21,7 @@
                 @forelse ($funnels as $funnel)
                     <tr>
                         <td class="px-4 py-2 font-normal">
-                            <a href="{{ route('admin.funnels.edit', $funnel) }}" class="underline">{{ $funnel->name }}</a>
+                            <a href="{{ route('admin.analytics.funnels.show', $funnel) }}" class="underline">{{ $funnel->name }}</a>
                         </td>
                         <td class="px-4 py-2 text-stone-600 dark:text-stone-400">{{ $stepChains[$funnel->id] }}</td>
                         <td class="px-4 py-2 text-right whitespace-nowrap">

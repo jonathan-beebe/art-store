@@ -41,6 +41,7 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Analytics/Admin/ChannelVisitsPage.php' => 'value carrier; exercised through ChannelVisitsTest',
         'app/Analytics/Admin/FunnelStep.php' => 'value carrier; exercised through FunnelTest',
         'app/Analytics/Admin/FunnelView.php' => 'value carrier; exercised through FunnelTest',
+        'app/Analytics/Admin/FunnelTile.php' => 'value carrier; exercised through FunnelTilesTest',
         'app/Analytics/Admin/ActorSummary.php' => 'value carrier; exercised through ActorAggregatesTest',
         'app/Analytics/Admin/ActorsPage.php' => 'value carrier; exercised through ActorListTest',
         'app/Analytics/Admin/Jump.php' => 'value carrier; exercised through AnalyticsJumpTest',
