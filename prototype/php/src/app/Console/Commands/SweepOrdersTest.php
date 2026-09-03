@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Orders\OrderStatus;
 use App\Logging\LogStore;
@@ -152,6 +153,7 @@ it('prunes analytics events older than ANALYTICS_RETENTION_DAYS, as of the sweep
     $analytics->flush();
 
     $pending($this->artisan('orders:sweep', ['--as-of' => '2026-08-24']))
+        ->expectsOutputToContain('1 analytics row(s) pruned.')
         ->assertSuccessful();
 
     $rows = DB::connection('analytics')->table('analytics_events')->get();
@@ -160,16 +162,36 @@ it('prunes analytics events older than ANALYTICS_RETENTION_DAYS, as of the sweep
         ->and($rows->sole()->occurred_at)->toBe('2026-08-20 00:00:00');
 });
 
+it('prunes analytics visits older than ANALYTICS_RETENTION_DAYS too, folded into the same printed count', function () use ($pending): void {
+    config(['analytics.retention_days' => 14]);
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', null, new DateTimeImmutable('2026-07-01T00:00:00+00:00')));
+    $analytics->recordVisit(new AnalyticsVisit('ses_old', new DateTimeImmutable('2026-07-01T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->recordVisit(new AnalyticsVisit('ses_new', new DateTimeImmutable('2026-08-20T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $pending($this->artisan('orders:sweep', ['--as-of' => '2026-08-24']))
+        ->expectsOutputToContain('2 analytics row(s) pruned.')
+        ->assertSuccessful();
+
+    $rows = DB::connection('analytics')->table('analytics_visits')->get();
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->sole()->session_id)->toBe('ses_new');
+});
+
 it('skips the analytics retention prune silently when ANALYTICS_RETENTION_DAYS is off', function () use ($pending): void {
     config(['analytics.retention_days' => null]);
     $analytics = app(Analytics::class);
     $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', null, new DateTimeImmutable('2020-01-01T00:00:00+00:00')));
+    $analytics->recordVisit(new AnalyticsVisit('ses_old', new DateTimeImmutable('2020-01-01T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
     $analytics->flush();
 
     $pending($this->artisan('orders:sweep'))
         ->assertSuccessful();
 
-    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(1);
 });
 
 it('fails the command on an analytics prune failure but leaves the stale-order sweep and log prune standing', function () use ($pending): void {

@@ -394,6 +394,66 @@ it('keeps an event whose occurred_at exactly equals the cutoff', function (): vo
         ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
 });
 
+it('deletes visits before the cutoff in batches, looping until none change', function (): void {
+    $analytics = new Analytics;
+
+    foreach (['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-10', '2026-08-11'] as $day) {
+        $analytics->recordVisit(new AnalyticsVisit("ses_{$day}", new DateTimeImmutable("{$day}T00:00:00+00:00"), '/', null, null, null, null, null, null, null));
+    }
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'), batchSize: 2);
+
+    expect($deleted)->toBe(3)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(2);
+});
+
+it('prunes nothing when every visit is at or after the cutoff', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_new', new DateTimeImmutable('2026-08-10T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(1);
+});
+
+it('keeps a visit whose first_seen_at exactly equals the cutoff', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_edge', new DateTimeImmutable('2026-08-05T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(1);
+});
+
+it('sums events and visits pruned into one count', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-01T00:00:00+00:00')));
+    $analytics->recordVisit(new AnalyticsVisit('ses_old', new DateTimeImmutable('2026-08-01T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(2)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+});
+
+it('lets a visits prune failure propagate, the same as an events prune failure', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_old', new DateTimeImmutable('2026-08-01T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    DB::connection('analytics')->getPdo()->exec('DROP TABLE analytics_visits');
+
+    expect(fn () => $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00')))
+        ->toThrow(QueryException::class);
+});
+
 it('leaves page_view_counts alone — it carries no personal data', function (): void {
     $analytics = new Analytics;
     $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-01T00:00:00+00:00')));

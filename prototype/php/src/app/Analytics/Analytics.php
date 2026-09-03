@@ -164,23 +164,35 @@ final class Analytics
     }
 
     /**
-     * Deletes every `analytics_events` row whose `occurred_at` is strictly
-     * before `$cutoff`, in `$batchSize`-row batches looped until none
-     * change — {@see \App\Logging\LogStore::prune()}'s shape, against the
-     * analytics connection instead of a bespoke PDO handle. `page_view_counts`
-     * carries no personal data and is never touched here. Unlike
-     * {@see flush()}/{@see reassignActor()}, a failure is not swallowed —
-     * {@see \App\Console\Commands\SweepOrders} decides what it means for
-     * its exit code.
+     * Deletes every `analytics_events` row whose `occurred_at`, and every
+     * `analytics_visits` row whose `first_seen_at`, is strictly before
+     * `$cutoff`, each in `$batchSize`-row batches looped until none change,
+     * through the analytics connection — {@see \App\Logging\LogStore::prune()}'s
+     * shape. `page_view_counts` carries no personal data and is never
+     * touched here. Unlike {@see flush()}/{@see reassignActor()}, a failure
+     * is not swallowed — {@see \App\Console\Commands\SweepOrders} decides
+     * what it means for its exit code.
      */
     public function prune(DateTimeImmutable $cutoff, int $batchSize = self::PRUNE_BATCH): int
     {
         $cutoffTs = $cutoff->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+
+        return self::pruneTable('analytics_events', 'occurred_at', $cutoffTs, $batchSize)
+            + self::pruneTable('analytics_visits', 'first_seen_at', $cutoffTs, $batchSize);
+    }
+
+    /**
+     * One table's own batched delete loop, shared by {@see prune()}'s two
+     * calls: `analytics_events` against `occurred_at`, `analytics_visits`
+     * against `first_seen_at`.
+     */
+    private static function pruneTable(string $table, string $column, string $cutoffTs, int $batchSize): int
+    {
         $deleted = 0;
 
         do {
-            $chunkDeleted = DB::connection('analytics')->table('analytics_events')
-                ->where('occurred_at', '<', $cutoffTs)
+            $chunkDeleted = DB::connection('analytics')->table($table)
+                ->where($column, '<', $cutoffTs)
                 ->limit($batchSize)
                 ->delete();
             $deleted += $chunkDeleted;
