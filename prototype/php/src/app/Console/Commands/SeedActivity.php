@@ -56,6 +56,7 @@ use App\Support\Story;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Console\Command;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use LogicException;
@@ -971,17 +972,18 @@ final class SeedActivity extends Command
         for ($weeksAgo = intdiv($days, 7) + 1; $weeksAgo >= 0; $weeksAgo--) {
             try {
                 Artisan::call('payouts:run', ['--as-of' => $now->modify("-{$weeksAgo} weeks")->format('Y-m-d')]);
-            } catch (Throwable) {
+            } catch (UniqueConstraintViolationException) {
                 // OrderHistorySeeder already runs one hardcoded payout of
                 // its own (make fresh's "one payout"), for a period this
                 // sweep's own window can reach on a long enough run. A
                 // second payable balance surfacing for that same
                 // seller/period — new activity this plan added on top of
                 // the demo data — collides on payouts' unique
-                // (seller_id, period_start) key and fails the whole week's
-                // batch. Skipped, the same tolerance every other collision
-                // in this command gets, rather than aborting the run and
-                // leaving the log store unflushed and the marker unwritten.
+                // (seller_id, period_start) key. Skipped, the same
+                // tolerance every other collision in this command gets,
+                // rather than aborting the run and leaving the log store
+                // unflushed and the marker unwritten. Any other failure
+                // still aborts the command.
             }
         }
     }

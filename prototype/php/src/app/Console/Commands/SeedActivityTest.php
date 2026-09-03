@@ -11,6 +11,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Listing;
 use App\Models\Order;
+use App\Models\Payout;
 use Database\Seeders\DatabaseSeeder;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Artisan;
@@ -109,6 +110,35 @@ it('floors to the same start-of-day plan whatever time of day it runs at', funct
     $evening = $this->moment('2026-09-03 23:59:59');
 
     expect($startOfDay($morning, 92))->toEqual($startOfDay($evening, 92));
+});
+
+it('skips a payout week that collides with a period the demo data already settled', function () use ($pending): void {
+    // OrderHistorySeeder (make fresh's own order history) releases escrow
+    // for "Garden Gnome in Reclaimed Oak"'s seller on 2026-07-10 and pays
+    // it out as of 2026-07-16 — period_start 2026-07-06. Travelling to
+    // 2026-09-03 makes seed:activity's own 92-day payout sweep revisit
+    // that exact date (7 weeks back), so a second delivery for the same
+    // seller in the same week collides on payouts' unique key the moment
+    // this command's sweep reaches it.
+    $this->travelTo($this->moment('2026-09-03 12:00:00'));
+    $this->seed(DatabaseSeeder::class);
+
+    $seller = Listing::where('title', 'Garden Gnome in Reclaimed Oak')->sole()->seller;
+    $periodStart = '2026-07-06';
+    expect(Payout::query()->where('seller_id', $seller->id)->whereDate('period_start', $periodStart)->count())->toBe(1);
+
+    $this->deliveredFulfillmentFor(
+        $seller,
+        orderedAt: $this->moment('2026-07-06 12:00:00'),
+        shippedAt: $this->moment('2026-07-08 11:00:00'),
+        deliveredAt: $this->moment('2026-07-11 09:00:00'),
+    );
+
+    $pending($this->artisan('seed:activity', ['--days' => 92]))
+        ->assertSuccessful();
+
+    expect(DB::table('seed_runs')->count())->toBe(1)
+        ->and(Payout::query()->where('seller_id', $seller->id)->whereDate('period_start', $periodStart)->count())->toBe(1);
 });
 
 it('refuses a second run against a database that already carries its marker', function () use ($pending): void {
