@@ -168,3 +168,60 @@ it('lists everything one session did since a cutoff, newest first, across whiche
         ->and($rows[1]->name)->toBe(AnalyticsEventName::ListingView->value)
         ->and($rows[1]->ip)->toBe('203.0.113.9');
 });
+
+it('lists an actor\'s own visits, newest first, each with its channel and referrer', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->recordVisit(new AnalyticsVisit(
+        'ses_01J00000000000000000000ONE',
+        new DateTimeImmutable('2026-08-20T09:00:00+00:00'),
+        '/art/starry-night',
+        'newsletter.example.com',
+        'newsletter',
+        'email',
+        'sept',
+        null,
+        null,
+        'cus_XYZ',
+    ));
+    $analytics->recordVisit(new AnalyticsVisit(
+        'ses_01J00000000000000000000TWO',
+        new DateTimeImmutable('2026-08-21T09:00:00+00:00'),
+        '/',
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        'cus_XYZ',
+    ));
+    $analytics->recordVisit(new AnalyticsVisit(
+        'ses_01J00000000000000000000OTH',
+        new DateTimeImmutable('2026-08-22T09:00:00+00:00'),
+        '/',
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        'cus_OTHER',
+    ));
+    $analytics->flush();
+
+    $rows = AnalyticsReport::visitsForActor('cus_XYZ');
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]->sessionId)->toBe('ses_01J00000000000000000000TWO')
+        ->and($rows[0]->channel->key)->toBe('direct')
+        ->and($rows[0]->referrerHost)->toBeNull()
+        ->and($rows[1]->sessionId)->toBe('ses_01J00000000000000000000ONE')
+        ->and($rows[1]->landingPath)->toBe('/art/starry-night')
+        ->and($rows[1]->channel->key)->toBe('campaign:sept')
+        ->and($rows[1]->referrerHost)->toBe('newsletter.example.com');
+});
+
+it('lists no visits for an actor who never carried one', function (): void {
+    expect(AnalyticsReport::visitsForActor('cus_XYZ'))->toBe([]);
+});

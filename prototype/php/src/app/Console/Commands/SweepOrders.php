@@ -95,7 +95,8 @@ final class SweepOrders extends Command
      * `ANALYTICS_RETENTION_DAYS=off` skips pruning silently — not a
      * failure. A prune failure sets the command's exit code but leaves the
      * other two steps' completed work standing; it never escapes as an
-     * uncaught exception.
+     * uncaught exception. `Analytics::prune()`'s count spans both tables it
+     * deletes from — events and visits — so the printed line does too.
      */
     private function pruneAnalyticsEvents(Analytics $analytics, DateTimeImmutable $asOf): bool
     {
@@ -106,7 +107,8 @@ final class SweepOrders extends Command
         }
 
         try {
-            $analytics->prune($asOf->modify("-{$retentionDays} days"));
+            $deleted = $analytics->prune($asOf->modify("-{$retentionDays} days"));
+            $this->info("{$deleted} analytics row(s) pruned.");
 
             return true;
         } catch (Throwable $e) {

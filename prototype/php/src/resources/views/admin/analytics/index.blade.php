@@ -253,4 +253,13 @@
             </x-admin.card-list>
         @endif
     </section>
+
+    {{-- channels --}}
+    <section aria-labelledby="analytics-channels-heading" class="mt-6">
+        <div class="flex flex-wrap items-baseline gap-3">
+            <h2 id="analytics-channels-heading" class="font-semibold text-stone-700 dark:text-stone-300">Channels</h2>
+            <span class="text-xs text-stone-500 dark:text-stone-400">{{ $channelsSummary }}</span>
+            <a href="{{ $allChannelsHref }}" class="ml-auto inline-flex items-center gap-1 underline">All channels</a>
+        </div>
+    </section>
 </x-layouts.admin>

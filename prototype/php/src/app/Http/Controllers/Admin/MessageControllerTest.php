@@ -30,12 +30,11 @@ use Tests\TestCase;
  * match a bare `>1</span>` too — this isolates one link's own `<a>...</a>`
  * block before checking it for a chip.
  */
-function navLinkMarkup(string $html, string $href): string
-{
+$navLinkMarkup = function (string $html, string $href): string {
     preg_match('#<a\s+href="'.preg_quote($href, '#').'"[^>]*>[\s\S]*?</a>#', $html, $matches);
 
     return $matches[0] ?? '';
-}
+};
 
 /**
  * The nav rail and drawer each carry the tool list as `<li>` elements
@@ -43,10 +42,9 @@ function navLinkMarkup(string $html, string $href): string
  * `<li>` of its own (unlike the dashboard's directory links), so its count
  * isolates what a list pane itself renders.
  */
-function chromeListItemCount(TestCase $test, Admin $admin): int
-{
+$chromeListItemCount = function (TestCase $test, Admin $admin): int {
     return substr_count((string) $test->actingAs($admin, 'admin')->get('/admin/accounting')->getContent(), '<li>');
-}
+};
 
 it('lists the admins threads newest first with who, what, and unread count', function (): void {
     $admin = $this->admin();
@@ -187,13 +185,13 @@ it('renders the list pane beside the detail pane, with a sibling conversation st
     $response->assertSee('Rye Press');
 });
 
-it('caps the list pane at the window size, however many conversations exist', function (): void {
+it('caps the list pane at the window size, however many conversations exist', function () use ($chromeListItemCount): void {
     $admin = $this->admin();
     for ($i = 0; $i < ListPaneWindow::SIZE + 5; $i++) {
         Conversation::factory()->adminSeller()->create(['seller_id' => $this->seller("Seller {$i}")->id]);
     }
 
-    $chromeListItems = chromeListItemCount($this, $admin);
+    $chromeListItems = $chromeListItemCount($this, $admin);
     $response = $this->actingAs($admin, 'admin')->get('/admin/messages?filter=all&status=all');
 
     $response->assertOk();
@@ -204,7 +202,7 @@ it('caps the list pane at the window size, however many conversations exist', fu
     expect(substr_count((string) $response->getContent(), '<li>') - $chromeListItems)->toBe(ListPaneWindow::SIZE * 2);
 });
 
-it('keeps the viewed conversation on the list pane even when it sorts outside the window', function (): void {
+it('keeps the viewed conversation on the list pane even when it sorts outside the window', function () use ($chromeListItemCount): void {
     $admin = $this->admin();
     $viewed = Conversation::factory()->adminSeller()->create([
         'seller_id' => $this->seller('Blue Kiln Studio')->id,
@@ -218,7 +216,7 @@ it('keeps the viewed conversation on the list pane even when it sorts outside th
         ]);
     }
 
-    $chromeListItems = chromeListItemCount($this, $admin);
+    $chromeListItems = $chromeListItemCount($this, $admin);
     $response = $this->actingAs($admin, 'admin')->get("/admin/messages/{$viewed->id}");
 
     $response->assertOk();
@@ -357,7 +355,7 @@ it('names an order thread and a support thread by their fulfillment counterpart'
     $response->assertDontSee("Order {$fulfillment->order_id}");
 });
 
-it('carries a sellers support request to the admin and the answer back', function (): void {
+it('carries a sellers support request to the admin and the answer back', function () use ($navLinkMarkup): void {
     $admin = $this->admin();
     $seller = $this->seller('Blue Kiln Studio');
 
@@ -371,7 +369,7 @@ it('carries a sellers support request to the admin and the answer back', functio
     $inbox->assertSee('Blue Kiln Studio');
     $inbox->assertSee('My payout is late.');
     $inbox->assertSee('1 unread');
-    expect(navLinkMarkup((string) $inbox->getContent(), route('admin.messages.index')))->toContain('>1</span>');
+    expect($navLinkMarkup((string) $inbox->getContent(), route('admin.messages.index')))->toContain('>1</span>');
 
     $this->actingAs($admin, 'admin')
         ->post("/admin/messages/{$conversation->id}", ['body' => 'Paid this morning.'])

@@ -7,12 +7,13 @@ slower. `App\Analytics\Analytics` is the one entry point: every recording
 call appends to an in-memory buffer and does no I/O; a later flush is what
 turns the buffer into rows.
 
-Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,ListingEventCounts,RequestFacts}.php`,
-`app/Domain/Analytics/AnalyticsEventName.php`,
+Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ActorVisitRow,ListingEventCounts,RequestFacts}.php`,
+`app/Domain/Analytics/{AnalyticsEventName,Channel}.php`,
 `app/Providers/AnalyticsServiceProvider.php`, the `analytics` connection in
 `config/database.php`, `config/analytics.php`, `app/Support/RequestMarks.php`,
 `app/Support/RetentionDays.php`, `database/migrations/*_create_analytics_events_table.php`,
 `database/migrations/*_create_page_view_counts_table.php`,
+`database/migrations/*_create_analytics_visits_table.php`,
 `app/Models/PageViewCount.php`, `app/Domain/Listings/ListingViewCollapse.php`,
 `app/Domain/Analytics/{PageViewCountability,PageViewDay,PageViewSite,PageViewWeek}.php`,
 `app/Http/Middleware/RollUpPageViews.php`, `App\Console\Commands\SweepOrders`'s
@@ -144,6 +145,47 @@ Indexes: `(subject_id, name)`, `(name, occurred_at)`, `actor_id`, `ip`, `session
 `page_view_counts` is unchanged by this ticket: `id` (prefix `pvc`), `site`,
 `path_pattern`, `day`, `count`, unique on `(site, path_pattern, day)`.
 
+`analytics_visits`:
+
+| Column          | Type                | Notes                                          |
+| --------------- | ------------------- | ----------------------------------------------- |
+| `session_id`    | text(30) PK         | the `sid` cookie's value                         |
+| `first_seen_at` | timestamp           | UTC; the moment the row was captured             |
+| `landing_path`  | string              | the path of the first request that carried this session |
+| `referrer_host` | string, nullable    | the `Referer` header's host, foreign hosts only  |
+| `utm_source`    | string(255), nullable | stored as given, capped at 255                 |
+| `utm_medium`    | string(255), nullable | stored as given, capped at 255                 |
+| `utm_campaign`  | string(255), nullable | stored as given, capped at 255                 |
+| `utm_content`   | string(255), nullable | stored as given, capped at 255                 |
+| `utm_term`      | string(255), nullable | stored as given, capped at 255                 |
+| `actor_id`      | text(30), nullable  | references e.g. `customers.id`, no FK; filled when the request already has one |
+
+Indexes: `first_seen_at`, `(utm_source, utm_medium)`, `actor_id`.
+
+**A visit is first-touch per session cookie.** The `sid` cookie lives a
+year, but `analytics_visits` holds one row per session for its whole
+life: `App\Analytics\Analytics::recordVisit()` buffers whatever
+`App\Analytics\AnalyticsVisit::fromRequest()` builds off the current
+request, and `flush()` writes it `INSERT OR IGNORE` on `session_id`, so
+only the first request of a session ever changes a row — every later
+request in that session's year is a no-op write. First-touch is the
+simpler definition and the one that answers "which channel brought this
+visitor", the question a marketing decision waits on; a thirty-minute
+session-gap definition was considered and set aside for that reason.
+
+**Where it is captured.** `App\Http\Middleware\RollUpPageViews::terminate()`
+records the visit, not `NameRequestVisitor` where the `sid` cookie is
+minted: `RollUpPageViews` already computes whether a response is
+countable (`PageViewCountability`) and which site a route pattern belongs
+to (`PageViewSite`), and both are only knowable once the response exists
+— `NameRequestVisitor` runs in `handle()`, before there is a response to
+ask. A visit is captured only for the storefront (`PageViewSite::Shop`);
+an admin or seller page records nothing. `App\Analytics\RequestFacts`
+supplies the session id, including its fallback to the cookie
+`NameRequestVisitor` just queued for a browser's first-ever request, so
+the very first request a new visitor makes still records a visit under
+the id it was just given.
+
 ## Vocabulary
 
 `App\Domain\Analytics\AnalyticsEventName` is the closed enum every `recordEvent()`
@@ -196,6 +238,65 @@ the sweep runs from the console.
   session, and the request id read back out of `data`). How an operator
   isolates what a scripted or abusive visitor did, and steps from a row to
   the request that produced it via its `request_id`.
+- `visitsForActor($actorId)` — an actor's own `analytics_visits` rows,
+  newest first, each read back as an `App\Analytics\ActorVisitRow`
+  (`sessionId`, `firstSeenAt`, `landingPath`, and the
+  `App\Domain\Analytics\Channel` it derives to) — a visitor's analytics
+  page's source for the origin of each of their visits.
+
+## Channels
+
+`App\Domain\Analytics\Channel::derive()` is the pure precedence every
+channel reads through: a campaign named by `utm_source`/`utm_medium`/`utm_campaign`
+wins, then the `Referer` header's host mapped to a search engine, a social
+network, or a bare referral, then direct. `Channel::key` is what a report
+groups by (`campaign:sept`, `search:google`, `social:instagram`,
+`referral:example.com`, `direct`); `Channel::label` is what a reader sees.
+
+`App\Analytics\Admin\ChannelTable::forRange($range)` is the admin channel
+report: one `ChannelRow` per channel — `channelKey`, `label`, and five
+`ChannelMetric`s (`visitors`, `views`, `cartAdds`, `ordersPlaced`,
+`ordersPaid`), each carrying its count for the range, the count for the
+range before, and the `RangeChange` between them — ordered by visitors,
+most first.
+
+- **Visitors** read straight off `analytics_visits`: one query groups the
+  visits whose `first_seen_at` falls in the window by their raw
+  attribution columns (`utm_source`, `utm_medium`, `utm_campaign`,
+  `referrer_host`), split into the current and the previous range the same
+  way every other admin analytics reader splits a window.
+- **Views, cart adds, orders placed, orders paid** read `analytics_events`
+  joined to `analytics_visits` on `session_id` — one query, since both
+  tables live in the one analytics SQLite file — grouped by the same raw
+  attribution columns plus the event name. A two-query, PHP-side join was
+  the alternative considered; the one-query join reads fewer rows into PHP
+  for a range with many events, since SQL does the grouping.
+- Every group either query returns derives its `Channel` in PHP
+  (`Channel::derive()` is not expressible in SQL), and rows whose derived
+  key matches are folded into one — two raw attribution tuples can derive
+  the same channel (`twitter.com` and `x.com` both read
+  `social:x/twitter`), which is why the fold happens after the SQL
+  grouping rather than in the query itself.
+
+**The channel pages.** `GET /admin/analytics/channels?range=`
+(`admin.analytics.channels.index`) renders `ChannelTable::forRange()`'s rows
+as a table (a card-list fallback below `sm`) ordered by visitors, most
+first, each cell carrying the range's own count and the `RangeChange`
+against the range before in the tone classes every other admin analytics
+page uses; the whole row taps through to that channel's own visitors.
+`GET /admin/analytics/channels/{key}?range=&page=`
+(`admin.analytics.channels.show`) is that drill-in:
+`App\Analytics\Admin\ChannelVisits::forRange()` derives every visit in the
+range the way `ChannelTable` does and keeps the ones whose key matches,
+paged the all-actors page's own way (`App\Support\Page`, `x-admin.pager`).
+A channel key names no stored row — "found" means at least one visit in
+the range derives to it, so a key nothing derives to answers 404. Each row
+lists when the visit started, where it landed, and the visitor: the
+actor's own id chip, linked to their page, when the visit already carried
+one, the session id chip otherwise. The entry page (`/admin/analytics`)
+names the top three channels by visitors and their counts in a "Channels"
+section, with an "All channels" link to the first page above — the same
+shape its "Actors by velocity" section already uses for `/admin/analytics/actors`.
 
 `App\Models\PageViewCount`'s own static methods (`totalForWeek`,
 `totalsByDay`, `totalsByPattern`) read `page_view_counts` directly and are
@@ -247,7 +348,15 @@ Every class in it is a static, stateless reader — no writer lives here.
   query and formatting helper between the two; the listing and actor pages.
   An actor's feed reads its rows' own subject — a listing, an order, or a
   cart — rather than assuming every subject is a listing; see "The funnel"
-  below for the order and cart shape.
+  below for the order and cart shape. `forActor()` also reads
+  `AnalyticsReport::visitsForActor()` once: the identity card's "First
+  channel" fact reads the earliest visit's `Channel` (the list comes back
+  newest first, so the earliest is its last element), and the same list,
+  capped at 20 and still newest first, is the actor page's "Visits" panel
+  between the identity card and the tiles — first seen, channel label,
+  landing path, and referrer host when the visit carried a foreign one.
+  `forListing()` carries no visits — a visit belongs to a session, not to
+  a listing — so the panel never renders there.
 - `Funnel::forRange()` / `forListing()` / `forSeller()` — the whole
   storefront funnel, visitors through paid orders, for the store, one
   listing, or one seller; see "The funnel" below.
@@ -296,15 +405,29 @@ regresses into a query per row:
 
 | Page                                 | Fixture                 | Default | Analytics |
 | ------------------------------------ | ----------------------- | ------- | --------- |
-| `/admin/analytics`                   | 12 actors               | 2       | 10        |
+| `/admin/analytics`                   | 12 actors               | 2       | 12        |
 | `/admin/analytics/events/:name`      | 8 listings (by-listing) | 4       | 5         |
 | `/admin/analytics/actors`            | 15 actors               | 2       | 4         |
-| `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 11        |
+| `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 12        |
 | `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 10        |
+| `/admin/analytics/channels`          | 3 channels              | 1       | 3         |
+| `/admin/analytics/channels/:key`     | 15 visits               | 1       | 2         |
 
-The entry and listing pages' analytics-connection count each carry two
-statements for the funnel (`Funnel::forRange()` / `forListing()`, below) on
-top of the total the row named before it shipped.
+Every row's own analytics-connection count carries one statement no page
+here reads on purpose: `App\Http\Middleware\RollUpPageViews` upserts
+`page_view_counts` for every countable admin hit the same way it does for
+the storefront, so every page in this table pays one write on top of its
+own reads. The entry and listing pages' analytics-connection count also
+each carry two statements for the funnel (`Funnel::forRange()` /
+`forListing()`, below) on top of the total the row named before it
+shipped. The entry page's own total also carries `ChannelTable::forRange()`'s
+two statements (the channels section's top-three summary), and the actor
+page's own total carries one more for `AnalyticsReport::visitsForActor()`
+(the visits panel and the identity card's "First channel" fact). The two
+channel pages' own default count is one lower than every other page here:
+neither resolves a `Customer` or `Listing` row by id, so their one
+default-connection query is the admin chrome's own tallies, with no
+identity lookup added on top.
 
 ## The funnel
 
@@ -420,14 +543,17 @@ an artisan run.
 An `ip` is personal data, and a `session_id` joins a browser's visits
 together whether or not anyone signs in — keeping either forever turns a
 usage log into a standing record of who visited what. `ANALYTICS_RETENTION_DAYS`
-(default `30`, `off` disables) bounds `analytics_events`' history:
-`App\Analytics\Analytics::prune($cutoff)` deletes rows whose `occurred_at`
-is before the cutoff, batched and looped until none change — the same
-shape `App\Logging\LogStore::prune()` uses (`docs/log-store.md`).
-`orders:sweep` runs it as a third step alongside the stale-order sweep and
-the log-store prune, each independent of the others' success. `page_view_counts`
-carries no personal data (a route pattern and a day, never an ip or a
-session) and is never pruned.
+(default `30`, `off` disables) bounds both tables' history:
+`App\Analytics\Analytics::prune($cutoff)` deletes `analytics_events` rows
+whose `occurred_at` and `analytics_visits` rows whose `first_seen_at` are
+before the cutoff, each batched and looped until none change — the same
+shape `App\Logging\LogStore::prune()` uses (`docs/log-store.md`) — and
+returns the two tables' combined delete count. `orders:sweep` runs it as a
+third step alongside the stale-order sweep and the log-store prune, each
+independent of the others' success, and prints the combined count
+("N analytics row(s) pruned."). `page_view_counts` carries no personal
+data (a route pattern and a day, never an ip or a session) and is never
+pruned.
 
 ## Open items
 
@@ -435,4 +561,6 @@ session) and is never pruned.
   ships the one-entry-point, buffered-and-flushed version on FEAT-039, and
   the request-facts columns and retention window on FEAT-044. Node and
   Rails still write analytics inline in the request, carry no request
-  facts, and prune nothing — tickets not yet filed.
+  facts, and prune nothing — tickets not yet filed. FEAT-047 (first-touch
+  capture, channel derivation, the channel and actor-visits pages, visits
+  retention) is PHP-only too.

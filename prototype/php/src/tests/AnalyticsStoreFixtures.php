@@ -4,19 +4,41 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsVisit;
 use Closure;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use stdClass;
 
 /**
- * Shared fixture for tests that point the analytics connection at an
- * unwritable path (`AnalyticsTest`, `MergeAnonymousCustomerTest`,
- * `Shop\ListingControllerTest`, `RollUpPageViewsTest`). A real,
- * Composer-autoloaded class rather than functions duplicated per file, or
+ * Shared fixtures for analytics tests. `withUnwritableStore()` points the
+ * analytics connection at an unwritable path (`AnalyticsTest`,
+ * `MergeAnonymousCustomerTest`, `Shop\ListingControllerTest`,
+ * `RollUpPageViewsTest`); `seedDirectVisit()` seeds one `direct` visit
+ * (`Http\Requests\Admin\AnalyticsChannelVisitsQueryRequestTest`); `visits()`
+ * reads the raw `analytics_visits` rows back (`RollUpPageViewsTest`). Real,
+ * Composer-autoloaded methods rather than functions duplicated per file, or
  * declared in one sidecar and called from another — which would tie their
  * availability to whatever order Pest happens to require the test files in.
  */
 final class AnalyticsStoreFixtures
 {
+    public static function seedDirectVisit(): void
+    {
+        $analytics = app(Analytics::class);
+        $analytics->recordVisit(new AnalyticsVisit('sess-direct', now()->toDateTimeImmutable(), '/', null, null, null, null, null, null, null));
+        $analytics->flush();
+    }
+
+    /**
+     * @return Collection<int, stdClass>
+     */
+    public static function visits(): Collection
+    {
+        return DB::connection('analytics')->table('analytics_visits')->get();
+    }
+
     /**
      * Points the analytics connection at a path that cannot be written to,
      * runs $body, and restores the connection to its prior database

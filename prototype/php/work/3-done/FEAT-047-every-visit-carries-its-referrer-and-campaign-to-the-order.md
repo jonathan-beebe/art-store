@@ -1,7 +1,7 @@
 ---
 id: FEAT-047
 type: feature
-status: open
+status: resolved
 created: 2026-09-02
 ---
 
@@ -74,3 +74,62 @@ order is the whole of that answer; captured anywhere else it is a guess.
 - FEAT-045 — the admin drill-in the channel page joins
 - FEAT-046 — order events, the end of the attributed path
 - FEAT-002 — the visitor identity cookie
+
+## Working
+
+Commits (stage A, already landed on this branch, plus stage B below):
+
+- `632f65f4` — the first request of a visit records its landing path,
+  referrer, and campaign
+- `a929cb7b` — a visit's channel derives from its campaign, then its
+  referrer, then direct
+- `5abe6b51` — `ChannelTable::forRange()` and `AnalyticsReport::visitsForActor()`
+  read the store
+- `ca49354d` — `/admin/analytics/channels` and `/admin/analytics/channels/{key}`,
+  the entry page's Channels section
+- `4b2dacd1` — the actor page's Visits panel and "First channel" fact
+- `ec120567` — `Analytics::prune()` deletes stale `analytics_visits` rows too
+
+A visit is first-touch per session cookie: `App\Analytics\Analytics::recordVisit()`
+buffers whatever `App\Analytics\AnalyticsVisit::fromRequest()` builds off
+the first request of a session, and `flush()` writes it `INSERT OR
+IGNORE` on `session_id`, so only that first request's row ever lands —
+every later request in the `sid` cookie's year-long life is a no-op
+write. First-touch answers "which channel brought this visitor", the
+question a marketing decision waits on; a thirty-minute session-gap
+definition was considered and set aside for that reason.
+
+The channel join: `App\Analytics\Admin\ChannelTable` and `ChannelVisits`
+both derive a `Channel` in PHP per raw attribution tuple
+(`Channel::derive()` is not expressible in SQL) and fold rows whose
+derived key matches into one, after SQL has already grouped by the raw
+tuple — `ChannelTable` groups `analytics_visits` and a join of
+`analytics_events` to `analytics_visits` on `session_id`; `ChannelVisits`
+reads every visit in the range and keeps the ones whose derived key
+matches the requested one, since a channel key names no stored row and
+"found" only means "at least one visit in the range derives to it" —
+an unmatched key answers 404.
+
+Decisions:
+
+- The visits panel and "First channel" fact live on `EntityActivityView`
+  itself (`$visits`, populated only by `forActor()`), unlike `Funnel`'s
+  own separate top-level view variable — the fact needs the same query
+  the panel does, and both differ by entity kind the way every other
+  fact and tile already does.
+- Every admin analytics page's own analytics-connection query count
+  carries one query neither the ticket nor earlier stages named:
+  `RollUpPageViews` upserts `page_view_counts` for every countable admin
+  hit, not just the storefront's — `docs/analytics.md`'s query-count
+  table now says so.
+- `orders:sweep` had no printed line for the analytics prune's own count
+  before this ticket (the log-store prune's count was never printed
+  either) — stage B adds one, since "the count and log line include
+  them" needed a line to include them into.
+
+`make precommit`: 3860 tests passed (11036 assertions), lint clean. Two of
+the four commits above needed a bare retry — the hook's own `make
+precommit` run failed once with no captured detail and once with a
+nonsensical Arch complaint against a test file, neither reproducing on
+the immediate retry with no code change in between; every manual
+`make precommit` run this stage was green.

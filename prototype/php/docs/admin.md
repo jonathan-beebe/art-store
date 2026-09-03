@@ -58,6 +58,9 @@ sign in through the same magic link sellers and customers use
 |                                                                         | log viewer, and the block form                                           |
 | `GET /admin/analytics/listings/{listing}?range=&event=`                 | the listing's identity, range tiles, its own funnel, a daily strip, and  |
 |                                                                         | its event feed newest first, with a link to the listing                  |
+| `GET /admin/analytics/channels?range=`                                  | every channel — visitors, listing views, cart adds, orders placed, and   |
+|                                                                         | orders paid, compared with the range before it — ordered by visitors     |
+| `GET /admin/analytics/channels/{key}?range=&page=`                      | one channel's own visits in the range, paged, newest first               |
 | `GET\|POST /admin/messages`, `/admin/messages/{conversation}`,          | the shared desk: every admin sees every thread; `filter=`/`status=`      |
 | `.../resolve`, `.../reopen`                                             | queues; oversight (seller ↔ customer) threads read-only                  |
 |                                                                         | ([`messaging.md`](messaging.md))                                         |
@@ -283,7 +286,7 @@ its event was kept.
 ## Analytics drill-in
 
 Question: from "what happened in this range" to "who did it" to "everything
-that one did" — how do the five analytics pages reach each other?
+that one did" — how do the seven analytics pages reach each other?
 
 ```mermaid
 flowchart LR
@@ -291,18 +294,23 @@ flowchart LR
     event["/admin/analytics/events/:name<br/>range tiles + breakdown"]
     actors["/admin/analytics/actors<br/>every actor, paged"]
     listing["/admin/analytics/listings/:listing<br/>identity + feed"]
-    actor["/admin/analytics/actors/:customer<br/>identity + feed"]
+    actor["/admin/analytics/actors/:customer<br/>identity + feed + visits"]
+    channels["/admin/analytics/channels<br/>every channel, ordered by visitors"]
+    channel["/admin/analytics/channels/:key<br/>one channel's visits, paged"]
 
     entry -->|"event name"| event
     entry -->|"leaderboard row"| actor
     entry -->|"pasted id or ip"| listing
     entry -->|"pasted id or ip"| actor
     entry -->|"All actors"| actors
+    entry -->|"All channels"| channels
     actors -->|"row"| actor
     event -->|"by-listing row"| listing
     event -->|"by-actor row"| actor
     listing -->|"feed row's actor"| actor
     actor -->|"feed row's listing"| listing
+    channels -->|"row"| channel
+    channel -->|"visit's actor"| actor
 ```
 
 Query parameters, all optional, empty reading as "all" the way every other
@@ -320,8 +328,8 @@ admin filter does (the Pages table above):
   only `pattern`, since the roll-up carries no listing or actor of its own.
 - `sort=active|recent` — the all-actors page, most events in the range or
   most recently seen.
-- `page=` — the all-actors page, a positive integer; an out-of-range value
-  clamps to the nearest real page (`App\Support\Page::of()`).
+- `page=` — the all-actors and channel-visits pages, a positive integer; an
+  out-of-range value clamps to the nearest real page (`App\Support\Page::of()`).
 - `event=` — the listing and actor pages' event-name filter on their own feed.
 
 Caveats: `App\Analytics\Admin\EntityActivity::forListing()`/`forActor()`
@@ -338,7 +346,18 @@ happened at all. The identity card's actions differ by kind: a listing links
 only to the listing itself; an actor links to the customer record, to
 `/admin/logs?actor=` filtered to it, and to the customer page's own block
 form — the block flow itself lives only there, never duplicated on the
-analytics page.
+analytics page. An actor's own page also carries a "Visits" panel between
+the identity card and the tiles (`docs/analytics.md` § "Channels") and the
+identity card's own "First channel" fact; a listing carries neither, since
+a visit belongs to a session, not to a listing.
+
+**Channels.** `App\Analytics\Admin\ChannelTable` and `ChannelVisits`
+(`docs/analytics.md` § "Channels") back the two channel pages: the first
+lists every channel a visit in the range derives to, ordered by visitors,
+each row's whole width tapping through to the second — that channel's own
+visits, paged. A channel key names no stored row, so a key nothing in the
+range derives to answers 404, the same "found" test the entry page's jump
+row uses for a pasted id.
 
 **The funnel.** `App\Analytics\Admin\Funnel` (`docs/analytics.md` § "The
 funnel") reads the whole storefront funnel — visitors through paid orders —

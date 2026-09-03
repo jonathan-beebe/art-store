@@ -3,9 +3,9 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 9
+- DSGN: 10
 - ARCH: 1
-- FEAT: 49
+- FEAT: 50
 - IMPRV: 26
 - MAINT: 7
 - A11Y: 1
@@ -13,6 +13,14 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:20:15:32 — FEAT-047 — done: admin channel pages, an actor's visits panel, and analytics_visits retention
+
+- 2026-09-02:19:17:40 — FEAT-049 — defined: admins define funnels as ordered event names
+
+- 2026-09-02:19:11:39 — DSGN-009 — defined: the funnel draws as a funnel
+
+- 2026-09-02:18:58:47 — FEAT-047 — started
 
 - 2026-09-02:18:31:10 — FEAT-046 — done: the funnel query, the funnel on three admin pages, and an actor feed fix for order/cart subjects
 

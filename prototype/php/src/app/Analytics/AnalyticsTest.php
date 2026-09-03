@@ -26,6 +26,11 @@ function listingViewedAt(DateTimeImmutable $at, ?string $dedupeKey = null): Anal
     return AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', $at, $dedupeKey);
 }
 
+function visitFor(string $sessionId, DateTimeImmutable $at, string $landingPath = '/art/starry-night'): AnalyticsVisit
+{
+    return new AnalyticsVisit($sessionId, $at, $landingPath, null, null, null, null, null, null, null);
+}
+
 /**
  * @return array<string, mixed>
  */
@@ -160,6 +165,54 @@ it('counts a page view toward pending() once per distinct key, not once per hit'
     expect($analytics->pending())->toBe(2);
 });
 
+it('buffers a recorded visit without writing it', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', new DateTimeImmutable));
+
+    expect($analytics->pending())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+});
+
+it('writes the buffered visit on flush', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:32:07+00:00');
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $at, '/art/starry-night'));
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_visits')->sole();
+
+    expect($row->session_id)->toBe('ses_01J00000000000000000000ABC')
+        ->and($row->first_seen_at)->toBe('2026-08-22 14:32:07')
+        ->and($row->landing_path)->toBe('/art/starry-night');
+});
+
+it('keeps the first visit recorded for a session within one buffer', function (): void {
+    $analytics = new Analytics;
+    $first = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+    $second = new DateTimeImmutable('2026-08-22T15:00:00+00:00');
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $first, '/art/first'));
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $second, '/art/second'));
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->landing_path)->toBe('/art/first');
+});
+
+it('keeps the first visit recorded for a session across two flushes', function (): void {
+    $analytics = new Analytics;
+    $first = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+    $second = new DateTimeImmutable('2026-08-22T15:00:00+00:00');
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $first, '/art/first'));
+    $analytics->flush();
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', $second, '/art/second'));
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->landing_path)->toBe('/art/first');
+});
+
 it('flushes automatically at the row cap', function (): void {
     $analytics = new Analytics;
 
@@ -189,6 +242,22 @@ it('flushes automatically at the row cap when only page views are buffered', fun
 
     expect($analytics->pending())->toBe(0)
         ->and(PageViewCount::query()->count())->toBe(256);
+});
+
+it('flushes automatically at the row cap when only visits are buffered', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    for ($i = 0; $i < 255; $i++) {
+        $analytics->recordVisit(visitFor("ses_{$i}", $at));
+    }
+
+    expect(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+
+    $analytics->recordVisit(visitFor('ses_255', $at));
+
+    expect($analytics->pending())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(256);
 });
 
 it('commits through its own BEGIN IMMEDIATE transaction against a real file outside any outer transaction', function (): void {
@@ -268,6 +337,17 @@ it('moves every row an actor owns to another actor', function (): void {
     expect(DB::connection('analytics')->table('analytics_events')->sole()->actor_id)->toBe('cus_MERGED');
 });
 
+it('moves every visit an actor owns to another actor', function (): void {
+    $analytics = new Analytics;
+    $visit = new AnalyticsVisit('ses_01J00000000000000000000ABC', new DateTimeImmutable, '/', null, null, null, null, null, null, 'cus_XYZ');
+    $analytics->recordVisit($visit);
+    $analytics->flush();
+
+    $analytics->reassignActor('cus_XYZ', 'cus_MERGED');
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->actor_id)->toBe('cus_MERGED');
+});
+
 it('logs one warning and never throws when reassignActor cannot write', function (): void {
     $log = CapturedStory::capture();
 
@@ -312,6 +392,66 @@ it('keeps an event whose occurred_at exactly equals the cutoff', function (): vo
 
     expect($deleted)->toBe(0)
         ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+});
+
+it('deletes visits before the cutoff in batches, looping until none change', function (): void {
+    $analytics = new Analytics;
+
+    foreach (['2026-08-01', '2026-08-02', '2026-08-03', '2026-08-10', '2026-08-11'] as $day) {
+        $analytics->recordVisit(new AnalyticsVisit("ses_{$day}", new DateTimeImmutable("{$day}T00:00:00+00:00"), '/', null, null, null, null, null, null, null));
+    }
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'), batchSize: 2);
+
+    expect($deleted)->toBe(3)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(2);
+});
+
+it('prunes nothing when every visit is at or after the cutoff', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_new', new DateTimeImmutable('2026-08-10T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(1);
+});
+
+it('keeps a visit whose first_seen_at exactly equals the cutoff', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_edge', new DateTimeImmutable('2026-08-05T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(1);
+});
+
+it('sums events and visits pruned into one count', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-01T00:00:00+00:00')));
+    $analytics->recordVisit(new AnalyticsVisit('ses_old', new DateTimeImmutable('2026-08-01T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    $deleted = $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00'));
+
+    expect($deleted)->toBe(2)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+});
+
+it('lets a visits prune failure propagate, the same as an events prune failure', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_old', new DateTimeImmutable('2026-08-01T00:00:00+00:00'), '/', null, null, null, null, null, null, null));
+    $analytics->flush();
+
+    DB::connection('analytics')->getPdo()->exec('DROP TABLE analytics_visits');
+
+    expect(fn () => $analytics->prune(new DateTimeImmutable('2026-08-05T00:00:00+00:00')))
+        ->toThrow(QueryException::class);
 });
 
 it('leaves page_view_counts alone — it carries no personal data', function (): void {

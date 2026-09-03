@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Http\Middleware\LogRequestStory;
 use Illuminate\Http\Request;
@@ -361,8 +362,63 @@ it('renders one actor\'s page on a fixed number of queries however many events i
     $this->travelTo($this->moment('2026-08-24 12:00:00'));
     $response = $this->actingAs($this->admin(), 'admin')
         ->expectsDatabaseQueryCount(4, 'sqlite')
-        ->expectsDatabaseQueryCount(11, 'analytics')
+        ->expectsDatabaseQueryCount(12, 'analytics')
         ->get(route('admin.analytics.actors.show', $customer));
 
     $response->assertOk();
+});
+
+it('shows the visits panel between the identity card and the tiles, with a channel and referrer', function (): void {
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordVisit(new AnalyticsVisit(
+        $customer->id.'-one',
+        $this->moment('2026-08-19 09:00:00'),
+        '/art/starry-night',
+        'newsletter.example.com',
+        'newsletter',
+        'email',
+        'sept',
+        null,
+        null,
+        $customer->id,
+    ));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee('Visits');
+    $response->assertSee('/art/starry-night');
+    $response->assertSee('Email campaign: sept');
+    $response->assertSee('newsletter.example.com');
+    $response->assertSee('First channel');
+});
+
+it('escapes a utm value rather than rendering it raw', function (): void {
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordVisit(new AnalyticsVisit(
+        $customer->id,
+        $this->moment('2026-08-19 09:00:00'),
+        '/',
+        null,
+        null,
+        null,
+        '<script>alert(1)</script>',
+        null,
+        null,
+        $customer->id,
+    ));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertDontSee('<script>alert(1)</script>', escape: false);
+    $response->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', escape: false);
 });

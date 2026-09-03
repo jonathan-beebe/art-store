@@ -6,6 +6,7 @@ namespace App\Analytics\Admin;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Http\Middleware\LogRequestStory;
@@ -122,7 +123,57 @@ it('reads "—" for an actor with no merges and no ips', function (): void {
     $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
 
     expect(entityFact($view->facts, 'IPs')->value)->toBe('—')
-        ->and(entityFact($view->facts, 'Merged from')->value)->toBe('—');
+        ->and(entityFact($view->facts, 'Merged from')->value)->toBe('—')
+        ->and(entityFact($view->facts, 'First channel')->value)->toBe('—')
+        ->and($view->visits)->toBe([]);
+});
+
+it('lists an actor\'s visits, newest first, and names the earliest one\'s channel', function (): void {
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordVisit(new AnalyticsVisit($customer->id.'-one', $this->moment('2026-08-19 09:00:00'), '/art/starry-night', 'newsletter.example.com', 'newsletter', 'email', 'sept', null, null, $customer->id));
+    $analytics->recordVisit(new AnalyticsVisit($customer->id.'-two', $this->moment('2026-08-20 09:00:00'), '/', null, null, null, null, null, null, $customer->id));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->visits)->toHaveCount(2)
+        ->and($view->visits[0]->sessionId)->toBe($customer->id.'-two')
+        ->and($view->visits[1]->sessionId)->toBe($customer->id.'-one')
+        ->and(entityFact($view->facts, 'First channel')->value)->toBe('Email campaign: sept');
+});
+
+it('caps the visits panel at 20, newest first', function (): void {
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    foreach (range(1, 25) as $i) {
+        $analytics->recordVisit(new AnalyticsVisit(
+            sprintf('%s-%02d', $customer->id, $i),
+            $this->moment('2026-08-19 09:00:00')->modify("+{$i} minutes"),
+            '/',
+            null, null, null, null, null, null,
+            $customer->id,
+        ));
+    }
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->visits)->toHaveCount(20)
+        ->and($view->visits[0]->sessionId)->toBe(sprintf('%s-25', $customer->id));
+});
+
+it('carries no visits on a listing\'s page — a visit belongs to a session, not a listing', function (): void {
+    $listing = $this->listing($this->seller());
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+
+    $view = EntityActivity::forListing($listing, $range, null);
+
+    expect($view->visits)->toBe([]);
 });
 
 it('titles an anonymous actor "Anonymous visitor"', function (): void {
