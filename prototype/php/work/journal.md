@@ -5,14 +5,24 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 45
-- IMPRV: 25
+- FEAT: 46
+- IMPRV: 26
 - MAINT: 6
 - A11Y: 1
 - RFCTR: 14
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:16:43:55 — IMPRV-025 — killed: withdrawn before any work started
+
+- 2026-09-02:16:30:09 — IMPRV-025 — defined: storefront requests stop crossing the slow-query threshold on the deploy
+
+- 2026-09-02:15:21:47 — FEAT-045 — done: /admin/analytics + events/{name} + actors + actors/{customer} + listings/{listing} drill from range comparisons to one listing's or actor's identity, tiles, strip, and event feed, with an ActorVelocity peak-per-hour flag shared by the leaderboard and the actor page
+- 2026-09-02:12:34:37 — FEAT-044 — done: analytics_events gains indexed ip/session_id columns and request_id in data, filled in by RequestFacts::current() per recordEvent; AnalyticsReport::eventsForIp()/eventsForSession(); ANALYTICS_RETENTION_DAYS prunes rows via Analytics::prune(), run by orders:sweep
+- 2026-09-02:11:59:53 — FEAT-045 — started
+- 2026-09-02:11:59:53 — FEAT-044 — started
+- 2026-09-02:11:59:53 — FEAT-045 — defined: an admin analytics drill-in from events to listings and actors
 
 - 2026-09-02:11:52:03 — FEAT-044 — defined: analytics events carry the request ip, session, and id
 

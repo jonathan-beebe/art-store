@@ -2,19 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Logging;
+namespace App\Support;
 
 use InvalidArgumentException;
 
 /**
- * `LOG_RETENTION_DAYS` per docs/alignment.md §2.5: a positive integer number
- * of days, or `"off"` to disable pruning. `parse()` is the one place a raw
- * env string becomes that value; `config/log_store.php` calls it while the
+ * A retention window in days, the shape both `LOG_RETENTION_DAYS`
+ * (docs/alignment.md §2.5) and `ANALYTICS_RETENTION_DAYS` (§2.6) take: a
+ * positive integer number of days, or `"off"` to disable pruning entirely.
+ * `parse()` is the one place a raw env string becomes that value;
+ * `config/log_store.php` and `config/analytics.php` both call it while the
  * config file loads, so a malformed value throws at boot rather than on the
  * sweep that would have needed it — the same eager-parse shape as
  * `App\Domain\RateLimiting\RateLimitValue::parse`.
  */
-final readonly class LogRetentionDays
+final readonly class RetentionDays
 {
     private const string OFF = 'off';
 

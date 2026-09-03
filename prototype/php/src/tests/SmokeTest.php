@@ -212,6 +212,20 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     };
 
     /**
+     * The admin drills into what the visitor did: the entry page, the
+     * favorite event's own page, every actor in the range, and the
+     * visitor's own actor page.
+     */
+    $adminDrillsIntoAnalytics = function (Customer $visitor): void {
+        $this->actingAs($this->admin(), 'admin');
+
+        $this->get('/admin/analytics')->assertOk()->assertSee('Analytics');
+        $this->get('/admin/analytics/events/listing.favorite')->assertOk()->assertSee('Favorites');
+        $this->get('/admin/analytics/actors')->assertOk()->assertSee('All actors');
+        $this->get(route('admin.analytics.actors.show', $visitor))->assertOk()->assertSee('Anonymous visitor');
+    };
+
+    /**
      * A guest is never asked for a card: the order is placed unpaid and waits
      * for the address behind it to be verified.
      */
@@ -319,6 +333,8 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
 
     $favoriteListing($listing);
     $addListingToCart($listing);
+
+    $adminDrillsIntoAnalytics($visitor);
 
     $order = $placeGuestOrder();
     $verifyEmailFromDebugAlert($order);

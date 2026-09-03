@@ -5,11 +5,30 @@ declare(strict_types=1);
 namespace App\Analytics;
 
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Support\RequestMarks;
 use DateTimeImmutable;
+use Illuminate\Http\Request;
 
 function recordListingEvent(Analytics $analytics, AnalyticsEventName $name, string $listingId, DateTimeImmutable $at): void
 {
     $analytics->recordEvent(AnalyticsEvent::forListing($name, $listingId, 'cus_XYZ', $at));
+}
+
+/**
+ * Binds a request carrying the given ip, session, and request id as the
+ * container's current one, then records the event through it — the shape
+ * every {@see AnalyticsReport::eventsForIp()}/{@see AnalyticsReport::eventsForSession()}
+ * test needs, since `Analytics::recordEvent()` reads the request from the
+ * container rather than taking it as an argument.
+ */
+function recordFromRequest(Analytics $analytics, AnalyticsEvent $event, string $ip, string $sessionId, string $requestId): void
+{
+    $request = Request::create('/', server: ['REMOTE_ADDR' => $ip]);
+    $request->attributes->set(RequestMarks::REQUEST_ID_ATTRIBUTE, $requestId);
+    $request->cookies->set(RequestMarks::SESSION_COOKIE, $sessionId);
+    app()->instance('request', $request);
+
+    $analytics->recordEvent($event);
 }
 
 it('tallies one listing\'s views, favorites, and cart adds, leaving another listing out', function (): void {
@@ -67,4 +86,101 @@ it('tallies every event name across the whole platform', function (): void {
     expect($counts)->toHaveCount(2)
         ->and($counts[AnalyticsEventName::ListingView->value])->toBe(2)
         ->and($counts[AnalyticsEventName::ListingCartAdd->value])->toBe(1);
+});
+
+it('lists everything one ip did since a cutoff, newest first, leaving another ip out', function (): void {
+    $analytics = new Analytics;
+
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-22T10:00:00+00:00')),
+        '203.0.113.9',
+        'ses_01J00000000000000000000ABC',
+        'req_01J00000000000000000000ONE',
+    );
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingCartAdd, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-22T11:00:00+00:00')),
+        '203.0.113.9',
+        'ses_01J00000000000000000000ABC',
+        'req_01J00000000000000000000TWO',
+    );
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-22T12:00:00+00:00')),
+        '198.51.100.4',
+        'ses_01J00000000000000000000XYZ',
+        'req_01J00000000000000000000OTH',
+    );
+    $analytics->flush();
+
+    $rows = AnalyticsReport::eventsForIp('203.0.113.9', new DateTimeImmutable('2026-08-21T00:00:00+00:00'));
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]->name)->toBe(AnalyticsEventName::ListingCartAdd->value)
+        ->and($rows[1]->name)->toBe(AnalyticsEventName::ListingView->value);
+
+    $row = $rows[0];
+
+    expect($row->subjectType)->toBe('listing')
+        ->and($row->subjectId)->toBe('lst_ABC')
+        ->and($row->actorId)->toBe('cus_XYZ')
+        ->and($row->ip)->toBe('203.0.113.9')
+        ->and($row->sessionId)->toBe('ses_01J00000000000000000000ABC')
+        ->and($row->requestId)->toBe('req_01J00000000000000000000TWO')
+        ->and($row->occurredAt)->toEqual(new DateTimeImmutable('2026-08-22T11:00:00+00:00'));
+});
+
+it('lists nothing for an ip with no events at or after the cutoff', function (): void {
+    $analytics = new Analytics;
+
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-10T10:00:00+00:00')),
+        '203.0.113.9',
+        'ses_01J00000000000000000000ABC',
+        'req_01J00000000000000000000ONE',
+    );
+    $analytics->flush();
+
+    $rows = AnalyticsReport::eventsForIp('203.0.113.9', new DateTimeImmutable('2026-08-21T00:00:00+00:00'));
+
+    expect($rows)->toBe([]);
+});
+
+it('lists everything one session did since a cutoff, newest first, across whichever ip each request used', function (): void {
+    $analytics = new Analytics;
+
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-22T10:00:00+00:00')),
+        '203.0.113.9',
+        'ses_01J00000000000000000000ABC',
+        'req_01J00000000000000000000ONE',
+    );
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-22T11:00:00+00:00')),
+        // A different ip, the same session — a roaming visitor's requests
+        // still join up by session even when the ip changes between them.
+        '198.51.100.4',
+        'ses_01J00000000000000000000ABC',
+        'req_01J00000000000000000000TWO',
+    );
+    recordFromRequest(
+        $analytics,
+        AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', new DateTimeImmutable('2026-08-22T12:00:00+00:00')),
+        '203.0.113.9',
+        'ses_01J00000000000000000000XYZ',
+        'req_01J00000000000000000000OTH',
+    );
+    $analytics->flush();
+
+    $rows = AnalyticsReport::eventsForSession('ses_01J00000000000000000000ABC', new DateTimeImmutable('2026-08-21T00:00:00+00:00'));
+
+    expect($rows)->toHaveCount(2)
+        ->and($rows[0]->name)->toBe(AnalyticsEventName::ListingFavorite->value)
+        ->and($rows[0]->ip)->toBe('198.51.100.4')
+        ->and($rows[1]->name)->toBe(AnalyticsEventName::ListingView->value)
+        ->and($rows[1]->ip)->toBe('203.0.113.9');
 });

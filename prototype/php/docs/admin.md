@@ -44,6 +44,19 @@ sign in through the same magic link sellers and customers use
 |                                                                         | optional)                                                                |
 | `GET /admin/stats`                                                      | page views by day (7-day window) and by route pattern, listing event     |
 |                                                                         | tallies                                                                  |
+| `GET /admin/analytics?range=&actors=&q=`                                | every event name compared with the range before it, a daily bar strip,   |
+|                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
+|                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
+|                                                                         | id or a shared ip jumps straight to it                                   |
+| `GET /admin/analytics/events/{name}?range=&by=`                         | one event name's range tiles, daily bars, and a breakdown by listing,    |
+|                                                                         | actor, or — for `page.view` — route pattern                              |
+| `GET /admin/analytics/actors?range=&sort=&actors=&q=&page=`             | every actor that carried an event in the range, paged, sorted by most    |
+|                                                                         | active or most recent                                                    |
+| `GET /admin/analytics/actors/{customer}?range=&event=`                  | the actor's identity, range tiles, a daily or (once flagged) hourly      |
+|                                                                         | strip, and its event feed newest first, with links to the customer, the  |
+|                                                                         | log viewer, and the block form                                           |
+| `GET /admin/analytics/listings/{listing}?range=&event=`                 | the listing's identity, range tiles, a daily strip, and its event feed   |
+|                                                                         | newest first, with a link to the listing                                 |
 | `GET\|POST /admin/messages`, `/admin/messages/{conversation}`,          | the shared desk: every admin sees every thread; `filter=`/`status=`      |
 | `.../resolve`, `.../reopen`                                             | queues; oversight (seller ↔ customer) threads read-only                  |
 |                                                                         | ([`messaging.md`](messaging.md))                                         |
@@ -264,6 +277,66 @@ was the first of the hour or a duplicate the store discarded — the shop
 listing page logs one `Story::for(ListingView)` "did" line per view and
 never a refusal, since nothing is refused: the request never learns whether
 its event was kept.
+
+## Analytics drill-in
+
+Question: from "what happened in this range" to "who did it" to "everything
+that one did" — how do the five analytics pages reach each other?
+
+```mermaid
+flowchart LR
+    entry["/admin/analytics<br/>event totals + leaderboard"]
+    event["/admin/analytics/events/:name<br/>range tiles + breakdown"]
+    actors["/admin/analytics/actors<br/>every actor, paged"]
+    listing["/admin/analytics/listings/:listing<br/>identity + feed"]
+    actor["/admin/analytics/actors/:customer<br/>identity + feed"]
+
+    entry -->|"event name"| event
+    entry -->|"leaderboard row"| actor
+    entry -->|"pasted id or ip"| listing
+    entry -->|"pasted id or ip"| actor
+    entry -->|"All actors"| actors
+    actors -->|"row"| actor
+    event -->|"by-listing row"| listing
+    event -->|"by-actor row"| actor
+    listing -->|"feed row's actor"| actor
+    actor -->|"feed row's listing"| listing
+```
+
+Query parameters, all optional, empty reading as "all" the way every other
+admin filter does (the Pages table above):
+
+- `range=7|30|90` (default `30`) — every page.
+- `actors=all|anonymous|verified` — the entry and all-actors pages' actor-kind
+  filter.
+- `q=` — the entry and all-actors pages' free-text search: an event name or
+  label on the entry page's events table, an actor's id/email/ip on either
+  page's actor rows, and — entry page only — a pasted `lst_`/`cus_` id or an
+  ip a single actor used, which jumps straight to that listing's or actor's
+  page; any other value filters the two tables.
+- `by=listing|actor|pattern` — the event page's breakdown; `page.view` offers
+  only `pattern`, since the roll-up carries no listing or actor of its own.
+- `sort=active|recent` — the all-actors page, most events in the range or
+  most recently seen.
+- `page=` — the all-actors page, a positive integer; an out-of-range value
+  clamps to the nearest real page (`App\Support\Page::of()`).
+- `event=` — the listing and actor pages' event-name filter on their own feed.
+
+Caveats: `App\Analytics\Admin\EntityActivity::forListing()`/`forActor()`
+share every query and formatting helper behind the listing and actor pages,
+which is why both render from the same `admin/analytics/entities/show.blade.php`
+view — the two differ only in which column of `analytics_events` scopes the
+read and in which facts and tiles that column supports. An actor whose
+busiest UTC hour in the range reaches `App\Domain\Analytics\ActorVelocity::THRESHOLD_PER_HOUR`
+(100 events) is flagged on the leaderboard and on its own page: the daily
+strip becomes an hourly strip for the flagged day, and a banner sentence
+(`App\Domain\Analytics\FlaggedActorSummary::text()`) states the peak count,
+the hour, the ip, the listing spread, and whether a favorite or cart event
+happened at all. The identity card's actions differ by kind: a listing links
+only to the listing itself; an actor links to the customer record, to
+`/admin/logs?actor=` filtered to it, and to the customer page's own block
+form — the block flow itself lives only there, never duplicated on the
+analytics page.
 
 ## What a removal or a block actually does
 

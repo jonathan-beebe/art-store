@@ -291,11 +291,26 @@ happens in the request to decide whether the write is a duplicate.
 `page_view_counts` stays the roll-up the flush maintains, one upsert per
 (site, path pattern, day) carrying the buffered hit count.
 
+Every row also carries the request that produced it: `ip` and `session_id`
+as their own indexed columns, so "everything from this ip" and "everything
+in this session" are index hits, and the request id folded into `data` as
+`request_id` — a cross-link to the log store (§2.5), never a filter on its
+own. The one entry point fills all three in from whatever request is
+current when it is called; a CLI run (a seeder, an artisan command) carries
+none of them, and the columns stay null.
+
 A store failure never fails the request: a write that cannot commit logs one
 `warn` line and the response completes regardless. Readers (§5 admin stats
 and dashboard, seller and admin listing detail) query the store directly and
 are unguarded — an unavailable store surfaces there as an error, the way any
 missing data source would.
+
+An `ip` and a `session_id` are personal data, so the store does not keep
+them forever: `ANALYTICS_RETENTION_DAYS` (default `30`, `off` disables)
+bounds `analytics_events`' history the way `LOG_RETENTION_DAYS` bounds the
+log store's — the maintenance sweep prunes rows whose `occurred_at` is
+older than the window. `page_view_counts` carries no personal data and is
+never pruned.
 
 ## 3. Rate limits
 
@@ -469,6 +484,19 @@ layout is per stack.
 |                                                                         | optional)                                                                |
 | `/admin/stats`                                                          | page views by day (7-day window) and by route pattern, listing event     |
 |                                                                         | tallies                                                                  |
+| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | every event name compared with the range before it, a daily bar strip,   |
+|                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
+|                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
+|                                                                         | id or a shared ip jumps straight to it                                   |
+| `/admin/analytics/events/:name?range=&by=listing\|actor\|pattern`       | one event name's range tiles, daily bars, and a breakdown by listing,    |
+|                                                                         | actor, or — for `page.view` — route pattern                              |
+| `/admin/analytics/actors?range=&sort=active\|recent&actors=&q=&page=`   | every actor that carried an event in the range, paged, sorted by most    |
+|                                                                         | active or most recent                                                    |
+| `/admin/analytics/actors/:customer?range=&event=`                       | the actor's identity, range tiles, a daily or (once flagged) hourly      |
+|                                                                         | strip, and its event feed newest first; links to the customer, the log   |
+|                                                                         | viewer, and the block form                                               |
+| `/admin/analytics/listings/:listing?range=&event=`                      | the listing's identity, range tiles, a daily strip, and its event feed   |
+|                                                                         | newest first; links to the listing                                       |
 | `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
 | `&actor=&msg=&key=&value=&from=&to=&group=&health=&viewer=`             | `key`/`value` filters on any attribute of the stored line; `group=1`     |
 |                                                                         | collapses to one summarized row per request; health checks and the       |
@@ -520,6 +548,10 @@ Decisions carried by this table:
 - A removed listing leaves every storefront surface: browse, search,
   `/art/:slug`, the favorites page, and an existing cart line (the row stays,
   the card is marked unavailable and excluded from the total).
+- An actor's busiest UTC hour past `ActorVelocity::THRESHOLD_PER_HOUR` (100
+  events) flags it on the leaderboard and on its own page, in the admin
+  analytics drill-in; the leaderboard and the actor page share the one
+  threshold, so the two never disagree about who is flagged.
 
 ## 6. Workflows
 
@@ -735,3 +767,26 @@ unique `dedupe_key`. Recording appends to an in-memory buffer and does no
 I/O; the buffer flushes after the response or at command end, each event
 carrying the instant it was recorded rather than the instant it was written.
 PHP ships it on FEAT-039; node and rails owe the same entry-point shape.
+
+2026-09-02, analytics request facts: §2.6 gains `ip` and `session_id` as
+their own indexed columns on `analytics_events`, and `request_id` folded
+into `data`. The one entry point fills all three in from whatever request
+is current; a CLI run carries none of them. `ANALYTICS_RETENTION_DAYS`
+(default `30`, `off` disables) bounds the table's history, pruned by the
+maintenance sweep the way `LOG_RETENTION_DAYS` bounds the log store's;
+`page_view_counts` carries no personal data and is never pruned. PHP ships
+it on FEAT-044; node and rails owe the same parity as every other §2.6 gap.
+
+2026-09-02, admin analytics drill-in: §5 gains five routes — `/admin/analytics`
+(every event name's range compared with the range before it, a daily bar
+strip, and the actor leaderboard by peak events per UTC hour), `/admin/analytics/events/:name`
+(one event's range tiles, daily bars, and a breakdown by listing, actor, or
+— for `page.view` — route pattern), `/admin/analytics/actors` (every actor
+that carried an event in the range, paged, sorted by most active or most
+recent), and `/admin/analytics/actors/:customer` / `/admin/analytics/listings/:listing`
+(one actor's or one listing's identity card, range tiles, a daily or hourly
+strip, and its event feed newest first). `ActorVelocity::THRESHOLD_PER_HOUR`
+— 100 events in a single UTC hour — is the one flag threshold the
+leaderboard and an actor's own page share. `/admin/stats` is unchanged. PHP
+ships the drill-in on FEAT-045; node and rails owe the same parity as every
+other §2.6/§5 gap.

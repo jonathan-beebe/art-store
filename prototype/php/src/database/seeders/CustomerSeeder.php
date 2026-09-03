@@ -40,6 +40,15 @@ class CustomerSeeder extends Seeder
         'Garden Gnome in Reclaimed Oak',
     ];
 
+    /** Four Saturdays inside the admin analytics drill-in's 30-day range,
+     * each carrying a view for Hermione and Luna on a different listing. */
+    private const array RECENT_ACTIVITY_DAYS = [
+        '2026-08-08 10:00:00',
+        '2026-08-15 11:30:00',
+        '2026-08-22 09:15:00',
+        '2026-08-29 16:45:00',
+    ];
+
     public function run(): void
     {
         $customer = Customer::create([
@@ -53,11 +62,39 @@ class CustomerSeeder extends Seeder
 
         // A second verified customer, so a listing question and a support
         // thread each have someone besides Hermione to belong to.
-        Customer::create([
+        $luna = Customer::create([
             'email' => self::LUNA_EMAIL,
             'name' => 'Luna Lovegood',
             'email_verified_at' => new DateTimeImmutable('2026-06-02 00:00:00'),
         ]);
+
+        $this->recordRecentActivity($customer, $luna);
+    }
+
+    /**
+     * A handful of views, one cart add, across four days in the admin
+     * analytics drill-in's default 30-day range, so `/admin/analytics`
+     * carries numbers without seeding a scripted or abusive visitor.
+     */
+    private function recordRecentActivity(Customer $hermione, Customer $luna): void
+    {
+        $analytics = app(Analytics::class);
+        $titles = self::VIEWED_TITLES;
+
+        foreach (self::RECENT_ACTIVITY_DAYS as $day => $moment) {
+            $at = new DateTimeImmutable($moment);
+            $listing = $this->listing($titles[$day % count($titles)]);
+
+            $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $hermione->id, $at));
+            $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, $luna->id, $at->modify('+20 minutes')));
+        }
+
+        $analytics->recordEvent(AnalyticsEvent::forListing(
+            AnalyticsEventName::ListingCartAdd,
+            $this->listing($titles[0])->id,
+            $hermione->id,
+            new DateTimeImmutable('2026-08-22 09:20:00'),
+        ));
     }
 
     private function recordViews(Customer $customer): void

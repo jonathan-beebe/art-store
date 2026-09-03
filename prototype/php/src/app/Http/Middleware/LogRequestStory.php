@@ -8,6 +8,7 @@ use App\Logging\StoryEvent;
 use App\Support\DataRedaction;
 use App\Support\DbActivity;
 use App\Support\IdMint;
+use App\Support\RequestMarks;
 use App\Support\Story;
 use Closure;
 use Illuminate\Http\Request;
@@ -44,9 +45,12 @@ final readonly class LogRequestStory
     /**
      * The response to a request that threw is built by the exception handler
      * and never passes back through this middleware, so the id it must carry
-     * travels on the request instead. bootstrap/app.php reads it there.
+     * travels on the request instead. bootstrap/app.php reads it there, and
+     * {@see \App\Analytics\RequestFacts} reads the same constant off
+     * {@see RequestMarks} rather than off this class, since nothing outside
+     * `App\Http` may depend on a middleware directly.
      */
-    public const string REQUEST_ID_ATTRIBUTE = 'story.request_id';
+    public const string REQUEST_ID_ATTRIBUTE = RequestMarks::REQUEST_ID_ATTRIBUTE;
 
     private const string REQUEST_ID_PREFIX = 'req';
 

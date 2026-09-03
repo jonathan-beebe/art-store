@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Orders\OrderStatus;
 use App\Logging\LogStore;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\PendingCommand;
 use RuntimeException;
@@ -134,6 +139,50 @@ it('fails the command on a prune failure but leaves the stale-order sweep standi
     $pending($this->artisan('orders:sweep'))
         ->expectsOutputToContain('1 order(s) cancelled.')
         ->expectsOutputToContain('log retention prune failed')
+        ->assertFailed();
+
+    expect($order->fresh()?->status)->toBe(OrderStatus::Cancelled);
+});
+
+it('prunes analytics events older than ANALYTICS_RETENTION_DAYS, as of the sweep date', function () use ($pending): void {
+    config(['analytics.retention_days' => 14]);
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', null, new DateTimeImmutable('2026-07-01T00:00:00+00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', null, new DateTimeImmutable('2026-08-20T00:00:00+00:00')));
+    $analytics->flush();
+
+    $pending($this->artisan('orders:sweep', ['--as-of' => '2026-08-24']))
+        ->assertSuccessful();
+
+    $rows = DB::connection('analytics')->table('analytics_events')->get();
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows->sole()->occurred_at)->toBe('2026-08-20 00:00:00');
+});
+
+it('skips the analytics retention prune silently when ANALYTICS_RETENTION_DAYS is off', function () use ($pending): void {
+    config(['analytics.retention_days' => null]);
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', null, new DateTimeImmutable('2020-01-01T00:00:00+00:00')));
+    $analytics->flush();
+
+    $pending($this->artisan('orders:sweep'))
+        ->assertSuccessful();
+
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+});
+
+it('fails the command on an analytics prune failure but leaves the stale-order sweep and log prune standing', function () use ($pending): void {
+    Date::setTestNow('2026-08-21 10:00:00');
+    $order = $this->orderFor($this->anonymousCustomer(), $this->listing($this->seller()));
+    $order->update(['placed_at' => $this->moment('2026-08-20 09:00:00')]);
+
+    config(['analytics.retention_days' => 14]);
+    DB::connection('analytics')->getPdo()->exec('DROP TABLE analytics_events');
+
+    $pending($this->artisan('orders:sweep'))
+        ->expectsOutputToContain('1 order(s) cancelled.')
+        ->expectsOutputToContain('analytics retention prune failed')
         ->assertFailed();
 
     expect($order->fresh()?->status)->toBe(OrderStatus::Cancelled);

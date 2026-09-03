@@ -9,6 +9,7 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Identifiers\PrefixedId;
 use App\Support\CustomerIdentity;
 use App\Support\IdMint;
+use App\Support\RequestMarks;
 use App\Support\Story;
 use Closure;
 use Illuminate\Http\Request;
@@ -32,7 +33,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final readonly class NameRequestVisitor
 {
-    public const string SESSION_COOKIE = 'sid';
+    // {@see \App\Analytics\RequestFacts} reads the same cookie name off
+    // RequestMarks rather than off this class, since nothing outside
+    // `App\Http` may depend on a middleware directly.
+    public const string SESSION_COOKIE = RequestMarks::SESSION_COOKIE;
 
     private const string SESSION_ID_PREFIX = 'ses';
 
