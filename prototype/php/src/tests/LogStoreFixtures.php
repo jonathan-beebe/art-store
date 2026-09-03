@@ -6,6 +6,11 @@ namespace Tests;
 
 use App\Logging\LogLine;
 use App\Logging\LogStore;
+use App\Logging\LogStoreHandler;
+use App\Logging\StoryFormatter;
+use Illuminate\Log\Logger as ApplicationLogger;
+use Illuminate\Support\Facades\Log;
+use Monolog\Logger as Monolog;
 use PDO;
 use RuntimeException;
 
@@ -33,6 +38,19 @@ final class LogStoreFixtures
         unlink($file);
 
         return $file.'.sqlite3';
+    }
+
+    /**
+     * Puts `$store` behind the `Log` facade for the rest of the test, through
+     * the same {@see LogStoreHandler} `App\Logging\LogStoreTap` splices onto
+     * the `stdout` channel — every `Story::` line reaches `$store`, not only
+     * the lines a command appends to it directly. The test environment's
+     * default channel is `null` (config/logging.php), so nothing written
+     * through the `Log` facade reaches `$store` on its own.
+     */
+    public static function captureInto(LogStore $store): void
+    {
+        Log::swap(new ApplicationLogger(new Monolog('testing', [new LogStoreHandler($store, new StoryFormatter)])));
     }
 
     public static function line(string $event = 'order.place', string $ts = '2026-08-23T18:00:00.001Z'): LogLine

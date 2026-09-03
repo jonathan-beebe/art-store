@@ -267,18 +267,22 @@ final class SeedActivity extends Command
      * line already, the same as it would answering a real request; only
      * the request envelope itself is missing without this.
      *
+     * `Story::asRequest()` binds this session's own request id, session id,
+     * and actor for exactly one step and clears them once it ends, so a
+     * step that fails partway, or a session with no steps at all, leaves
+     * nothing behind for the next session — or for the fulfillment and
+     * payout sweeps once every session here has run — to inherit.
+     *
      * @param  list<array{name: string, email: string}>  $roster
      * @param  list<Listing>  $listings
      */
     private function runOrdinarySession(Session $session, array $roster, array $listings, Analytics $analytics, LogStore $logStore): void
     {
-        $customer = $this->resolveCustomer($session, $roster);
         $this->currentOrder = null;
 
-        Story::inSession($session->sessionId);
-        Story::actorIs(ActorType::Customer, $customer->id);
+        $customer = $this->resolveCustomer($session, $roster);
 
-        if ($session->kind === SessionKind::NewSignup || $session->kind === SessionKind::ReturningVerify) {
+        if ($this->needsSignIn($session)) {
             $this->logSignInLines($logStore, $session, $customer);
         }
 
@@ -297,12 +301,13 @@ final class SeedActivity extends Command
 
         foreach ($session->steps as $step) {
             $requestId = IdMint::of('req');
-            Story::follows($requestId);
             $facts = RequestFacts::of($session->ip, $session->sessionId, $requestId);
 
             try {
-                $analytics->asRequest($facts, function () use ($step, $customer, $listings, $analytics): void {
-                    $this->runStep($step, $customer, $listings, $analytics);
+                Story::asRequest($requestId, $session->sessionId, ActorType::Customer, $customer->id, function () use ($step, $customer, $listings, $analytics, $facts): void {
+                    $analytics->asRequest($facts, function () use ($step, $customer, $listings, $analytics): void {
+                        $this->runStep($step, $customer, $listings, $analytics);
+                    });
                 });
                 $this->logStepRequest($logStore, $step, $listings, $requestId, $session->sessionId, $customer->id, $analytics);
             } catch (Throwable) {
@@ -312,6 +317,11 @@ final class SeedActivity extends Command
                 // never reached the server.
             }
         }
+    }
+
+    private function needsSignIn(Session $session): bool
+    {
+        return $session->kind === SessionKind::NewSignup || $session->kind === SessionKind::ReturningVerify;
     }
 
     /**
@@ -336,9 +346,6 @@ final class SeedActivity extends Command
 
         $customer = $this->createAnonymous($session->at);
 
-        Story::inSession($session->sessionId);
-        Story::actorIs(ActorType::Customer, $customer->id);
-
         $analytics->recordVisit(AnalyticsVisit::of(
             $session->sessionId,
             $session->at,
@@ -352,7 +359,6 @@ final class SeedActivity extends Command
             $listing = $liveListings[($step->listingSlot ?? 0) % count($liveListings)];
             $ip = $step->ip ?? $session->ip;
             $requestId = IdMint::of('req');
-            Story::follows($requestId);
             $facts = RequestFacts::of($ip, $session->sessionId, $requestId);
 
             try {
@@ -387,9 +393,6 @@ final class SeedActivity extends Command
     {
         $customer = $this->createAnonymous($session->at);
 
-        Story::inSession($session->sessionId);
-        Story::actorIs(ActorType::Customer, $customer->id);
-
         $analytics->recordVisit(AnalyticsVisit::of(
             $session->sessionId,
             $session->at,
@@ -404,7 +407,6 @@ final class SeedActivity extends Command
 
         foreach ($session->steps as $step) {
             $requestId = IdMint::of('req');
-            Story::follows($requestId);
             $facts = RequestFacts::of($session->ip, $session->sessionId, $requestId);
 
             if ($step->kind === StepKind::ProbeRequest) {
@@ -645,7 +647,7 @@ final class SeedActivity extends Command
         return match ($session->kind) {
             SessionKind::AnonymousBrowse => $this->createAnonymous($session->at),
             SessionKind::NewSignup => $this->createSignup($session->at, $roster[$this->personIndex($session)]),
-            SessionKind::ReturningVerify => $this->verifyReturning($session->at, $roster[$this->personIndex($session)]),
+            SessionKind::ReturningVerify => $this->verifyReturning($session, $roster[$this->personIndex($session)]),
             SessionKind::Scraper, SessionKind::Prober => throw new LogicException('A bad actor session never resolves a customer this way — see runScraperSession()/runProberSession().'),
         };
     }
@@ -683,15 +685,23 @@ final class SeedActivity extends Command
      * email it returns under — {@see ClaimCustomerIdentity} folds it into
      * that person's existing signup through `MergeAnonymousCustomer`,
      * since the email already names a verified customer by the time any
-     * `ReturningVerify` session is drawn.
+     * `ReturningVerify` session is drawn. Bound to a request of its own —
+     * the anonymous visitor's click on the link — rather than whatever
+     * request came before it in this run.
      *
      * @param  array{name: string, email: string}  $person
      */
-    private function verifyReturning(DateTimeImmutable $at, array $person): Customer
+    private function verifyReturning(Session $session, array $person): Customer
     {
-        $anonymous = $this->createAnonymous($at);
+        $anonymous = $this->createAnonymous($session->at);
 
-        return app(ClaimCustomerIdentity::class)($person['email'], $anonymous, $at);
+        return Story::asRequest(
+            IdMint::of('req'),
+            $session->sessionId,
+            ActorType::Customer,
+            $anonymous->id,
+            fn (): Customer => app(ClaimCustomerIdentity::class)($person['email'], $anonymous, $session->at),
+        );
     }
 
     private function backdate(Customer $customer, DateTimeImmutable $at): void
@@ -903,7 +913,11 @@ final class SeedActivity extends Command
      * the fulfillment's own id: this runs once, after every session,
      * against rows the plan itself never named, so its only obligation is
      * the one every other step already keeps — it never schedules a
-     * moment past `$now`.
+     * moment past `$now`. `maybeShip()` binds the seller's own request
+     * around `MarkShipped`, and `maybeDeliver()` binds the order's customer
+     * around `ConfirmDelivered` — a real shipment and a real delivery
+     * confirmation are two different actors' requests, neither the session
+     * loop's.
      */
     private function runFulfillments(DateTimeImmutable $now): void
     {
@@ -936,7 +950,9 @@ final class SeedActivity extends Command
         }
 
         try {
-            app(MarkShipped::class)($fulfillment, 'Owl Post', 'OWL-'.strtoupper(substr($fulfillment->id, -8)), $shippedAt);
+            Story::asRequest(IdMint::of('req'), null, ActorType::Seller, $fulfillment->seller_id, fn (): Fulfillment => app(MarkShipped::class)(
+                $fulfillment, 'Owl Post', 'OWL-'.strtoupper(substr($fulfillment->id, -8)), $shippedAt,
+            ));
         } catch (Throwable) {
             return;
         }
@@ -957,7 +973,7 @@ final class SeedActivity extends Command
         }
 
         try {
-            app(ConfirmDelivered::class)($fulfillment, $deliveredAt);
+            Story::asRequest(IdMint::of('req'), null, ActorType::Customer, $fulfillment->customer_id, fn (): Fulfillment => app(ConfirmDelivered::class)($fulfillment, $deliveredAt));
         } catch (Throwable) {
             // The fulfillment stays shipped.
         }
@@ -966,13 +982,15 @@ final class SeedActivity extends Command
     /**
      * `payouts:run --as-of` once for every week the window spans, oldest
      * first — idempotent, so a week this loop's rough weekly spacing
-     * revisits pays nothing a second time.
+     * revisits pays nothing a second time. Bound to no request and no
+     * session, the same as running it from a shell: nobody's click drives a
+     * payout sweep.
      */
     private function runPayouts(DateTimeImmutable $now, int $days): void
     {
         for ($weeksAgo = intdiv($days, 7) + 1; $weeksAgo >= 0; $weeksAgo--) {
             try {
-                Artisan::call('payouts:run', ['--as-of' => $now->modify("-{$weeksAgo} weeks")->format('Y-m-d')]);
+                Story::asRequest(null, null, null, null, fn (): int => Artisan::call('payouts:run', ['--as-of' => $now->modify("-{$weeksAgo} weeks")->format('Y-m-d')]));
             } catch (UniqueConstraintViolationException) {
                 // OrderHistorySeeder already runs one hardcoded payout of
                 // its own (make fresh's "one payout"), for a period this

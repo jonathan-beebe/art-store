@@ -302,3 +302,90 @@ it('flags the scraper on the leaderboard and leaves the prober findable only by 
         ->assertSee('/wp-login.php')
         ->assertSee('404');
 });
+
+it('writes every payout sweep line — the run itself and the ledger entries it pays out — with no request id', function (): void {
+    $store = LogStore::open(Fixtures::tempFile());
+    $this->app->instance(LogStore::class, $store);
+    Fixtures::captureInto($store);
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 2]);
+
+    $connection = Fixtures::connectionOrFail($store);
+
+    // payouts:run runs — and writes its will/did pair — for every week the
+    // window spans regardless of whether a seller had a payable balance, so
+    // this is never vacuously true.
+    expect((int) Fixtures::scalar($connection, "SELECT COUNT(*) FROM log_lines WHERE event = 'payout.run'"))->toBeGreaterThan(0);
+
+    $payoutLinesWithRequest = Fixtures::scalar($connection, <<<'SQL'
+        SELECT COUNT(*) FROM log_lines
+        WHERE event IN ('payout.run', 'payout.pay') AND request_id IS NOT NULL
+        SQL);
+    $payoutLedgerLinesWithRequest = Fixtures::scalar($connection, <<<'SQL'
+        SELECT COUNT(*) FROM log_lines
+        WHERE event = 'ledger.write' AND data LIKE '%"payout_id":"pay_%' AND request_id IS NOT NULL
+        SQL);
+
+    expect((int) $payoutLinesWithRequest)->toBe(0)
+        ->and((int) $payoutLedgerLinesWithRequest)->toBe(0);
+});
+
+it('carries an order pay step\'s own request id onto every ledger entry it writes', function (): void {
+    $store = LogStore::open(Fixtures::tempFile());
+    $this->app->instance(LogStore::class, $store);
+    Fixtures::captureInto($store);
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 30]);
+
+    $connection = Fixtures::connectionOrFail($store);
+
+    expect((int) Fixtures::scalar($connection, "SELECT COUNT(*) FROM log_lines WHERE event = 'order.pay' AND phase = 'will' AND request_id IS NOT NULL"))->toBeGreaterThan(0);
+
+    // A ledger.write opens no unit of work of its own (LedgerEntryObserver
+    // never calls will()), so one written while an order.pay step holds a
+    // fulfillment in escrow shares that step's txn_id — the join below finds
+    // it by that shared unit of work and checks it also shares the request.
+    $mismatched = Fixtures::scalar($connection, <<<'SQL'
+        SELECT COUNT(*) FROM log_lines lw
+        JOIN log_lines op ON op.txn_id = lw.txn_id AND op.event = 'order.pay' AND op.phase = 'will'
+        WHERE lw.event = 'ledger.write' AND (lw.request_id IS NULL OR lw.request_id != op.request_id)
+        SQL);
+
+    expect((int) $mismatched)->toBe(0);
+});
+
+it('never lets one step\'s request id carry onto the next step it logs', function (): void {
+    $store = LogStore::open(Fixtures::tempFile());
+    $this->app->instance(LogStore::class, $store);
+    Fixtures::captureInto($store);
+    $this->seed(DatabaseSeeder::class);
+
+    Artisan::call('seed:activity', ['--days' => 2]);
+
+    $connection = Fixtures::connectionOrFail($store);
+
+    // Every line a real request writes — its own http.request pair and
+    // whatever domain lines the step behind it drives — is written together,
+    // so one request id's rows always sit in one contiguous block of insertion
+    // order. A leaked id resurfaces later, once other requests' ids have been
+    // written in between, so its earliest and latest rows straddle theirs —
+    // the overlap this counts.
+    $overlappingRequestRanges = Fixtures::scalar($connection, <<<'SQL'
+        SELECT COUNT(*) FROM (
+            SELECT request_id, MIN(id) AS lo, MAX(id) AS hi
+            FROM log_lines
+            WHERE request_id IS NOT NULL
+            GROUP BY request_id
+        ) a
+        JOIN (
+            SELECT request_id, MIN(id) AS lo, MAX(id) AS hi
+            FROM log_lines
+            WHERE request_id IS NOT NULL
+            GROUP BY request_id
+        ) b ON a.request_id != b.request_id AND a.lo <= b.hi AND b.lo <= a.hi
+        SQL);
+
+    expect((int) $overlappingRequestRanges)->toBe(0);
+});

@@ -10,6 +10,7 @@ use App\Domain\DomainRuleViolation;
 use App\Logging\StoryEvent;
 use App\Logging\StoryLevel;
 use App\Logging\StoryPhase;
+use Closure;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -102,6 +103,53 @@ final class Story
     public static function forget(): void
     {
         self::$units = [];
+    }
+
+    /**
+     * Runs `$body` with the request marks bound as one request's own — a
+     * null mark is left unbound — and clears every one of them once `$body`
+     * returns or throws. The stand-in for a real request outside one:
+     * `App\Http\Middleware\LogRequestStory` binds the same marks once per
+     * real request and the process ends with it, so a console command
+     * driving several steps in one long-lived process needs this to keep
+     * one step's marks off the next. Mirrors {@see \App\Analytics\Analytics::asRequest()}.
+     *
+     * @template TReturn
+     *
+     * @param  Closure(): TReturn  $body
+     * @return TReturn
+     */
+    public static function asRequest(?string $requestId, ?string $sessionId, ?ActorType $actorType, ?string $actorId, Closure $body): mixed
+    {
+        self::unbindRequest();
+
+        if ($requestId !== null) {
+            self::follows($requestId);
+        }
+
+        if ($sessionId !== null) {
+            self::inSession($sessionId);
+        }
+
+        if ($actorType !== null && $actorId !== null) {
+            self::actorIs($actorType, $actorId);
+        }
+
+        try {
+            return $body();
+        } finally {
+            self::unbindRequest();
+        }
+    }
+
+    /**
+     * The request marks cleared, and any unit of work left dangling by a
+     * step that threw before it wrote its own ending.
+     */
+    private static function unbindRequest(): void
+    {
+        self::forget();
+        Log::withoutContext();
     }
 
     /**
