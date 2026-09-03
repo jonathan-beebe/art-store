@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Analytics\RowChannel;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
-use App\Domain\Analytics\Channel;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
@@ -45,13 +45,13 @@ final class ChannelTable
         $channels = [];
 
         foreach (self::visitorGroups($windowStart, $windowEnd, $currentStart) as $group) {
-            $channel = self::channelFor($group);
+            $channel = RowChannel::of($group);
             $channels[$channel->key] ??= self::emptyBucket($channel->label);
             $channels[$channel->key]['visitors'] = self::addMetric($channels[$channel->key]['visitors'], $group);
         }
 
         foreach (self::eventGroups($windowStart, $windowEnd, $currentStart) as $group) {
-            $channel = self::channelFor($group);
+            $channel = RowChannel::of($group);
             $channels[$channel->key] ??= self::emptyBucket($channel->label);
 
             /** @var string $name */
@@ -68,20 +68,6 @@ final class ChannelTable
         usort($rows, fn (ChannelRow $a, ChannelRow $b): int => $b->visitors->current <=> $a->visitors->current);
 
         return $rows;
-    }
-
-    private static function channelFor(stdClass $group): Channel
-    {
-        /** @var string|null $utmSource */
-        $utmSource = $group->utm_source;
-        /** @var string|null $utmMedium */
-        $utmMedium = $group->utm_medium;
-        /** @var string|null $utmCampaign */
-        $utmCampaign = $group->utm_campaign;
-        /** @var string|null $referrerHost */
-        $referrerHost = $group->referrer_host;
-
-        return Channel::derive($utmSource, $utmMedium, $utmCampaign, $referrerHost);
     }
 
     /**

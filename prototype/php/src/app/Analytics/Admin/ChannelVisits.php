@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Analytics\RowChannel;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\Channel;
 use App\Support\Page;
@@ -25,6 +26,10 @@ final class ChannelVisits
 {
     public static function forRange(AnalyticsRange $range, string $channelKey, int $page, int $perPage = 25): ?ChannelVisitsPage
     {
+        // Every visit in the range is read into PHP before the derived key
+        // filters and the page slices it — bounded by the range's own
+        // visit volume, the way `ChannelTable::forRange()`'s own grouping
+        // query is, and small at this prototype's scale.
         $rows = DB::connection('analytics')->table('analytics_visits')
             ->whereBetween('first_seen_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->select('session_id', 'first_seen_at', 'landing_path', 'actor_id', 'utm_source', 'utm_medium', 'utm_campaign', 'referrer_host')
@@ -34,7 +39,7 @@ final class ChannelVisits
         $matched = [];
 
         foreach ($rows as $row) {
-            $channel = self::channelFor($row);
+            $channel = RowChannel::of($row);
 
             if ($channel->key !== $channelKey) {
                 continue;
@@ -53,20 +58,6 @@ final class ChannelVisits
         $paged = Page::of((string) $page, $perPage, count($matched));
 
         return new ChannelVisitsPage($label, $paged, array_slice($matched, $paged->offset, $paged->limit));
-    }
-
-    private static function channelFor(stdClass $row): Channel
-    {
-        /** @var string|null $utmSource */
-        $utmSource = $row->utm_source;
-        /** @var string|null $utmMedium */
-        $utmMedium = $row->utm_medium;
-        /** @var string|null $utmCampaign */
-        $utmCampaign = $row->utm_campaign;
-        /** @var string|null $referrerHost */
-        $referrerHost = $row->referrer_host;
-
-        return Channel::derive($utmSource, $utmMedium, $utmCampaign, $referrerHost);
     }
 
     private static function toVisitRow(stdClass $row): ChannelVisitRow

@@ -122,12 +122,6 @@ final class AnalyticsReport
         $firstSeenAt = $row->first_seen_at;
         /** @var string $landingPath */
         $landingPath = $row->landing_path;
-        /** @var string|null $utmSource */
-        $utmSource = $row->utm_source;
-        /** @var string|null $utmMedium */
-        $utmMedium = $row->utm_medium;
-        /** @var string|null $utmCampaign */
-        $utmCampaign = $row->utm_campaign;
         /** @var string|null $referrerHost */
         $referrerHost = $row->referrer_host;
 
@@ -136,7 +130,7 @@ final class AnalyticsReport
             new DateTimeImmutable($firstSeenAt, new DateTimeZone('UTC')),
             $landingPath,
             $referrerHost,
-            Channel::derive($utmSource, $utmMedium, $utmCampaign, $referrerHost),
+            RowChannel::of($row),
         );
     }
 
