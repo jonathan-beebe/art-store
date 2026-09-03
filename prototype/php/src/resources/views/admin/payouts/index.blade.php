@@ -5,17 +5,15 @@
         <x-admin.seller-filter :sellers="$sellers" :selected="$sellerId" />
     </x-admin.filters>
 
-    <form method="POST" action="{{ route('admin.payouts.run') }}" class="mt-4 flex flex-wrap items-end gap-3 rounded border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
+    <form method="POST" action="{{ route('admin.payouts.run') }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
         @csrf
         <div>
-            <label for="as-of" class="block font-medium text-stone-700 dark:text-stone-300">Settle as of</label>
-            <input id="as-of" name="as_of" type="date" value="{{ old('as_of') }}"
-                   class="mt-1 rounded border border-stone-400 dark:border-stone-600 px-3 py-2">
+            <x-admin.input id="as-of" name="as_of" type="date" label="Settle as of" :value="old('as_of')" />
             @error('as_of')
                 <p class="mt-1 text-red-700 dark:text-red-400">{{ $message }}</p>
             @enderror
         </div>
-        <button type="submit" class="block w-full rounded bg-stone-700 hover:bg-stone-600 px-4 py-2 text-center font-medium text-white sm:inline-block sm:w-auto">Run weekly payout</button>
+        <x-admin.button-primary>Run weekly payout</x-admin.button-primary>
         <span class="text-stone-600 dark:text-stone-400">Settles every seller's released escrow for the week ending before this date, or today when left blank.</span>
     </form>
 

@@ -55,14 +55,20 @@
                     @endforeach
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <label for="filter-event" class="text-sm text-stone-600 dark:text-stone-400">Event</label>
-                    <select id="filter-event" name="event" class="rounded-md border-0 bg-white dark:bg-white/5 py-1.5 pl-2 pr-7 text-sm text-stone-900 dark:text-stone-100 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
+                {{-- `w-56` here, not on the component: x-admin.select is
+                     `block w-full` so the six filter forms can fill their own
+                     fixed-width wrappers, so this header constrains it from
+                     the outside instead. `sr-only` keeps "Event" announced
+                     without stacking a second row above the select — the
+                     compact inline pairing DSGN-004 had before this form
+                     moved onto x-admin.select. --}}
+                <div class="w-56">
+                    <x-admin.select id="filter-event" name="event" label="Event" label-class="sr-only">
                         <option value="">all</option>
                         @foreach ($events as $event)
                             <option value="{{ $event->value }}" @selected(($filters['event'] ?? null) === $event->value)>{{ $event->value }}</option>
                         @endforeach
-                    </select>
+                    </x-admin.select>
                 </div>
 
                 <div class="flex-1"></div>
@@ -80,7 +86,7 @@
                          exact `top` offset below, since native `<details>`
                          gives us no other JS-free way to close the mobile
                          takeover. --}}
-                    <summary class="relative z-20 inline-flex cursor-pointer items-center gap-1.5 rounded-md bg-white dark:bg-white/10 px-3 py-1.5 text-sm font-semibold text-stone-900 dark:text-white shadow-xs inset-ring inset-ring-stone-300 dark:inset-ring-white/5 hover:bg-stone-50 dark:hover:bg-white/20">
+                    <summary class="relative z-20 inline-flex min-h-11 sm:min-h-0 cursor-pointer items-center gap-1.5 rounded-md bg-white dark:bg-white/10 px-2.5 py-1.5 text-sm/6 font-semibold text-stone-900 dark:text-white shadow-xs inset-ring inset-ring-stone-300 dark:inset-ring-white/5 hover:bg-stone-50 dark:hover:bg-white/20 dark:shadow-none">
                         <span>More filters</span>
                         @if ($moreFiltersActive)
                             <span aria-hidden="true" class="inline-block h-1.5 w-1.5 rounded-full bg-stone-900 dark:bg-stone-100"></span>
@@ -101,51 +107,21 @@
                         <h2 class="mb-3 text-sm font-semibold text-stone-900 dark:text-stone-100">Filters</h2>
 
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div>
-                                <label for="filter-phase" class="block font-medium text-stone-700 dark:text-stone-300">Phase</label>
-                                <select id="filter-phase" name="phase" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                                    <option value="">All</option>
-                                    @foreach ($phases as $phase)
-                                        <option value="{{ $phase->value }}" @selected(($filters['phase'] ?? null) === $phase->value)>{{ $phase->value }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label for="filter-request" class="block font-medium text-stone-700 dark:text-stone-300">Request id</label>
-                                <input id="filter-request" name="request" type="text" value="{{ $filters['request'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-txn" class="block font-medium text-stone-700 dark:text-stone-300">Transaction id</label>
-                                <input id="filter-txn" name="txn" type="text" value="{{ $filters['txn'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-session" class="block font-medium text-stone-700 dark:text-stone-300">Session id</label>
-                                <input id="filter-session" name="session" type="text" value="{{ $filters['session'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-actor" class="block font-medium text-stone-700 dark:text-stone-300">Actor id</label>
-                                <input id="filter-actor" name="actor" type="text" value="{{ $filters['actor'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-msg" class="block font-medium text-stone-700 dark:text-stone-300">Message contains</label>
-                                <input id="filter-msg" name="msg" type="text" value="{{ $filters['msg'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-from" class="block font-medium text-stone-700 dark:text-stone-300">From (UTC instant)</label>
-                                <input id="filter-from" name="from" type="text" placeholder="2026-08-24T00:00:00Z" value="{{ $filters['from'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-to" class="block font-medium text-stone-700 dark:text-stone-300">To (UTC instant)</label>
-                                <input id="filter-to" name="to" type="text" placeholder="2026-08-25T00:00:00Z" value="{{ $filters['to'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-key" class="block font-medium text-stone-700 dark:text-stone-300">Attribute key</label>
-                                <input id="filter-key" name="key" type="text" placeholder="data.order_id" value="{{ $filters['key'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
-                            <div>
-                                <label for="filter-value" class="block font-medium text-stone-700 dark:text-stone-300">Attribute value</label>
-                                <input id="filter-value" name="value" type="text" value="{{ $filters['value'] ?? '' }}" class="mt-1 block w-full rounded-md border-0 bg-white dark:bg-white/5 px-3 py-2 text-stone-900 dark:text-stone-100 placeholder:text-stone-400 dark:placeholder:text-stone-500 inset-ring inset-ring-stone-300 dark:inset-ring-stone-700">
-                            </div>
+                            <x-admin.select id="filter-phase" name="phase" label="Phase">
+                                <option value="">All</option>
+                                @foreach ($phases as $phase)
+                                    <option value="{{ $phase->value }}" @selected(($filters['phase'] ?? null) === $phase->value)>{{ $phase->value }}</option>
+                                @endforeach
+                            </x-admin.select>
+                            <x-admin.input id="filter-request" name="request" label="Request id" :value="$filters['request'] ?? ''" />
+                            <x-admin.input id="filter-txn" name="txn" label="Transaction id" :value="$filters['txn'] ?? ''" />
+                            <x-admin.input id="filter-session" name="session" label="Session id" :value="$filters['session'] ?? ''" />
+                            <x-admin.input id="filter-actor" name="actor" label="Actor id" :value="$filters['actor'] ?? ''" />
+                            <x-admin.input id="filter-msg" name="msg" label="Message contains" :value="$filters['msg'] ?? ''" />
+                            <x-admin.input id="filter-from" name="from" label="From (UTC instant)" placeholder="2026-08-24T00:00:00Z" :value="$filters['from'] ?? ''" />
+                            <x-admin.input id="filter-to" name="to" label="To (UTC instant)" placeholder="2026-08-25T00:00:00Z" :value="$filters['to'] ?? ''" />
+                            <x-admin.input id="filter-key" name="key" label="Attribute key" placeholder="data.order_id" :value="$filters['key'] ?? ''" />
+                            <x-admin.input id="filter-value" name="value" label="Attribute value" :value="$filters['value'] ?? ''" />
                             <div class="flex items-end gap-1.5 pb-2">
                                 <input id="filter-health" name="health" type="checkbox" value="1" @checked(($filters['health'] ?? null) === '1')>
                                 <label for="filter-health" class="text-stone-700 dark:text-stone-300">Include health checks</label>
@@ -157,14 +133,14 @@
                         </div>
 
                         <div class="mt-4 flex items-center gap-3 border-t border-stone-200 dark:border-stone-800 pt-3">
-                            <button type="submit" class="inline-flex min-h-11 items-center rounded-md bg-stone-900 dark:bg-stone-100 px-4 text-sm font-semibold text-white dark:text-stone-900 shadow-xs hover:bg-stone-800 dark:hover:bg-stone-200">Apply filters</button>
-                            <a href="{{ route('admin.logs.index') }}" class="inline-flex min-h-11 items-center text-sm text-stone-600 dark:text-stone-400 underline">Clear</a>
+                            <x-admin.button-primary>Apply filters</x-admin.button-primary>
+                            <x-admin.clear-link :href="route('admin.logs.index')" />
                         </div>
                     </div>
                 </details>
 
-                <button type="submit" class="inline-flex min-h-11 items-center rounded-md bg-stone-900 dark:bg-stone-100 px-4 text-sm font-semibold text-white dark:text-stone-900 shadow-xs hover:bg-stone-800 dark:hover:bg-stone-200">Filter</button>
-                <a href="{{ route('admin.logs.index') }}" class="inline-flex min-h-11 items-center text-sm text-stone-600 dark:text-stone-400 underline">Clear</a>
+                <x-admin.button-primary>Filter</x-admin.button-primary>
+                <x-admin.clear-link :href="route('admin.logs.index')" />
             </form>
         </div>
 

@@ -3,7 +3,7 @@
 ## Next ticket numbers
 
 - RSRCH: 2
-- DSGN: 10
+- DSGN: 11
 - ARCH: 1
 - FEAT: 50
 - IMPRV: 30
@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-09-03:14:21:52 — IMPRV-028 — done: four admin form components hold one field, primary, and clear idiom across the seven filter forms; 4053 tests
+- 2026-09-03:14:13:50 — DSGN-010 — defined: The log filter bar has an information architecture that flows at every width
+- 2026-09-03:13:47:48 — IMPRV-028 — started
 - 2026-09-03:13:46:13 — IMPRV-027 — done: one stat-tile component, text-2xl figures pinned to the cell bottom, six-figure rows at three columns; 4046 tests
 - 2026-09-03:13:29:16 — IMPRV-027 — started
 - 2026-09-03:13:28:15 — IMPRV-029 — defined: List panes adopt the stacked-list row

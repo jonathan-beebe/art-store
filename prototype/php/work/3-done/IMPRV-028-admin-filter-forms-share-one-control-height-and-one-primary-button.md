@@ -1,7 +1,7 @@
 ---
 id: IMPRV-028
 type: improvement
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -37,3 +37,12 @@ The filter row is the first control on six admin pages. A row whose labels and b
 - DSGN-004 (log viewer filters), DSGN-005 (small-screen admin, the 44px targets), DSGN-006 (admin panes)
 - PR #59 (admin stone chrome)
 - DSGN-008 (design system audit)
+
+## Working
+- Tests first in `app/View/Components/AdminFilterFormTest.php`: renders the seven admin pages as an admin (the logs page with a bound `LogStore` fixture, since the suite runs with the log database off) and extracts every select, text/date input, Filter/Apply/payout submit, Clear link, and the More filters summary from their forms. Pins: one select class list (four distinct before), one input class list (two before), one primary-button class list carrying `bg-stone-700` (three before, logs was `bg-stone-900`), one Clear class list, and per form the same vertical sizing tokens on submits and selects with a `min-h-` floor present.
+- Four new admin components hold the idioms once: `x-admin.select` and `x-admin.input` (Tailwind native select and input: `py-1.5 text-base sm:text-sm/6`, stone outline ring, `min-h-11 sm:min-h-0`), `x-admin.button-primary` (`bg-stone-700 hover:bg-stone-600 px-2.5 py-1.5 text-sm/6 font-semibold`, same floor), `x-admin.clear-link` (`inline-flex items-center py-1.5 text-sm/6`, same floor). The six filter select components render through `x-admin.select`, which retired the `rounded border` idiom on `type-filter` and `standing-filter`. `filters.blade.php`, the payouts POST form, and the logs header form and disclosure panel render through the components; the logs inverted primary is gone; the More filters summary takes the Tailwind secondary treatment at `text-sm/6`.
+- One height by construction: field and button share `py-1.5 text-sm/6` (36px at `sm`+); below `sm` every control carries the 44px floor. The payouts submit dropped its full-width mobile treatment so all nine submits render one class list.
+- The logs Event select is width-constrained by a `w-56` wrapper at the call site and its label is `sr-only` via a `labelClass` prop, so the header stays two rows. The Domain/Level/View chips remain `py-1 text-xs`, centred by the row's `items-center`. The header's information architecture is DSGN-010.
+- Verified in Chrome at 1280 in dark: `/admin/ledger`, `/admin/payouts`, `/admin/logs`. Light by class review.
+- Gate: `make test` 4053 passed; `make lint` clean; `make assets` builds.
+- Found, not fixed: the Requests/Lines and Domain/Level chips are a shorter control class than the fields; DSGN-010 owns that header's layout.
