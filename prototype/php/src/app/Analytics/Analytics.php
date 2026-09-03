@@ -22,7 +22,8 @@ use Throwable;
  * {@see flush()} is where the buffer
  * becomes rows — {@see \App\Providers\AnalyticsServiceProvider} is what
  * decides when that happens. {@see prune()} is the maintenance sweep's own
- * entry point, outside the buffer-and-flush path.
+ * entry point, outside the buffer-and-flush path. {@see asRequest()} stands
+ * in for a request outside one, for a console command driving real actions.
  */
 final class Analytics
 {
@@ -35,6 +36,15 @@ final class Analytics
      * holds stays brief — {@see \App\Logging\LogStore::prune()}, the same
      * shape. */
     private const int PRUNE_BATCH = 5000;
+
+    /**
+     * The facts {@see asRequest()} is standing in for the current request
+     * with, or null outside any such scope. {@see recordEvent()} reads this
+     * ahead of {@see RequestFacts::current()}, so an action called from
+     * inside `asRequest()`'s closure carries the scope's facts even though
+     * it never receives them as an argument.
+     */
+    private ?RequestFacts $requestOverride = null;
 
     /** @var list<AnalyticsEvent> */
     private array $events = [];
@@ -70,16 +80,47 @@ final class Analytics
     }
 
     /**
-     * Buffers one event, carrying the ip, session, and request id of
-     * whatever request is current ({@see RequestFacts::current()}) — every
-     * caller hands over what happened and lets this fill in where it came
-     * from. Flushes immediately once the buffer reaches `FLUSH_AT`.
+     * Buffers one event. An event built with no ip or session of its own
+     * takes on the request behind it — {@see asRequest()}'s facts, inside
+     * that scope, or {@see RequestFacts::current()} otherwise — so every
+     * caller can hand over what happened and let this fill in where it came
+     * from; an event a caller already gave explicit facts to is buffered
+     * unchanged. Flushes immediately once the buffer reaches `FLUSH_AT`.
      */
     public function recordEvent(AnalyticsEvent $event): void
     {
-        $this->events[] = $event->withRequestFacts(RequestFacts::current());
+        $this->events[] = $event->ip === null && $event->sessionId === null
+            ? $event->withRequestFacts($this->requestOverride ?? RequestFacts::current())
+            : $event;
 
         $this->flushIfAtCap();
+    }
+
+    /**
+     * Runs `$body` with `recordEvent()` treating `$facts` as the current
+     * request throughout — including calls an action injected into `$body`
+     * makes on this same instance, since the override lives here rather
+     * than on the call stack. Built for a console command driving real
+     * actions with a backdated `$now` and no HTTP request behind them: it
+     * stands in the ip, session, and request id a browser would have
+     * carried. Restores the enclosing scope's facts (or none) once `$body`
+     * returns or throws, so a nested call scopes only its own closure.
+     *
+     * @template TReturn
+     *
+     * @param  Closure(): TReturn  $body
+     * @return TReturn
+     */
+    public function asRequest(RequestFacts $facts, Closure $body): mixed
+    {
+        $previous = $this->requestOverride;
+        $this->requestOverride = $facts;
+
+        try {
+            return $body();
+        } finally {
+            $this->requestOverride = $previous;
+        }
     }
 
     /**
