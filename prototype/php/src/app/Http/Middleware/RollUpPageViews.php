@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Actions\Analytics\RecordPageView;
+use App\Analytics\Analytics;
 use App\Domain\Analytics\PageViewCountability;
 use App\Domain\Analytics\PageViewSite;
 use Closure;
@@ -18,9 +18,10 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Registered once at the root of the global middleware stack, because a
  * middleware added there runs for every site, and the site a hit belongs to
- * is read back off the route's own pattern. It is terminable rather than
- * doing its write in `handle()`: the roll-up is not part of answering the
- * request, so it happens after the response has already gone back.
+ * is read back off the route's own pattern. It is terminable because the
+ * route and status a hit counts against are only known once the response is
+ * built. {@see Analytics} only buffers the count here; the write happens
+ * whenever the buffer flushes.
  */
 final readonly class RollUpPageViews
 {
@@ -49,7 +50,7 @@ final readonly class RollUpPageViews
 
         $pattern = $this->pattern($route->uri());
 
-        app(RecordPageView::class)(PageViewSite::fromRoutePattern($pattern), $pattern, now()->toDateTimeImmutable());
+        app(Analytics::class)->recordPageView(PageViewSite::fromRoutePattern($pattern), $pattern, now()->toDateTimeImmutable());
     }
 
     /**

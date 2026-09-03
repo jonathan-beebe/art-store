@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Analytics\Analytics;
 use App\Domain\Customers\CustomerCartLine;
 use App\Domain\Customers\CustomerMergePlan;
 use App\Domain\Customers\CustomerOwnedTables;
@@ -21,6 +22,8 @@ use Illuminate\Support\Facades\Schema;
 
 final readonly class MergeAnonymousCustomer
 {
+    public function __construct(private Analytics $analytics) {}
+
     /**
      * @return Customer the verified customer, now holding both histories
      */
@@ -68,6 +71,8 @@ final readonly class MergeAnonymousCustomer
 
                 return $plan;
             });
+
+            $this->analytics->reassignActor($anonymous->id, $verified->id);
 
             $story->did('folded the anonymous customer in', [
                 'anonymous_customer_id' => $anonymous->id,

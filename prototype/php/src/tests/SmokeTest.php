@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Analytics\AnalyticsReport;
 use App\Domain\Escrow\Fee;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Money\Money;
@@ -131,7 +132,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
             ->assertSee(SMOKE_LISTING_TITLE)
             ->assertSee($price()->format());
 
-        $this->assertDatabaseHas('listing_events', ['listing_id' => $listing->id, 'type' => 'view']);
+        expect(AnalyticsReport::countsForListing($listing->id)->views)->toBe(1);
     };
 
     /**

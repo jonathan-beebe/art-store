@@ -109,7 +109,8 @@ WORKDIR /var/www/src
 ENV APP_ENV=production \
     APP_DEBUG=false \
     DB_DATABASE=/var/www/src/storage/production.sqlite3 \
-    LOG_DATABASE_FILE=/var/www/src/storage/logs.sqlite3
+    LOG_DATABASE_FILE=/var/www/src/storage/logs.sqlite3 \
+    ANALYTICS_DATABASE_FILE=/var/www/src/storage/analytics.sqlite3
 
 COPY --chown=www-data:www-data src/ ./
 COPY --chown=www-data:www-data --from=build /var/www/src/vendor ./vendor

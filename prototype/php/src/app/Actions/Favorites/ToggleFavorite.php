@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Favorites;
 
-use App\Actions\Listings\RecordListingEvent;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
 use App\Domain\Favorites\FavoriteChange;
 use App\Models\Customer;
 use App\Models\Listing;
@@ -12,7 +13,7 @@ use DateTimeImmutable;
 
 final readonly class ToggleFavorite
 {
-    public function __construct(private RecordListingEvent $recordListingEvent) {}
+    public function __construct(private Analytics $analytics) {}
 
     public function __invoke(Customer $customer, Listing $listing, DateTimeImmutable $now): FavoriteChange
     {
@@ -25,7 +26,7 @@ final readonly class ToggleFavorite
             FavoriteChange::Removed => $favorite?->delete(),
         };
 
-        ($this->recordListingEvent)($listing, $customer->id, $change->listingEvent(), $now);
+        $this->analytics->recordEvent(AnalyticsEvent::forListing($change->listingEvent(), $listing->id, $customer->id, $now));
 
         return $change;
     }

@@ -1,0 +1,270 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Analytics;
+
+use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\PageViewSite;
+use App\Models\PageViewCount;
+use Closure;
+use DateTimeImmutable;
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
+use PDO;
+use Tests\AnalyticsStoreFixtures;
+use Tests\CapturedStory;
+
+function listingViewedAt(DateTimeImmutable $at, ?string $dedupeKey = null): AnalyticsEvent
+{
+    return AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', 'cus_XYZ', $at, $dedupeKey);
+}
+
+it('buffers a recorded event without writing it', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+
+    expect($analytics->pending())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(0);
+});
+
+it('writes the buffered event on flush, carrying the moment it was recorded rather than the moment it was flushed', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:32:07+00:00');
+
+    $this->travelTo($at);
+    $analytics->recordEvent(listingViewedAt($at));
+
+    $this->travelTo($at->modify('+3 days'));
+    $analytics->flush();
+
+    $row = DB::connection('analytics')->table('analytics_events')->sole();
+
+    expect($analytics->pending())->toBe(0)
+        ->and($row->id)->toStartWith('aev_')
+        ->and($row->name)->toBe(AnalyticsEventName::ListingView->value)
+        ->and($row->occurred_at)->toBe('2026-08-22 14:32:07')
+        ->and($row->subject_type)->toBe('listing')
+        ->and($row->subject_id)->toBe('lst_ABC')
+        ->and($row->actor_id)->toBe('cus_XYZ');
+});
+
+it('does nothing when flushed with an empty buffer', function (): void {
+    (new Analytics)->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(0);
+});
+
+it('ignores a second event carrying a dedupe key already written', function (): void {
+    $analytics = new Analytics;
+    $dedupeKey = 'listing:lst_ABC:customer:cus_XYZ:hour:2026-08-22T14';
+
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-22T14:05:00+00:00'), $dedupeKey));
+    $analytics->flush();
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-22T14:40:00+00:00'), $dedupeKey));
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+});
+
+it('rolls two page views of the same pattern up into one upsert', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $at);
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $at);
+    $analytics->flush();
+
+    $row = PageViewCount::query()->sole();
+
+    expect($row->site)->toBe(PageViewSite::Shop->value)
+        ->and($row->path_pattern)->toBe('/art/{listing}')
+        ->and($row->day)->toBe('2026-08-22')
+        ->and($row->count)->toBe(2);
+});
+
+it('increments an existing page-view row rather than inserting a new one', function (): void {
+    PageViewCount::factory()->create([
+        'site' => PageViewSite::Shop->value,
+        'path_pattern' => '/art/{listing}',
+        'day' => '2026-08-22',
+        'count' => 5,
+    ]);
+
+    $analytics = new Analytics;
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', new DateTimeImmutable('2026-08-22T14:00:00+00:00'));
+    $analytics->flush();
+
+    expect(PageViewCount::query()->sole()->count)->toBe(6);
+});
+
+it('counts a page view toward pending() once per distinct key, not once per hit', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $at);
+    $analytics->recordPageView(PageViewSite::Shop, '/art/{listing}', $at);
+    $analytics->recordPageView(PageViewSite::Seller, '/seller', $at);
+
+    expect($analytics->pending())->toBe(2);
+});
+
+it('flushes automatically at the row cap', function (): void {
+    $analytics = new Analytics;
+
+    for ($i = 0; $i < 255; $i++) {
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    }
+
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(0);
+
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+
+    expect($analytics->pending())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_events')->count())->toBe(256);
+});
+
+it('flushes automatically at the row cap when only page views are buffered', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    for ($i = 0; $i < 255; $i++) {
+        $analytics->recordPageView(PageViewSite::Shop, "/art/{$i}", $at);
+    }
+
+    expect(PageViewCount::query()->count())->toBe(0);
+
+    $analytics->recordPageView(PageViewSite::Shop, '/art/255', $at);
+
+    expect($analytics->pending())->toBe(0)
+        ->and(PageViewCount::query()->count())->toBe(256);
+});
+
+it('commits through its own BEGIN IMMEDIATE transaction against a real file outside any outer transaction', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'analytics-write-batch-');
+    $originalDatabase = config('database.connections.analytics.database');
+    $originalPdo = DB::connection('analytics')->getPdo();
+
+    config()->set('database.connections.analytics.database', $path);
+    DB::purge('analytics');
+
+    /** @var Migration $migration */
+    $migration = require database_path('migrations/2026_09_02_000100_create_analytics_events_table.php');
+    // Every migration is an anonymous class defining its own up(); the base
+    // Migration class declares none for the analyser to see.
+    // @phpstan-ignore-next-line
+    $migration->up();
+
+    try {
+        expect(DB::connection('analytics')->getPdo()->inTransaction())->toBeFalse();
+
+        $analytics = new Analytics;
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable('2026-08-22T14:32:07+00:00')));
+        $analytics->flush();
+
+        $pdo = new PDO('sqlite:'.$path);
+        $statement = $pdo->query('SELECT name, occurred_at FROM analytics_events');
+        assert($statement !== false);
+        /** @var list<array{name: string, occurred_at: string}> $rows */
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        expect($rows)->toHaveCount(1)
+            ->and($rows[0]['name'])->toBe(AnalyticsEventName::ListingView->value)
+            ->and($rows[0]['occurred_at'])->toBe('2026-08-22 14:32:07');
+    } finally {
+        if ($originalPdo->inTransaction()) {
+            $originalPdo->rollBack();
+        }
+
+        config()->set('database.connections.analytics.database', $originalDatabase);
+        DB::purge('analytics');
+
+        foreach ([$path, $path.'-wal', $path.'-shm'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
+});
+
+it('logs one warning and drops the batch when the store cannot be written to', function (): void {
+    $log = CapturedStory::capture();
+
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($log): void {
+        $analytics = new Analytics;
+        $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+
+        $analytics->flush();
+
+        $line = $log->line('app.log', 'doing');
+
+        expect($analytics->pending())->toBe(0)
+            ->and($line['level'])->toBe('warn')
+            ->and($line['data'])->toBe([
+                'analytics_database_file' => config('database.connections.analytics.database'),
+                'events' => 1,
+            ]);
+    });
+});
+
+it('moves every row an actor owns to another actor', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    $analytics->flush();
+
+    $analytics->reassignActor('cus_XYZ', 'cus_MERGED');
+
+    expect(DB::connection('analytics')->table('analytics_events')->sole()->actor_id)->toBe('cus_MERGED');
+});
+
+it('logs one warning and never throws when reassignActor cannot write', function (): void {
+    $log = CapturedStory::capture();
+
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($log): void {
+        (new Analytics)->reassignActor('cus_XYZ', 'cus_MERGED');
+
+        expect($log->line('app.log', 'doing')['level'])->toBe('warn');
+    });
+});
+
+it('never throws from the shutdown fallback once the container is unusable', function (): void {
+    $captured = null;
+
+    $analytics = new Analytics(registerShutdown: function (Closure $flush) use (&$captured): void {
+        $captured = $flush;
+    });
+    $analytics->recordEvent(listingViewedAt(new DateTimeImmutable));
+    assert($captured instanceof Closure);
+
+    $db = $this->app->make('db');
+    $config = $this->app->make('config');
+
+    try {
+        // Mirrors what process exit leaves behind for the real shutdown
+        // fallback: both the write and the failure report reach for a
+        // container that can no longer resolve them.
+        $this->app->offsetUnset('db');
+        $this->app->offsetUnset('config');
+
+        $captured();
+    } finally {
+        $this->app->instance('db', $db);
+        $this->app->instance('config', $config);
+    }
+
+    expect($analytics->pending())->toBe(0);
+});
+
+it('flushes what a request recorded once the response has already gone back', function (): void {
+    Route::get('/analytics-test-route', function (): string {
+        app(Analytics::class)->recordEvent(listingViewedAt(new DateTimeImmutable));
+
+        return 'ok';
+    })->middleware('web');
+
+    $this->get('/analytics-test-route')->assertOk();
+
+    expect(DB::connection('analytics')->table('analytics_events')->count())->toBe(1);
+});

@@ -26,7 +26,6 @@ final class CustomerOwnedTables
             'fulfillments' => 'customer_id',
             'payments' => 'customer_id',
             'refunds' => 'customer_id',
-            'listing_events' => 'customer_id',
             'customer_blocks' => 'customer_id',
         ];
     }
@@ -40,6 +39,7 @@ final class CustomerOwnedTables
     public static function leftBehind(): array
     {
         return [
+            'analytics_events' => 'lives in the analytics store, outside this transaction, keyed by actor_id — MergeAnonymousCustomer re-points it separately, through Analytics::reassignActor(), which cannot fail the merge if the store is unavailable',
             'favorites' => 'folded by CustomerMergePlan — the union of both customers\' favorites, de-duplicated, applied with updates and deletes',
             'carts' => 'folded by CustomerMergePlan — quantities summed per listing and clamped to stock, applied to the one cart that survives the merge',
             'cart_items' => 'recreated by MergeAnonymousCustomer::foldCart() from the folded cart plan, which sets customer_id to the surviving cart\'s owner directly',

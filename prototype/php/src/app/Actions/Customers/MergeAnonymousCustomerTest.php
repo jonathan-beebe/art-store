@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Customers;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Money\Money;
 use App\Models\Cart;
@@ -23,6 +26,8 @@ use DateTimeImmutable;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\AnalyticsStoreFixtures;
+use Tests\CapturedStory;
 
 it('records the merge so a stale cookie still resolves', function (): void {
     $anonymous = Customer::factory()->anonymous()->create();
@@ -65,36 +70,68 @@ it('leaves the anonymous row in place for the merge trail', function (): void {
 });
 
 it('re-points rows in a customer-owned table', function (): void {
-    // The commerce tables carry columns this test knows nothing about, so the
+    // customer_blocks carries columns this test knows nothing about, so the
     // table-driven re-pointing is proven against a row this test can write on its own.
-    Schema::dropIfExists('listing_events');
-    Schema::create('listing_events', function (Blueprint $table): void {
+    Schema::dropIfExists('customer_blocks');
+    Schema::create('customer_blocks', function (Blueprint $table): void {
         $table->id();
         $table->foreignId('customer_id');
     });
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
     $bystander = Customer::factory()->create();
-    DB::table('listing_events')->insert([
+    DB::table('customer_blocks')->insert([
         ['customer_id' => $anonymous->id],
         ['customer_id' => $bystander->id],
     ]);
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
-    expect(DB::table('listing_events')->where('customer_id', $verified->id)->count())->toBe(1)
-        ->and(DB::table('listing_events')->where('customer_id', $anonymous->id)->count())->toBe(0)
-        ->and(DB::table('listing_events')->where('customer_id', $bystander->id)->count())->toBe(1);
+    expect(DB::table('customer_blocks')->where('customer_id', $verified->id)->count())->toBe(1)
+        ->and(DB::table('customer_blocks')->where('customer_id', $anonymous->id)->count())->toBe(0)
+        ->and(DB::table('customer_blocks')->where('customer_id', $bystander->id)->count())->toBe(1);
 });
 
 it('skips a customer-owned table that does not exist', function (): void {
-    Schema::dropIfExists('listing_events');
+    Schema::dropIfExists('refunds');
     $anonymous = Customer::factory()->anonymous()->create();
     $verified = Customer::factory()->create();
 
     app(MergeAnonymousCustomer::class)($anonymous, $verified);
 
     expect(CustomerMerge::count())->toBe(1);
+});
+
+it('re-points analytics events to the verified customer', function (): void {
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $bystander = Customer::factory()->create();
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', $anonymous->id, new DateTimeImmutable));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', $bystander->id, new DateTimeImmutable));
+    $analytics->flush();
+
+    app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+    expect(DB::connection('analytics')->table('analytics_events')->where('actor_id', $verified->id)->count())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_events')->where('actor_id', $anonymous->id)->count())->toBe(0)
+        ->and(DB::connection('analytics')->table('analytics_events')->where('actor_id', $bystander->id)->count())->toBe(1);
+});
+
+it('still merges and logs a warning when the analytics store is unwritable', function (): void {
+    $log = CapturedStory::capture();
+    $anonymous = Customer::factory()->anonymous()->create();
+    $verified = Customer::factory()->create();
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, 'lst_ABC', $anonymous->id, new DateTimeImmutable));
+    $analytics->flush();
+
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($anonymous, $verified, $log): void {
+        app(MergeAnonymousCustomer::class)($anonymous, $verified);
+
+        expect(CustomerMerge::where('anonymous_customer_id', $anonymous->id)->where('customer_id', $verified->id)->exists())->toBeTrue()
+            ->and($log->line('app.log', 'doing')['level'])->toBe('warn');
+    });
 });
 
 it('re-points the notifications addressed to the anonymous customer', function (): void {

@@ -6,7 +6,11 @@ namespace App\Http\Middleware;
 
 use App\Domain\Analytics\PageViewSite;
 use App\Models\PageViewCount;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Tests\AnalyticsStoreFixtures;
+use Tests\CapturedStory;
 
 it('rolls a countable GET up into one row', function (): void {
     $this->get('/admin/login');
@@ -61,4 +65,33 @@ it('counts nothing for a response that is not HTML', function (): void {
     $this->getJson('/json-test')->assertOk();
 
     expect(PageViewCount::query()->count())->toBe(0);
+});
+
+it('writes the roll-up through the analytics connection, never the default one', function (): void {
+    /** @var list<QueryExecuted> $queries */
+    $queries = [];
+
+    DB::connection()->listen(function (QueryExecuted $query) use (&$queries): void {
+        $queries[] = $query;
+    });
+
+    $this->get('/admin/login');
+
+    $mentioning = fn (string $connection): array => array_values(array_filter(
+        $queries,
+        fn (QueryExecuted $query): bool => $query->connectionName === $connection && str_contains($query->sql, 'page_view_counts'),
+    ));
+
+    expect($mentioning('sqlite'))->toBe([])
+        ->and($mentioning('analytics'))->not->toBe([]);
+});
+
+it('still answers and logs a warning when the analytics store cannot be flushed to', function (): void {
+    $log = CapturedStory::capture();
+
+    AnalyticsStoreFixtures::withUnwritableStore(function () use ($log): void {
+        $this->get('/admin/login')->assertOk();
+
+        expect($log->line('app.log', 'doing')['level'])->toBe('warn');
+    });
 });

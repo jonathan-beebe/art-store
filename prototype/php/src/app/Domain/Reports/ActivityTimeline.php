@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use App\Domain\Listings\ListingEventType;
+use App\Domain\Analytics\AnalyticsEventName;
 use DateTimeImmutable;
 use InvalidArgumentException;
 
@@ -15,7 +15,7 @@ final class ActivityTimeline
     /**
      * A gapless run of days ending on the day of $endsOn, oldest first.
      *
-     * @param  array<string, array<string, int>>  $countsByDate  day (Y-m-d) => event type value => count
+     * @param  array<string, array<string, int>>  $countsByDate  day (Y-m-d) => event name value => count
      * @return list<DailyActivity>
      */
     public static function lastDays(array $countsByDate, DateTimeImmutable $endsOn, int $days): array
@@ -50,9 +50,9 @@ final class ActivityTimeline
 
         return DailyActivity::on(
             $on,
-            $counts[ListingEventType::View->value] ?? 0,
-            $counts[ListingEventType::Favorite->value] ?? 0,
-            $counts[ListingEventType::CartAdd->value] ?? 0,
+            $counts[AnalyticsEventName::ListingView->value] ?? 0,
+            $counts[AnalyticsEventName::ListingFavorite->value] ?? 0,
+            $counts[AnalyticsEventName::ListingCartAdd->value] ?? 0,
         );
     }
 }

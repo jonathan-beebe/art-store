@@ -6,6 +6,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Cart\AddToCart;
 use App\Actions\Listings\RemoveListing;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Analytics\ListingEventCounts;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Listings\ListingRemovalKind;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Favorite;
@@ -114,6 +118,29 @@ it('shows one listing with its activity and sales', function (): void {
     $response->assertSee('Oil on linen');
     $response->assertSee('Blue Kiln Studio');
     $response->assertSee($order->id);
+});
+
+it('totals the views and cart adds of the listing and counts the favorites that stand', function (): void {
+    $listing = $this->listing($this->seller());
+    $analytics = app(Analytics::class);
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, $this->moment('2026-08-20 09:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, null, $this->moment('2026-08-20 10:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, null, $this->moment('2026-08-20 11:00:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingFavorite, $listing->id, null, $this->moment('2026-08-20 11:30:00')));
+    $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingCartAdd, $listing->id, null, $this->moment('2026-08-20 12:00:00')));
+    $analytics->flush();
+    Favorite::factory()->create(['customer_id' => $this->verifiedCustomer()->id, 'listing_id' => $listing->id]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertViewHas('eventCounts', function (ListingEventCounts $eventCounts): bool {
+        return $eventCounts->views === 2
+            && $eventCounts->cartAdds === 1;
+    });
+    $response->assertViewHas('listing', function (Listing $listing): bool {
+        return $listing->favorites_count === 1;
+    });
 });
 
 it('shows the list panes empty-detail prompt on the index route', function (): void {

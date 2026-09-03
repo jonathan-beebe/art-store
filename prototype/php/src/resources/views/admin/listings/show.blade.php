@@ -147,7 +147,7 @@
         <dl class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
                 <dt class="text-stone-600 dark:text-stone-400">Views</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $listing->views_count }}</dd>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $eventCounts->views }}</dd>
             </div>
             <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
                 <dt class="text-stone-600 dark:text-stone-400">Favorited</dt>
@@ -155,7 +155,7 @@
             </div>
             <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
                 <dt class="text-stone-600 dark:text-stone-400">Cart adds</dt>
-                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $listing->cart_adds_count }}</dd>
+                <dd class="mt-1 text-2xl font-semibold tabular-nums text-stone-900 dark:text-stone-100">{{ $eventCounts->cartAdds }}</dd>
             </div>
             <div class="rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
                 <dt class="text-stone-600 dark:text-stone-400">Sold</dt>

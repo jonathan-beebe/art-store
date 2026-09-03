@@ -184,15 +184,20 @@ an unfavorite, or a cart-add.
 **Why it exists.** Feeds the seller's per-listing activity numbers (views,
 favorites, cart adds) and the dashboard's daily activity timeline.
 
-**Lifecycle.** None — write-once, timestamped fact.
+**Lifecycle.** None — write-once, timestamped fact. The timestamp is the
+instant the interaction was recorded, not the instant the row was written —
+recording only appends to an in-memory buffer, which a later flush turns
+into rows.
 
 **Relates to.**
-- belongs to one Listing
-- optionally attributed to one Customer (`customer_id` nullable)
+- belongs to one Listing, named by `subject_type`/`subject_id`
+- optionally attributed to one Customer (`actor_id` nullable)
 
-**In code.** `App\Models\ListingEvent`, `App\Domain\Listings\ListingEventType`
-(enum: `view` | `favorite` | `unfavorite` | `cart_add`) (table
-`listing_events`).
+**In code.** `App\Analytics\Analytics` (the one writer),
+`App\Analytics\AnalyticsEvent`, `App\Domain\Analytics\AnalyticsEventName` (enum:
+`listing.view` | `listing.favorite` | `listing.unfavorite` |
+`listing.cart_add`), `App\Analytics\AnalyticsReport` (the reader) (table
+`analytics_events`). See [`analytics.md`](analytics.md).
 
 ### Listing removal
 
@@ -644,7 +649,9 @@ one upsert and no read.
   at most one per (listing, customer, UTC hour)
 
 **In code.** `App\Models\PageViewCount`, `App\Domain\Analytics\*`,
-`App\Http\Middleware\RollUpPageViews` (table `page_view_counts`).
+`App\Http\Middleware\RollUpPageViews`, `App\Analytics\Analytics` (the one
+writer, buffered and flushed after the response) (table `page_view_counts`).
+See [`analytics.md`](analytics.md).
 
 ## Decisions
 

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Reports;
 
-use App\Domain\Listings\ListingEventType;
+use App\Domain\Analytics\AnalyticsEventName;
 
-it('carries a type and its count, and labels itself by the type', function (): void {
-    $count = ListingEventCount::of(ListingEventType::CartAdd, 6);
+it('carries a name and its count, and labels itself by the name', function (): void {
+    $count = ListingEventCount::of(AnalyticsEventName::ListingCartAdd, 6);
 
-    expect($count->type)->toBe(ListingEventType::CartAdd)
+    expect($count->name)->toBe(AnalyticsEventName::ListingCartAdd)
         ->and($count->count)->toBe(6)
         ->and($count->label())->toBe('Cart add');
 });

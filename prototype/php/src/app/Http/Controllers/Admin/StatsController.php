@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Analytics\AnalyticsReport;
 use App\Domain\Analytics\PageViewDay;
 use App\Domain\Analytics\PageViewWeek;
 use App\Domain\Reports\ListingEventTally;
 use App\Http\Controllers\Controller;
-use App\Models\ListingEvent;
 use App\Models\PageViewCount;
 use Illuminate\View\View;
 
@@ -21,7 +21,7 @@ final class StatsController extends Controller
         return view('admin.stats.index', [
             'days' => PageViewCount::totalsByDay($week),
             'patterns' => PageViewCount::totalsByPattern(),
-            'events' => ListingEventTally::from(ListingEvent::platformCountsByType()),
+            'events' => ListingEventTally::from(AnalyticsReport::platformCountsByName()),
         ]);
     }
 }

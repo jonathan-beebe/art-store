@@ -53,6 +53,28 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        // The analytics store beside the log store (config/log_store.php):
+        // its own SQLite file, so an analytics write (page views, analytics
+        // events) contends with nothing the commerce connection above
+        // does. `synchronous = off` risks losing a count on a crash.
+        // `busy_timeout` is a fifth of the commerce connection's, so a
+        // contended flush fails fast and no request waits behind it
+        // (App\Analytics\Analytics::flush() catches that failure and
+        // writes it as one log line). Foreign keys are off — the store's
+        // rows reference app rows by id only, across two separate SQLite
+        // files.
+        'analytics' => [
+            'driver' => 'sqlite',
+            'database' => env('ANALYTICS_DATABASE_FILE', storage_path('analytics.sqlite3')),
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+            'busy_timeout' => 250,
+            'journal_mode' => 'wal',
+            'synchronous' => 'off',
+            'transaction_mode' => 'DEFERRED',
+            'url' => null,
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),

@@ -10,7 +10,6 @@ use App\Domain\Configurator\PublishIssue;
 use App\Domain\Configurator\StandaloneOptionSnapshot;
 use App\Domain\Configurator\VariantSnapshot;
 use App\Domain\Listings\ListingAvailability;
-use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Listings\ListingStock;
 use App\Domain\Listings\ListingStockLabel;
@@ -18,9 +17,7 @@ use App\Domain\Listings\RemovedFilter;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use App\Support\PlaceholderImage;
-use Closure;
 use Database\Factories\ListingFactory;
-use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,9 +31,6 @@ use Override;
 /**
  * @property-read Seller $seller
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
- * @property-read int $views_count  only after `withEventCounts` or `loadEventCounts`
- * @property-read int $favorites_count  only after `withEventCounts` or `loadEventCounts`
- * @property-read int $cart_adds_count  only after `withEventCounts` or `loadEventCounts`
  */
 #[Fillable([
     'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
@@ -119,12 +113,6 @@ class Listing extends Model
     public function images(): HasMany
     {
         return $this->hasMany(ListingImage::class);
-    }
-
-    /** @return HasMany<ListingEvent, $this> */
-    public function events(): HasMany
-    {
-        return $this->hasMany(ListingEvent::class);
     }
 
     /** @return HasMany<Favorite, $this> */
@@ -641,52 +629,5 @@ class Listing extends Model
         }
 
         return $counts;
-    }
-
-    /** @param Builder<$this> $query */
-    #[Scope]
-    protected function withEventCounts(Builder $query): void
-    {
-        $query->withCount(self::eventCounts());
-    }
-
-    /**
-     * The same three counts the `withEventCounts` scope selects, for a listing
-     * already in hand — a route-bound model, say.
-     */
-    public function loadEventCounts(): self
-    {
-        $this->loadCount(self::eventCounts());
-
-        return $this;
-    }
-
-    /**
-     * How many events of each type the listing recorded on each day from $from
-     * onward, grouped by the database.
-     *
-     * @return array<string, array<string, int>> day (Y-m-d) => event type value => count
-     */
-    public function eventCountsByDateSince(DateTimeImmutable $from): array
-    {
-        $counts = [];
-
-        foreach ($this->events()->dailyCountsSince($from)->get() as $row) {
-            $counts[$row->day][$row->type->value] = $row->tally;
-        }
-
-        return $counts;
-    }
-
-    /**
-     * @return array<string, Closure(Builder<ListingEvent>): Builder<ListingEvent>>
-     */
-    private static function eventCounts(): array
-    {
-        return [
-            'events as views_count' => fn (Builder $events) => $events->where('type', ListingEventType::View),
-            'events as favorites_count' => fn (Builder $events) => $events->where('type', ListingEventType::Favorite),
-            'events as cart_adds_count' => fn (Builder $events) => $events->where('type', ListingEventType::CartAdd),
-        ];
     }
 }

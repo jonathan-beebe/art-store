@@ -3,7 +3,8 @@
 Prototype of a two-sided art marketplace, served from three sites: a **seller
 portal** (back office), a **customer storefront**, and an **admin site** (the
 platform's own back office, for support and moderation). One Laravel
-deployable, one SQLite file. Every page works with JavaScript off; a single
+deployable, three SQLite files: commerce, the log store, and the analytics
+store. Every page works with JavaScript off; a single
 ~20-line script is a progressive enhancement over the live unread badge (see
 `docs/messaging.md` § "The live badge"). Every agent working in
 `prototype/php/` reads this doc first and follows the conventions in it.
@@ -17,7 +18,11 @@ flowchart LR
     subgraph docker["docker compose: app container"]
         laravel["Laravel app (PHP 8.3)\n/seller/* portal\n/admin/* site\n/ storefront"]
         sqlite[("SQLite\ndatabase/database.sqlite")]
+        logs[("SQLite\nstorage/logs.sqlite3")]
+        analytics[("SQLite\nstorage/analytics.sqlite3")]
         laravel --> sqlite
+        laravel --> logs
+        laravel --> analytics
     end
     seller["Seller (browser)"] -- "HTML forms + EventSource" --> laravel
     customer["Customer (browser)"] -- "HTML forms + EventSource" --> laravel
@@ -26,7 +31,7 @@ flowchart LR
 ```
 
 One container (`app`) holds PHP, Composer, Node (for the Tailwind build), and
-the SQLite file. Nothing is installed on the host. Each site's browser also
+the three SQLite files. Nothing is installed on the host. Each site's browser also
 holds one open `EventSource` per page against its own `/events` route — see
 **The clock** and `docs/messaging.md` § "The live badge".
 
@@ -110,7 +115,7 @@ that produces it, and every controller calls it.
 
 - Actions take `DateTimeImmutable $now` as their last parameter — the commerce
   ones (`PlaceOrder`, `FinalizeOrder`, `MarkShipped`, `ConfirmDelivered`,
-  `AddToCart`, `ToggleFavorite`, `RecordListingEvent`, `RunWeeklyPayout`) and
+  `AddToCart`, `ToggleFavorite`, `RunWeeklyPayout`) and
   the identity ones (`SendMagicLink`, `SignInSeller`, `SignInCustomer`,
   `ClaimCustomerIdentity`) alike. No action calls `now()`.
 - Model writes that stamp a time take it too: `MagicLink::consume($now)`,
@@ -465,7 +470,7 @@ erDiagram
     customers ||--o{ carts : has
     customers ||--o{ orders : places
     customers ||--o{ customer_blocks : blocked_by
-    listings ||--o{ listing_events : records
+    listings ||..o{ analytics_events : subject_of
     listings ||--o{ cart_items : held_in
     orders ||--o{ order_items : contains
     orders ||--o{ payments : attempts
@@ -480,8 +485,13 @@ erDiagram
 `magic_links` and `notifications` are deliberately absent: neither holds a
 foreign key to `sellers` or `customers`. A magic link matches on an `email`
 string plus `actor_type`; a notification names its recipient with a morph type
-and id. Full column list and both `customer_merges` foreign keys:
-`docs/data-model.md`.
+and id. `analytics_events` lives in the analytics store
+(`storage/analytics.sqlite3`, see **Deployables** and §2.6 of
+`docs/alignment.md`), written by `App\Analytics\Analytics` after the request
+that triggers it has already answered; its relationship line above is dotted
+because it is logical only — no foreign key crosses the two files. Full
+column list and both `customer_merges` foreign keys: `docs/data-model.md`.
+See [`analytics.md`](analytics.md) for the write path.
 
 ### Listing status
 

@@ -12,13 +12,12 @@ use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\SetModifierScope;
+use App\Analytics\AnalyticsReport;
 use App\Domain\Configurator\ModifierKind;
-use App\Domain\Listings\ListingEventType;
 use App\Domain\Listings\ListingStatus;
 use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
-use App\Models\ListingEvent;
 use App\Models\ListingRemoval;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Arr;
@@ -36,7 +35,7 @@ it('adds a listing to the cart and records the event', function (): void {
     expect($item->listing_id)->toBe($listing->id)
         ->and($item->quantity)->toBe(1)
         ->and($item->cart->customer_id)->toBe($visitor->id)
-        ->and(ListingEvent::sole()->type)->toBe(ListingEventType::CartAdd);
+        ->and(AnalyticsReport::countsForListing($listing->id)->cartAdds)->toBe(1);
 });
 
 it('sends a blocked customer back with the reason instead of adding to the cart', function (): void {

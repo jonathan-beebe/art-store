@@ -91,7 +91,10 @@ else
     printf '%s\n' "$inputs_hash" > "$BUNDLE_INPUTS_HASH"
 fi
 
-touch database/database.sqlite
+# Laravel's sqlite connector opens an existing file only, so both files
+# exist before the first migration touches them. The analytics file is the
+# config/database.php default unless the environment names another.
+touch database/database.sqlite "${ANALYTICS_DATABASE_FILE:-storage/analytics.sqlite3}"
 php artisan migrate --force
 
 # Seller uploads live on the public disk; the symlink is what serves them.

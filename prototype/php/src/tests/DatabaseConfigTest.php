@@ -40,3 +40,39 @@ it('runs a file-backed app database in wal mode with the configured pragmas', fu
         }
     }
 });
+
+/**
+ * config/database.php promises the analytics connection its own WAL mode,
+ * a short busy timeout, and synchronous writes turned off. The suite's
+ * `:memory:` analytics connection cannot witness that promise either, so
+ * this test opens a real file through the connection's own config.
+ */
+it('runs the analytics database in wal mode with a short busy timeout and synchronous off', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'analytics-wal-check-');
+
+    config()->set('database.connections.analytics-wal-check', array_replace(
+        (array) config('database.connections.analytics'),
+        ['database' => $path, 'url' => null],
+    ));
+
+    try {
+        $connection = DB::connection('analytics-wal-check');
+
+        $journal = $connection->selectOne('PRAGMA journal_mode');
+        $synchronous = $connection->selectOne('PRAGMA synchronous');
+        $busy = $connection->selectOne('PRAGMA busy_timeout');
+        assert($journal instanceof stdClass && $synchronous instanceof stdClass && $busy instanceof stdClass);
+
+        expect($journal->journal_mode)->toBe('wal')
+            ->and($synchronous->synchronous)->toEqual(0)
+            ->and($busy->timeout)->toEqual(250);
+    } finally {
+        DB::purge('analytics-wal-check');
+
+        foreach ([$path, $path.'-wal', $path.'-shm'] as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+    }
+});

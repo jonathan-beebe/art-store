@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 9
 - ARCH: 1
-- FEAT: 44
+- FEAT: 45
 - IMPRV: 25
 - MAINT: 6
 - A11Y: 1
@@ -13,6 +13,16 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:11:52:03 — FEAT-044 — defined: analytics events carry the request ip, session, and id
+
+- 2026-09-02:09:43:30 — FEAT-039 — done: analytics events go through App\Analytics\Analytics, buffered with their own timestamps and flushed after the response into analytics.sqlite3 (analytics_events + page_view_counts); readers via AnalyticsReport; docs/analytics.md
+
+- 2026-09-02:08:30:59 — FEAT-039 — reopened: iteration 2, one Analytics entry point with an after-response flush
+
+- 2026-09-02:08:11:27 — FEAT-039 — done: page_view_counts and listing_events live in an analytics sqlite file of their own (ANALYTICS_DATABASE_FILE), every analytics write is guarded so a failing store logs one warn line and the request completes, readers unchanged, docs/alignment.md §2.6
+
+- 2026-09-02:07:05:59 — FEAT-039 — started
 
 - 2026-09-02:05:56:50 — MAINT-005 — done: docs/messaging.md, docs/ontology.md, docs/admin.md, docs/architecture.md, README.md, and docs/alignment.md §5 reconciled against the shipped FEAT-040..043 shapes (shared desk, titled/resolvable threads, reply-to, oversight, the removed live-badge SSE stream); make check green — 3441 tests, 9942 assertions, 99.6% coverage (95% floor), every under-100% file a pre-existing legacy relation untouched by messaging v2
 - 2026-09-02:05:34:37 — MAINT-005 — started

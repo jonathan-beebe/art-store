@@ -13,7 +13,6 @@ use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
-use App\Models\ListingEvent;
 use App\Models\ListingFaq;
 use App\Models\ListingImage;
 use App\Models\ListingRemoval;
@@ -51,7 +50,6 @@ $sellerOwnedModels = [
     Listing::class,
     Payout::class,
     LedgerEntry::class,
-    ListingEvent::class,
     ListingRemoval::class,
     ListingFaq::class,
     ListingAttribute::class,
@@ -84,9 +82,10 @@ $customerOwnedModels = [
 
 it('carries a populated seller_id on every table a seller owns', function () use ($sellerOwnedModels): void {
     foreach ($sellerOwnedModels as $modelClass) {
-        $table = (new $modelClass)->getTable();
+        $model = new $modelClass;
+        $table = $model->getTable();
 
-        expect(Schema::hasColumn($table, 'seller_id'))->toBeTrue("{$table} has no seller_id column.");
+        expect(Schema::connection($model->getConnectionName())->hasColumn($table, 'seller_id'))->toBeTrue("{$table} has no seller_id column.");
         expect(in_array('seller_id', (new $modelClass)->getFillable(), true))->toBeTrue("{$modelClass} does not mass-assign seller_id.");
 
         $row = Factory::factoryForModel($modelClass)->createOne();
@@ -130,10 +129,6 @@ it('carries a populated seller_id on a refund, fulfillment-scoped rather than or
 it('gives every seller-owned row created through its action the same seller_id its listing carries', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
-
-    $event = app(App\Actions\Listings\RecordListingEvent::class)($listing, null, App\Domain\Listings\ListingEventType::View, new DateTimeImmutable);
-    assert($event instanceof ListingEvent);
-    expect($event->seller_id)->toBe($seller->id);
 
     $axis = app(App\Actions\Configurator\CreateOptionAxis::class)($listing, 'Metal');
     expect($axis->seller_id)->toBe($seller->id);

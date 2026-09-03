@@ -57,7 +57,7 @@
         "deploy": [
             "Composer\\Config::disableProcessTimeout",
             "mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/testing storage/framework/views storage/logs",
-            "touch ${DB_DATABASE:-database/database.sqlite}",
+            "touch ${DB_DATABASE:-database/database.sqlite} ${ANALYTICS_DATABASE_FILE:-storage/analytics.sqlite3}",
             "@php artisan migrate --force",
             "@php artisan db:seed --force",
             "frankenphp run --config /etc/frankenphp/Caddyfile --adapter caddyfile"

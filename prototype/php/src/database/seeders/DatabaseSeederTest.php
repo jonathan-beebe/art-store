@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsReport;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
@@ -16,7 +18,6 @@ use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
-use App\Models\ListingEvent;
 use App\Models\ListingFaq;
 use App\Models\Message;
 use App\Models\Order;
@@ -41,6 +42,7 @@ $seedRun = new class
 beforeEach(function () use ($seedRun): void {
     $seedRun->log = CapturedStory::capture();
     $this->seed();
+    app(Analytics::class)->flush();
 });
 
 it('seeds seven verified sellers', function (): void {
@@ -116,7 +118,7 @@ it('seeds one verified customer with favorites', function (): void {
 
     expect($customer->email_verified_at)->not->toBeNull();
     expect(Favorite::where('customer_id', $customer->id)->count())->toBe(3);
-    expect(ListingEvent::count())->toBeGreaterThanOrEqual(6);
+    expect(array_sum(AnalyticsReport::platformCountsByName()))->toBeGreaterThanOrEqual(6);
 });
 
 it('seeds order history for two sellers', function (): void {

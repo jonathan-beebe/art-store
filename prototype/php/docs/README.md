@@ -11,6 +11,8 @@
 |                                      | single read of the ledger.                                                                                  |
 | [`log-store.md`](log-store.md)       | The SQLite mirror of every stdout line, its ingest via a Monolog tap, and the `/admin/logs` viewer with its |
 |                                      | filters, grouping, and story view.                                                                          |
+| [`analytics.md`](analytics.md)       | The analytics store: the one `Analytics` entry point, buffered recording,   |
+|                                      | the flush lifecycle, `analytics_events`/`page_view_counts`, and the readers.                                |
 | [`messaging.md`](messaging.md)       | The one `conversations`/`messages` table serving four kinds of thread, who may read and post, the           |
 |                                      | listing-question-to-FAQ path, the live SSE badge, and the admin site's block.                               |
 | [`backups.md`](backups.md)           | **Design, not yet built.** The hourly SQLite snapshot and the nightly archive to Cloudflare R2, why they    |
