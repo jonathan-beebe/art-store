@@ -12,6 +12,7 @@ use App\Analytics\Admin\EventTotals;
 use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\FunnelDefinition;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AnalyticsQueryRequest;
 use Illuminate\View\View;
@@ -55,7 +56,7 @@ final class AnalyticsController extends Controller
             'now' => $now,
             'rangeCaption' => $range->caption(),
             'dayLabels' => $range->dayLabels(),
-            'funnel' => Funnel::forRange($range),
+            'funnel' => Funnel::forRange(FunnelDefinition::storefront(), $range),
             'events' => EventTotals::forRange($range, $search),
             'actors' => ActorLeaderboard::forRange($range, $actorKind, $search, self::LEADERBOARD_LIMIT),
             'channelsSummary' => $this->channelsSummary($channels),

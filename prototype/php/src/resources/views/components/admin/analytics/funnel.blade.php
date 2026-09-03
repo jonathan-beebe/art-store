@@ -14,9 +14,6 @@
         \App\Domain\Analytics\ChangeDirection::Down => $deltaClasses['down'],
         \App\Domain\Analytics\ChangeDirection::Flat => $deltaClasses['flat'],
     };
-
-    $first = $funnel->steps[0]->current;
-    $shareOf = fn (int $current): int => $first > 0 ? max(2, (int) round(($current / $first) * 100)) : 0;
 @endphp
 
 <dl {{ $attributes->merge(['class' => 'mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7']) }}>
@@ -43,7 +40,7 @@
             @endif
 
             <div class="mt-2 h-1.5 w-full rounded-full bg-stone-100 dark:bg-stone-800">
-                <div style="width: {{ $shareOf($step->current) }}%" class="h-1.5 rounded-full bg-stone-500 dark:bg-stone-400"></div>
+                <div style="width: {{ $step->shareOfFirst }}%" class="h-1.5 rounded-full bg-stone-500 dark:bg-stone-400"></div>
             </div>
         </div>
     @endforeach

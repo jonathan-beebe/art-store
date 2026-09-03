@@ -13,7 +13,18 @@ use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 use App\Http\Middleware\LogRequestStory;
+use App\Support\RequestMarks;
 use Illuminate\Http\Request;
+
+/**
+ * Binds an in-flight request carrying the given session cookie, so the next
+ * recorded event reads it back from {@see \App\Analytics\RequestFacts::current()}.
+ */
+$bindSession = function (string $sessionId): void {
+    $request = Request::create('/', cookies: [RequestMarks::SESSION_COOKIE => $sessionId]);
+    $request->attributes->set(LogRequestStory::REQUEST_ID_ATTRIBUTE, 'req_01J00000000000000000000ABC');
+    app()->instance('request', $request);
+};
 
 it('redirects /admin/stats to /admin/analytics permanently for a signed-in admin', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/stats');
@@ -57,7 +68,7 @@ it('shows the right counts, changes, and labels for a seeded event', function ()
         ->assertSeeInOrder(['listing.view', '2', '1', '+100.0%']);
 });
 
-it('shows the funnel above the events table, with its rates and the cancelled note', function (): void {
+it('shows the funnel above the events table, with its rates and the cancelled note', function () use ($bindSession): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $customer = $this->verifiedCustomer();
@@ -68,7 +79,9 @@ it('shows the funnel above the events table, with its rates and the cancelled no
 
     $paid = $this->orderFor($customer, $listing);
     $cancelled = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    $bindSession('sess-pay');
     app(FinalizeOrder::class)($paid, '4242 4242 4242 4242', $this->moment('2026-08-20 10:00:00'));
+    $bindSession('sess-cancel');
     app(CancelOrder::class)($cancelled, $this->moment('2026-08-20 11:00:00'));
     $analytics->flush();
 
