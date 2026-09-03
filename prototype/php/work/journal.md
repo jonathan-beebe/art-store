@@ -5,7 +5,7 @@
 - RSRCH: 2
 - DSGN: 10
 - ARCH: 1
-- FEAT: 49
+- FEAT: 50
 - IMPRV: 26
 - MAINT: 7
 - A11Y: 1
@@ -13,6 +13,8 @@
 - BUG: 15
 
 ## Log
+
+- 2026-09-02:19:17:40 — FEAT-049 — defined: admins define funnels as ordered event names
 
 - 2026-09-02:19:11:39 — DSGN-009 — defined: the funnel draws as a funnel
 
