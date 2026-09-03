@@ -11,6 +11,7 @@ use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\FunnelDefinition;
+use App\Domain\Seeding\Lcg;
 use App\Http\Middleware\LogRequestStory;
 use App\Models\Order;
 use App\Support\RequestMarks;
@@ -293,4 +294,45 @@ it('reads a seller with no listings as an empty funnel rather than every order',
     $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
 
     expect(Funnel::forSeller(FunnelDefinition::storefront(), $seller, $range)->steps[4]->current)->toBe(0);
+});
+
+it('never lets a step\'s count exceed the step before it, for random funnel-consistent event mixes', function () use ($bindSession): void {
+    $listing = $this->listing($this->seller());
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+    $names = FunnelDefinition::storefront()->steps;
+
+    foreach ([11, 47, 991, 20260903] as $seed) {
+        $rng = Lcg::seeded($seed);
+
+        for ($session = 0; $session < 60; $session++) {
+            $bindSession("prop-{$seed}-{$session}");
+
+            // A funnel-consistent session only reaches a step after
+            // clearing every step before it, the way the real store's
+            // own action flow gates checkout on a cart and a sale on a
+            // placed order — the loop stops at the first step this
+            // session fails to clear.
+            foreach ($names as $stepIndex => $name) {
+                if ($rng->nextInt(100) >= 65) {
+                    break;
+                }
+
+                $analytics->recordEvent(AnalyticsEvent::forListing($name, $listing->id, $customer->id, $this->moment('2026-08-19 09:00:00'), "prop-{$seed}-{$session}-{$stepIndex}"));
+            }
+        }
+    }
+
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $steps = Funnel::forRange(FunnelDefinition::storefront(), $range)->steps;
+
+    for ($stepIndex = 1; $stepIndex < count($steps); $stepIndex++) {
+        expect($steps[$stepIndex]->current)->toBeLessThanOrEqual($steps[$stepIndex - 1]->current);
+    }
+
+    // The property only says something once counts vary — a run that drew
+    // zero attrition everywhere would pass vacuously.
+    expect($steps[count($steps) - 1]->current)->toBeLessThan($steps[0]->current);
 });

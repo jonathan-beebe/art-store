@@ -81,3 +81,29 @@ it('caps tiles at eight, however many funnels exist', function (): void {
 
     expect(FunnelTiles::forRange($range))->toHaveCount(8);
 });
+
+it('reads one funnel\'s tile on a fixed number of queries', function (): void {
+    Funnel::factory()->create(['steps' => ['listing.view', 'listing.cart_add']]);
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+
+    $this->expectsDatabaseQueryCount(1, 'sqlite')
+        ->expectsDatabaseQueryCount(2, 'analytics');
+
+    FunnelTiles::forRange($range);
+});
+
+it('reads three funnels\' tiles on a fixed number of queries per funnel, regardless of step count', function (): void {
+    Funnel::factory()->create(['position' => 1, 'steps' => ['listing.view', 'listing.cart_add']]);
+    Funnel::factory()->create(['position' => 2, 'steps' => ['listing.view', 'listing.cart_add', 'checkout.open', 'order.place', 'order.pay']]);
+    Funnel::factory()->create(['position' => 3, 'steps' => ['listing.view', 'listing.favorite', 'listing.cart_add', 'checkout.open', 'order.place', 'order.pay', 'order.cancel']]);
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+
+    // One query to read the funnel rows; two analytics statements per
+    // funnel — a fixed cost per funnel, never per step.
+    $this->expectsDatabaseQueryCount(1, 'sqlite')
+        ->expectsDatabaseQueryCount(6, 'analytics');
+
+    FunnelTiles::forRange($range);
+});
