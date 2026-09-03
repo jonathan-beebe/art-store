@@ -48,7 +48,7 @@
             </p>
         @endif
 
-        <div class="mt-4 overflow-hidden rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
+        <div class="mt-4 shrink-0 overflow-hidden rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900">
             <x-admin.log-lines :lines="$lines" :open="true" :headers="true" />
         </div>
     @endif
