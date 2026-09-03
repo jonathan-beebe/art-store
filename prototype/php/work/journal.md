@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-02:20:15:32 — FEAT-047 — done: admin channel pages, an actor's visits panel, and analytics_visits retention
+
 - 2026-09-02:19:17:40 — FEAT-049 — defined: admins define funnels as ordered event names
 
 - 2026-09-02:19:11:39 — DSGN-009 — defined: the funnel draws as a funnel
