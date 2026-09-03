@@ -290,6 +290,45 @@ it('names a deleted listing "listing no longer exists" on the actor page\'s feed
     $response->assertSee('listing no longer exists');
 });
 
+it('names an order subject on the actor page\'s feed, linked to the order, with its listing titles', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Starry Night']);
+    $customer = $this->verifiedCustomer();
+    $order = $this->orderFor($customer, $listing);
+    app(Analytics::class)->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', ['customer' => $customer, 'event' => 'order.place']));
+
+    $response->assertOk();
+    $response->assertSee("order {$order->id}");
+    $response->assertSee('href="'.route('admin.orders.show', $order).'"', escape: false);
+    $response->assertSee('Starry Night');
+});
+
+it('names a cart subject on the actor page\'s feed, unlinked, with its listing titles', function (): void {
+    $listing = $this->listing($this->seller(), ['title' => 'Starry Night']);
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartFor($customer);
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forCart(
+        AnalyticsEventName::CheckoutOpen,
+        $cart->id,
+        $customer->id,
+        $this->moment('2026-08-19 09:00:00'),
+        ['listing_ids' => [$listing->id]],
+    ));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee("cart {$cart->id}");
+    $response->assertSee('Starry Night');
+});
+
 it('renders the all-actors page on a fixed number of queries however many actors the range holds', function (): void {
     $listing = $this->listing($this->seller());
     $analytics = app(Analytics::class);

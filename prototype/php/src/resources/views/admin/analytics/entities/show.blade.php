@@ -10,10 +10,11 @@
 
     $badgeTint = $activity->kind === 'verified' ? 'ok' : 'neutral';
 
-    $otherHref = fn (\App\Analytics\Admin\EntityFeedRow $row): string => route(
-        $row->otherKind === 'listing' ? 'admin.analytics.listings.show' : 'admin.analytics.actors.show',
-        $row->otherKind === 'listing' ? ['listing' => $row->otherId] : ['customer' => $row->otherId],
-    );
+    $otherHref = fn (\App\Analytics\Admin\EntityFeedRow $row): string => match ($row->otherKind) {
+        'listing' => route('admin.analytics.listings.show', ['listing' => $row->otherId]),
+        'order' => route('admin.orders.show', ['order' => $row->otherId]),
+        default => route('admin.analytics.actors.show', ['customer' => $row->otherId]),
+    };
 @endphp
 
 <x-layouts.admin :title="$activity->title.' — Art Store admin'" mode="content-wide">
@@ -72,6 +73,15 @@
         @endforeach
     </dl>
 
+    {{-- funnel --}}
+    @isset($funnel)
+        <section aria-labelledby="analytics-entity-funnel-heading" class="mt-6">
+            <h2 id="analytics-entity-funnel-heading" class="font-semibold text-stone-700 dark:text-stone-300">Funnel</h2>
+
+            <x-admin.analytics.funnel :funnel="$funnel" />
+        </section>
+    @endisset
+
     {{-- strip --}}
     <section class="mt-6">
         <h2 class="font-semibold text-stone-700 dark:text-stone-300">{{ $activity->stripTitle }}</h2>
@@ -123,6 +133,9 @@
                                             <span class="font-medium text-stone-900 dark:text-stone-100">{{ $row->otherLabel }}</span>
                                         @endif
                                         <x-admin.log-id-chip :id="$row->otherId" />
+                                        @if ($row->listingTitles !== [])
+                                            <span class="text-stone-500 dark:text-stone-400">— {{ implode(', ', $row->listingTitles) }}</span>
+                                        @endif
                                     </div>
                                     <div class="mt-0.5 flex flex-wrap gap-3 font-mono text-[11px] text-stone-500 dark:text-stone-400">
                                         <span>{{ $row->name }}</span>

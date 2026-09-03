@@ -284,12 +284,24 @@ batch — a store outage loses buffered rows, never blocks the request.
 
 `analytics_events` holds one row per occurrence, named from a closed
 vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
-`listing.cart_add`), with a nullable `dedupe_key` unique index. A listing
+`listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
+`order.cancel`), with a nullable `dedupe_key` unique index. A listing
 view collapses to one row per (listing, customer, UTC hour) by expressing
 that window as a dedupe key and inserting with `INSERT OR IGNORE` — no read
 happens in the request to decide whether the write is a duplicate.
 `page_view_counts` stays the roll-up the flush maintains, one upsert per
 (site, path pattern, day) carrying the buffered hit count.
+
+The storefront funnel's four steps beyond the cart carry `subject_type =
+'cart'` (`checkout.open`, before an order exists to name) or `subject_type
+= 'order'` (`order.place`, `order.pay`, `order.cancel`), each `data`
+carrying `listing_ids` — the listings the cart or order spans, so a
+per-listing funnel reads it without a join — and `order.pay` additionally
+carrying `total_cents`. Every recording happens after the commerce write
+that caused it commits, never inside that write's own transaction and
+never itself a commerce write, so a rolled-back order or payment leaves no
+event behind; `order.pay` is recorded only on an approved payment, not a
+decline.
 
 Every row also carries the request that produced it: `ip` and `session_id`
 as their own indexed columns, so "everything from this ip" and "everything
@@ -484,10 +496,11 @@ layout is per stack.
 |                                                                         | optional)                                                                |
 | `/admin/stats`                                                          | Node and Rails: page views by day (7-day window) and by route pattern,   |
 |                                                                         | listing event tallies. PHP: permanent redirect to `/admin/analytics`     |
-| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | every event name compared with the range before it, a daily bar strip,   |
-|                                                                         | distinct subject/actor counts, and the actors with the highest events-   |
-|                                                                         | per-hour peak; `q` narrows both tables and a pasted listing or customer  |
-|                                                                         | id or a shared ip jumps straight to it                                   |
+| `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | the storefront funnel (visitors through paid orders) above every event   |
+|                                                                         | name compared with the range before it, a daily bar strip, distinct      |
+|                                                                         | subject/actor counts, and the actors with the highest events-per-hour    |
+|                                                                         | peak; `q` narrows both tables and a pasted listing or customer id or a   |
+|                                                                         | shared ip jumps straight to it                                           |
 | `/admin/analytics/events/:name?range=&by=listing\|actor\|pattern`       | one event name's range tiles, daily bars, and a breakdown by listing,    |
 |                                                                         | actor, or — for `page.view` — route pattern                              |
 | `/admin/analytics/actors?range=&sort=active\|recent&actors=&q=&page=`   | every actor that carried an event in the range, paged, sorted by most    |
@@ -798,3 +811,26 @@ views by day and by route pattern, the listing-event tally) is on
 permanent redirect to `/admin/analytics`, behind the same admin guard. §5's
 `/admin/stats` row reworded to match. PHP ships this on MAINT-006; node and
 rails keep the page until they ship the drill-in.
+
+2026-09-02, storefront funnel events: §2.6 gains the vocabulary and shape
+for `checkout.open`, `order.place`, `order.pay`, and `order.cancel` — the
+steps between the cart and a paid or cancelled order, recorded by
+`Shop\CheckoutController::show` and `App\Actions\Orders\{PlaceOrder,FinalizeOrder,CancelOrder}`
+through a constructor-injected `Analytics`, after each action's own
+commerce transaction commits. PHP ships the vocabulary and recording on
+FEAT-046; the funnel query and admin pages that read these events are a
+following ticket. Node and rails owe the same four names once they ship.
+
+2026-09-02, funnel: `App\Analytics\Admin\Funnel` reads the vocabulary §2.6
+named above into the funnel FEAT-046 set out to build — visitors through
+paid orders, for the whole store, one listing, or one seller, each step's
+rate read from the step before it and the range's cancelled count riding
+as a note on the paid step rather than a step of its own. §5's
+`/admin/analytics` and `/admin/analytics/listings/:listing` rows gain the
+funnel; the admin seller page carries its own 30-day funnel with no range
+control. `EntityActivity::forActor()`'s feed, which read every subject as
+a listing, now names an order or a cart subject the way its own row does.
+PHP ships the query, the three pages, and the feed fix on FEAT-046 —
+`prototype/php/docs/analytics.md` § "The funnel" is the reference; node
+and rails owe the same funnel once their admin analytics drill-ins reach
+this ticket's starting point.

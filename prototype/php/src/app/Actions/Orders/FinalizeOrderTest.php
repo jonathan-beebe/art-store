@@ -9,6 +9,7 @@ use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Fulfillment\DeclineFulfillment;
+use App\Analytics\Analytics;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
@@ -22,6 +23,7 @@ use App\Models\LedgerEntry;
 use App\Models\Listing;
 use App\Notifications\ItemSold;
 use DomainException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
 
@@ -95,6 +97,38 @@ it('fails the payment for a declined card', function (): void {
     expect($order->status)->toBe(OrderStatus::PaymentFailed)
         ->and($order->finalized_at)->toBeNull()
         ->and($order->payments()->sole()->decline_reason)->toBe(DeclineReason::GenericDecline);
+});
+
+it('records an order.pay event carrying the total and the order\'s listings', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000]);
+    $order = $this->orderFor($customer, $listing);
+    $now = $this->moment('2026-08-20 10:00:00');
+
+    app(FinalizeOrder::class)($order, '4242 4242 4242 4242', $now);
+    app(Analytics::class)->flush();
+
+    $event = DB::connection('analytics')->table('analytics_events')->where('name', 'order.pay')->sole();
+    /** @var string $eventData */
+    $eventData = $event->data;
+    /** @var array<string, mixed> $data */
+    $data = json_decode($eventData, true);
+
+    expect($event->subject_type)->toBe('order')
+        ->and($event->subject_id)->toBe($order->id)
+        ->and($event->actor_id)->toBe($customer->id)
+        ->and($event->occurred_at)->toBe('2026-08-20 10:00:00')
+        ->and($data['listing_ids'])->toBe([$listing->id])
+        ->and($data['total_cents'])->toBe(45000);
+});
+
+it('records no order.pay event for a declined card', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
+
+    app(FinalizeOrder::class)($order, '4000 0000 0000 0002', $this->moment('2026-08-20 10:00:00'));
+    app(Analytics::class)->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->where('name', 'order.pay')->exists())->toBeFalse();
 });
 
 it('puts the stock back on the storefront for a declined card', function (): void {

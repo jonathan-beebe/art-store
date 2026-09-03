@@ -34,6 +34,8 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Analytics/ListingEventCounts.php' => 'value carrier; exercised through AnalyticsReportTest',
         'app/Analytics/AnalyticsEventRow.php' => 'value carrier; exercised through AnalyticsReportTest',
         'app/Analytics/Admin/EventTotal.php' => 'value carrier; exercised through EventTotalsTest',
+        'app/Analytics/Admin/FunnelStep.php' => 'value carrier; exercised through FunnelTest',
+        'app/Analytics/Admin/FunnelView.php' => 'value carrier; exercised through FunnelTest',
         'app/Analytics/Admin/ActorSummary.php' => 'value carrier; exercised through ActorAggregatesTest',
         'app/Analytics/Admin/ActorsPage.php' => 'value carrier; exercised through ActorListTest',
         'app/Analytics/Admin/Jump.php' => 'value carrier; exercised through AnalyticsJumpTest',

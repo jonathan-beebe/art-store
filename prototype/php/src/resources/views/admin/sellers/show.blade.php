@@ -31,6 +31,15 @@
         </div>
     </dl>
 
+    <section aria-labelledby="funnel-heading" class="mt-6">
+        <div class="flex flex-wrap items-baseline gap-3">
+            <h2 id="funnel-heading" class="font-semibold text-stone-700 dark:text-stone-300">Funnel, last 30 days</h2>
+            <a href="{{ route('admin.analytics.index') }}" class="ml-auto text-stone-700 dark:text-stone-300 underline">Analytics</a>
+        </div>
+
+        <x-admin.analytics.funnel :funnel="$funnel" />
+    </section>
+
     <section aria-labelledby="balance-heading" class="mt-6">
         <h2 id="balance-heading" class="font-semibold text-stone-700 dark:text-stone-300">Escrow balance</h2>
 

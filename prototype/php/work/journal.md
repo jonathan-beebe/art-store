@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-09-02:18:31:10 — FEAT-046 — done: the funnel query, the funnel on three admin pages, and an actor feed fix for order/cart subjects
+
+- 2026-09-02:17:33:10 — FEAT-046 — started
+
 - 2026-09-02:17:30:57 — FEAT-048 — defined: a local-dev seed fills ninety days of store activity
 
 - 2026-09-02:17:22:30 — FEAT-047 — defined: every visit carries its referrer and campaign to the order

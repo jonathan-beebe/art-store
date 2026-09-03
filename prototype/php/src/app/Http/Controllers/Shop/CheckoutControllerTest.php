@@ -4,15 +4,18 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Analytics\Analytics;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\RateLimiting\RateLimitValue;
+use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\ListingRemoval;
 use App\Models\Order;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Tests\CapturedStory;
 
@@ -38,6 +41,26 @@ $checkoutFields = function (): array {
 
 it('sends an empty cart back to the cart page', function (): void {
     $this->get('/checkout')->assertRedirect(route('shop.cart'));
+});
+
+it('records a checkout.open event for the visitor\'s cart', function () use ($fillCart): void {
+    $this->visitor();
+    $fillCart();
+
+    $this->get('/checkout');
+    app(Analytics::class)->flush();
+
+    $cart = Cart::sole();
+    $event = DB::connection('analytics')->table('analytics_events')->where('name', 'checkout.open')->sole();
+    /** @var string $eventData */
+    $eventData = $event->data;
+    /** @var array<string, mixed> $data */
+    $data = json_decode($eventData, true);
+
+    expect($event->subject_type)->toBe('cart')
+        ->and($event->subject_id)->toBe($cart->id)
+        ->and($event->actor_id)->toBe($cart->customer_id)
+        ->and($data['listing_ids'])->toBe([$cart->items()->sole()->listing_id]);
 });
 
 it('refuses to place an order from an empty cart', function () use ($checkoutFields): void {

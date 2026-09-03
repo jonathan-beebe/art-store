@@ -42,6 +42,10 @@ final class EntityActivity
 
     private const string OTHER_LISTING = 'listing';
 
+    private const string OTHER_ORDER = 'order';
+
+    private const string OTHER_CART = 'cart';
+
     public static function forListing(Listing $listing, AnalyticsRange $range, ?AnalyticsEventName $filter): EntityActivityView
     {
         $scope = fn (Builder $query): Builder => $query->where('subject_type', 'listing')->where('subject_id', $listing->id);
@@ -532,7 +536,7 @@ final class EntityActivity
         $rows = $query->orderByDesc('occurred_at')->orderByDesc('id')->limit(self::FEED_LIMIT)->get();
 
         $feedRows = $otherKind === self::OTHER_LISTING
-            ? self::feedRowsWithListingOther($rows)
+            ? self::feedRowsForActorPage($rows)
             : self::feedRowsWithActorOther($rows);
 
         return [$feedRows, $total];
@@ -563,42 +567,147 @@ final class EntityActivity
                 ? ActorIdentity::of($customer)->who
                 : 'Anonymous visitor';
 
-            return self::feedRow($row, $name, $otherLabel, $actorId ?? '', self::OTHER_ACTOR, true);
+            return self::feedRow($row, $name, $otherLabel, $actorId ?? '', self::OTHER_ACTOR, true, []);
         })->all();
 
         return array_values($mapped);
     }
 
     /**
-     * The actor entity page's feed: every row's other party is the listing
-     * it happened to, which may since have been deleted.
+     * The actor entity page's feed: every row's other party is whatever
+     * the event's own subject names. A listing view, favorite, or cart
+     * add names the listing it happened to, which may since have been
+     * deleted. A checkout, order placement, order payment, or order
+     * cancellation has no listing subject — its subject is a cart or an
+     * order — so it names that instead, with the listings it spans read
+     * back out of `data.listing_ids` ({@see listingIdsForFeedRow()}). One
+     * `Listing::whereIn()` covers every row's listing ids at once, whether
+     * they came from `subject_id` or from that JSON array.
      *
      * @param  Collection<int, stdClass>  $rows
      * @return list<EntityFeedRow>
      */
-    private static function feedRowsWithListingOther(Collection $rows): array
+    private static function feedRowsForActorPage(Collection $rows): array
     {
         /** @var list<string> $listingIds */
-        $listingIds = $rows->pluck('subject_id')->filter()->unique()->values()->all();
+        $listingIds = $rows->flatMap(self::listingIdsForFeedRow(...))->unique()->values()->all();
         $listings = Listing::query()->whereIn('id', $listingIds)->get()->keyBy('id');
 
         $mapped = $rows->map(function (stdClass $row) use ($listings): EntityFeedRow {
             /** @var string $eventName */
             $eventName = $row->name;
             $name = AnalyticsEventName::from($eventName);
-            /** @var string|null $subjectId */
-            $subjectId = $row->subject_id;
-            $listing = $subjectId !== null ? $listings->get($subjectId) : null;
+            /** @var string|null $subjectType */
+            $subjectType = $row->subject_type;
 
-            $otherLabel = $listing instanceof Listing ? $listing->title : 'listing no longer exists';
-
-            return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', self::OTHER_LISTING, $listing instanceof Listing);
+            return match ($subjectType) {
+                'order' => self::feedRowForOrder($row, $name, $listings),
+                'cart' => self::feedRowForCart($row, $name, $listings),
+                default => self::feedRowForListing($row, $name, $listings),
+            };
         })->all();
 
         return array_values($mapped);
     }
 
-    private static function feedRow(stdClass $row, AnalyticsEventName $name, string $otherLabel, string $otherId, string $otherKind, bool $otherExists): EntityFeedRow
+    /**
+     * @param  Collection<string, Listing>  $listings
+     */
+    private static function feedRowForListing(stdClass $row, AnalyticsEventName $name, Collection $listings): EntityFeedRow
+    {
+        /** @var string|null $subjectId */
+        $subjectId = $row->subject_id;
+        $listing = $subjectId !== null ? $listings->get($subjectId) : null;
+
+        $otherLabel = $listing instanceof Listing ? $listing->title : 'listing no longer exists';
+
+        return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', self::OTHER_LISTING, $listing instanceof Listing, []);
+    }
+
+    /**
+     * @param  Collection<string, Listing>  $listings
+     */
+    private static function feedRowForOrder(stdClass $row, AnalyticsEventName $name, Collection $listings): EntityFeedRow
+    {
+        /** @var string $orderId */
+        $orderId = $row->subject_id ?? '';
+
+        return self::feedRow($row, $name, "order {$orderId}", $orderId, self::OTHER_ORDER, true, self::listingTitles($row, $listings));
+    }
+
+    /**
+     * A cart carries no page of its own to link to, unlike an order or a
+     * listing — its row names it and lists what it held, unlinked.
+     *
+     * @param  Collection<string, Listing>  $listings
+     */
+    private static function feedRowForCart(stdClass $row, AnalyticsEventName $name, Collection $listings): EntityFeedRow
+    {
+        /** @var string $cartId */
+        $cartId = $row->subject_id ?? '';
+
+        return self::feedRow($row, $name, "cart {$cartId}", $cartId, self::OTHER_CART, false, self::listingTitles($row, $listings));
+    }
+
+    /**
+     * The listing ids one feed row needs {@see feedRowsForActorPage()} to
+     * have already fetched: a listing subject's own id, or an order or
+     * cart subject's `data.listing_ids`.
+     *
+     * @return list<string>
+     */
+    private static function listingIdsForFeedRow(stdClass $row): array
+    {
+        /** @var string|null $subjectType */
+        $subjectType = $row->subject_type;
+
+        if ($subjectType === 'order' || $subjectType === 'cart') {
+            return self::dataListingIds($row);
+        }
+
+        /** @var string|null $subjectId */
+        $subjectId = $row->subject_id;
+
+        return $subjectId === null ? [] : [$subjectId];
+    }
+
+    /**
+     * @param  Collection<string, Listing>  $listings
+     * @return list<string>
+     */
+    private static function listingTitles(stdClass $row, Collection $listings): array
+    {
+        $titles = [];
+
+        foreach (self::dataListingIds($row) as $listingId) {
+            $listing = $listings->get($listingId);
+
+            if ($listing instanceof Listing) {
+                $titles[] = $listing->title;
+            }
+        }
+
+        return $titles;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function dataListingIds(stdClass $row): array
+    {
+        /** @var string $data */
+        $data = $row->data;
+        /** @var array<string, mixed> $decoded */
+        $decoded = json_decode($data, true);
+        $listingIds = $decoded['listing_ids'] ?? [];
+
+        return is_array($listingIds) ? array_values(array_filter($listingIds, is_string(...))) : [];
+    }
+
+    /**
+     * @param  list<string>  $listingTitles
+     */
+    private static function feedRow(stdClass $row, AnalyticsEventName $name, string $otherLabel, string $otherId, string $otherKind, bool $otherExists, array $listingTitles): EntityFeedRow
     {
         /** @var string $occurredAt */
         $occurredAt = $row->occurred_at;
@@ -615,6 +724,7 @@ final class EntityActivity
             $otherId,
             $otherKind,
             $otherExists,
+            $listingTitles,
             $ip,
             $sessionId,
             self::requestId($row),

@@ -10,10 +10,12 @@ use App\Actions\Configurator\AddUnit;
 use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\CreateVariant;
 use App\Actions\Configurator\GenerateVariants;
+use App\Analytics\Analytics;
 use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\OrderStatus;
+use Illuminate\Support\Facades\DB;
 use Tests\CapturedStory;
 
 it('cancels an order regardless of its starting status', function (OrderStatus $startingStatus): void {
@@ -153,4 +155,37 @@ it('tells the story of a refusal without changing anything', function (): void {
         ->toThrow(DomainRuleViolation::class);
 
     expect($log->values('phase', 'order.cancel'))->toBe(['will', 'refused']);
+});
+
+it('records an order.cancel event carrying the order\'s listings', function (): void {
+    $customer = $this->verifiedCustomer();
+    $listing = $this->listing($this->seller(), ['price_cents' => 45000]);
+    $order = $this->orderFor($customer, $listing);
+    $now = $this->moment('2026-08-21 09:00:00');
+
+    app(CancelOrder::class)($order, $now);
+    app(Analytics::class)->flush();
+
+    $event = DB::connection('analytics')->table('analytics_events')->where('name', 'order.cancel')->sole();
+    /** @var string $eventData */
+    $eventData = $event->data;
+    /** @var array<string, mixed> $data */
+    $data = json_decode($eventData, true);
+
+    expect($event->subject_type)->toBe('order')
+        ->and($event->subject_id)->toBe($order->id)
+        ->and($event->actor_id)->toBe($customer->id)
+        ->and($event->occurred_at)->toBe('2026-08-21 09:00:00')
+        ->and($data['listing_ids'])->toBe([$listing->id]);
+});
+
+it('records no order.cancel event when the cancellation is refused', function (): void {
+    $order = $this->paidOrderWithTwoSellers();
+
+    expect(fn () => app(CancelOrder::class)($order, $this->moment('2026-08-21 09:00:00')))
+        ->toThrow(DomainRuleViolation::class);
+
+    app(Analytics::class)->flush();
+
+    expect(DB::connection('analytics')->table('analytics_events')->where('name', 'order.cancel')->exists())->toBeFalse();
 });

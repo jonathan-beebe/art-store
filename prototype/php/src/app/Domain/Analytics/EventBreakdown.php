@@ -21,6 +21,19 @@ enum EventBreakdown: string
     /** The event name the `page.view` roll-up is recorded under. */
     public const string PAGE_VIEW_EVENT_NAME = 'page.view';
 
+    /** Event names whose subject is a cart or an order rather than a
+     * listing — checkout and the order steps a shopper causes on the way
+     * through the funnel — so the only breakdown they offer is by actor.
+     *
+     * @var list<string>
+     */
+    private const array ACTOR_ONLY_EVENT_NAMES = [
+        'checkout.open',
+        'order.place',
+        'order.pay',
+        'order.cancel',
+    ];
+
     /** The `page.view` roll-up's label everywhere the drill-in shows it —
      * it carries no {@see AnalyticsEventName} case of its own to hold one. */
     public const string PAGE_VIEW_LABEL = 'Page views';
@@ -31,21 +44,28 @@ enum EventBreakdown: string
 
     /**
      * `page.view` carries no subject or actor of its own, so a pattern is
-     * the only breakdown it offers; every other event name offers the
-     * other two.
+     * the only breakdown it offers; a cart or order event ({@see
+     * ACTOR_ONLY_EVENT_NAMES}) offers only actor, since its row names no
+     * listing; every other event name offers both listing and actor.
      *
      * @return list<self>
      */
     public static function allowedFor(string $eventName): array
     {
-        return $eventName === self::PAGE_VIEW_EVENT_NAME
-            ? [self::Pattern]
-            : [self::Listing, self::Actor];
+        return match (true) {
+            $eventName === self::PAGE_VIEW_EVENT_NAME => [self::Pattern],
+            in_array($eventName, self::ACTOR_ONLY_EVENT_NAMES, true) => [self::Actor],
+            default => [self::Listing, self::Actor],
+        };
     }
 
     public static function defaultFor(string $eventName): self
     {
-        return $eventName === self::PAGE_VIEW_EVENT_NAME ? self::Pattern : self::Listing;
+        return match (true) {
+            $eventName === self::PAGE_VIEW_EVENT_NAME => self::Pattern,
+            in_array($eventName, self::ACTOR_ONLY_EVENT_NAMES, true) => self::Actor,
+            default => self::Listing,
+        };
     }
 
     /** The event page's breakdown heading. */

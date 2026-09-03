@@ -8,6 +8,20 @@ use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
 
+it('shows the funnel below the tiles, counting only this listing\'s own order', function (): void {
+    $seller = $this->seller();
+    $listingOne = $this->listing($seller);
+    $listingTwo = $this->listing($seller);
+    $this->orderFor($this->verifiedCustomer(), $listingOne, $listingTwo);
+    app(Analytics::class)->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.listings.show', $listingOne));
+
+    $response->assertOk();
+    $response->assertSeeInOrder(['Busiest day', 'Funnel', 'Visitors', 'Orders placed', 'By day']);
+});
+
 it('renders 200 with the listing\'s facts, tiles, and feed', function (): void {
     $seller = $this->seller('Weasley Studio');
     $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
@@ -96,7 +110,7 @@ it('renders the listing page on a fixed number of queries however many actors it
     $this->travelTo($this->moment('2026-08-24 12:00:00'));
     $response = $this->actingAs($this->admin(), 'admin')
         ->expectsDatabaseQueryCount(7, 'sqlite')
-        ->expectsDatabaseQueryCount(8, 'analytics')
+        ->expectsDatabaseQueryCount(10, 'analytics')
         ->get(route('admin.analytics.listings.show', $listing));
 
     $response->assertOk();

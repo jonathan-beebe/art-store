@@ -131,8 +131,8 @@ commerce writes stand regardless.
 | `id`           | text(30) PK              | prefix `aev`                                                  |
 | `name`         | string                   | closed vocabulary — see below                                 |
 | `occurred_at`  | timestamp                | UTC; the instant recorded, not the instant written            |
-| `subject_type` | string, nullable         | e.g. `listing`                                                |
-| `subject_id`   | text(30), nullable       | references e.g. `listings.id`, no FK                          |
+| `subject_type` | string, nullable         | `listing`, `cart`, or `order`                                 |
+| `subject_id`   | text(30), nullable       | references e.g. `listings.id`, `carts.id`, `orders.id`, no FK |
 | `actor_id`     | text(30), nullable       | references e.g. `customers.id`, no FK                         |
 | `ip`           | string(45), nullable     | the request's ip; null for a CLI run                          |
 | `session_id`   | string, nullable         | the `sid` cookie's value; null for a CLI run                  |
@@ -148,7 +148,8 @@ Indexes: `(subject_id, name)`, `(name, occurred_at)`, `actor_id`, `ip`, `session
 
 `App\Domain\Analytics\AnalyticsEventName` is the closed enum every `recordEvent()`
 call names: `listing.view`, `listing.favorite`, `listing.unfavorite`,
-`listing.cart_add`. A reader greps this one file for every name the store
+`listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
+`order.cancel`. A reader greps this one file for every name the store
 accepts.
 
 A `listing.view` carries a `dedupe_key`
@@ -160,6 +161,26 @@ already written collides on the unique index and is silently discarded — no
 read happens in the request to decide whether the write is a duplicate.
 `favorite`, `unfavorite`, and `cart_add` carry no dedupe key and are recorded
 every time; each is a deliberate click, not a page load.
+
+The four steps beyond the cart carry no dedupe key either and are recorded
+by the code that already announces each step in the story
+(`docs/logging.md`), each through a constructor-injected `Analytics`:
+`Shop\CheckoutController::show` records `checkout.open` once per request,
+`subject_type = 'cart'`, `subject_id` the visitor's cart id, `data.listing_ids`
+the listings the cart holds. `App\Actions\Orders\PlaceOrder` records
+`order.place`, `FinalizeOrder` records `order.pay` (only on an approved
+payment — a decline records nothing), and `CancelOrder` records
+`order.cancel`, all three `subject_type = 'order'`, `subject_id` the order
+id, `data.listing_ids` the listings the order spans; `order.pay` also
+carries `data.total_cents`, so a revenue report reads the paid amount
+without a join back to the commerce database. Every recording happens
+after the action's own commerce transaction commits, so an order placement
+or payment that rolls back leaves no event behind — recording never runs
+inside the commerce transaction and adds no write to the commerce database.
+`App\Actions\Orders\SweepStaleOrders` cancels stale orders through
+`CancelOrder`, so a swept order records `order.cancel` the same way a
+customer- or admin-initiated cancellation does, with no ip or session since
+the sweep runs from the console.
 
 ## Readers
 
@@ -224,6 +245,12 @@ Every class in it is a static, stateless reader — no writer lives here.
 - `EntityActivity::forListing()` / `forActor()` — one listing's or one
   actor's identity facts, range tiles, strip, and event feed, sharing every
   query and formatting helper between the two; the listing and actor pages.
+  An actor's feed reads its rows' own subject — a listing, an order, or a
+  cart — rather than assuming every subject is a listing; see "The funnel"
+  below for the order and cart shape.
+- `Funnel::forRange()` / `forListing()` / `forSeller()` — the whole
+  storefront funnel, visitors through paid orders, for the store, one
+  listing, or one seller; see "The funnel" below.
 - `SqlInstant::format()` — the one place a moment is formatted the way
   `occurred_at` compares against it; every query class above that bounds a
   range by that column goes through it.
@@ -269,11 +296,88 @@ regresses into a query per row:
 
 | Page                                 | Fixture                 | Default | Analytics |
 | ------------------------------------ | ----------------------- | ------- | --------- |
-| `/admin/analytics`                   | 12 actors               | 2       | 8         |
+| `/admin/analytics`                   | 12 actors               | 2       | 10        |
 | `/admin/analytics/events/:name`      | 8 listings (by-listing) | 4       | 5         |
 | `/admin/analytics/actors`            | 15 actors               | 2       | 4         |
 | `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 11        |
-| `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 8         |
+| `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 10        |
+
+The entry and listing pages' analytics-connection count each carry two
+statements for the funnel (`Funnel::forRange()` / `forListing()`, below) on
+top of the total the row named before it shipped.
+
+## The funnel
+
+`App\Analytics\Admin\Funnel` reads the whole storefront funnel — from a
+visitor's first event to a paid order — for a range, one listing, or one
+seller, and returns an ordered `FunnelView` of seven `FunnelStep`s:
+visitors, listing views, favorites, cart adds, checkouts opened, orders
+placed, orders paid. Each step carries its count for the range, its count
+for the range before, the `RangeChange` between them, and its rate from
+its own prerequisite step — `App\Domain\Analytics\FunnelRate`, a whole
+percentage and the ratio it rounds from, plus the prerequisite's own label
+for the "N% of {label}" a page renders; null on the visitors step, which
+has no prerequisite. A step's prerequisite is not always the step drawn
+before it: cart adds' prerequisite is listing views, since a shopper adds
+to cart from a listing page they viewed, never from having favorited it —
+favorites and cart adds are two independent things a viewer may do, not a
+chain. Every other step's prerequisite is the step drawn immediately
+before it: views read against visitors, favorites against views, checkouts
+opened against cart adds, orders placed against checkouts opened, orders
+paid against orders placed. Orders cancelled is not a step; the paid
+step's `note` carries the range's cancelled count ("N cancelled") instead,
+so a placed order that never pays is still visible without a denominator
+of its own.
+
+Definitions:
+
+- **Visitors** — distinct `session_id` among the scope's own events, null
+  session ids excluded (FEAT-047's visits will refine this). For a listing
+  or seller scope this is sessions that touched that scope specifically —
+  see "Scopes" below — not a share of the whole store's traffic, so the
+  rate below it reads as "how many of the people who touched this listing
+  bought".
+- **Listing views, favorites, cart adds** — `listing.view`, `listing.favorite`,
+  and `listing.cart_add` event counts by name.
+- **Checkouts opened, orders placed, orders paid** — `checkout.open`,
+  `order.place`, and `order.pay` event counts by name.
+- **Orders cancelled** (the paid step's note only) — `order.cancel` event
+  count for the range, not compared against the range before.
+
+Scopes: `forRange()` reads every event in the range, unscoped. `forListing()`
+and `forSeller()` (the seller's listing ids read from the app database in
+one query) narrow every step to the events that belong to those listings.
+A listing view, favorite, or cart add belongs to a listing by
+`subject_type = 'listing'` / `subject_id`, the way every other admin
+analytics page already reads it. A checkout, order placement, order
+payment, or order cancellation has no listing subject — its subject is a
+cart or an order — so it belongs to a listing through the `data.listing_ids`
+JSON array `App\Support\Orders\OrderListingIds` and
+`Shop\CheckoutController::show` write onto it, read back with SQLite's
+`json_each` (`exists (select 1 from json_each(data, '$.listing_ids') where
+value in (…))`) rather than a join, since the two connections are separate
+SQLite files. An order that spans two listings counts once on each
+listing's own funnel — the scope test is per listing, not a split of one
+order across the two.
+
+Recorded through `App\Analytics\Analytics::recordEvent()` the same as every
+other event (see "The second database" above), `Funnel::forRange()`
+computes every step in two statements against `analytics_events`: one
+grouped by name for the six event-count steps (`order.cancel` read
+alongside them for the note, never becoming a step), one for the distinct-session
+visitor count. `forListing()`/`forSeller()` run the same two statements
+with the listing scope's `WHERE` clause added, so the funnel never issues a
+query per step.
+
+A test seeds orders through `App\Actions\Orders\PlaceOrder` and
+`FinalizeOrder`, flushes the analytics buffer, and asserts the funnel's
+placed and paid counts against `Order::query()`'s own counts for the same
+range — the funnel's numbers agree with the app database's.
+
+**On the admin pages.** `x-admin.analytics.funnel` renders a `FunnelView`
+as a row of tiles, each with a bar under it sized to its share of the
+first step's count, so the row narrows the way a funnel does — see
+`docs/admin.md` § "Analytics drill-in" for where it is mounted.
 
 ## Test isolation
 

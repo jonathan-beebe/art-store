@@ -7,6 +7,9 @@ namespace App\Http\Controllers\Shop;
 use App\Actions\Auth\SendMagicLink;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
+use App\Analytics\Analytics;
+use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Auth\ActorType;
 use App\Domain\Cart\CartTotals;
 use App\Domain\DomainRuleViolation;
@@ -26,7 +29,7 @@ use Illuminate\Http\Response;
 
 final class CheckoutController extends ShopController
 {
-    public function show(): View|RedirectResponse
+    public function show(Analytics $analytics): View|RedirectResponse
     {
         $visitor = $this->visitor();
         $cart = $visitor->cart()->load('items.listing.seller');
@@ -34,6 +37,17 @@ final class CheckoutController extends ShopController
         if ($cart->items->isEmpty()) {
             return redirect()->route('shop.cart');
         }
+
+        /** @var list<string> $listingIds */
+        $listingIds = $cart->items->pluck('listing_id')->unique()->values()->all();
+
+        $analytics->recordEvent(AnalyticsEvent::forCart(
+            AnalyticsEventName::CheckoutOpen,
+            $cart->id,
+            $cart->customer_id,
+            $this->now(),
+            ['listing_ids' => $listingIds],
+        ));
 
         return view('shop.checkout', $this->viewData($cart, $visitor));
     }

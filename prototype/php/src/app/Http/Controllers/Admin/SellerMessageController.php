@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Messaging\OpenThread;
+use App\Analytics\Admin\Funnel;
+use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Messaging\ThreadOpening;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
@@ -24,6 +26,10 @@ use Illuminate\Http\Response;
  */
 final class SellerMessageController extends AdminController
 {
+    /** The seller page's funnel panel has no range control — see
+     * SellerController::FUNNEL_RANGE_DAYS, the same window. */
+    private const int FUNNEL_RANGE_DAYS = 30;
+
     public function __invoke(
         Seller $seller,
         OpenSellerThreadRequest $request,
@@ -71,6 +77,7 @@ final class SellerMessageController extends AdminController
 
         return [
             'seller' => $seller,
+            'funnel' => Funnel::forSeller($seller, AnalyticsRange::of(self::FUNNEL_RANGE_DAYS, $this->now())),
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
             'listings' => $seller->listings()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
             'fulfillments' => $seller->fulfillments()->with('order')->orderByDesc('created_at')->orderByDesc('id')->get(),

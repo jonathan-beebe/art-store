@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin\Analytics;
 use App\Analytics\Admin\ActorLeaderboard;
 use App\Analytics\Admin\AnalyticsJump;
 use App\Analytics\Admin\EventTotals;
+use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Http\Controllers\Controller;
@@ -47,6 +48,7 @@ final class AnalyticsController extends Controller
             'now' => $now,
             'rangeCaption' => $range->caption(),
             'dayLabels' => $range->dayLabels(),
+            'funnel' => Funnel::forRange($range),
             'events' => EventTotals::forRange($range, $search),
             'actors' => ActorLeaderboard::forRange($range, $actorKind, $search, self::LEADERBOARD_LIMIT),
             'jump' => $search === null || $search === '' ? null : AnalyticsJump::for($search),
