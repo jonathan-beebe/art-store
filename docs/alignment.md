@@ -535,7 +535,7 @@ layout is per stack.
 | `/admin/analytics/channels/:key?range=&page=`                           | one channel's own visits in the range, paged, newest first               |
 | `/admin/funnels`, `/admin/funnels/create`, `POST /admin/funnels`,       | admin-defined funnels: a name and an ordered list of two or more event   |
 | `/admin/funnels/:funnel/edit`, `PUT /admin/funnels/:funnel`,            | names, validated against the analytics vocabulary; a built-in            |
-| `DELETE /admin/funnels/:funnel`                                         | "Storefront" funnel is seeded                                            |
+| `/admin/funnels/:funnel/delete`, `DELETE /admin/funnels/:funnel`        | "Storefront" funnel is seeded; `/delete` confirms before the DELETE      |
 | `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
 | `&actor=&msg=&key=&value=&from=&to=&group=&health=&viewer=`             | `key`/`value` filters on any attribute of the stored line; `group=1`     |
 |                                                                         | collapses to one summarized row per request; health checks and the       |

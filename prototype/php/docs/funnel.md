@@ -151,8 +151,10 @@ A funnel is a `Funnel` row: a name plus `steps`, an ordered list of two or
 more `AnalyticsEventName` values `FunnelDefinition::of()` validates —
 unknown or repeated names are refused at save time. Visitors is every
 funnel's implied first step and is never stored in `steps`.
-`/admin/funnels` (`admin.funnels.index|create|store|edit|update|destroy`)
-is where an admin names, reorders, and removes a funnel's steps;
+`/admin/funnels` (`admin.funnels.index|create|store|edit|update|destroy`,
+plus `admin.funnels.delete`, a confirmation page a "Delete" link visits
+before the form on it posts the `DELETE`) is where an admin names,
+reorders, and removes a funnel's steps;
 `/admin/analytics/funnels/{funnel}` (`admin.analytics.funnels.show`) is
 its detail page, drawn by `x-admin.analytics.funnel`. The built-in
 storefront funnel (`FunnelDefinition::storefront()`) is a row like any

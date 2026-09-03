@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\CustomerMessageController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\FulfillmentController;
 use App\Http\Controllers\Admin\FunnelController;
+use App\Http\Controllers\Admin\FunnelDeleteController;
 use App\Http\Controllers\Admin\LedgerController;
 use App\Http\Controllers\Admin\LiftCustomerBlockController;
 use App\Http\Controllers\Admin\LiftListingRemovalController;
@@ -61,6 +62,7 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::post('fulfillments/{fulfillment}/refund', RefundController::class)->name('fulfillments.refund');
 
     Route::resource('funnels', FunnelController::class)->except('show');
+    Route::get('funnels/{funnel}/delete', FunnelDeleteController::class)->name('funnels.delete');
 
     Route::get('accounting', AccountingController::class)->name('accounting');
     Route::get('ledger', LedgerController::class)->name('ledger');

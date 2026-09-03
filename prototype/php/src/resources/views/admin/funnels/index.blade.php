@@ -26,11 +26,7 @@
                         <td class="px-4 py-2 text-stone-600 dark:text-stone-400">{{ $stepChains[$funnel->id] }}</td>
                         <td class="px-4 py-2 text-right whitespace-nowrap">
                             <a href="{{ route('admin.funnels.edit', $funnel) }}" class="text-stone-700 dark:text-stone-300 underline">Edit</a>
-                            <form method="POST" action="{{ route('admin.funnels.destroy', $funnel) }}" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ml-3 text-stone-700 dark:text-stone-300 underline">Delete</button>
-                            </form>
+                            <a href="{{ route('admin.funnels.delete', $funnel) }}" class="ml-3 text-stone-700 dark:text-stone-300 underline">Delete</a>
                         </td>
                     </tr>
                 @empty

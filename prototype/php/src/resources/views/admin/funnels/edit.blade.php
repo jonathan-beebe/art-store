@@ -11,9 +11,7 @@
         submitLabel="Save changes"
     />
 
-    <form method="POST" action="{{ route('admin.funnels.destroy', $funnel) }}" class="mt-4 max-w-2xl">
-        @csrf
-        @method('DELETE')
-        <button type="submit" class="text-red-700 dark:text-red-400 underline">Delete this funnel</button>
-    </form>
+    <p class="mt-4 max-w-2xl">
+        <a href="{{ route('admin.funnels.delete', $funnel) }}" class="text-red-700 dark:text-red-400 underline">Delete this funnel</a>
+    </p>
 </x-layouts.admin>
