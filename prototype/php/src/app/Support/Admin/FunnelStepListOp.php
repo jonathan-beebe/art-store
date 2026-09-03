@@ -8,8 +8,8 @@ namespace App\Support\Admin;
  * One editor action on a funnel's working step-name list, applied without a
  * round trip through validation — the funnel editor's "Add step", "Remove",
  * "Move up", and "Move down" buttons each post one of these back to the
- * same page, and the controller re-renders the form with the result rather
- * than saving it. An op names its target row by index: `remove_step:2`,
+ * same page, and the controller re-renders the form with the result,
+ * unsaved. An op names its target row by index: `remove_step:2`,
  * `move_up:1`, `move_down:1`; `add_step` carries none. An op naming a row
  * outside the list, or any other value (`save` included), changes nothing.
  */
