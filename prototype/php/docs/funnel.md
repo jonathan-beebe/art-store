@@ -3,7 +3,7 @@
 The boundary between the query that produces a funnel's steps and the
 component that draws them, and the contract that crosses it. Code:
 `app/Analytics/Admin/{Funnel,FunnelView,FunnelStep}.php`,
-`app/Domain/Analytics/{FunnelRate,RangeChange,BarStrip}.php`,
+`app/Domain/Analytics/{FunnelDefinition,FunnelRate,FunnelShare,RangeChange,BarStrip}.php`,
 `resources/views/components/admin/analytics/funnel.blade.php`. See
 `docs/analytics.md` § "The funnel" for the event vocabulary and scopes
 (`forRange`/`forListing`/`forSeller`) the query reads.
@@ -16,7 +16,7 @@ draws it?
 ```mermaid
 flowchart LR
     Range["AnalyticsRange"]
-    Steps["step list\n(seven built-in names today;\nadmin-defined later)"]
+    Steps["FunnelDefinition\nan admin-defined ordered step list"]
 
     subgraph query ["Funnel — one class"]
         Build["forRange / forListing / forSeller\ndistinct sessions per step,\nscoped to the store, a listing, or a seller"]
@@ -25,7 +25,7 @@ flowchart LR
     subgraph core ["Analytics domain — pure"]
         Rate["FunnelRate\nrate from the prerequisite step"]
         Change["RangeChange\ndelta vs previous range"]
-        Share["share-of-first\n(design adds)"]
+        Share["FunnelShare\nshare of the first step"]
     end
 
     View["FunnelView\nordered list of FunnelStep"]
@@ -40,42 +40,38 @@ flowchart LR
 ```
 
 `Funnel` is the one class that reads `analytics_events`; it takes a range
-and a scope and returns a `FunnelView`. `FunnelRate` and `RangeChange` are
-pure — no I/O, no reference to the request or the database — and so is the
-share-of-first computation the design adds. All three live under
-`App\Domain\Analytics`; `Funnel` is their only caller.
-`x-admin.analytics.funnel` receives a `FunnelView` and renders it: values
-only, formatted numbers and pre-computed widths, the query and every
-percentage already done by the time the component sees them.
+and a scope and returns a `FunnelView`. `FunnelRate`, `RangeChange`, and
+`FunnelShare` are pure — no I/O, no reference to the request or the
+database. All three live under `App\Domain\Analytics`; `Funnel` is their
+only caller. `x-admin.analytics.funnel` receives a `FunnelView` and
+renders it: values only, formatted numbers and pre-computed widths, the
+query and every percentage already done by the time the component sees
+them.
 
 ## The step contract
 
 `FunnelStep` is what crosses the boundary — one value per step, nothing a
-step needs computed twice. The design's accepted canvas draws every field
-below.
+step needs computed twice.
 
-| Field                  | Meaning                                                                             | Today                                 |
-| ----------------------- | ------------------------------------------------------------------------------------ | -------------------------------------- |
-| `key`                   | the event name the step counts, or `visitors` for the first step                     | absent                                 |
-| `label`                 | the heading a reader sees ("Viewed a listing")                                       | `FunnelStep::$label`                   |
-| `current`               | the step's count for the range                                                       | `FunnelStep::$current`                 |
-| `previous`              | the step's count for the range before                                                | `FunnelStep::$previous`                |
-| `change`                | `RangeChange` between `current` and `previous`                                       | `FunnelStep::$change`                  |
-| `rate`                  | `FunnelRate` against the step's prerequisite, carrying the prerequisite's own label   | `FunnelStep::$rate` (null on the first step) |
-| `shareOfFirst`          | `current` as a share of this range's first step                                      | absent — the Blade component computes it today |
-| `previousShareOfFirst`  | `previous` as a share of the previous range's own first step                         | absent                                 |
-| `isLargestDrop`         | true on the one step with the lowest `rate` among steps that carry one               | absent                                 |
-| `note`                  | an optional line below the footer (the paid step's "N cancelled")                    | `FunnelStep::$note`                    |
-| `side`                  | an optional line naming a non-path metric on a step (the viewed step's "N favorited") | absent                                 |
+| Field                  | Meaning                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `key`                   | the event name the step counts, or `visitors` for the first step                     |
+| `label`                 | the heading a reader sees ("Viewed a listing")                                       |
+| `current`               | the step's count for the range                                                       |
+| `previous`              | the step's count for the range before                                                |
+| `change`                | `RangeChange` between `current` and `previous`                                       |
+| `rate`                  | `FunnelRate` against the step's prerequisite, carrying the prerequisite's own label — null on the first step |
+| `shareOfFirst`          | `current` as a share of this range's first step                                      |
+| `previousShareOfFirst`  | `previous` as a share of the previous range's own first step                         |
+| `isLargestDrop`         | true on the one step with the lowest `rate` among steps that carry one               |
+| `note`                  | an optional line below the footer (the paid step's "N cancelled")                    |
+| `side`                  | an optional line naming a non-path metric on a step (the viewed step's "N favorited") |
 
-`key`, `shareOfFirst`, `previousShareOfFirst`, and `isLargestDrop` are what
-the design adds. The component draws `shareOfFirst` and
-`previousShareOfFirst` as the two bars and reads `isLargestDrop` to place
-the badge — it must not compute a share, a ratio, or a "which step is
-worst" comparison itself. `funnel.blade.php` does this today: `$first =
-$funnel->steps[0]->current; $shareOf = fn (int $current): int => …` is
-exactly the computation the design moves into `Funnel`, so the component
-goes back to drawing values only.
+`Funnel` computes every field on this table, `shareOfFirst`,
+`previousShareOfFirst`, and `isLargestDrop` included. The component draws
+`shareOfFirst` and `previousShareOfFirst` as the two bars and reads
+`isLargestDrop` to place the badge; it computes no share, no ratio, and no
+"which step is worst" comparison itself.
 
 ## The unit decision
 
@@ -85,33 +81,19 @@ step (`count(distinct session_id)`). A step is a subset of its
 prerequisite's sessions, so no step's count can exceed the one before it
 and no bar can exceed its container.
 
-`Funnel` does not do this today: `nameTotals()` counts events
-(`sum(case when … then 1 else 0 end)`), so a session that views the same
-listing three times inflates the "listing views" step past the visitor
-count that produced it. Moving every event-count step to
-`count(distinct session_id)` is the change the unit decision requires,
-independent of which favorites option is chosen.
+A session that views the same listing three times still counts once
+toward the "listing views" step — `Funnel::sessionsByName()` groups by
+`count(distinct session_id)` the same way `visitorTotals()` does, so an
+event-count step never inflates past the visitor count that produced it.
 
 Favorites sits off the buying path — a viewer may favorite a listing they
-never add to cart, and a cart add never depends on having favorited. Two
-options for where it renders, both compatible with the session-count
-change above:
-
-- **Primary (the accepted design).** Favorites is a side metric on the
-  viewed step: `App\Analytics\Admin\Funnel` computes the count of sessions
-  that favorited within the scope and attaches it as that step's `side`
-  ("98 favorited"), never becoming a step of its own. The ordered step
-  list stays six steps plus visitors.
-- **Option B.** Favorites stays a step, the way the current seven-tile row
-  already draws it. `Funnel` would need favorites' session count to be a
-  subset of the viewed step's session count — a session that favorited
-  without viewing (a listing favorited by id from an actor's own page, or
-  a stale row from data drift) would otherwise put a bar past its
-  container.
-
-Which option ships is the human's decision; the design canvas shows the
-primary option in `Main.dc.html`/`Dark.dc.html`/`Listing.dc.html`/
-`Phone.dc.html` and Option B in `OptionB.dc.html`.
+never add to cart, and a cart add never depends on having favorited.
+Favorites is a side metric on the viewed step: when a funnel's steps
+include `listing.view`, `Funnel` counts the sessions that favorited within
+the scope and attaches it as that step's `side` ("98 favorited"). It never
+becomes a step of its own — a session that favorited without viewing (a
+listing favorited by id from an actor's own page, or a stale row from data
+drift) would otherwise put a bar past its container.
 
 ## Drawing rules
 
@@ -163,16 +145,24 @@ text.
 anatomy, stacked top to bottom instead of side by side — no cell is
 redesigned for the narrow width.
 
-## What an admin-defined funnel needs
+## How it works
 
-The seven-step list `Funnel::EVENT_NAMES` hard-codes today becomes data: an
-ordered list of `{key, label}` entries an admin defines, each `key` an
-`AnalyticsEventName` value. `Funnel::build()` takes that list as a
-parameter instead of the fixed wiring it does today, and resolves each
-step's prerequisite by a rule that defaults to "the entry before it in the
-list" with room for the same kind of exception cart adds already needs —
-its own prerequisite is views, the entry before favorites in the list.
-Once the step contract above
-lands, `x-admin.analytics.funnel` changes nothing further: it already
-draws whatever `FunnelView` it is handed, so a four-step channel funnel
-and the seven-step storefront funnel render through the same component.
+A funnel is a `Funnel` row: a name plus `steps`, an ordered list of two or
+more `AnalyticsEventName` values `FunnelDefinition::of()` validates —
+unknown or repeated names are refused at save time. Visitors is every
+funnel's implied first step and is never stored in `steps`.
+`/admin/funnels` (`admin.funnels.index|create|store|edit|update|destroy`)
+is where an admin names, reorders, and removes a funnel's steps;
+`/admin/analytics/funnels/{funnel}` (`admin.analytics.funnels.show`) is
+its detail page, drawn by `x-admin.analytics.funnel`. The built-in
+storefront funnel (`FunnelDefinition::storefront()`) is a row like any
+other, seeded by `FunnelSeeder` on `make fresh` and edited the same way.
+
+`Funnel::build()` resolves a step's prerequisite as the entry before it in
+the definition's own list, visitors for the first named step. Favorites
+never occupying a slot in that list (see above) is what keeps cart add's
+prerequisite the entry the rule would already give it — listing views,
+with no exception to carry. Because the component only ever draws a
+`FunnelView`, a two-step funnel and the five-step storefront funnel render
+through the same markup: the grid's column count follows the step count,
+capped at seven with wrap beyond.

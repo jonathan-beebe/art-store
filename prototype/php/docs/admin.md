@@ -372,23 +372,27 @@ an ordered list of event names `App\Domain\Analytics\FunnelDefinition`
 validates, seeded with one built-in "Storefront" funnel. `App\Analytics\Admin\Funnel`
 (`docs/analytics.md` § "The funnel") reads any funnel's steps — visitors
 through its last named step — for a range, a listing, or a seller.
-The listing and seller pages always render the storefront funnel as a row
-of tiles (`x-admin.analytics.funnel`): the listing page below its own
-tiles, and the seller page (`/admin/sellers/{seller}`) as its own "Funnel,
-last 30 days" panel, since that page carries no range control and always
-reads the last 30 days. The entry page instead shows one small tile per
-funnel, in `position` order — its name, its end-to-end conversion for the
-range (the last step's sessions as a share of visitors), and the change
-in the last step's own count against the range before — each linking to
-`/admin/analytics/funnels/{funnel}`, which renders that funnel's full row
-of tiles with the range control. Every step tile carries its count, its
-rate from the step before it, and its change against the range before;
-an `order.pay` step's tile also carries the range's cancelled sessions as
-a note, and a `listing.view` step's tile carries the range's favorited
-sessions as a side count. An actor's own feed also names the order and
-cart subjects the four steps beyond the cart carry — an order links to
-`/admin/orders/{order}`, a cart does not, since it has no page of its own
-— each with the listing titles `data.listing_ids` names.
+The listing and seller pages always render the storefront funnel as a
+shared-borders grid (`x-admin.analytics.funnel`): the listing page below
+its own tiles, and the seller page (`/admin/sellers/{seller}`) as its own
+"Funnel, last 30 days" panel, since that page carries no range control
+and always reads the last 30 days. The entry page instead shows one small
+tile per funnel, in `position` order — its name, its end-to-end
+conversion for the range (the last step's sessions as a share of
+visitors), and the change in the last step's own count against the range
+before — each linking to `/admin/analytics/funnels/{funnel}`: a
+breadcrumb back to the entry page carrying the range, the funnel's name
+with its step chain as mono chips, the range control, then the same grid.
+Every cell carries its count, its rate from the step before it, its
+change against the range before, two bars (this range's and the previous
+range's own share of the first step), and the "largest drop" badge on the
+one step with the lowest rate; an `order.pay` step's cell also carries the
+range's cancelled sessions as a note, and a `listing.view` step's cell
+carries the range's favorited sessions as a side count. An actor's own
+feed also names the order and cart subjects the four steps beyond the
+cart carry — an order links to `/admin/orders/{order}`, a cart does not,
+since it has no page of its own — each with the listing titles
+`data.listing_ids` names.
 
 **Managing funnels.** `/admin/funnels` (`admin.funnels.index|create|store
 |edit|update|destroy`) is a plain CRUD resource: an admin names a funnel

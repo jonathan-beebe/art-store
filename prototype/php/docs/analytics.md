@@ -523,16 +523,16 @@ analytics buffer, and asserts the funnel's placed and paid counts against
 agree with the app database's.
 
 **On the admin pages.** `x-admin.analytics.funnel` renders a `FunnelView`
-as a row of tiles, each with a bar under it sized to `shareOfFirst`, so
-the row narrows the way a funnel does — see `docs/admin.md` §
-"Analytics drill-in" for where it is mounted: the listing and seller
-pages always render the storefront funnel this way; the analytics home
-shows a small tile per funnel instead (below) and links each one to its
-own page, drawn by this same component, with a range control.
-`docs/funnel.md` fixes the boundary between this query and that
-component — the step contract `FunnelStep` carries and the drawing rules
-DSGN-009's accepted design fixes for the still-pending detail-page
-redraw.
+as a shared-borders grid, one cell per step, each with two stacked bars
+(this range's share of the first step, the previous range's own share
+beneath it) and the "largest drop" badge on the one step `isLargestDrop`
+marks — see `docs/admin.md` § "Analytics drill-in" for where it is
+mounted: the listing and seller pages always render the storefront funnel
+this way; the analytics home shows a small tile per funnel instead
+(below) and links each one to its own detail page, drawn by this same
+component, with a range control. `docs/funnel.md` fixes the boundary
+between this query and that component — the step contract `FunnelStep`
+carries and the drawing rules the component follows.
 
 **Tiles on the analytics home.** `App\Analytics\Admin\FunnelTiles::forRange()`
 reads every funnel in `position` order, capped at eight — a row wider

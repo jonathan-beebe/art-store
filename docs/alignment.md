@@ -913,8 +913,12 @@ favorites rides along as a side count on the viewed step rather than a
 step of its own) is seeded as one funnel row among any an admin adds. PHP
 ships the model, the query, the admin resource, and the home's tiles on
 FEAT-049 — `prototype/php/docs/analytics.md` § "The funnel" and
-`prototype/php/docs/admin.md` § "Analytics drill-in" are the reference;
-the funnel detail page's own drawing (DSGN-009's accepted design) is a
-follow-up stage, and node and rails owe the whole feature — each still
-ships only its own fixed, hard-coded funnel, the deviation this entry
-queues.
+`prototype/php/docs/admin.md` § "Analytics drill-in" are the reference.
+The funnel detail page, the listing page, and the seller page all draw
+DSGN-009's accepted design: a shared-borders grid, one cell per step, a
+delta glyph beside the label, two stacked bars (this range's share of the
+first step and the previous range's own share), the "largest drop" badge
+on the step with the lowest rate, and the footer/side/note lines —
+`prototype/php/docs/funnel.md` is the reference. Node and rails owe the
+whole feature — each still ships only its own fixed, hard-coded funnel,
+the deviation this entry queues.
