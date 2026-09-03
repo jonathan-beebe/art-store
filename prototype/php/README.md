@@ -180,17 +180,23 @@ order, is waiting on the desk.
 
 `make seed-activity`, run once after `make fresh`, adds ninety-plus days of
 store activity ending now: new customers signing up at a ramping pace (a
-few in the first month, a surge by the third), anonymous visitors browsing,
-favoriting, and abandoning or completing carts, some of them verifying
-partway through and folding their history into a signed-up account,
-sellers creating and publishing new listings, orders placed, paid, shipped,
+few in the first month, a surge by the third — a real 92-day run lands
+near 65 / 100 / 435 new customers a month, signups plus anonymous visits),
+anonymous visitors browsing, favoriting, and abandoning or completing
+carts, some of them verifying partway through and folding their history
+into a signed-up account, sellers creating and publishing new listings
+(the catalog grows from 37 toward 150+), orders placed, paid, shipped,
 delivered, or cancelled, listing questions and support conversations, and
 weekly payouts — everything `/admin/analytics` and the seller and admin
-portals need to show a store that has been open for a season. It refuses in
-production and refuses a second run against a database that already
-carries its marker row (`seed_runs`); every person it names is drawn from
-`App\Domain\Seeding\HogwartsRoster`, the same Harry Potter universe rule as
-the rest of the demo data.
+portals need to show a store that has been open for a season. Two
+anonymous visitors behave badly: a scraper hammering listing pages fast
+enough to trip the fraud lens's velocity flag, and a prober scanning for
+`.env`, `wp-login.php`, `/admin`, and similar paths, findable from the
+analytics actor search (by ip) and `/admin/logs` (see `docs/analytics.md`
+§ "Seeded activity"). It refuses in production and refuses a second run
+against a database that already carries its marker row (`seed_runs`);
+every person it names is drawn from `App\Domain\Seeding\HogwartsRoster`,
+the same Harry Potter universe rule as the rest of the demo data.
 
 ## Magic links
 
