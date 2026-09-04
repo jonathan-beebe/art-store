@@ -1,95 +1,99 @@
 <x-layouts.seller :title="'Order '.$fulfillment->order_id.' — Art Store seller'" :bleed="true">
     @php
-        $tint = match ($fulfillment->status) {
-            \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
-            \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
-            \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
-            \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
-            \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
-        };
         $seller = auth('seller')->user();
         $canShip = $seller->can('ship', $fulfillment);
         $canDecline = $seller->can('decline', $fulfillment);
         $payment = $fulfillment->order->latestPayment;
-        $shipTo = collect([
-            $fulfillment->order->shipping_line1,
-            $fulfillment->order->shipping_line2,
-            trim($fulfillment->order->shipping_city.', '.$fulfillment->order->shipping_region.' '.$fulfillment->order->shipping_postal_code),
-            $fulfillment->order->shipping_country,
-        ])->filter()->implode(', ');
     @endphp
 
     <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>
-                <div class="flex items-baseline gap-2">
-                    <h1 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Orders</h1>
-                    @if ($needsActionCount > 0)
-                        <span class="text-xs text-gray-500 dark:text-gray-400">{{ $needsActionCount }} need action</span>
-                    @endif
-                </div>
+                <h1 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Orders</h1>
+                <x-seller.lane-tabs :tabs="$tabs" />
             </x-slot:listHeader>
 
             <x-slot:list>
-                <x-seller.fulfillment-cells :fulfillments="$cellFulfillments" :selected="$fulfillment" />
+                <x-seller.fulfillment-cells :pane="$pane" />
+                <x-seller.cell-footer :shown="$pane->shown()" :total="$pane->total" :route="route('seller.orders.index', ['lane' => $lane->value])" />
             </x-slot:list>
 
             <div class="flex h-full flex-col">
                 <div class="min-h-0 flex-1 overflow-y-auto p-6">
-                    <x-seller.back-link :route="route('seller.orders.index')" label="Orders" />
+                    <x-seller.back-link :route="route('seller.orders.index', ['lane' => $lane->value])" label="Orders" />
+
+                    <form id="message-buyer-form" method="POST" action="{{ route('seller.orders.messages', $fulfillment) }}" class="hidden">@csrf</form>
 
                     <div class="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ $fulfillment->order_id }} · placed {{ $fulfillment->order->placed_at?->format('M j, Y') }}</p>
+                            <p class="text-xs/5 text-gray-500 dark:text-gray-400">{{ $fulfillment->order_id }} · placed {{ $fulfillment->order->placed_at->format('M j, Y') }}</p>
                             <h2 class="mt-1 flex flex-wrap items-center gap-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
                                 {{ $fulfillment->order->shipping_name }}
-                                <x-seller.status-badge :tint="$tint">{{ $fulfillment->status->label() }}</x-seller.status-badge>
+                                <x-seller.status-badge :tint="$fulfillment->status->tint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
                             </h2>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $stateLine }}</p>
                         </div>
 
-                        @if ($canShip || $canDecline)
-                            <div class="hidden shrink-0 items-center gap-3 lg:flex">
-                                @if ($canDecline)
-                                    <button type="submit" form="decline-form" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Decline</button>
-                                @endif
-                                @if ($canShip)
-                                    <button type="submit" form="mark-shipped-form" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">Mark shipped</button>
-                                @endif
-                            </div>
-                        @endif
+                        <div class="hidden shrink-0 items-center gap-3 lg:flex">
+                            <button type="submit" form="message-buyer-form" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Message buyer</button>
+                            @if ($canDecline)
+                                <button type="submit" form="decline-form" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Decline</button>
+                            @endif
+                            @if ($canShip)
+                                <button type="submit" form="mark-shipped-form" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">Mark shipped</button>
+                            @endif
+                        </div>
                     </div>
 
-                    <form method="POST" action="{{ route('seller.orders.messages', $fulfillment) }}" class="mt-2">
-                        @csrf
-                        <button type="submit" class="text-sm text-gray-600 dark:text-gray-400 underline">Message the customer</button>
-                    </form>
+                    <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                        <section aria-labelledby="customer-heading" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
+                            <h3 id="customer-heading" class="text-xs/5 font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Customer</h3>
+                            <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $customer->name }}</p>
+                            <p class="truncate text-xs/5 text-gray-500 dark:text-gray-400">{{ $customer->email ?? '—' }}</p>
+                            <p class="mt-3 text-xs/5 text-gray-500 dark:text-gray-400">{{ $customer->line() }}</p>
+                        </section>
 
-                    <dl class="mt-6 grid grid-cols-1 gap-x-8 border-t border-gray-200 dark:border-white/10 sm:grid-cols-2">
-                        <div class="flex justify-between gap-4 border-b border-gray-200 dark:border-white/10 py-3">
-                            <dt class="text-sm font-medium text-gray-900 dark:text-gray-100">Ships to</dt>
-                            <dd class="text-right text-sm text-gray-600 dark:text-gray-400">{{ $shipTo }}</dd>
-                        </div>
-                        <div class="flex justify-between gap-4 border-b border-gray-200 dark:border-white/10 py-3">
-                            <dt class="text-sm font-medium text-gray-900 dark:text-gray-100">Payment</dt>
-                            <dd class="text-right text-sm text-gray-600 dark:text-gray-400">
+                        <section aria-labelledby="ships-to-heading" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
+                            <h3 id="ships-to-heading" class="text-xs/5 font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Ships to</h3>
+                            <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $fulfillment->order->shipping_name }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                @foreach ($fulfillment->order->shippingAddressLines() as $line)
+                                    {{ $line }}@if (! $loop->last)<br>@endif
+                                @endforeach
+                            </p>
+                        </section>
+
+                        <section aria-labelledby="payment-heading" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900 sm:col-span-2 xl:col-span-1">
+                            <h3 id="payment-heading" class="text-xs/5 font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Payment</h3>
+                            <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
                                 @if ($payment)
-                                    •••• {{ $payment->card_last_four }} — {{ $payment->status->label() }}
+                                    &bull;&bull;&bull;&bull; {{ $payment->card_last_four }} · {{ $payment->status->label() }}
                                 @else
-                                    —
+                                    Not paid
                                 @endif
-                            </dd>
-                        </div>
-                        <div class="flex justify-between gap-4 border-b border-gray-200 dark:border-white/10 py-3">
-                            <dt class="text-sm font-medium text-gray-900 dark:text-gray-100">Buyer email</dt>
-                            <dd class="text-right text-sm text-gray-600 dark:text-gray-400">{{ $fulfillment->order->email ?? '—' }}</dd>
-                        </div>
-                        <div class="flex justify-between gap-4 border-b border-gray-200 dark:border-white/10 py-3">
-                            <dt class="text-sm font-medium text-gray-900 dark:text-gray-100">Your take after fees</dt>
-                            <dd class="text-right text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $fulfillment->net()->format() }}</dd>
-                        </div>
-                    </dl>
+                            </p>
+                            <dl class="mt-2 flex flex-col gap-0.5 text-xs/5">
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-gray-500 dark:text-gray-400">Buyer paid</dt>
+                                    <dd class="tabular-nums text-gray-900 dark:text-gray-100">{{ $fulfillment->subtotal()->format() }}</dd>
+                                </div>
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-gray-500 dark:text-gray-400">Platform fee</dt>
+                                    <dd class="tabular-nums text-gray-900 dark:text-gray-100">−{{ $fulfillment->fee()->format() }}</dd>
+                                </div>
+                                <div class="flex justify-between gap-4 font-semibold">
+                                    <dt class="text-gray-900 dark:text-gray-100">Your take</dt>
+                                    <dd class="tabular-nums text-gray-900 dark:text-gray-100">{{ $fulfillment->net()->format() }}</dd>
+                                </div>
+                                <div class="flex justify-between gap-4">
+                                    <dt class="text-gray-500 dark:text-gray-400">Escrow</dt>
+                                    <dd class="text-gray-900 dark:text-gray-100">{{ $escrow?->escrowState() ?? '—' }}</dd>
+                                </div>
+                            </dl>
+                        </section>
+                    </div>
 
-                    <h3 class="mt-7 text-sm font-semibold text-gray-900 dark:text-gray-100">Items</h3>
+                    <h3 class="mt-7 text-sm/6 font-semibold text-gray-900 dark:text-white">Items</h3>
                     <div class="mt-2 divide-y divide-gray-200 dark:divide-white/10 rounded-lg border border-gray-200 dark:border-white/10">
                         @foreach ($fulfillment->order->items as $item)
                             <div class="flex items-center gap-4 p-4">
@@ -97,7 +101,7 @@
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="size-5" aria-hidden="true"><path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A1.5 1.5 0 0 0 21.75 19.5V4.5A1.5 1.5 0 0 0 20.25 3H3.75A1.5 1.5 0 0 0 2.25 4.5v15A1.5 1.5 0 0 0 3.75 21Z" stroke-linecap="round" stroke-linejoin="round" /></svg>
                                 </span>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $item->title }}</p>
+                                    <a href="{{ route('seller.listings.show', $item->listing_id) }}" class="text-sm font-semibold text-gray-900 hover:text-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400">{{ $item->title }}</a>
                                     <p class="text-sm text-gray-600 dark:text-gray-400">{{ $item->quantity }} × {{ $item->unitPrice()->format() }}</p>
                                     <x-order-item-detail :item="$item" />
                                 </div>
@@ -108,7 +112,7 @@
 
                     @if ($fulfillment->refund)
                         <section aria-labelledby="refund-heading" class="mt-7">
-                            <h3 id="refund-heading" class="text-sm font-semibold text-gray-900 dark:text-gray-100">Refund</h3>
+                            <h3 id="refund-heading" class="text-sm/6 font-semibold text-gray-900 dark:text-white">Refund</h3>
                             <dl class="mt-2 rounded-lg border border-gray-200 dark:border-white/10 p-4 text-sm">
                                 <dt class="text-gray-500 dark:text-gray-400">Amount</dt>
                                 <dd class="mt-1 text-gray-900 dark:text-gray-100">{{ $fulfillment->refund->amount()->format() }}</dd>
@@ -121,51 +125,75 @@
                     @endif
 
                     <div class="mt-7 flex flex-wrap items-baseline justify-between gap-3">
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $flowName }}</h3>
+                        <h3 class="text-sm/6 font-semibold text-gray-900 dark:text-white">{{ $flowName }}</h3>
                         <a href="{{ route('seller.orders.flow.edit') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Flow settings</a>
                     </div>
                     <x-seller.flow-steps :fulfillment="$fulfillment" :steps="$flowSteps" :progress="$progress" :can-complete="$canShip" />
 
-                    <h3 class="mt-7 text-sm font-semibold text-gray-900 dark:text-gray-100">Shipment</h3>
+                    <h3 class="mt-7 text-sm/6 font-semibold text-gray-900 dark:text-white">Shipment</h3>
                     @if ($canShip)
                         <form id="mark-shipped-form" method="POST" action="{{ route('seller.orders.ship', $fulfillment->id) }}" class="mt-2 flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-white/10 p-4 sm:flex-row sm:items-end">
                             @csrf
 
                             <div class="flex-1">
-                                <label for="carrier" class="block text-sm font-medium text-gray-900 dark:text-gray-100">Carrier</label>
-                                <input id="carrier" name="carrier" type="text" required maxlength="255" value="{{ old('carrier') }}"
-                                       class="mt-1 block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-gray-100 dark:outline-white/10">
+                                <label for="carrier" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Carrier</label>
+                                <input id="carrier" name="carrier" type="text" required maxlength="255" value="{{ old('carrier', $fulfillment->carrier) }}" placeholder="Owl Post"
+                                       class="mt-1 block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-white dark:outline-white/10">
                                 @error('carrier')
                                     <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
 
                             <div class="flex-1">
-                                <label for="tracking_number" class="block text-sm font-medium text-gray-900 dark:text-gray-100">Tracking number</label>
-                                <input id="tracking_number" name="tracking_number" type="text" required maxlength="255" value="{{ old('tracking_number') }}"
-                                       class="mt-1 block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-gray-100 dark:outline-white/10">
+                                <label for="tracking_number" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking number</label>
+                                <input id="tracking_number" name="tracking_number" type="text" required maxlength="255" value="{{ old('tracking_number', $fulfillment->tracking_number) }}"
+                                       class="mt-1 block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-white dark:outline-white/10">
                                 @error('tracking_number')
                                     <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                                 @enderror
                             </div>
                         </form>
                     @else
-                        <dl class="mt-2 rounded-lg border border-gray-200 dark:border-white/10 p-4 text-sm">
-                            <dt class="text-gray-500 dark:text-gray-400">Carrier</dt>
-                            <dd class="mt-1 text-gray-900 dark:text-gray-100">{{ $fulfillment->carrier ?? '—' }}</dd>
-                            <dt class="mt-3 text-gray-500 dark:text-gray-400">Tracking number</dt>
-                            <dd class="mt-1 text-gray-900 dark:text-gray-100">{{ $fulfillment->tracking_number ?? '—' }}</dd>
-                            <dt class="mt-3 text-gray-500 dark:text-gray-400">Shipped</dt>
-                            <dd class="mt-1 text-gray-900 dark:text-gray-100">{{ $fulfillment->shipped_at?->format('M j, Y g:ia') ?? '—' }}</dd>
-                            @if ($fulfillment->delivered_at)
-                                <dt class="mt-3 text-gray-500 dark:text-gray-400">Delivered</dt>
-                                <dd class="mt-1 text-gray-900 dark:text-gray-100">{{ $fulfillment->delivered_at->format('M j, Y g:ia') }}</dd>
-                            @endif
+                        <dl class="mt-2 grid grid-cols-2 gap-4 rounded-lg border border-gray-200 dark:border-white/10 p-4 text-sm sm:grid-cols-4">
+                            <div>
+                                <dt class="text-xs/5 text-gray-500 dark:text-gray-400">Carrier</dt>
+                                <dd class="mt-1 font-medium text-gray-900 dark:text-gray-100">{{ $fulfillment->carrier ?? '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs/5 text-gray-500 dark:text-gray-400">Tracking</dt>
+                                <dd class="mt-1 font-medium text-gray-900 dark:text-gray-100">{{ $fulfillment->tracking_number ?? '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs/5 text-gray-500 dark:text-gray-400">Shipped</dt>
+                                <dd class="mt-1 font-medium text-gray-900 dark:text-gray-100">{{ $fulfillment->shipped_at?->format('M j, Y g:ia') ?? '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs/5 text-gray-500 dark:text-gray-400">Delivered</dt>
+                                <dd class="mt-1 font-medium text-gray-900 dark:text-gray-100">{{ $fulfillment->delivered_at?->format('M j, Y g:ia') ?? '—' }}</dd>
+                            </div>
                         </dl>
                     @endif
 
+                    <div class="mt-7 flex flex-wrap items-center justify-between gap-3">
+                        <h3 class="text-sm/6 font-semibold text-gray-900 dark:text-white">Activity</h3>
+                        <div class="inline-flex isolate rounded-md" role="group" aria-label="Activity kind">
+                            @foreach ($feedFilter->links as $link)
+                                <a
+                                    href="{{ $link->href }}"
+                                    @if ($link->active) aria-current="true" @endif
+                                    class="relative inline-flex items-center px-3 py-1.5 text-xs font-medium -ml-px first:ml-0 first:rounded-l-md last:rounded-r-md {{ $link->active
+                                        ? 'bg-indigo-50 text-indigo-700 inset-ring inset-ring-indigo-300 z-10 dark:bg-indigo-500/20 dark:text-indigo-300 dark:inset-ring-indigo-500/30'
+                                        : 'bg-white text-gray-600 inset-ring inset-ring-gray-300 dark:bg-white/10 dark:text-gray-400 dark:inset-ring-white/10' }}"
+                                >{{ $link->label }}</a>
+                            @endforeach
+                        </div>
+                    </div>
+                    <div class="mt-2 rounded-lg border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-gray-900">
+                        <x-seller.feed :feed="$feed" empty="Nothing has happened on this order yet." />
+                    </div>
+
                     @if ($canDecline)
-                        <h3 class="mt-7 text-sm font-semibold text-gray-900 dark:text-gray-100">Decline</h3>
+                        <h3 class="mt-7 text-sm/6 font-semibold text-gray-900 dark:text-white">Decline</h3>
                         <form id="decline-form" method="POST" action="{{ route('seller.orders.decline', $fulfillment->id) }}" class="mt-2 rounded-lg border border-gray-200 dark:border-white/10 p-4">
                             @csrf
 
@@ -174,9 +202,9 @@
                             </p>
 
                             <div class="mt-4">
-                                <label for="reason" class="block text-sm font-medium text-gray-900 dark:text-gray-100">Reason</label>
+                                <label for="reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Reason</label>
                                 <textarea id="reason" name="reason" required minlength="1" maxlength="500" rows="3"
-                                          class="mt-1 block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-gray-100 dark:outline-white/10">{{ old('reason') }}</textarea>
+                                          class="mt-1 block w-full rounded-md bg-white px-3 py-1.5 text-sm text-gray-900 outline-1 -outline-offset-1 outline-gray-300 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 dark:bg-white/5 dark:text-white dark:outline-white/10">{{ old('reason') }}</textarea>
                                 @error('reason')
                                     <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                                 @enderror
@@ -185,16 +213,15 @@
                     @endif
                 </div>
 
-                @if ($canShip || $canDecline)
-                    <div class="flex shrink-0 gap-3 border-t border-gray-200 dark:border-white/10 p-4 lg:hidden">
-                        @if ($canDecline)
-                            <button type="submit" form="decline-form" class="min-h-11 flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Decline</button>
-                        @endif
-                        @if ($canShip)
-                            <button type="submit" form="mark-shipped-form" class="min-h-11 flex-[2] rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">Mark shipped</button>
-                        @endif
-                    </div>
-                @endif
+                <div class="flex shrink-0 gap-3 border-t border-gray-200 dark:border-white/10 p-4 lg:hidden">
+                    <button type="submit" form="message-buyer-form" class="min-h-11 flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Message</button>
+                    @if ($canDecline)
+                        <button type="submit" form="decline-form" class="min-h-11 flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Decline</button>
+                    @endif
+                    @if ($canShip)
+                        <button type="submit" form="mark-shipped-form" class="min-h-11 flex-[2] rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">Mark shipped</button>
+                    @endif
+                </div>
             </div>
         </x-seller.list-detail>
     </div>
