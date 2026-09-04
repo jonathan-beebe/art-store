@@ -48,28 +48,21 @@ final readonly class ListingsChrome
     {
         return new self(
             view: $view,
-            viewLinks: self::viewLinks($roundTripped, $view),
-            viewIcons: array_map(fn (ListingView $view): string => $view->iconPath(), ListingView::cases()),
+            viewLinks: NavLinks::for(
+                routeName: 'seller.listings.index',
+                without: collect($roundTripped)->except('view')->all(),
+                param: 'view',
+                cases: ListingView::cases(),
+                label: fn (ListingView $case): string => $case->label(),
+                value: fn (ListingView $case): string => $case->value,
+                active: fn (ListingView $case): bool => $case === $view,
+            ),
+            viewIcons: array_map(fn (ListingView $case): string => $case->iconPath(), ListingView::cases()),
             sort: $sort,
             sortOptions: self::sortOptions(),
-            columnHeaders: self::columnHeaders($roundTripped, $sort),
+            columnHeaders: ColumnHeaders::for('seller.listings.index', $roundTripped, $sort, ListingSortColumn::cases()),
             sortFormFields: collect($roundTripped)->except(['sort', 'dir'])->all(),
         );
-    }
-
-    /**
-     * @param  array<string, string>  $roundTripped
-     * @return list<NavLink>
-     */
-    private static function viewLinks(array $roundTripped, ListingView $current): array
-    {
-        $without = collect($roundTripped)->except('view')->all();
-
-        return array_map(fn (ListingView $view): NavLink => new NavLink(
-            label: $view->label(),
-            href: route('seller.listings.index', [...$without, 'view' => $view->value]),
-            active: $view === $current,
-        ), ListingView::cases());
     }
 
     /**
@@ -84,21 +77,5 @@ final readonly class ListingsChrome
             ListingSortColumn::cases(),
             fn (ListingSortColumn $column): bool => $column !== ListingSortColumn::Status,
         ));
-    }
-
-    /**
-     * @param  array<string, string>  $roundTripped
-     * @param  TableSort<ListingTableRow>  $sort
-     * @return list<ColumnHeader>
-     */
-    private static function columnHeaders(array $roundTripped, TableSort $sort): array
-    {
-        $without = collect($roundTripped)->except(['sort', 'dir'])->all();
-
-        return array_map(fn (ListingSortColumn $column): ColumnHeader => new ColumnHeader(
-            column: $column,
-            href: route('seller.listings.index', [...$without, 'sort' => $column->value, 'dir' => $sort->nextDirectionFor($column)->value]),
-            ariaSort: $sort->ariaSort($column) ?? 'none',
-        ), ListingSortColumn::cases());
     }
 }
