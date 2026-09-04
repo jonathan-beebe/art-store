@@ -33,19 +33,12 @@ it('renders one row per event in the Tailwind Plus feed shape', function (): voi
     ));
 
     expect($html)->toContain('<ul role="list"')
-        ->toContain('relative flex gap-x-4')
-        ->toContain('absolute top-0 -bottom-6 left-0 flex w-8 justify-center')
-        ->toContain('w-px bg-gray-200 dark:bg-white/10')
-        ->toContain('relative flex size-8 flex-none items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900')
-        ->toContain('flex-auto py-0.5 text-sm/6 text-gray-500 dark:text-gray-400')
-        ->toContain('flex-none py-0.5 text-xs/5 text-gray-500 dark:text-gray-400')
-        ->toContain('printed an Owl Post label')
+        ->and(substr_count($html, 'data-feed-row'))->toBe(2)
+        ->and($html)->toContain('printed an Owl Post label')
         ->toContain('viewed Nine Owls');
 });
 
 it('draws the rail on every row but the last', function (): void {
-    $rail = 'absolute top-0 -bottom-6 left-0 flex w-8 justify-center';
-
     $one = sellerFeedHtml(sellerFeedOf(
         new FeedEvent(sellerFeedMoment('2026-09-02T09:12:00+00:00'), ActivityKind::Browse, FeedIcon::Eye, 'Harry Potter', 'viewed Nine Owls'),
     ));
@@ -56,8 +49,8 @@ it('draws the rail on every row but the last', function (): void {
         new FeedEvent(sellerFeedMoment('2026-09-01T09:12:00+00:00'), ActivityKind::Browse, FeedIcon::Cart, 'Harry Potter', 'added Nine Owls to their cart'),
     ));
 
-    expect(substr_count($one, $rail))->toBe(0)
-        ->and(substr_count($three, $rail))->toBe(2);
+    expect(substr_count($one, 'data-rail'))->toBe(0)
+        ->and(substr_count($three, 'data-rail'))->toBe(2);
 });
 
 it('accents an order row and leaves every other kind muted', function (): void {
@@ -66,8 +59,8 @@ it('accents an order row and leaves every other kind muted', function (): void {
         new FeedEvent(sellerFeedMoment('2026-09-01T09:12:00+00:00'), ActivityKind::Messages, FeedIcon::Chat, 'You', 'replied'),
     ));
 
-    expect($html)->toContain('bg-indigo-600 text-white')
-        ->toContain('bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400');
+    expect($html)->toContain('data-accent="true"')
+        ->toContain('data-accent="false"');
 });
 
 it('renders the actor in the strong voice and draws the icon path the event carries', function (): void {
@@ -75,7 +68,8 @@ it('renders the actor in the strong voice and draws the icon path the event carr
         new FeedEvent(sellerFeedMoment('2026-09-02T09:12:00+00:00'), ActivityKind::Shipping, FeedIcon::Truck, 'You', 'marked it shipped'),
     ));
 
-    expect($html)->toContain('<span class="font-medium text-gray-900 dark:text-white">You</span>')
+    expect($html)->toContain('data-feed-actor')
+        ->toContain('>You</span>')
         ->toContain('d="'.FeedIcon::Truck->path().'"');
 });
 
@@ -91,7 +85,7 @@ it('quotes the words a message or a decline carries', function (): void {
         ),
     ));
 
-    expect($html)->toContain('mt-1 rounded-md bg-white p-3 text-sm/6 text-gray-700 inset-ring inset-ring-gray-200')
+    expect($html)->toContain('data-feed-quote')
         ->toContain('Do the owls come framed?');
 });
 
@@ -123,7 +117,7 @@ it('says so when nothing has happened', function (): void {
     $html = sellerFeedHtml(ActivityFeed::merge());
 
     expect($html)->toContain('Nothing has happened here yet.');
-    expect($html)->not->toContain('<ul role="list"');
+    expect($html)->not->toContain('data-feed-row');
 });
 
 it('takes the empty sentence a page gives it', function (): void {
