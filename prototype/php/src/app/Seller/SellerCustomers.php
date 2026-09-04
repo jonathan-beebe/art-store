@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Messaging\ConversationStatus;
-use App\Domain\Orders\FulfillmentStatus;
-use App\Domain\Orders\OrderStatus;
 use App\Domain\Seller\CustomerRow;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -17,6 +15,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\JoinClause;
 
 /**
  * Who has bought from a seller, and what each of them is worth. Every read
@@ -25,9 +24,9 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
  * browsing, favoriting, and asking about a listing join their timeline once
  * they have bought.
  *
- * A fulfillment row exists from the moment an order is placed, so the paid
- * gate is what keeps an abandoned checkout out of the list and out of the
- * money — the same pair of conditions {@see ListingTable} counts a sale by.
+ * A fulfillment row exists from the moment an order is placed, so
+ * {@see Fulfillment::counted()} is what keeps an abandoned checkout out of
+ * the list and out of the money.
  *
  * The aggregates are one grouped query; favorites, conversations, and the
  * names join by id in PHP.
@@ -143,22 +142,15 @@ final class SellerCustomers
     }
 
     /**
-     * The parcels a buyer's figures count: this seller's own, paid for, and
-     * neither declined nor refunded.
+     * The parcels a buyer's figures count — {@see Fulfillment::counted()} —
+     * joined to `orders` for the columns below that read off it.
      */
     private static function countedParcels(Seller $seller, ?Customer $only): QueryBuilder
     {
         $query = Fulfillment::query()
             ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
             ->where('fulfillments.seller_id', $seller->id)
-            ->whereIn('fulfillments.status', self::values(array_filter(
-                FulfillmentStatus::cases(),
-                fn (FulfillmentStatus $status): bool => $status->isLive(),
-            )))
-            ->whereIn('orders.status', self::values(array_filter(
-                OrderStatus::cases(),
-                fn (OrderStatus $status): bool => $status->hasBeenPaid(),
-            )));
+            ->counted();
 
         if ($only instanceof Customer) {
             $query->where('fulfillments.customer_id', $only->id);
@@ -213,15 +205,23 @@ final class SellerCustomers
             return [];
         }
 
+        $latest = self::countedParcels($seller, null)
+            ->whereIn('fulfillments.customer_id', $customerIds)
+            ->selectRaw('fulfillments.customer_id as customer_id, max(orders.placed_at) as placed_at')
+            ->groupBy('fulfillments.customer_id');
+
         $rows = self::countedParcels($seller, null)
             ->whereIn('fulfillments.customer_id', $customerIds)
-            ->orderByDesc('orders.placed_at')
+            ->joinSub($latest, 'latest_order', function (JoinClause $join): void {
+                $join->on('fulfillments.customer_id', '=', 'latest_order.customer_id')
+                    ->on('orders.placed_at', '=', 'latest_order.placed_at');
+            })
             ->get(['fulfillments.customer_id as customer_id', 'orders.shipping_name as shipping_name', 'orders.email as email']);
 
         $identities = [];
 
         foreach ($rows as $row) {
-            // Newest first, so the first row read per buyer is their latest.
+            // A tie on placed_at keeps the first row read for a buyer.
             $identities[self::text($row->customer_id)] ??= [
                 'name' => self::text($row->shipping_name),
                 'email' => is_string($row->email) ? $row->email : null,
@@ -280,18 +280,6 @@ final class SellerCustomers
         }
 
         return $counts;
-    }
-
-    /**
-     * @param  array<int, FulfillmentStatus|OrderStatus>  $cases
-     * @return list<string>
-     */
-    private static function values(array $cases): array
-    {
-        return array_values(array_map(
-            fn (FulfillmentStatus|OrderStatus $status): string => $status->value,
-            $cases,
-        ));
     }
 
     private static function text(mixed $value): string

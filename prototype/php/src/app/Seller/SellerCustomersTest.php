@@ -11,6 +11,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\Message;
+use Illuminate\Support\Facades\DB;
 
 it('reads a buyer as their orders, spend, favorites, conversations, and first and last order', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
@@ -115,6 +116,37 @@ it('names a buyer holding no account from the latest order that carried a name',
 
     expect($row?->name)->toBe('Nymphadora Lupin')
         ->and($row?->email)->toBe('lupin@example.test');
+});
+
+it('names many buyers holding no account in the same number of queries as one', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+
+    $addAnonymousBuyer = function () use ($seller): void {
+        $this->paidFulfillmentFor($seller, $this->anonymousCustomer());
+    };
+
+    $queriesForList = function () use ($seller): int {
+        $queries = 0;
+        DB::listen(function () use (&$queries): void {
+            $queries++;
+        });
+
+        SellerCustomers::forSeller($seller);
+
+        return $queries;
+    };
+
+    $addAnonymousBuyer();
+    $withOne = $queriesForList();
+
+    $addAnonymousBuyer();
+    $addAnonymousBuyer();
+    $addAnonymousBuyer();
+    $addAnonymousBuyer();
+    $withFive = $queriesForList();
+
+    expect(SellerCustomers::forSeller($seller))->toHaveCount(5)
+        ->and($withFive)->toBe($withOne);
 });
 
 it('counts a seller\'s open buyer threads and the ones holding an unread message', function (): void {
