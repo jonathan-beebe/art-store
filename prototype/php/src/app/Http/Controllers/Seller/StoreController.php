@@ -22,7 +22,7 @@ final class StoreController extends SellerController
 {
     public function show(StartStore $startStore): View
     {
-        return view('seller.store.show', (array) StorePageData::build($startStore($this->seller())));
+        return view('seller.store.show', ['page' => StorePageData::build($startStore($this->seller()))]);
     }
 
     public function update(UpdateStoreRequest $request, StartStore $startStore, SaveStore $saveStore): RedirectResponse

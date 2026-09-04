@@ -19,7 +19,7 @@
         <div>
             <h1 class="flex items-center gap-3 text-xl font-semibold">
                 Your store
-                <x-seller.status-badge :tint="$profile->isPublished() ? 'green' : 'gray'">{{ $profile->visibility()->label() }}</x-seller.status-badge>
+                <x-seller.status-badge :tint="$page->profile->isPublished() ? 'green' : 'gray'">{{ $page->profile->visibility()->label() }}</x-seller.status-badge>
             </h1>
             <p class="mt-0.5 text-gray-500 dark:text-gray-400">How buyers meet you on the site: your name, your address, your story.</p>
         </div>
@@ -43,7 +43,7 @@
                     <div class="flex flex-col gap-5">
                         <div>
                             <label for="name" class="{{ $label }}">Store name</label>
-                            <input id="name" name="name" type="text" required maxlength="255" value="{{ old('name', $profile->name) }}" class="{{ $input }}">
+                            <input id="name" name="name" type="text" required maxlength="255" value="{{ old('name', $page->profile->name) }}" class="{{ $input }}">
                             @error('name')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                         </div>
 
@@ -51,7 +51,7 @@
                             <label for="slug" class="{{ $label }}">Store address</label>
                             <div class="mt-1 flex">
                                 <span class="inline-flex items-center rounded-l-md bg-gray-50 px-3 py-1.5 text-sm text-gray-500 inset-ring inset-ring-gray-300 dark:bg-white/5 dark:text-gray-400 dark:inset-ring-white/10">{{ url('/s') }}/</span>
-                                <input id="slug" name="slug" type="text" required value="{{ old('slug', $profile->slug) }}"
+                                <input id="slug" name="slug" type="text" required value="{{ old('slug', $page->profile->slug) }}"
                                        class="{{ $input }} mt-0 -ml-px rounded-l-none">
                             </div>
                             <p class="{{ $hint }}">Lowercase letters, numbers, and hyphens. Changing it breaks links you have already shared; the old address forwards for 30 days.</p>
@@ -60,14 +60,14 @@
 
                         <div>
                             <label for="tagline" class="{{ $label }}">Tagline</label>
-                            <input id="tagline" name="tagline" type="text" maxlength="80" value="{{ old('tagline', $profile->tagline) }}" class="{{ $input }}">
+                            <input id="tagline" name="tagline" type="text" maxlength="80" value="{{ old('tagline', $page->profile->tagline) }}" class="{{ $input }}">
                             <p class="{{ $hint }}">One line under your name. 80 characters.</p>
                             @error('tagline')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                         </div>
 
                         <div>
                             <label for="location" class="{{ $label }}">Where you make things</label>
-                            <input id="location" name="location" type="text" maxlength="255" value="{{ old('location', $profile->location) }}" class="{{ $input }}">
+                            <input id="location" name="location" type="text" maxlength="255" value="{{ old('location', $page->profile->location) }}" class="{{ $input }}">
                             <p class="{{ $hint }}">Town and region. Buyers see this; your street address stays private.</p>
                             @error('location')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                         </div>
@@ -80,12 +80,12 @@
                         <p class="mt-1 text-xs/5 text-gray-500 dark:text-gray-400">Links shown under your story. Leave blank to hide.</p>
                     </div>
                     <div class="grid gap-4 sm:grid-cols-2">
-                        @foreach ($linkKinds as $kind)
+                        @foreach ($page->linkKinds as $kind)
                             <div>
                                 <label for="link-{{ $kind->value }}" class="{{ $label }}">{{ $kind->label() }}</label>
                                 <input id="link-{{ $kind->value }}" name="links[{{ $kind->value }}]" type="text" maxlength="255"
                                        placeholder="{{ $kind->placeholder() }}"
-                                       value="{{ old('links.'.$kind->value, $linksByKind->get($kind->value)?->url) }}" class="{{ $input }}">
+                                       value="{{ old('links.'.$kind->value, $page->linksByKind->get($kind->value)?->url) }}" class="{{ $input }}">
                                 @error('links.'.$kind->value)<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                             </div>
                         @endforeach
@@ -102,12 +102,12 @@
                         @foreach (StoreVisibility::cases() as $visibility)
                             <label class="flex cursor-pointer items-start gap-3">
                                 <input type="radio" name="visibility" value="{{ $visibility->value }}" class="mt-1 accent-indigo-600"
-                                       @checked(old('visibility', $profile->visibility()->value) === $visibility->value)>
+                                       @checked(old('visibility', $page->profile->visibility()->value) === $visibility->value)>
                                 <span>
                                     <span class="block text-sm font-medium text-gray-900 dark:text-white">{{ $visibility->label() }}</span>
                                     <span class="text-xs/5 text-gray-500 dark:text-gray-400">
                                         {{ $visibility->isPublished()
-                                            ? 'Anyone can open '.url('/s/'.$profile->slug).'.'
+                                            ? 'Anyone can open '.url('/s/'.$page->profile->slug).'.'
                                             : 'Keep working on it. Buyers cannot open the page.' }}
                                     </span>
                                 </span>
@@ -125,17 +125,17 @@
                 </div>
                 <div class="flex flex-col gap-5">
                     <div class="flex flex-wrap items-center gap-4">
-                        @if ($profile->portraitImage)
-                            <img src="{{ $profile->portraitImage->url() }}" alt="{{ $profile->portraitImage->alt ?? '' }}" class="size-16 rounded-full object-cover">
+                        @if ($page->profile->portraitImage)
+                            <img src="{{ $page->profile->portraitImage->url() }}" alt="{{ $page->profile->portraitImage->alt ?? '' }}" class="size-16 rounded-full object-cover">
                         @endif
-                        @if ($profile->coverImage)
-                            <img src="{{ $profile->coverImage->url() }}" alt="{{ $profile->coverImage->alt ?? '' }}" class="h-16 w-48 rounded-md object-cover">
+                        @if ($page->profile->coverImage)
+                            <img src="{{ $page->profile->coverImage->url() }}" alt="{{ $page->profile->coverImage->alt ?? '' }}" class="h-16 w-48 rounded-md object-cover">
                         @endif
                     </div>
 
-                    @if ($images->isNotEmpty())
+                    @if ($page->images->isNotEmpty())
                         <ul role="list" class="grid grid-cols-4 gap-3 sm:grid-cols-6">
-                            @foreach ($images as $image)
+                            @foreach ($page->images as $image)
                                 <li data-store-picture class="flex flex-col gap-1">
                                     <img src="{{ $image->url() }}" alt="{{ $image->alt ?? '' }}" class="aspect-square w-full rounded-md object-cover">
                                     <form method="POST" action="{{ route('seller.store.images.destroy', $image) }}">
@@ -148,7 +148,7 @@
                         </ul>
                     @endif
 
-                    @if ($images->count() < $maxImages)
+                    @if ($page->images->count() < $page->maxImages)
                         <form method="POST" action="{{ route('seller.store.images.store') }}" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
                             @csrf
                             <div>
@@ -171,9 +171,9 @@
                             <button type="submit" class="{{ $secondary }}">Add</button>
                         </form>
                         <p class="{{ $hint }}">The description is what a screen reader reads in place of the picture.</p>
-                        <p class="{{ $hint }}">JPEG, PNG, WebP, or GIF up to 5 MB. Up to {{ $maxImages }} pictures.</p>
+                        <p class="{{ $hint }}">JPEG, PNG, WebP, or GIF up to 5 MB. Up to {{ $page->maxImages }} pictures.</p>
                     @else
-                        <p class="{{ $hint }}">This store already holds {{ $maxImages }} pictures, the most allowed.</p>
+                        <p class="{{ $hint }}">This store already holds {{ $page->maxImages }} pictures, the most allowed.</p>
                     @endif
 
                     @error('image')<p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
@@ -188,7 +188,7 @@
                     <p class="mt-1 text-xs/5 text-gray-500 dark:text-gray-400">Sections in the order buyers read them. A story is words; a gallery is pictures.</p>
                 </div>
                 <div class="flex flex-col gap-5">
-                    @forelse ($profile->sections as $section)
+                    @forelse ($page->profile->sections as $section)
                         @php
                             // A save that failed flashed its input and put
                             // its errors in this section's own bag. The
@@ -229,7 +229,7 @@
                                          request has the ceiling and a message for going past it. --}}
                                     <textarea id="body-{{ $section->id }}" name="body" rows="8"
                                               class="{{ $input }} resize-y">{{ $typed('body', $section->body) }}</textarea>
-                                    <p class="{{ $hint }}">Who you are, how you work, why you make what you make. Up to {{ number_format($maxBodyLength) }} characters.</p>
+                                    <p class="{{ $hint }}">Who you are, how you work, why you make what you make. Up to {{ number_format($page->maxBodyLength) }} characters.</p>
                                     @if ($bag->has('body'))
                                         <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag->first('body') }}</p>
                                     @endif
@@ -249,7 +249,7 @@
                                 <fieldset class="mt-3">
                                     <legend class="{{ $label }}">Pictures in this gallery</legend>
                                     <div class="mt-2 grid grid-cols-4 gap-3 sm:grid-cols-6">
-                                        @foreach ($images as $image)
+                                        @foreach ($page->images as $image)
                                             @php($place = $placedAt[$image->id] ?? null)
                                             <div class="relative">
                                                 <label class="block cursor-pointer">
@@ -260,14 +260,14 @@
                                                 </label>
                                                 <label class="mt-1 block">
                                                     <span class="sr-only">{{ $image->alt ?: 'This picture' }}'s place in the gallery</span>
-                                                    <input type="number" name="order[{{ $image->id }}]" min="0" max="{{ $maxGalleryImages }}"
+                                                    <input type="number" name="order[{{ $image->id }}]" min="0" max="{{ $page->maxGalleryImages }}"
                                                            value="{{ $failed ? old('order.'.$image->id, $place) : $place }}"
                                                            class="{{ $input }} mt-0 px-1.5 py-0.5 text-center text-xs">
                                                 </label>
                                             </div>
                                         @endforeach
                                     </div>
-                                    <p class="{{ $hint }}">Tick the pictures to show and number them from 0. Up to {{ $maxGalleryImages }}.</p>
+                                    <p class="{{ $hint }}">Tick the pictures to show and number them from 0. Up to {{ $page->maxGalleryImages }}.</p>
                                     @foreach (['images', 'images.*', 'order.*'] as $key)
                                         @if ($bag->has($key))
                                             <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag->first($key) }}</p>
@@ -295,9 +295,9 @@
                         <p class="text-sm text-gray-500 dark:text-gray-400">Nothing on your page yet. Add a story or a gallery.</p>
                     @endforelse
 
-                    @if ($profile->sections->count() < $maxSections)
+                    @if ($page->profile->sections->count() < $page->maxSections)
                         <div class="flex flex-wrap gap-3">
-                            @foreach ($sectionKinds as $kind)
+                            @foreach ($page->sectionKinds as $kind)
                                 <form method="POST" action="{{ route('seller.store.sections.store') }}">
                                     @csrf
                                     <input type="hidden" name="kind" value="{{ $kind->value }}">
@@ -312,7 +312,7 @@
 
         <aside class="xl:sticky xl:top-20">
             <p class="mb-2 text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400">How buyers see it</p>
-            <x-store.profile :profile="$profile" :facts="$facts" compact />
+            <x-store.profile :profile="$page->profile" :facts="$page->facts" compact />
             <p class="mt-3 text-xs text-gray-500 dark:text-gray-500">The storefront renders in the Warm Craft theme; this preview uses its tokens.</p>
         </aside>
     </div>

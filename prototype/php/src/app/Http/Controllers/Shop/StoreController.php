@@ -47,7 +47,7 @@ final class StoreController extends ShopController
             $this->recordView($profile, $analytics);
         }
 
-        return view('shop.store', (array) StorefrontStorePageData::build($profile, $isOwnStore));
+        return view('shop.store', ['page' => StorefrontStorePageData::build($profile, $isOwnStore)]);
     }
 
     private function isOwnStore(StoreProfile $profile): bool
