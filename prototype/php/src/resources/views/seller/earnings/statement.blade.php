@@ -7,7 +7,7 @@
     @vite(['resources/css/app.css'])
     <x-theme-css />
 </head>
-<body class="h-full bg-gray-100 font-sans text-sm text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+<body class="supports-dark h-full bg-gray-100 font-sans text-sm text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
     <div class="mx-auto max-w-3xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
         <div class="flex items-start justify-between gap-4 print:hidden">
             <a href="{{ route('seller.earnings') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">&larr; Earnings</a>
