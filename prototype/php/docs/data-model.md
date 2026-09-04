@@ -16,21 +16,25 @@ is the public identifier; there is no second column and no separate order
 number. `docs/alignment.md` §1 fixes the format and the prefix table the three
 prototypes share.
 
-| Table            | Prefix | Table            | Prefix |
-| ---------------- | ------ | ---------------- | ------ |
-| admins           | `adm`  | listing_faqs     | `faq`  |
-| sellers          | `sel`  | carts            | `crt`  |
-| customers        | `cus`  | cart_items       | `cti`  |
-| customer_merges  | `cmg`  | favorites        | `fav`  |
-| customer_blocks  | `blk`  | orders           | `ord`  |
-| magic_links      | `mlk`  | order_items      | `oit`  |
-| listings         | `lst`  | payments         | `pay`  |
-| analytics_events | `aev`  | fulfillments     | `ful`  |
-| conversations    | `cnv`  | ledger_entries   | `led`  |
-| messages         | `msg`  | payouts          | `pyt`  |
-| notifications    | `ntf`  | refunds          | `rfd`  |
-| listing_removals | `rmv`  | page_view_counts | `pvc`  |
-| funnels          | `fnl`  |                  |        |
+| Table                  | Prefix | Table                | Prefix |
+| ---------------------- | ------ | -------------------- | ------ |
+| admins                 | `adm`  | listing_faqs         | `faq`  |
+| sellers                | `sel`  | carts                | `crt`  |
+| customers              | `cus`  | cart_items           | `cti`  |
+| customer_merges        | `cmg`  | favorites            | `fav`  |
+| customer_blocks        | `blk`  | orders               | `ord`  |
+| magic_links            | `mlk`  | order_items          | `oit`  |
+| listings               | `lst`  | payments             | `pay`  |
+| analytics_events       | `aev`  | fulfillments         | `ful`  |
+| conversations          | `cnv`  | ledger_entries       | `led`  |
+| messages               | `msg`  | payouts              | `pyt`  |
+| notifications          | `ntf`  | refunds              | `rfd`  |
+| listing_removals       | `rmv`  | page_view_counts     | `pvc`  |
+| funnels                | `fnl`  | store_profiles       | `sto`  |
+| store_slugs            | `ssl`  | store_images         | `sim`  |
+| store_sections         | `sse`  | store_section_images | `ssi`  |
+| store_links            | `slk`  | fulfillment_flows    | `ffl`  |
+| fulfillment_flow_steps | `ffs`  | fulfillment_events   | `fev`  |
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock
@@ -107,11 +111,85 @@ erDiagram
     listings {
         text id PK
         text seller_id FK
+        text fulfillment_flow_id FK "nullable, null = the seller's default flow"
         string title
         string slug UK
         unsigned price_cents
         unsigned quantity "default 1"
         string status "draft|for_sale|sold|archived"
+    }
+    store_profiles {
+        text id PK
+        text seller_id FK "UK, one store per seller"
+        string slug UK "the current address"
+        string name
+        string tagline "nullable"
+        string location "nullable"
+        text portrait_image_id "nullable, a sim_ id, no foreign key"
+        text cover_image_id "nullable, a sim_ id, no foreign key"
+        timestamp published_at "nullable, null while the store is hidden"
+    }
+    store_slugs {
+        text id PK
+        text store_profile_id FK
+        string slug UK "unique across every store, retired rows included"
+        timestamp retired_at "nullable, null on the current address"
+    }
+    store_images {
+        text id PK
+        text store_profile_id FK
+        text seller_id FK
+        string path "on the public disk"
+        string alt "nullable"
+    }
+    store_sections {
+        text id PK
+        text store_profile_id FK
+        string kind "story|gallery"
+        unsigned position "unique with store_profile_id"
+        string heading "nullable"
+        text body "nullable"
+    }
+    store_section_images {
+        text id PK
+        text store_section_id FK
+        text store_image_id FK "unique with store_section_id"
+        unsigned position "unique with store_section_id"
+    }
+    store_links {
+        text id PK
+        text store_profile_id FK
+        string kind "website|instagram, unique with store_profile_id"
+        string url
+        unsigned position "unique with store_profile_id"
+    }
+    fulfillment_flows {
+        text id PK
+        text seller_id FK
+        string name
+        boolean is_default "partial unique index, one true per seller"
+    }
+    fulfillment_flow_steps {
+        text id PK
+        text fulfillment_flow_id FK
+        text seller_id FK "the flow's seller, copied down"
+        string key "unique with fulfillment_flow_id"
+        string label "the words the seller gave the step"
+        string action "none|print_label"
+        unsigned position "unique with fulfillment_flow_id"
+    }
+    fulfillment_events {
+        text id PK
+        text fulfillment_id FK
+        text seller_id FK
+        string kind "step_completed|shipped|delivered|declined|refunded"
+        text fulfillment_flow_step_id FK "nullable, UK with fulfillment_id"
+        string step_label "nullable, the step's words at completion"
+        string actor_type "seller|customer|admin|system"
+        text actor_id "nullable"
+        string carrier "nullable, from a print_label step"
+        string tracking_number "nullable, from a print_label step"
+        timestamp occurred_at
     }
     analytics_events {
         text id PK
@@ -291,6 +369,18 @@ erDiagram
     payments ||--o{ refunds : reversed_by
     fulfillments ||--o{ ledger_entries : produces
     payouts ||--o{ ledger_entries : settles
+    sellers ||--o| store_profiles : presents_as
+    store_profiles ||--o{ store_slugs : has_answered_to
+    store_profiles ||--o{ store_images : owns
+    store_profiles ||--o{ store_sections : is_built_from
+    store_profiles ||--o{ store_links : links_out_through
+    store_sections ||--o{ store_section_images : places
+    store_images ||--o{ store_section_images : placed_as
+    sellers ||--o{ fulfillment_flows : owns
+    fulfillment_flows ||--o{ fulfillment_flow_steps : orders
+    listings }o--o| fulfillment_flows : ships_by
+    fulfillments ||--o{ fulfillment_events : is_the_record_of
+    fulfillment_flow_steps ||--o{ fulfillment_events : completed_as
 ```
 
 Caveats:
@@ -352,3 +442,33 @@ Caveats:
   through `Refund::issuer()`. See `docs/orders.md`.
 - `carts.customer_id` is not unique — `MergeAnonymousCustomer` can re-point
   a second cart onto a customer that already has one.
+- `store_profiles.portrait_image_id` and `cover_image_id` hold a `sim_` id
+  with no foreign key, so they are drawn without a relationship line above.
+  `store_images` carries `store_profile_id`, so a key back the other way is a
+  cycle SQLite cannot create in either order; `RemoveStoreImage` clears both
+  columns before it deletes the row.
+- `store_slugs.slug` is unique across the whole table, retired rows included.
+  The current address also sits on `store_profiles.slug` for the lookup; a
+  rename retires one row, brings in another, and updates the profile in one
+  transaction. See `docs/seller-portal.md` § "Addresses are history".
+- `store_sections`, `store_section_images`, and `store_links` each hold their
+  order in a `position` unique with their parent. `store_section_images` and
+  `store_links` carry a second unique index — on the image and on the link
+  kind — so neither is listed twice under one parent.
+- `fulfillment_flows` holds one default per seller as a partial unique index,
+  `(seller_id) where is_default = 1`. Blueprint writes no partial index, so
+  the migration writes the statement; SQLite and Postgres both take the
+  clause.
+- `fulfillment_events` is append-only and unique on
+  `(fulfillment_id, fulfillment_flow_step_id)`, so a step is completed once.
+  A unique index counts each null as its own value, which leaves the
+  transition rows — none of which names a step — outside the constraint.
+  `step_label` copies the step's words at completion and
+  `fulfillment_flow_step_id` is `nullOnDelete`, so removing a step from a
+  flow leaves the log reading as it did. It names its actor with
+  `actor_type` / `actor_id` rather than a foreign key, the way `refunds`
+  does. See `docs/orders.md` § "The fulfillment event log and the seller's
+  flow".
+- `listings.fulfillment_flow_id` is nullable and `nullOnDelete`: a listing
+  that names no flow ships by its seller's default
+  (`Fulfillment::flowInEffect()`).
