@@ -323,11 +323,24 @@ what a visitor with the script blocked uses.
 A table or grid row links to `/seller/listings/{id}?from=table` (or
 `grid`). `ListingController::show()` renders one view,
 `seller/listings/detail-overlay.blade.php`, carrying three blocks: the
-listings workspace (`hidden … 2xl:block`, carrying `inert` since the
-dialog sits over it the whole time this view renders), a native
-`<dialog open>` over it (`hidden … 2xl:flex`), and a takeover of the
-content area (`2xl:hidden`) with a back link. Tailwind's `2xl:` variants
-pick which shows — no JavaScript decides.
+listings workspace (`hidden … 2xl:block`), a native `<dialog>` over it
+(`hidden … 2xl:flex`), and a takeover of the content area (`2xl:hidden`)
+with a back link. Tailwind's `2xl:` variants pick which shows.
+
+The workspace carries its own copy of `x-seller.listings-header`
+(`withNewListingDialog="false"`, so the New listing dialog's id never
+repeats) inside the same `inert` wrapper as the table or grid — the
+header, the view switch, and the New listing button all sit unreachable
+there, script or no script. `public/listing-detail-dialog.js` upgrades
+the dialog to a real modal at `2xl` and up: `showModal()` (matchMedia-
+synced, so a resize crossing the breakpoint opens or closes it),
+`autofocus` on Close, and a `close` event that navigates to
+`data-close-href` — the same address the takeover's own back link
+carries — unless the close was the script's own down-transition, which
+leaves the page on the takeover instead. Both `x-seller.listings-header`
+copies render "Listings" as a `<p>`, never an `<h1>`, since the listing's
+own title — one copy in the overlay, one in the takeover, never both
+exposed to assistive technology at once — is the page's one heading.
 
 ### One detail component
 
@@ -593,8 +606,8 @@ asked about a piece shows a name alone — no figures, no email, no View
 customer link, since they have no customer page to open. A support thread
 shows the desk in place of a customer, and no other conversations.
 
-The rail sits beside the transcript at `xl` and under it below that, inside
-the thread component's own pane. Nothing about the transcript, the
+The rail sits beside the transcript at `2xl` and under it below that,
+inside the thread component's own pane. Nothing about the transcript, the
 composer, resolve, reopen, or Publish as FAQ changed; the rate-limited
 reply re-renders the same rail with the thread it came back to.
 
