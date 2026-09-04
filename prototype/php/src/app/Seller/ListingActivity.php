@@ -8,19 +8,17 @@ use App\Analytics\AnalyticsReport;
 use App\Analytics\ListingEventCounts;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\BarStrip;
-use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Seller\ActivityTotal;
 use App\Domain\Seller\ListingSort;
 use App\Domain\Seller\ListingSortColumn;
 use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingTableSort;
 use App\Domain\Seller\SortDirection;
-use App\Models\Order;
+use App\Models\Fulfillment;
 use App\Models\OrderItem;
 use App\Models\Seller;
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * What buyers did on a seller's listings inside the range: four totals
@@ -188,9 +186,8 @@ final readonly class ListingActivity
 
     /**
      * Units of each listing sold between the two instants, by the UTC day
-     * the order was placed on. An item counts when its order has been paid
-     * and the seller's parcel on that order is neither declined nor
-     * refunded — the pair {@see ListingTable} counts an all-time sale by.
+     * the order was placed on — the parcel {@see Fulfillment::counted()}
+     * counts an all-time sale by, the same pair {@see ListingTable} reads.
      *
      * @return array<string, array<string, int>> listing id => day (Y-m-d) => units
      */
@@ -199,16 +196,14 @@ final readonly class ListingActivity
         $rows = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('order_items.seller_id', $seller->id)
-            ->whereIn('orders.status', Order::paidStatuses())
             ->where('orders.placed_at', '>=', $from)
             ->where('orders.placed_at', '<=', $to)
-            ->whereExists(function (QueryBuilder $query): void {
-                $query->selectRaw('1')
-                    ->from('fulfillments')
+            ->whereExists(
+                Fulfillment::query()
+                    ->counted()
                     ->whereColumn('fulfillments.order_id', 'order_items.order_id')
-                    ->whereColumn('fulfillments.seller_id', 'order_items.seller_id')
-                    ->whereNotIn('fulfillments.status', [FulfillmentStatus::Declined->value, FulfillmentStatus::Refunded->value]);
-            })
+                    ->whereColumn('fulfillments.seller_id', 'order_items.seller_id'),
+            )
             ->toBase()
             ->get(['order_items.listing_id as listing_id', 'order_items.quantity as quantity', 'orders.placed_at as placed_at']);
 
