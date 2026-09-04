@@ -75,3 +75,19 @@ Design decided before the first test:
 ### Gate
 
 `make precommit` green on every commit; `make check` green before the PR.
+
+### Review pass
+
+Coordinator review, merge after fixes. What changed:
+
+- The rail's order card loads the order's items narrowed to this seller, so
+  a two-seller order can no longer name the other seller's piece; the
+  listing's pictures load with it, so the card's cover is in hand.
+  `ThreadContextTest` carries the two-seller case.
+- `App\Seller\ThreadLink` carries a thread's title, link, and how long ago
+  it was spoken in, built with the clock `MessageController` passes.
+  `x-seller.context-rail` calls no clock and reads no models for its list.
+- `ConversationKind::tagLabel()`/`tagTint()` and
+  `App\Domain\Seller\Initials::of()` replaced the two mappings this ticket
+  had left in Blade and duplicated in the domain.
+- Comments and the doc section state the positive.

@@ -94,3 +94,35 @@ Design decided before the first test:
 ### Gate
 
 `make precommit` green on every commit; `make check` green before the PR.
+
+### Review pass
+
+Coordinator review, merge after fixes. What changed:
+
+- The derivation gates on the order having been paid. A `fulfillments` row
+  exists from placement, so an abandoned checkout made a customer and added
+  to Spent; the pair of conditions is now the one `ListingTable` counts a
+  sale by. Tested: a placed-and-never-paid order yields no customer.
+- The figures are one grouped query — count, sum, first and last
+  `orders.placed_at`, grouped by customer — plus one query for the latest
+  order's name and address, run only for a buyer whose own account holds
+  neither. The PHP fold over every parcel is gone.
+- A buyer with one live and one settled parcel counts one order and one
+  subtotal, and the settled parcel still lists under Orders on their page.
+  Declined and refunded both covered.
+- `CustomerTableSort` negated the id tie-break along with the column, so
+  tied rows swapped between the two directions of one column. The direction
+  applies to the column alone now.
+- The Message button reads recency as `orders.placed_at`, the way the rest
+  of the section does; tested with two parcels placed out of insertion
+  order.
+- `ConversationKind::tagLabel()`/`tagTint()` own the thread pill's words and
+  colour; `x-seller.thread-tag` maps a tint to classes. The listings table
+  renders its headers through `x-seller.sortable-th`.
+  `App\Domain\Seller\Initials::of()` is the one avatar reduction.
+- Comments and the doc section state the positive.
+- The tile figures carry `data-stat` hooks and the tests read them; header
+  and segment links are parsed through `Tests\QueryString` (the seller
+  inbox's own `sellerRowQuery()` reads it too). The fourteen-case sort
+  dataset that only asserted 200 gave way to one asserting an order.
+- Blade calls no clock: the customer page takes `$now` from the controller.

@@ -61,12 +61,12 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($chrome->columnHeaders) }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No customers here yet. A live order is what makes someone a customer.</td>
+                        <td colspan="{{ count($chrome->columnHeaders) }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No customers here yet. A paid order is what makes someone a customer.</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
 
-    <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Repeat buyers have ordered twice or more. New counts a first order inside the last {{ $rangeDays }} days. A declined or refunded order counts for nothing here.</p>
+    <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Repeat buyers have ordered twice or more. New counts a first order inside the last {{ $rangeDays }} days. An order that was never paid for, or that was declined or refunded, counts for nothing here.</p>
 </x-layouts.seller>

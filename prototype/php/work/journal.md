@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-04:06:25:00 — FEAT-059 — reviewed: review-pass fixes on php/sp-customers (seller-scoped order items, ThreadLink, enum tag vocabulary, shared initials)
+- 2026-09-04:06:25:00 — FEAT-054 — reviewed: review-pass fixes on php/sp-customers (paid gate, one grouped query, tie-break direction, placed_at recency, read tests)
 - 2026-09-04:05:40:00 — FEAT-059 — resolved: A thread shows who the customer is beside the words
 - 2026-09-04:05:30:00 — FEAT-059 — started: A thread shows who the customer is beside the words
 - 2026-09-04:05:25:00 — FEAT-054 — resolved: Customers is a section: derived buyers, segments, sortable columns, and one buyer's timeline

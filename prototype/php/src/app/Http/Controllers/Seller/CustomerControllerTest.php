@@ -131,7 +131,7 @@ it('counts customers, repeat buyers, the average order, and open conversations a
 it('says what makes someone a customer when the seller has none', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers');
 
-    $response->assertOk()->assertSee('A live order is what makes someone a customer.');
+    $response->assertOk()->assertSee('A paid order is what makes someone a customer.');
 });
 
 it('narrows to repeat buyers', function (): void {
