@@ -35,12 +35,8 @@ it('counts the lanes that ask for work and leaves the archives uncounted', funct
     $this->shippedFulfillmentFor($seller);
     $this->deliveredFulfillmentFor($seller);
 
-    $counts = [];
     $tabs = app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip);
-
-    foreach (LaneFilter::cases() as $index => $lane) {
-        $counts[$lane->value] = $tabs[$index]->count;
-    }
+    $counts = array_map(fn (NavLink $tab): ?int => $tab->count, $tabs);
 
     expect($counts)->toBe([
         LaneFilter::ToShip->value => 2,
@@ -53,14 +49,14 @@ it('counts the lanes that ask for work and leaves the archives uncounted', funct
 it('counts a lane at nothing when it holds nothing', function (): void {
     $tabs = app(FulfillmentLanes::class)->tabs($this->seller(), LaneFilter::ToShip);
 
-    expect($tabs[0]->count)->toBe(0);
+    expect($tabs[LaneFilter::ToShip->value]->count)->toBe(0);
 });
 
 it('marks the current tab and links every tab to its own lane', function (): void {
     $tabs = app(FulfillmentLanes::class)->tabs($this->seller(), LaneFilter::Done);
 
-    expect(array_map(fn (NavLink $tab): bool => $tab->active, $tabs))->toBe([false, false, true, false])
-        ->and($tabs[1]->href)->toContain('lane=progress');
+    expect(array_values(array_map(fn (NavLink $tab): bool => $tab->active, $tabs)))->toBe([false, false, true, false])
+        ->and($tabs[LaneFilter::InProgress->value]->href)->toContain('lane=progress');
 });
 
 it('counts another sellers parcels into their own lanes', function (): void {
@@ -68,7 +64,7 @@ it('counts another sellers parcels into their own lanes', function (): void {
 
     $tabs = app(FulfillmentLanes::class)->tabs($this->seller('Blue Kiln Studio'), LaneFilter::ToShip);
 
-    expect($tabs[0]->count)->toBe(0);
+    expect($tabs[LaneFilter::ToShip->value]->count)->toBe(0);
 });
 
 it('reads the oldest parcel first while a buyer is waiting', function (): void {
@@ -249,8 +245,8 @@ it('counts each lane at what the lane itself selects', function () use ($flowWit
 
     $tabs = app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip);
 
-    foreach (LaneFilter::cases() as $index => $lane) {
-        $count = $tabs[$index]->count;
+    foreach (LaneFilter::cases() as $lane) {
+        $count = $tabs[$lane->value]->count;
 
         if ($count === null) {
             continue;
