@@ -193,9 +193,10 @@ another seller's rows (`App\Policies\StoreProfilePolicy`).
 | Sections per store           | `StoreSection::MAX_PER_PROFILE` (12)       |
 
 `Database\Seeders\StoreProfileSeeder` gives every seeded seller a published
-store: a tagline, where they work, a story, a gallery, and two links. The
-picture rows name the same files on the public disk the seller's listings
-already show, so the seed copies nothing.
+store: a tagline, where they work, a story, a gallery, and two links. Each
+picture is a copy of one of the seller's listing photos, onto the store's
+own path under a name unique to the store — a store picture never names a
+listing's file, or another store's.
 
 ### What the store does not write
 
