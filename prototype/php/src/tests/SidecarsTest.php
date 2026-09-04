@@ -6,10 +6,16 @@ use Symfony\Component\Finder\Finder;
 
 /**
  * Every non-abstract, non-interface, non-enum, non-trait class under app/
- * sits beside a <Name>Test.php sidecar, unless it is listed below as an
- * exception: a class covered by another file's tests, or one with no
- * independently testable behavior. An exception entry whose sidecar now
- * exists is stale and must be removed, so the list can only shrink.
+ * sits beside a <Name>Test.php sidecar, with one structural exemption and
+ * an explicit list for everything else. A `final readonly` class under
+ * `App\Domain` or `App\Seller` whose only declared method is its
+ * constructor is a value carrier with nothing beyond its values to test;
+ * it needs no sidecar, by shape rather than by name. The list below names
+ * the judgment calls: a class covered by another file's tests, or one
+ * with no independently testable behavior that the structural rule does
+ * not reach. An exception entry whose sidecar now exists, or whose class
+ * the structural rule now covers, is stale and must be removed, so the
+ * list can only shrink.
  */
 it('gives every class under app a sidecar test', function (): void {
     /** @var array<string, string> $exceptions */
@@ -26,11 +32,8 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Models/OptionAxis.php' => 'relations and casts only; axis behavior is pinned by the configurator action and domain tests',
         'app/Models/PropertyValue.php' => 'relations and casts only; exercised through ListingAttributeTest and the taxonomy seeder tests',
         // Plain value carriers with no logic of their own, built and asserted
-        // through the classes that produce them.
-        'app/Domain/Configurator/AxisDefaults.php' => 'value carrier; exercised through AxisSelectionResolverTest and ConfiguratorPageResolverTest',
-        'app/Domain/Configurator/VariantSnapshot.php' => 'value carrier; exercised through VariantAvailabilityTest and the resolver tests',
-        'app/Domain/Orders/BlockedLine.php' => 'value carrier; exercised through OrderPlacementPlanTest',
-        'app/Domain/Orders/PlaceableLine.php' => 'value carrier; exercised through OrderPlacementPlanTest and PlaceableLineBuilderTest',
+        // through the classes that produce them. Outside App\Domain and
+        // App\Seller, so the structural rule does not reach them.
         'app/Analytics/ListingEventCounts.php' => 'value carrier; exercised through AnalyticsReportTest',
         'app/Analytics/AnalyticsEventRow.php' => 'value carrier; exercised through AnalyticsReportTest',
         'app/Analytics/ActorVisitRow.php' => 'value carrier; exercised through AnalyticsReportTest',
@@ -53,31 +56,12 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Analytics/Admin/EntityActivityView.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Logging/Admin/LogRequestGroup.php' => 'plain DTO; built and asserted through LogRowQueryTest',
         'app/Support/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
-        'app/Domain/Seeding/ChannelPick.php' => 'value carrier; exercised through ActivityPlanTest',
-        'app/Domain/Seeding/VisitStep.php' => 'value carrier; exercised through ActivityPlanTest',
-        'app/Domain/Seeding/Session.php' => 'value carrier; exercised through ActivityPlanTest',
-        'app/Domain/Seeding/NewListingStep.php' => 'value carrier; exercised through ActivityPlanTest',
-        'app/Domain/Analytics/BarStripBar.php' => 'value carrier; exercised through BarStripTest and EntityActivityTest',
-        'app/Seller/ColumnHeader.php' => 'value carrier; exercised through ListingsChromeTest',
-        'app/Seller/NavLink.php' => 'value carrier; exercised through ListingsChromeTest, CustomersChromeTest, FulfillmentLanesTest, FeedFiltersTest, and DashboardChromeTest',
-        'app/Domain/Seller/HeldOrder.php' => 'value carrier; exercised through HeldEscrowTest',
-        'app/Domain/Seller/SaleFact.php' => 'value carrier; exercised through PeriodFiguresTest and EarningsPeriodsTest',
-        'app/Domain/Seller/RefundFact.php' => 'value carrier; exercised through PeriodFiguresTest and EarningsPeriodsTest',
-        'app/Domain/Seller/PeriodSaleRow.php' => 'value carrier; exercised through PeriodSalesTest',
-        'app/Seller/DeskPerson.php' => 'value carrier; exercised through SupportDeskTest',
-        'app/Domain/Seller/SupportThreadRow.php' => 'value carrier; exercised through SupportThreadsTest',
-        'app/Seller/OrderRow.php' => 'value carrier; exercised through FulfillmentLanesTest and OrderPaneTest',
-        'app/Seller/OrderFacts.php' => 'value carrier; built and asserted through OrderDetailTest',
-        'app/Seller/CompletedStep.php' => 'value carrier; built and asserted through OrderDetailTest',
-        'app/Seller/ConversationCounts.php' => 'value carrier; exercised through SellerCustomersTest',
-        'app/Seller/ThreadLink.php' => 'value carrier; exercised through ThreadContextTest',
-        'app/Domain/Seller/AttentionRow.php' => 'value carrier; exercised through AttentionQueueTest',
-        'app/Domain/Seller/AttentionGroup.php' => 'value carrier; exercised through AttentionQueueTest',
-        'app/Domain/Seller/AttentionLinks.php' => 'value carrier; exercised through AttentionQueueTest',
-        'app/Domain/Seller/AttentionRows.php' => 'value carrier; exercised through AttentionQueueTest and NeedsAttentionTest',
-        'app/Seller/OverviewTile.php' => 'value carrier; exercised through SellerOverviewTest',
-        'app/Seller/OverviewListingRow.php' => 'value carrier; exercised through ListingActivityTest',
-        'app/Seller/HeldTally.php' => 'value carrier; exercised through HeldEscrowTest and NeedsAttentionTest',
+        // Judgment calls under App\Domain/App\Seller the structural rule
+        // does not reach: each carries a method beyond its constructor.
+        'app/Domain/Configurator/AxisDefaults.php' => 'value carrier with a named factory; exercised through AxisSelectionResolverTest and ConfiguratorPageResolverTest',
+        'app/Seller/CompletedStep.php' => 'value carrier with a formatting method; built and asserted through OrderDetailTest',
+        'app/Domain/Seller/AttentionGroup.php' => 'value carrier with predicate methods; exercised through AttentionQueueTest',
+        'app/Domain/Seller/AttentionRows.php' => 'value carrier with a named factory; exercised through AttentionQueueTest and NeedsAttentionTest',
     ];
 
     $base = dirname(__DIR__);
@@ -105,6 +89,10 @@ it('gives every class under app a sidecar test', function (): void {
 
         $relative = 'app/'.ltrim(str_replace($base.'/app', '', $file->getPathname()), '/');
 
+        if (isConstructorOnlyDomainValue($relative)) {
+            continue;
+        }
+
         if (! array_key_exists($relative, $exceptions)) {
             $missing[] = $relative;
         }
@@ -117,10 +105,41 @@ it('gives every class under app a sidecar test', function (): void {
     foreach (array_keys($exceptions) as $relative) {
         $sidecar = substr($base.'/'.$relative, 0, -4).'Test.php';
 
-        if (file_exists($sidecar)) {
+        if (file_exists($sidecar) || isConstructorOnlyDomainValue($relative)) {
             $stale[] = $relative;
         }
     }
 
     expect($stale)->toBe([]);
 });
+
+/**
+ * A `final readonly` class under `App\Domain` or `App\Seller` whose only
+ * declared method is its constructor: a value carrier built and read by
+ * the class that produces it, with nothing beyond its values to test.
+ */
+function isConstructorOnlyDomainValue(string $relative): bool
+{
+    if (! str_starts_with($relative, 'app/Domain/') && ! str_starts_with($relative, 'app/Seller/')) {
+        return false;
+    }
+
+    $fqcn = 'App\\'.str_replace('/', '\\', substr($relative, 4, -4));
+
+    if (! class_exists($fqcn)) {
+        return false;
+    }
+
+    $reflection = new ReflectionClass($fqcn);
+
+    if (! $reflection->isFinal() || ! $reflection->isReadOnly()) {
+        return false;
+    }
+
+    $ownMethods = array_values(array_filter(
+        $reflection->getMethods(),
+        fn (ReflectionMethod $method): bool => $method->getDeclaringClass()->getName() === $fqcn,
+    ));
+
+    return array_map(fn (ReflectionMethod $method): string => $method->getName(), $ownMethods) === ['__construct'];
+}
