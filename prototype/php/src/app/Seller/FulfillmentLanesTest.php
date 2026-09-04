@@ -36,9 +36,10 @@ it('counts the lanes that ask for work and leaves the archives uncounted', funct
     $this->deliveredFulfillmentFor($seller);
 
     $counts = [];
+    $tabs = app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip);
 
-    foreach (app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip) as $tab) {
-        $counts[$tab->lane->value] = $tab->count;
+    foreach (LaneFilter::cases() as $index => $lane) {
+        $counts[$lane->value] = $tabs[$index]->count;
     }
 
     expect($counts)->toBe([
@@ -58,7 +59,7 @@ it('counts a lane at nothing when it holds nothing', function (): void {
 it('marks the current tab and links every tab to its own lane', function (): void {
     $tabs = app(FulfillmentLanes::class)->tabs($this->seller(), LaneFilter::Done);
 
-    expect(array_map(fn (LaneTab $tab): bool => $tab->active, $tabs))->toBe([false, false, true, false])
+    expect(array_map(fn (NavLink $tab): bool => $tab->active, $tabs))->toBe([false, false, true, false])
         ->and($tabs[1]->href)->toContain('lane=progress');
 });
 
@@ -246,12 +247,16 @@ it('counts each lane at what the lane itself selects', function () use ($flowWit
     $this->shippedFulfillmentFor($seller);
     $this->deliveredFulfillmentFor($seller);
 
-    foreach (app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip) as $tab) {
-        if ($tab->count === null) {
+    $tabs = app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip);
+
+    foreach (LaneFilter::cases() as $index => $lane) {
+        $count = $tabs[$index]->count;
+
+        if ($count === null) {
             continue;
         }
 
-        expect($tab->count)->toBe(Fulfillment::query()->whereBelongsTo($seller)->inLane($tab->lane)->count());
+        expect($count)->toBe(Fulfillment::query()->whereBelongsTo($seller)->inLane($lane)->count());
     }
 });
 

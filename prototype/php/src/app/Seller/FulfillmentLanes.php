@@ -28,14 +28,14 @@ use Illuminate\Database\Query\JoinClause;
 final readonly class FulfillmentLanes
 {
     /**
-     * @return list<LaneTab>
+     * @return list<NavLink>
      */
     public function tabs(Seller $seller, LaneFilter $current): array
     {
         $counts = $this->counts($seller);
 
-        return array_map(fn (LaneFilter $lane): LaneTab => new LaneTab(
-            lane: $lane,
+        return array_map(fn (LaneFilter $lane): NavLink => new NavLink(
+            label: $lane->label(),
             href: route('seller.orders.index', ['lane' => $lane->value]),
             active: $lane === $current,
             count: $lane->isCounted() ? ($counts[$lane->value] ?? 0) : null,

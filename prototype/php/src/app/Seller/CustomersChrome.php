@@ -18,7 +18,7 @@ use App\Domain\Seller\TableSort;
 final readonly class CustomersChrome
 {
     /**
-     * @param  list<SegmentLink>  $segments
+     * @param  list<NavLink>  $segments
      * @param  TableSort<CustomerRow>  $sort
      * @param  list<ColumnHeader>  $columnHeaders
      */
@@ -45,13 +45,13 @@ final readonly class CustomersChrome
 
     /**
      * @param  array<string, string>  $roundTripped
-     * @return list<SegmentLink>
+     * @return list<NavLink>
      */
     private static function segmentLinks(array $roundTripped, CustomerSegment $current): array
     {
         $without = collect($roundTripped)->except('segment')->all();
 
-        return array_map(fn (CustomerSegment $segment): SegmentLink => new SegmentLink(
+        return array_map(fn (CustomerSegment $segment): NavLink => new NavLink(
             label: $segment->label(),
             href: route('seller.customers.index', [...$without, 'segment' => $segment->value]),
             active: $segment === $current,

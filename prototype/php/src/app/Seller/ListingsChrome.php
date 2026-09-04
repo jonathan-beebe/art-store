@@ -19,7 +19,8 @@ use App\Domain\Seller\TableSort;
 final readonly class ListingsChrome
 {
     /**
-     * @param  list<ViewLink>  $viewLinks
+     * @param  list<NavLink>  $viewLinks
+     * @param  list<string>  $viewIcons  one `<path d="">` per entry of `viewLinks`, in the same order
      * @param  TableSort<ListingTableRow>  $sort
      * @param  list<ListingSortColumn>  $sortOptions
      * @param  list<ColumnHeader>  $columnHeaders
@@ -28,6 +29,7 @@ final readonly class ListingsChrome
     private function __construct(
         public ListingView $view,
         public array $viewLinks,
+        public array $viewIcons,
         public TableSort $sort,
         public array $sortOptions,
         public array $columnHeaders,
@@ -47,6 +49,7 @@ final readonly class ListingsChrome
         return new self(
             view: $view,
             viewLinks: self::viewLinks($roundTripped, $view),
+            viewIcons: array_map(fn (ListingView $view): string => $view->iconPath(), ListingView::cases()),
             sort: $sort,
             sortOptions: self::sortOptions(),
             columnHeaders: self::columnHeaders($roundTripped, $sort),
@@ -56,14 +59,14 @@ final readonly class ListingsChrome
 
     /**
      * @param  array<string, string>  $roundTripped
-     * @return list<ViewLink>
+     * @return list<NavLink>
      */
     private static function viewLinks(array $roundTripped, ListingView $current): array
     {
         $without = collect($roundTripped)->except('view')->all();
 
-        return array_map(fn (ListingView $view): ViewLink => new ViewLink(
-            view: $view,
+        return array_map(fn (ListingView $view): NavLink => new NavLink(
+            label: $view->label(),
             href: route('seller.listings.index', [...$without, 'view' => $view->value]),
             active: $view === $current,
         ), ListingView::cases());

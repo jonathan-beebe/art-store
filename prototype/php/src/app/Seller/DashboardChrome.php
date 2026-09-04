@@ -16,11 +16,11 @@ final readonly class DashboardChrome
     private function __construct() {} // @codeCoverageIgnore
 
     /**
-     * @return list<SegmentLink>
+     * @return list<NavLink>
      */
     public static function rangeLinks(AnalyticsRange $range): array
     {
-        return array_map(fn (int $days): SegmentLink => new SegmentLink(
+        return array_map(fn (int $days): NavLink => new NavLink(
             label: $days.' days',
             href: route('seller.dashboard', ['range' => $days]),
             active: $days === $range->days,

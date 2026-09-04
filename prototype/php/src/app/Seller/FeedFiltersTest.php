@@ -12,7 +12,7 @@ it('offers All and one button per kind, All in force with no kind chosen', funct
 
     $links = FeedFilters::for('seller.customers.show', ['customer' => $customer->id], null);
 
-    expect(array_map(fn (SegmentLink $link): string => $link->label, $links))
+    expect(array_map(fn (NavLink $link): string => $link->label, $links))
         ->toBe(['All', 'Browsing', 'Order', 'Shipping', 'Messages'])
         ->and($links[0]->active)->toBeTrue()
         ->and($links[0]->href)->not->toContain('kind=');
@@ -23,8 +23,8 @@ it('marks the chosen kind and names it on every other button\'s link', function 
 
     $links = FeedFilters::for('seller.customers.show', ['customer' => $customer->id], ActivityKind::Shipping);
 
-    $shipping = array_values(array_filter($links, fn (SegmentLink $link): bool => $link->label === 'Shipping'));
-    $messages = array_values(array_filter($links, fn (SegmentLink $link): bool => $link->label === 'Messages'));
+    $shipping = array_values(array_filter($links, fn (NavLink $link): bool => $link->label === 'Shipping'));
+    $messages = array_values(array_filter($links, fn (NavLink $link): bool => $link->label === 'Messages'));
 
     expect($links[0]->active)->toBeFalse()
         ->and($shipping[0]->active)->toBeTrue()

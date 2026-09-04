@@ -11,9 +11,9 @@ use App\Domain\Seller\TableSort;
 use RuntimeException;
 
 /**
- * @param  list<SegmentLink>  $links
+ * @param  list<NavLink>  $links
  */
-function segmentLinkFor(array $links, CustomerSegment $segment): SegmentLink
+function segmentLinkFor(array $links, CustomerSegment $segment): NavLink
 {
     foreach ($links as $link) {
         if ($link->label === $segment->label()) {

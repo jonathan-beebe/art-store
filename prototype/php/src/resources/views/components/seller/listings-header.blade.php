@@ -23,18 +23,7 @@
     @endif
     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $listingsTotal }}</span>
 
-    <div class="inline-flex isolate rounded-md" role="group" aria-label="View">
-        @foreach ($chrome->viewLinks as $link)
-            <a
-                href="{{ $link->href }}"
-                @if ($link->active) aria-current="true" @endif
-                class="relative -ml-px inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium first:ml-0 first:rounded-l-md last:rounded-r-md inset-ring inset-ring-gray-300 dark:inset-ring-white/10 {{ $link->active ? 'z-10 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300' : 'bg-white text-gray-600 dark:bg-white/10 dark:text-gray-400' }}"
-            >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true"><path d="{{ $link->view->iconPath() }}"></path></svg>
-                {{ $link->view->label() }}
-            </a>
-        @endforeach
-    </div>
+    <x-seller.segmented :links="$chrome->viewLinks" :icons="$chrome->viewIcons" label="View" />
 
     @if ($chrome->view->showsSort())
         <form method="GET" action="{{ route('seller.listings.index') }}" data-sort-form class="inline-flex items-center gap-2">

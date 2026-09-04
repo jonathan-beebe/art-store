@@ -11,12 +11,12 @@ use App\Domain\Seller\TableSort;
 use RuntimeException;
 
 /**
- * @param  list<ViewLink>  $links
+ * @param  list<NavLink>  $links
  */
-function viewLinkFor(array $links, ListingView $view): ViewLink
+function viewLinkFor(array $links, ListingView $view): NavLink
 {
     foreach ($links as $link) {
-        if ($link->view === $view) {
+        if ($link->label === $view->label()) {
             return $link;
         }
     }
@@ -57,6 +57,16 @@ it('builds one view link per view, marking the current one active', function ():
         ->and($grid->active)->toBeFalse()
         ->and($table->href)->toContain('range=7')
         ->and($table->href)->toContain('view=table');
+});
+
+it('carries one icon per view link, in the same order', function (): void {
+    $chrome = ListingsChrome::build([], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+
+    expect($chrome->viewIcons)->toHaveCount(3)
+        ->and($chrome->viewIcons)->toBe(array_map(
+            fn (ListingView $view): string => $view->iconPath(),
+            ListingView::cases(),
+        ));
 });
 
 it('offers every sort column but status in the select', function (): void {
