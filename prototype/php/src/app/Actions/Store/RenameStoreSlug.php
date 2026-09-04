@@ -29,7 +29,7 @@ final readonly class RenameStoreSlug
             $profile->slugs()->current()->update(['retired_at' => $retiredAt]);
 
             // An address this store retired earlier comes back as the
-            // current one rather than colliding with its own history.
+            // current one; the row it already has is the one updated.
             $profile->slugs()->updateOrCreate(['slug' => $slug], ['retired_at' => null]);
 
             $profile->update(['slug' => $slug]);

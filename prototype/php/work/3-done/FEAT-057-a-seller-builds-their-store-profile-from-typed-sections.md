@@ -96,3 +96,37 @@ baseline. Rewritten as local variables and top-level closures captured with
 
 **Gate.** `make precommit` green: 4248 tests, 33784 assertions, Pint and
 PHPStan clean.
+
+### Review pass
+
+Six findings on this ticket, all fixed on the same branch.
+
+- **The gallery's order was unreachable.** The form was a checkbox set and
+  `SaveStoreSection` honoured an order nothing produced. Each picture now
+  carries an `order[{image}]` number, `StoreSectionRequest::imageIds()`
+  sorts by it, and a picture with no number sorts last. Covered through
+  HTTP.
+- **A body over 4,000 characters lost the text.** The section forms all
+  post the same field names, so errors now land in a bag named for the
+  section (`StoreSectionRequest::errorBagFor()`), set in
+  `prepareForValidation()`. The page reads that bag beside that section,
+  shows `old()` only for the section that failed, and carries `@error`
+  blocks for heading, body, images, and order. The textarea lost its
+  `maxlength` — the browser was truncating silently where the request has
+  a ceiling and a message.
+- **`store_images.alt` had no field.** The upload form gained a
+  description input; every picture was rendering `alt=""`.
+- **`MoveStoreSection::SENTINEL_POSITION` was `-1`** against an
+  `unsignedInteger` column, which MySQL and Postgres reject. It is 9999
+  now: above `MAX_PER_PROFILE`, inside the column's range, same three-step
+  swap.
+- **`AddStoreImage` orphaned a file on rollback.** The disk write still
+  runs first; a throwing transaction now deletes the path before it
+  rethrows. Covered by a case that trips the foreign key.
+- **`UpdateStoreRequest`'s bare `url` rule** admitted `data:` and `blob:`,
+  which `StoreLink::href()` emitted verbatim. It is `url:http,https`.
+
+Prose: the six "rather than" clauses in this ticket's files state the
+positive fact now.
+
+**Gate after the review pass.** `make check` green.

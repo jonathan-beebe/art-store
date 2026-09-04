@@ -89,7 +89,15 @@ statement of which fields a kind uses:
 `App\Http\Requests\Seller\StoreSectionRequest` reads it twice — once to
 decide which fields to validate, once in its after-validation pass to refuse
 a field the kind does not use, so a body posted at a gallery is an error
-rather than a silently dropped column.
+the seller sees.
+
+Every section on the screen posts its own form under the same field names,
+so a section's errors go into a bag named for it
+(`StoreSectionRequest::errorBagFor()`), and the page reads that bag beside
+that section. The section that failed shows the words the seller typed; the
+others show what is stored. A gallery numbers its pictures with an
+`order[{image}]` field, and `imageIds()` sorts by it — a picture with no
+number sorts last.
 
 A new kind of store content is a case here, a renderer in
 `resources/views/components/store/profile.blade.php`, and — when it needs
@@ -108,8 +116,8 @@ ever used and a redirect can never be ambiguous.
 `App\Actions\Store\RenameStoreSlug` is the one writer: in one transaction it
 stamps the current row retired, brings the new address in as the current
 row, and updates the profile. A rename back to an address the store retired
-earlier revives that row rather than colliding with its own history. A
-rename to the address the store already holds writes nothing.
+earlier revives that row. A rename to the address the store already holds
+writes nothing.
 
 ### The routes
 
@@ -152,7 +160,8 @@ listings already show, so the seed copies nothing.
 `docs/alignment.md` §2.3 closes the log-event vocabulary and §3 closes the
 rate-limit names. Store writes emit neither: there is no `store.*` event and
 no store limiter until the contract gains them, so the actions here write
-silently rather than minting names the other two prototypes lack.
+silently; minting a name the other two prototypes lack is what §2.3
+forbids.
 
 ## The public page
 
@@ -175,7 +184,10 @@ flowchart TB
 ```
 
 `App\Support\Store\StoreAddressLookup` is the query;
-`App\Domain\Store\RetiredSlugWindow` is the thirty-day rule.
+`App\Domain\Store\RetiredSlugWindow` is the thirty-day rule. The redirect
+target is resolved through published profiles only, so an old address of a
+store that has since been hidden answers 404 and never names where the
+store now lives.
 A hidden store, an address retired too long ago, and an address no store
 ever held all answer the same 404, so a hidden store is never confirmed to
 exist. Its own seller is the exception: they see the page with a banner
@@ -184,15 +196,18 @@ saying buyers cannot open it.
 ### What the page shows
 
 The cover, the portrait, the name, the tagline, the location, "N pieces for
-sale · Selling since <Month Year>" (`App\Support\Store\StoreFacts`), the
-sections in order, the links, and the seller's storefront listings
+sale · Selling since <Month Year>" (`App\Support\Store\StoreFacts` — the
+count is `Listing::forSale()`, so a sold piece stays on the page and out of
+the number), the sections in order, the links, and the seller's storefront
+listings
 (`Listing::onStorefront()` — for sale and sold, never draft, archived, or
 removed) in the storefront's own grid partial.
 
 The page carries a title, a description (the tagline, else the opening of
 the first story, else the name), and an Open Graph image (the cover, else
 the portrait). `x-layouts.shop` gained `description` and `image` props for
-this; a page passing neither renders neither tag.
+this, and emits the Open Graph group only for a page that passes one of
+them; every other storefront page renders as it did.
 
 ### Listing cards lead to it
 
@@ -200,7 +215,7 @@ this; a page passing neither renders neither tag.
 when the store is published, and as plain text otherwise. The link reads
 `$listing->seller->storeProfile`, so every query that feeds a card eager
 loads `seller.storeProfile` — `Model::shouldBeStrict()` turns a missed one
-into a lazy-loading violation outside production rather than an N+1.
+into a lazy-loading violation outside production, so it fails loudly.
 
 ### Analytics
 

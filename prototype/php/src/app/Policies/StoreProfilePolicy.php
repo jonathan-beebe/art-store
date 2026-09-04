@@ -9,9 +9,9 @@ use App\Models\StoreProfile;
 use Illuminate\Auth\Access\Response;
 
 /**
- * A store belongs to one seller. Another seller's store answers "not found"
- * rather than "forbidden", so an id outside a seller's own portal is never
- * confirmed to exist.
+ * A store belongs to one seller. Another seller's store answers "not
+ * found", so an id outside a seller's own portal is never confirmed to
+ * exist.
  */
 final class StoreProfilePolicy
 {

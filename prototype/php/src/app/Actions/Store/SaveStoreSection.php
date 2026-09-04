@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * One section's own save: the text it carries and, for a gallery, which of
- * the store's pictures it places and in what order. The placements are
- * rewritten rather than patched, so the order the form sent is the order
- * the page renders.
+ * the store's pictures it places and in what order. Every placement is
+ * written afresh, so the order the form sent is the order the page
+ * renders.
  */
 final readonly class SaveStoreSection
 {

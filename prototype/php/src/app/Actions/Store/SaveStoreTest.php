@@ -93,7 +93,7 @@ it('drops the row for a kind the seller cleared', function () use ($store, $draf
     expect($profile->links()->pluck('kind')->all())->toBe([StoreLinkKind::Website]);
 });
 
-it('rewrites a link the seller changed rather than adding a second', function () use ($store, $draft, $now): void {
+it('keeps one row for a link the seller changed', function () use ($store, $draft, $now): void {
     $profile = $store();
     app(SaveStore::class)($profile, $draft(links: [StoreLinkKind::Website->value => 'https://old.example']), $now);
 

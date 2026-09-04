@@ -88,3 +88,37 @@ rows — correct behavior, a wrong assertion. The collapse is pinned in
 
 **Gate.** `make precommit` green: 4295 tests, 33864 assertions, Pint and
 PHPStan clean.
+
+### Review pass
+
+Six findings on this ticket, all fixed on the same branch.
+
+- **Disclosure: a hidden store's old address named where it lives.**
+  `StoreAddressLookup::movedTo()` never looked at `published_at`, so
+  renaming and then hiding left the old address answering 301 to the new
+  slug. The redirect target resolves through published profiles only, so a
+  hidden target yields null and the controller 404s. Covered at both the
+  query and the route.
+- **`StoreFacts::pieceCount` counted sold work.** The sentence says "N
+  pieces for sale" and the count used `onStorefront()` (for sale and
+  sold). It is `forSale()` now, with a case pinning that a sold piece is
+  left out. `StoreFactsTest` pinned the wrong number and was corrected.
+- **`StoreFacts::of()` lazy-loaded `seller`**, which is a violation
+  outside production. It calls `loadMissing('seller')`, and both page-data
+  builders load `seller` up front.
+- **The maker-link rule lived in two Blade files.** It is
+  `StoreProfile::publicUrl()` — null while the store is hidden — and both
+  the card and the listing page call it.
+- **`EntityActivity`'s store branch had no test.** An actor-feed case now
+  pins a `store.view` row: label `store {id}`, kind `store`, unlinked, no
+  listing titles.
+- **The Open Graph tags reached every storefront page.** They belong to
+  this feature, so `x-layouts.shop` emits the group only for a page that
+  passes `description` or `image`; a case asserts the storefront home
+  carries none. Keeping them site-wide was the alternative and would have
+  changed pages no ticket here owns.
+
+Prose: the three "rather than" clauses in this ticket's files state the
+positive fact now.
+
+**Gate after the review pass.** `make check` green.

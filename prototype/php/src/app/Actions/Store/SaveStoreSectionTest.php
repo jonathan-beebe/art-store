@@ -29,7 +29,7 @@ it('places the pictures a gallery names, in the order they arrived', function ()
         ->and($section->sectionImages()->pluck('position')->all())->toBe([0, 1]);
 });
 
-it('rewrites the placements rather than adding to them', function (): void {
+it('writes the placements afresh on every save', function (): void {
     $profile = StoreProfile::factory()->create();
     $section = StoreSection::factory()->gallery()->create(['store_profile_id' => $profile->id]);
     $first = StoreImage::factory()->create(['store_profile_id' => $profile->id]);

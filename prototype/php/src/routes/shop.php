@@ -35,9 +35,9 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
         ->where('categoryPath', '[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?')
         ->name('browse');
     Route::get('/art/{listing:slug}', ListingController::class)->name('listing');
-    // A maker's own page. The slug is read by the controller rather than
-    // bound to a model: an address the store left behind names no row on
-    // `store_profiles` and still has to redirect.
+    // A maker's own page. The controller reads the slug as a string: an
+    // address the store left behind names no row on `store_profiles` and
+    // still has to redirect.
     Route::get('/s/{slug}', StoreController::class)
         ->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')
         ->name('store');

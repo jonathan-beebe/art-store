@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-04:00:40:00 — FEAT-058 — reviewed: review-pass fixes on php/sp-store (hidden-store redirect disclosure, for-sale count, publicUrl, feed-row test, scoped OG tags)
+- 2026-09-04:00:40:00 — FEAT-057 — reviewed: review-pass fixes on php/sp-store (gallery order input, per-section error bags and old(), alt field, sentinel position, upload rollback, url scheme rule)
 - 2026-09-03:23:55:00 — FEAT-058 — resolved: A store has a public page and every listing card leads to it
 - 2026-09-03:23:15:00 — FEAT-058 — started: A store has a public page and every listing card leads to it
 - 2026-09-03:23:10:00 — FEAT-057 — resolved: A seller builds their store profile from typed sections
