@@ -1,7 +1,7 @@
 ---
 id: FEAT-061
 type: feature
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -32,3 +32,45 @@ The brief: "Make it feel like we are close." A page that shows who answers, prom
 ## Related work
 - PR #62 (messaging v2 — the desk), FEAT-050
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Support)
+
+## Working
+
+`composer.json` carries no markdown library, so `HelpArticle::fromMarkdown()`
+is a minimal hand-rolled parser (front matter + blank-line-separated
+paragraphs, per the discovery note) rather than a dependency pull — the
+four shipped articles use no markdown beyond paragraphs.
+
+Pure domain (`App\Domain\Seller`): `HelpArticle`, `DeskPresence`/
+`PresenceStatus` (weekday hours from config, no realtime signal),
+`ReplyTime` (a duration in round words). Adapters (`App\Seller`):
+`HelpArticles` (reads `resources/help/seller/*.md`, request-cached,
+grouped in a fixed topic order), `SupportDesk` (every seeded admin under
+one shared presence, plus the seller's last-reply-time gap), `DeskPerson`
+(a small carrier), `SupportThreads` (the seller's own `admin_seller`
+conversations).
+
+`config/support.php`: role, reply-time promise, email, phone + hours,
+booking URL, desk hours — each `env()`-backed with a bracketed placeholder
+default for a fact not known yet. New `.env.example` entries, commented
+out like every other optional var.
+
+`SupportController` gained `index()` (the hub) and kept `create()`/`store()`
+unchanged; new `HelpArticleController@show` 404s on an unrecognised slug.
+`routes/seller.php`: `support` now names the hub; `support/new` carries the
+existing form (GET create, POST store); `support/articles/{article}` is
+new. This moved every existing test posting to `/seller/support` — the
+FormRequest test, an admin-messaging integration test, and the controller's
+own suite — onto `/seller/support/new`.
+
+Two small fixes, not scope creep: `EarningsController`/`StatementController`
+(FEAT-060) read `Illuminate\Support\Facades\Date::now()` directly instead of
+the base `Controller::now()` the codebase already gives every controller —
+caught while wiring `SupportController` and fixed there too, so every
+seller controller reads the shell's one clock the same way. Added
+`app/Seller/DeskPerson.php` and `SidecarsTest`'s exception list entry
+before that was noticed.
+
+Gate: `make precommit` green (composer lint:all + composer test, 4126
+passed). Left out: nothing from the ticket's outcome list. The "Yes" half
+of an article's "did this answer it?" pair has no tracking behind it (not
+asked for) — it returns to the support hub, same as a completed loop.
