@@ -121,6 +121,18 @@ it('leaves an order that was never paid off sold and revenue', function (): void
         ->and($rows[0]->revenueCents)->toBe(0);
 });
 
+it('reads one listing\'s row the same way its row in the table reads', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Chamber of Secrets', 'dimensions' => '5 in']);
+    $listing->load('activeRemoval');
+
+    $row = ListingTable::forListing($listing, AnalyticsRange::of(30, new DateTimeImmutable('2026-09-03')));
+
+    expect($row->id)->toBe($listing->id)
+        ->and($row->title)->toBe('Chamber of Secrets')
+        ->and($row->dimensions)->toBe('5 in');
+});
+
 it('leaves a declined fulfillment off sold and revenue', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller, priceCents: 500);

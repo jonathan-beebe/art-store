@@ -22,10 +22,12 @@ use Illuminate\Support\Collection;
 use LogicException;
 
 /**
- * `$seller`'s listings joined, by id in PHP, to the analytics store's
+ * A seller's listings joined, by id in PHP, to the analytics store's
  * ranged event counts and the app database's all-time sales — the seller
- * listings table and grid's source. Rows come back in no particular
- * order; {@see \App\Domain\Seller\ListingTableSort} orders them.
+ * listings table and grid's source, and the one detail component's source
+ * for the same figures on a single listing. Rows come back in no
+ * particular order; {@see \App\Domain\Seller\ListingTableSort} orders a
+ * list of them.
  */
 final class ListingTable
 {
@@ -41,19 +43,39 @@ final class ListingTable
             ->with(['activeRemoval', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->get();
 
+        return array_values(self::rowsFor($listings, $seller->id, $range)->all());
+    }
+
+    /**
+     * The same row a table or grid renders, for one listing already
+     * carrying its `activeRemoval` — the detail component's source, so a
+     * listing's sold, revenue, and ranged counts never disagree with its
+     * own row in the table.
+     */
+    public static function forListing(Listing $listing, AnalyticsRange $range): ListingTableRow
+    {
+        return self::rowsFor(collect([$listing]), $listing->seller_id, $range)->sole();
+    }
+
+    /**
+     * @param  Collection<int, Listing>  $listings
+     * @return Collection<int, ListingTableRow>
+     */
+    private static function rowsFor(Collection $listings, string $sellerId, AnalyticsRange $range): Collection
+    {
         /** @var list<string> $listingIds */
         $listingIds = $listings->pluck('id')->all();
 
         $mediums = self::mediumsByListing($listingIds);
-        $sales = self::salesByListing($seller, $listingIds);
+        $sales = self::salesByListing($sellerId, $listingIds);
         $counts = AnalyticsReport::countsForListingsSince($listingIds, $range->start);
 
-        return array_values($listings->map(fn (Listing $listing): ListingTableRow => self::toRow(
+        return $listings->map(fn (Listing $listing): ListingTableRow => self::toRow(
             $listing,
             $mediums[$listing->id] ?? null,
             $sales[$listing->id] ?? ['sold' => 0, 'revenueCents' => 0],
             $counts[$listing->id] ?? new ListingEventCounts(views: 0, favorites: 0, cartAdds: 0),
-        ))->all());
+        ))->values();
     }
 
     /**
@@ -115,7 +137,7 @@ final class ListingTable
      * @param  list<string>  $listingIds
      * @return array<string, array{sold: int, revenueCents: int}> listing id => totals
      */
-    private static function salesByListing(Seller $seller, array $listingIds): array
+    private static function salesByListing(string $sellerId, array $listingIds): array
     {
         if ($listingIds === []) {
             return [];
@@ -127,7 +149,7 @@ final class ListingTable
         ));
 
         $items = OrderItem::query()
-            ->where('seller_id', $seller->id)
+            ->where('seller_id', $sellerId)
             ->whereIn('listing_id', $listingIds)
             ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', $paidStatuses))
             ->whereExists(function (QueryBuilder $query): void {

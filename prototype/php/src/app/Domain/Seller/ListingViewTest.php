@@ -23,3 +23,7 @@ it('labels each view', function (ListingView $view, string $expected): void {
     [ListingView::Table, 'Table'],
     [ListingView::Grid, 'Grid'],
 ]);
+
+it('carries an icon path for each view', function (ListingView $view): void {
+    expect($view->iconPath())->not->toBe('');
+})->with([ListingView::List, ListingView::Table, ListingView::Grid]);
