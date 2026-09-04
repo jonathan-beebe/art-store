@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Escrow\PlatformFees;
+use App\Domain\Fulfillment\FlowStep;
+use App\Domain\Fulfillment\FulfillmentEventKind;
+use App\Domain\Fulfillment\FulfillmentLane;
+use App\Domain\Fulfillment\FulfillmentProgress;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
@@ -78,6 +82,16 @@ class Fulfillment extends Model
     public function ledgerEntries(): HasMany
     {
         return $this->hasMany(LedgerEntry::class);
+    }
+
+    /**
+     * Everything that has happened to this parcel, oldest first.
+     *
+     * @return HasMany<FulfillmentEvent, $this>
+     */
+    public function fulfillmentEvents(): HasMany
+    {
+        return $this->hasMany(FulfillmentEvent::class)->inOrder();
     }
 
     /**
@@ -203,6 +217,39 @@ class Fulfillment extends Model
         ));
     }
 
+    /**
+     * The flow this parcel ships by: the one the first of the seller's own
+     * lines names, and the seller's default flow when none does.
+     */
+    public function flowInEffect(): ?FulfillmentFlow
+    {
+        $this->loadMissing(['order.items.listing.fulfillmentFlow', 'seller.defaultFulfillmentFlow']);
+
+        return $this->flowNamedByAListing() ?? $this->seller->defaultFulfillmentFlow;
+    }
+
+    /**
+     * The steps of that flow, as the pure core reads them.
+     *
+     * @return list<FlowStep>
+     */
+    public function flowSteps(): array
+    {
+        $flow = $this->flowInEffect();
+
+        return $flow instanceof FulfillmentFlow ? $flow->loadMissing('steps')->flowSteps() : [];
+    }
+
+    public function progress(): FulfillmentProgress
+    {
+        return FulfillmentProgress::of($this->flowSteps(), $this->completedStepIds());
+    }
+
+    public function lane(): FulfillmentLane
+    {
+        return FulfillmentLane::of($this->status, $this->progress());
+    }
+
     public function subtotal(): Money
     {
         return Money::fromCents($this->subtotal_cents);
@@ -244,5 +291,32 @@ class Fulfillment extends Model
     private function orderHasBeenPaid(): bool
     {
         return $this->loadMissing('order')->order->status->hasBeenPaid();
+    }
+
+    private function flowNamedByAListing(): ?FulfillmentFlow
+    {
+        foreach ($this->order->items as $item) {
+            if ($item->seller_id === $this->seller_id && $item->listing->fulfillmentFlow instanceof FulfillmentFlow) {
+                return $item->listing->fulfillmentFlow;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The steps the log says are behind this parcel.
+     *
+     * @return list<string>
+     */
+    private function completedStepIds(): array
+    {
+        return array_values(array_filter(
+            $this->loadMissing('fulfillmentEvents')->fulfillmentEvents
+                ->where('kind', FulfillmentEventKind::StepCompleted)
+                ->map(fn (FulfillmentEvent $event): ?string => $event->fulfillment_flow_step_id)
+                ->all(),
+            is_string(...),
+        ));
     }
 }

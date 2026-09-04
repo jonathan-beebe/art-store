@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -73,6 +74,22 @@ class Seller extends Authenticatable
     public function conversations(): HasMany
     {
         return $this->hasMany(Conversation::class);
+    }
+
+    /** @return HasMany<FulfillmentFlow, $this> */
+    public function fulfillmentFlows(): HasMany
+    {
+        return $this->hasMany(FulfillmentFlow::class);
+    }
+
+    /**
+     * The flow every listing that names none ships by.
+     *
+     * @return HasOne<FulfillmentFlow, $this>
+     */
+    public function defaultFulfillmentFlow(): HasOne
+    {
+        return $this->hasOne(FulfillmentFlow::class)->defaults();
     }
 
     /** @return MorphMany<Message, $this> */
