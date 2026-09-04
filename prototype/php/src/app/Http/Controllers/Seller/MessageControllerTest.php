@@ -14,6 +14,7 @@ use App\Models\Fulfillment;
 use App\Models\Message;
 use App\Support\ActorDisplay;
 use Illuminate\Support\Facades\Config;
+use Tests\QueryString;
 
 /**
  * The query string a row's own `href` carries, decoded into an array —
@@ -24,9 +25,7 @@ use Illuminate\Support\Facades\Config;
  */
 function sellerRowQuery(string $url): array
 {
-    parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
-
-    return $params;
+    return QueryString::of($url);
 }
 
 it('lists the sellers threads newest first with who, what, and unread count', function (): void {

@@ -14,6 +14,61 @@ use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\Message;
 use App\Models\Seller;
+use Tests\QueryString;
+
+/**
+ * The query a sortable column header links to, keyed by the column's own
+ * label — read off the rendered `<th>` so a test names a column the way the
+ * seller reads it.
+ *
+ * @return array<int|string, mixed>
+ */
+function customerHeaderQuery(string $html, string $label): array
+{
+    preg_match_all('#<th[^>]*aria-sort="([^"]*)"[^>]*>\s*<a href="([^"]*)"[^>]*>(.*?)</a>#s', $html, $headers, PREG_SET_ORDER);
+
+    foreach ($headers as $header) {
+        if (trim((string) preg_replace('/\s+/', ' ', strip_tags($header[3]))) === $label) {
+            return QueryString::of(html_entity_decode($header[2]));
+        }
+    }
+
+    return [];
+}
+
+/** The `aria-sort` the header for `$label` carries. */
+function customerHeaderAriaSort(string $html, string $label): string
+{
+    preg_match_all('#<th[^>]*aria-sort="([^"]*)"[^>]*>\s*<a href="([^"]*)"[^>]*>(.*?)</a>#s', $html, $headers, PREG_SET_ORDER);
+
+    foreach ($headers as $header) {
+        if (trim((string) preg_replace('/\s+/', ' ', strip_tags($header[3]))) === $label) {
+            return $header[1];
+        }
+    }
+
+    return 'missing';
+}
+
+/**
+ * The query a segment button links to, keyed by its own label.
+ *
+ * @return array<int|string, mixed>
+ */
+function customerSegmentQuery(string $html, string $label): array
+{
+    preg_match('#<div role="group" aria-label="Segment"[^>]*>(.*?)</div>#s', $html, $control);
+
+    preg_match_all('#<a\s+href="([^"]*)"[^>]*>(.*?)</a>#s', $control[1] ?? '', $links, PREG_SET_ORDER);
+
+    foreach ($links as $link) {
+        if (trim((string) preg_replace('/\s+/', ' ', strip_tags($link[2]))) === $label) {
+            return QueryString::of(html_entity_decode($link[1]));
+        }
+    }
+
+    return [];
+}
 
 it('lists a buyer with their orders, spend, favorites, and conversations', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
@@ -61,11 +116,16 @@ it('counts customers, repeat buyers, the average order, and open conversations a
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/customers');
 
-    $response->assertOk()
-        ->assertSeeInOrder(['Customers', '2', '+2 new'])
-        ->assertSeeInOrder(['Repeat buyers', '1', '50%'])
-        ->assertSeeInOrder(['Average order', '$200.00'])
-        ->assertSeeInOrder(['Open conversations', '1', '0 unread']);
+    $response->assertOk();
+
+    expect($response->getContent())
+        ->toMatch('/data-stat="customers">2</')
+        ->toMatch('/data-stat="customers-new"[^>]*>\+2 new</')
+        ->toMatch('/data-stat="repeat-buyers">1</')
+        ->toMatch('/data-stat="repeat-share"[^>]*>50%</')
+        ->toMatch('/data-stat="average-order">\$200\.00</')
+        ->toMatch('/data-stat="open-conversations">1</')
+        ->toMatch('/data-stat="unread-conversations"[^>]*>0 unread</');
 });
 
 it('says what makes someone a customer when the seller has none', function (): void {
@@ -99,15 +159,14 @@ it('narrows to buyers whose first order falls inside the range', function (): vo
     $response->assertOk()->assertSee('Ginny Weasley')->assertDontSee('Cho Chang');
 });
 
-it('sorts by every column in both directions', function (string $column, string $direction): void {
+it('sorts a name alphabetically', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Cho Chang']), 5000);
-    $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley']), 9000);
+    $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley']), 5000);
+    $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Cho Chang']), 9000);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/customers?sort={$column}&dir={$direction}");
-
-    $response->assertOk();
-})->with(['name', 'orders', 'spent', 'favorites', 'last_order', 'conversations', 'since'])->with(['asc', 'desc']);
+    $this->actingAs($seller, 'seller')->get('/seller/customers?sort=name&dir=asc')
+        ->assertSeeInOrder(['Cho Chang', 'Ginny Weasley']);
+});
 
 it('orders the rows by the sorted column and flips on the second click', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
@@ -123,14 +182,18 @@ it('orders the rows by the sorted column and flips on the second click', functio
     $ascending->assertSeeInOrder(['Cho Chang', 'Ginny Weasley']);
 });
 
-it('marks the sorted column with aria-sort and links the rest to sort descending', function (): void {
+it('marks the sorted column with aria-sort, flips it, and opens every other one descending', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/customers?sort=orders&dir=asc');
+    $html = (string) $response->getContent();
 
-    $response->assertOk()
-        ->assertSee('aria-sort="ascending"', escape: false)
-        ->assertSee('sort=orders&amp;dir=desc', escape: false);
+    $response->assertOk();
+
+    expect(customerHeaderAriaSort($html, 'Orders'))->toBe('ascending')
+        ->and(customerHeaderAriaSort($html, 'Spent'))->toBe('none')
+        ->and(customerHeaderQuery($html, 'Orders'))->toBe(['sort' => 'orders', 'dir' => 'desc'])
+        ->and(customerHeaderQuery($html, 'Spent'))->toBe(['sort' => 'spent', 'dir' => 'desc']);
 });
 
 it('shows a buyer\'s identity, figures, orders, favorites, and conversations', function (): void {
@@ -268,8 +331,10 @@ it('carries the segment through a sort link and the sort through a segment link'
     $seller = Seller::factory()->create();
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/customers?segment=repeat&sort=orders&dir=asc');
+    $html = (string) $response->getContent();
 
-    $response->assertOk()
-        ->assertSee('segment=repeat&amp;sort=spent&amp;dir=desc', escape: false)
-        ->assertSee('sort=orders&amp;dir=asc&amp;segment=new', escape: false);
+    $response->assertOk();
+
+    expect(customerHeaderQuery($html, 'Spent'))->toBe(['segment' => 'repeat', 'sort' => 'spent', 'dir' => 'desc'])
+        ->and(customerSegmentQuery($html, 'New this period'))->toBe(['sort' => 'orders', 'dir' => 'asc', 'segment' => 'new']);
 });

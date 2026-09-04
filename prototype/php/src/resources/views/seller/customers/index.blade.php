@@ -11,21 +11,21 @@
     <div class="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 sm:grid-cols-4 dark:bg-white/10 dark:ring-white/10">
         <x-stat-tile accent="gray" label="Customers">
             <span class="flex items-baseline gap-2">
-                {{ $tally->customers }}
-                <span class="text-sm font-medium text-green-600 dark:text-green-400">+{{ $tally->newThisPeriod }} new</span>
+                <span data-stat="customers">{{ $tally->customers }}</span>
+                <span data-stat="customers-new" class="text-sm font-medium text-green-600 dark:text-green-400">+{{ $tally->newThisPeriod }} new</span>
             </span>
         </x-stat-tile>
         <x-stat-tile accent="gray" label="Repeat buyers">
             <span class="flex items-baseline gap-2">
-                {{ $tally->repeatBuyers }}
-                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ $tally->repeatShare() === null ? '—' : $tally->repeatShare().'%' }}</span>
+                <span data-stat="repeat-buyers">{{ $tally->repeatBuyers }}</span>
+                <span data-stat="repeat-share" class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ $tally->repeatShare() === null ? '—' : $tally->repeatShare().'%' }}</span>
             </span>
         </x-stat-tile>
-        <x-stat-tile accent="gray" label="Average order">{{ $tally->averageOrder()?->format() ?? '—' }}</x-stat-tile>
+        <x-stat-tile accent="gray" label="Average order"><span data-stat="average-order">{{ $tally->averageOrder()?->format() ?? '—' }}</span></x-stat-tile>
         <x-stat-tile accent="gray" label="Open conversations">
             <span class="flex items-baseline gap-2">
-                {{ $tally->openConversations }}
-                <span class="text-sm font-medium text-indigo-600 dark:text-indigo-400">{{ $tally->unreadConversations }} unread</span>
+                <span data-stat="open-conversations">{{ $tally->openConversations }}</span>
+                <span data-stat="unread-conversations" class="text-sm font-medium text-indigo-600 dark:text-indigo-400">{{ $tally->unreadConversations }} unread</span>
             </span>
         </x-stat-tile>
     </div>
