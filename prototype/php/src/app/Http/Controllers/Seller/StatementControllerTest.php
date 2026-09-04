@@ -57,3 +57,25 @@ it('answers 404 for a malformed period', function (): void {
 
     $response->assertNotFound();
 });
+
+it('IMPRV-030 offers a print control that still reads with scripts blocked', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/2026-08-10');
+    $content = (string) $response->getContent();
+
+    $response->assertOk();
+    expect($content)->toContain('data-print')
+        ->toContain('<script defer src="'.asset('print-button.js').'"')
+        ->toContain('<noscript>');
+});
+
+it('IMPRV-030 prints the seller name and net legibly in dark mode', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/2026-08-10');
+    $content = (string) $response->getContent();
+
+    $response->assertOk();
+    expect($content)->toContain('dark:text-white print:dark:text-black');
+});

@@ -50,3 +50,15 @@ it('sends a signed-out visitor to seller sign-in', function (): void {
 
     $this->get("/seller/orders/{$fulfillment->id}/label")->assertRedirect(route('auth.seller.login'));
 });
+
+it('IMPRV-030 offers a print control that still reads with scripts blocked', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}/label");
+    $content = (string) $response->getContent();
+
+    $response->assertOk();
+    expect($content)->toContain('data-print')
+        ->toContain('<noscript>');
+});
