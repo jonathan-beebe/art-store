@@ -66,3 +66,20 @@ it('answers another sellers fulfillment before it validates the form', function 
     $response->assertSessionHasNoErrors();
     expect(FulfillmentEvent::count())->toBe(0);
 });
+
+it('answers not found for a step whose row names this seller but whose flow does not', function () use ($twoStepFlow): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $other = $this->seller('Lovegood Curiosities');
+    $fulfillment = $this->paidFulfillmentFor($seller);
+    [$otherLabelStep] = $twoStepFlow($other);
+
+    // The denormalized column says this seller owns it; the flow it belongs
+    // to says otherwise, and the flow is what carries the foreign key.
+    $otherLabelStep->forceFill(['seller_id' => $seller->id])->save();
+
+    $response = $this->actingAs($seller, 'seller')
+        ->post("/seller/orders/{$fulfillment->id}/steps/{$otherLabelStep->id}", ['carrier' => 'Owl Post', 'tracking_number' => 'OP 4471']);
+
+    $response->assertNotFound();
+    expect(FulfillmentEvent::count())->toBe(0);
+});

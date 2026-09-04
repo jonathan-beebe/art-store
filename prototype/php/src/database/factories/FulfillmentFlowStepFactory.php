@@ -24,12 +24,24 @@ class FulfillmentFlowStepFactory extends Factory
     {
         return [
             'fulfillment_flow_id' => FulfillmentFlow::factory(),
-            'seller_id' => Seller::factory(),
+            // The step's seller is the flow's seller. A step whose two
+            // disagree is the state ownership must never read from.
+            'seller_id' => fn (array $attributes): mixed => $this->sellerOf($attributes['fulfillment_flow_id']),
             'key' => 'packed',
             'label' => 'Packed',
             'action' => FlowStepAction::None,
             'position' => 0,
         ];
+    }
+
+    /**
+     * The seller of the flow this step belongs to.
+     */
+    private function sellerOf(mixed $flowId): mixed
+    {
+        $flow = is_string($flowId) ? FulfillmentFlow::query()->find($flowId) : null;
+
+        return $flow instanceof FulfillmentFlow ? $flow->seller_id : Seller::factory();
     }
 
     public function printsLabel(): static

@@ -13,8 +13,10 @@ use RuntimeException;
 
 /**
  * A step of another seller's flow is a 404, the same page as a step that does
- * not exist. A step that prints a label needs the carrier and the tracking
- * number it prints with; every other step carries neither.
+ * not exist. Ownership is read through the flow the step belongs to, which is
+ * where the foreign key to `sellers` is answered for. A step that prints a
+ * label needs the carrier and the tracking number it prints with; every other
+ * step carries neither.
  */
 final class CompleteFlowStepRequest extends FormRequest
 {
@@ -22,7 +24,9 @@ final class CompleteFlowStepRequest extends FormRequest
     {
         $fulfillment = $this->fulfillment();
 
-        return $this->step()->seller_id === $fulfillment->seller_id
+        $owner = $this->step()->loadMissing('fulfillmentFlow')->fulfillmentFlow->seller_id;
+
+        return $owner === $fulfillment->seller_id
             ? Gate::inspect('update', $fulfillment)
             : Response::denyAsNotFound();
     }
