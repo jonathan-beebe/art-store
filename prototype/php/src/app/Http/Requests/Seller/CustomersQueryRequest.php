@@ -66,8 +66,9 @@ final class CustomersQueryRequest extends SellerQueryRequest
     {
         $column = $this->enum('sort', CustomerSortColumn::class);
         $direction = $this->enum('dir', SortDirection::class);
+        $default = CustomerSortColumn::defaultSort();
 
-        return TableSort::of($column ?? CustomerSortColumn::Spent, $direction ?? SortDirection::Desc);
+        return TableSort::of($column ?? $default->column, $direction ?? $default->direction);
     }
 
     /** The timeline's filter. Absent is the whole feed. */

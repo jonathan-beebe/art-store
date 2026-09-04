@@ -47,7 +47,7 @@ $customerIdOf = fn (CustomerRow $row): string => $row->customerId;
 it('sorts rows by the given column, descending', function () use ($listingRow, $listingIdOf): void {
     $rows = [$listingRow('a', views: 5), $listingRow('b', views: 20), $listingRow('c', views: 10)];
 
-    $sorted = RowSort::apply(TableSort::of(ListingSortColumn::Views, SortDirection::Desc), $rows, $listingIdOf);
+    $sorted = RowSort::apply(ListingSortColumn::defaultSort(), $rows, $listingIdOf);
 
     expect(array_map(fn (ListingTableRow $row): string => $row->id, $sorted))->toBe(['b', 'c', 'a']);
 });
@@ -69,13 +69,13 @@ it('sorts a text column alphabetically', function () use ($listingRow, $listingI
 });
 
 it('leaves an empty list empty', function () use ($listingIdOf): void {
-    expect(RowSort::apply(TableSort::of(ListingSortColumn::Views, SortDirection::Desc), [], $listingIdOf))->toBe([]);
+    expect(RowSort::apply(ListingSortColumn::defaultSort(), [], $listingIdOf))->toBe([]);
 });
 
 it('sorts customer rows by the given column, descending', function () use ($customerRow, $customerIdOf): void {
     $rows = [$customerRow('a', spentCents: 500), $customerRow('b', spentCents: 2000), $customerRow('c', spentCents: 1000)];
 
-    $sorted = RowSort::apply(TableSort::of(CustomerSortColumn::Spent, SortDirection::Desc), $rows, $customerIdOf);
+    $sorted = RowSort::apply(CustomerSortColumn::defaultSort(), $rows, $customerIdOf);
 
     expect(array_map(fn (CustomerRow $row): string => $row->customerId, $sorted))->toBe(['b', 'c', 'a']);
 });
@@ -113,7 +113,7 @@ it('breaks a tie on the given id, ascending, whichever way the column runs, on e
 it('keeps the id tie-break inside a descending column', function () use ($customerRow, $customerIdOf): void {
     $rows = [$customerRow('b', spentCents: 1000), $customerRow('a', spentCents: 1000), $customerRow('c', spentCents: 2000)];
 
-    $sorted = RowSort::apply(TableSort::of(CustomerSortColumn::Spent, SortDirection::Desc), $rows, $customerIdOf);
+    $sorted = RowSort::apply(CustomerSortColumn::defaultSort(), $rows, $customerIdOf);
 
     expect(array_map(fn (CustomerRow $row): string => $row->customerId, $sorted))->toBe(['c', 'a', 'b']);
 });

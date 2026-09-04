@@ -39,14 +39,14 @@ function columnHeaderFor(array $headers, ListingSortColumn $column): ColumnHeade
 }
 
 it('names the current view and sort', function (): void {
-    $chrome = ListingsChrome::build([], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+    $chrome = ListingsChrome::build([], ListingView::Table, ListingSortColumn::defaultSort());
 
     expect($chrome->view)->toBe(ListingView::Table)
-        ->and($chrome->sort)->toEqual(TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+        ->and($chrome->sort)->toEqual(ListingSortColumn::defaultSort());
 });
 
 it('builds one view link per view, marking the current one active', function (): void {
-    $chrome = ListingsChrome::build(['range' => '7'], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+    $chrome = ListingsChrome::build(['range' => '7'], ListingView::Table, ListingSortColumn::defaultSort());
 
     expect($chrome->viewLinks)->toHaveCount(3);
 
@@ -60,7 +60,7 @@ it('builds one view link per view, marking the current one active', function ():
 });
 
 it('carries each view link\'s own icon', function (): void {
-    $chrome = ListingsChrome::build([], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+    $chrome = ListingsChrome::build([], ListingView::Table, ListingSortColumn::defaultSort());
 
     $table = viewLinkFor($chrome->viewLinks, ListingView::Table);
 
@@ -68,7 +68,7 @@ it('carries each view link\'s own icon', function (): void {
 });
 
 it('offers every sort column but status in the select', function (): void {
-    $chrome = ListingsChrome::build([], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+    $chrome = ListingsChrome::build([], ListingView::Table, ListingSortColumn::defaultSort());
 
     expect($chrome->sortOptions)->toHaveCount(10)
         ->and($chrome->sortOptions)->not->toContain(ListingSortColumn::Status);
@@ -90,7 +90,7 @@ it('builds one column header per column, carrying the flipped direction', functi
 });
 
 it('drops sort and dir from the sort forms hidden fields', function (): void {
-    $chrome = ListingsChrome::build(['sort' => 'price', 'dir' => 'asc', 'range' => '7'], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
+    $chrome = ListingsChrome::build(['sort' => 'price', 'dir' => 'asc', 'range' => '7'], ListingView::Table, ListingSortColumn::defaultSort());
 
     expect($chrome->sortFormFields)->toBe(['range' => '7']);
 });

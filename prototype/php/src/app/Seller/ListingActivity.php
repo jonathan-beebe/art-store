@@ -12,8 +12,6 @@ use App\Domain\Seller\ActivityTotal;
 use App\Domain\Seller\ListingSortColumn;
 use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\RowSort;
-use App\Domain\Seller\SortDirection;
-use App\Domain\Seller\TableSort;
 use App\Models\Fulfillment;
 use App\Models\OrderItem;
 use App\Models\Seller;
@@ -64,7 +62,7 @@ final readonly class ListingActivity
 
         $top = array_slice(
             RowSort::apply(
-                TableSort::of(ListingSortColumn::Views, SortDirection::Desc),
+                ListingSortColumn::defaultSort(),
                 $listings,
                 fn (ListingTableRow $row): string => $row->id,
             ),

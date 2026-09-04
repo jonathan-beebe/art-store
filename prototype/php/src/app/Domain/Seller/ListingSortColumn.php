@@ -47,6 +47,16 @@ enum ListingSortColumn: string implements SortableColumn
     }
 
     /**
+     * The sort the table opens on: the listing buyers are looking at, most first.
+     *
+     * @return TableSort<ListingTableRow>
+     */
+    public static function defaultSort(): TableSort
+    {
+        return TableSort::of(self::Views, SortDirection::Desc);
+    }
+
+    /**
      * The value one row sorts by on this column. A listing with no views
      * yet reads as the lowest conversion, keeping it in the order;
      * made-to-order stock (a null quantity) reads as unlimited, so it

@@ -291,7 +291,7 @@ reads as its default, an unrecognised one answers a bare 400.
 | ------- | ---------------------------------------------------------------------- | ------- | ---------------------------- |
 | `view`  | `list` \| `table` \| `grid` (`App\Domain\Seller\ListingView`)          | `list`  | the index route              |
 | `from`  | `table` \| `grid`                                                     | absent  | the detail route             |
-| `sort`  | one of eleven `App\Domain\Seller\ListingSortColumn` cases               | `views` | table/grid, and the header's `<select>` |
+| `sort`  | one of eleven `App\Domain\Seller\ListingSortColumn` cases               | `views` (`ListingSortColumn::defaultSort()`) | table/grid, and the header's `<select>` |
 | `dir`   | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)              | `desc`  | table/grid                   |
 | `range` | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)      | `30`    | the ranged columns and the detail's view strip |
 
@@ -565,7 +565,7 @@ reads as its default, an unrecognised one answers a bare 400.
 | --------- | ------------------------------------------------------------------------ | ------- | --------------- |
 | `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
 | `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
-| `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` | the index route |
+| `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` (`CustomerSortColumn::defaultSort()`) | the index route |
 | `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
 | `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
 

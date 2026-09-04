@@ -39,7 +39,7 @@ function customerHeaderFor(array $headers, CustomerSortColumn $column): ColumnHe
 }
 
 it('links one segment button per segment, marking the one in force', function (): void {
-    $chrome = CustomersChrome::build([], CustomerSegment::Repeat, TableSort::of(CustomerSortColumn::Spent, SortDirection::Desc));
+    $chrome = CustomersChrome::build([], CustomerSegment::Repeat, CustomerSortColumn::defaultSort());
 
     expect($chrome->segments)->toHaveCount(3)
         ->and(segmentLinkFor($chrome->segments, CustomerSegment::Repeat)->active)->toBeTrue()
@@ -78,7 +78,7 @@ it('marks the sorted column alone with an aria-sort value', function (): void {
 });
 
 it('carries one header per column, in the order the table renders them', function (): void {
-    $chrome = CustomersChrome::build([], CustomerSegment::All, TableSort::of(CustomerSortColumn::Spent, SortDirection::Desc));
+    $chrome = CustomersChrome::build([], CustomerSegment::All, CustomerSortColumn::defaultSort());
 
     expect(array_map(fn (ColumnHeader $header): string => $header->column->label(), $chrome->columnHeaders))
         ->toBe(['Customer', 'Orders', 'Spent', 'Favorites', 'Last order', 'Conversations', 'Since']);

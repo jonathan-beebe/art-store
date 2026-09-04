@@ -54,8 +54,9 @@ final class ListingsQueryRequest extends SellerQueryRequest
     {
         $column = $this->enum('sort', ListingSortColumn::class);
         $direction = $this->enum('dir', SortDirection::class);
+        $default = ListingSortColumn::defaultSort();
 
-        return TableSort::of($column ?? ListingSortColumn::Views, $direction ?? SortDirection::Desc);
+        return TableSort::of($column ?? $default->column, $direction ?? $default->direction);
     }
 
     /**

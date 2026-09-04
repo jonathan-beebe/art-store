@@ -42,6 +42,16 @@ enum CustomerSortColumn: string implements SortableColumn
     }
 
     /**
+     * The sort the table opens on: what each buyer has spent, largest first.
+     *
+     * @return TableSort<CustomerRow>
+     */
+    public static function defaultSort(): TableSort
+    {
+        return TableSort::of(self::Spent, SortDirection::Desc);
+    }
+
+    /**
      * The value one row sorts by on this column.
      *
      * @param  CustomerRow  $row
