@@ -139,7 +139,7 @@
                             </td>
                             <td class="relative px-4 py-2">
                                 <div class="w-[180px]">
-                                    <x-admin.analytics.bar-strip :bars="$bars" :height="26" class="text-stone-400 dark:text-stone-500" />
+                                    <x-bar-strip :bars="$bars" :height="26" class="text-stone-400 dark:text-stone-500" />
                                 </div>
                                 <x-admin.analytics.stretched-link :href="$eventHref($event->name)" />
                             </td>

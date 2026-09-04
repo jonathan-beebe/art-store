@@ -33,7 +33,7 @@ final class BarStrip
     /**
      * A daily series as {@see BarStripBar} values: each count's scaled
      * height paired with a tooltip naming its day, ready for
-     * `x-admin.analytics.bar-strip` to render.
+     * `x-bar-strip` to render.
      *
      * @param  list<int>  $counts
      * @param  list<string>  $dayLabels  same length as `$counts`, oldest first

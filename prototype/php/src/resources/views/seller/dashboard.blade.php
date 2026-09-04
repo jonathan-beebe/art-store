@@ -61,7 +61,7 @@
                                 </a>
                             </td>
                             <td class="px-4 py-2">
-                                <x-admin.analytics.bar-strip :bars="$row->strip" :height="26" class="text-indigo-300 dark:text-indigo-400/60" />
+                                <x-bar-strip :bars="$row->strip" :height="26" class="text-indigo-300 dark:text-indigo-400/60" />
                             </td>
                             <td class="px-4 py-2 text-right tabular-nums">{{ $row->listing->views }}</td>
                             <td class="px-4 py-2 text-right tabular-nums">{{ $row->listing->favorites }}</td>
