@@ -11,6 +11,9 @@ use App\Domain\Seller\CustomerSegment;
 use App\Domain\Seller\CustomerSortColumn;
 use App\Domain\Seller\SortDirection;
 use App\Domain\Seller\TableSort;
+use App\Models\Customer;
+use Illuminate\Auth\Access\Response;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
@@ -20,6 +23,17 @@ use Illuminate\Validation\Rule;
  */
 final class CustomersQueryRequest extends SellerQueryRequest
 {
+    /**
+     * The index route binds no customer; the show route's own customer
+     * answers the ownership question `CustomerPolicy` states.
+     */
+    public function authorize(): Response
+    {
+        $customer = $this->route('customer');
+
+        return $customer instanceof Customer ? Gate::inspect('view', $customer) : Response::allow();
+    }
+
     /**
      * @return array<string, list<mixed>>
      */

@@ -5,12 +5,11 @@ sale, what they owe a buyer, and what they are owed. The chrome is in
 [`architecture.md`](architecture.md); each tool gets its own section here
 as its lane lands.
 
-Four names below are forward-looking, ahead of the lane that lands them
-(IMPRV-031/032): `SellerQueryRequest` (the base every `*QueryRequest` will
-extend), `NavLink` (replacing `ViewLink`/`SegmentLink`/`FeedKindLink`/
-`LaneTab`), `Fulfillment::live()`/`counted()` (replacing the paid/live rule
-each adapter below states its own way), and `App\Seller\Store` (replacing
-`App\Support\Store`). Until then the code reads as this doc describes.
+Authorization is one idiom: a policy under `App\Policies`, reached through
+the route's own FormRequest `authorize()` where one exists (`Gate::inspect`
+against the bound or route-parameter model) and `$this->authorize()` in the
+controller otherwise. No controller hand-rolls an ownership check with
+`abort_if`.
 
 | Section                             | Read it for                                                                                             |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
@@ -226,7 +225,7 @@ flowchart TB
     F -- no --> E
 ```
 
-`App\Support\Store\StoreAddressLookup` is the query;
+`App\Seller\Store\StoreAddressLookup` is the query;
 `App\Domain\Store\RetiredSlugWindow` is the thirty-day rule. The redirect
 target is resolved through published profiles only, so an old address of a
 store that has since been hidden answers 404 and never names where the
@@ -239,8 +238,9 @@ saying buyers cannot open it.
 #### What the page shows
 
 The cover, the portrait, the name, the tagline, the location, "N pieces for
-sale · Selling since <Month Year>" (`App\Support\Store\StoreFacts` — the
-count is `Listing::forSale()`, so a sold piece stays on the page and out of
+sale · Selling since <Month Year>" (`App\Seller\Store\StoreFactsReader`
+reads it into a `StoreFacts` — the count is `Listing::forSale()`, so a
+sold piece stays on the page and out of
 the number), the sections in order, the links, and the seller's storefront
 listings (`Listing::onStorefront()` — for sale and sold, never draft,
 archived, or removed) in the storefront's own grid partial.
@@ -294,7 +294,7 @@ explicitly.
 ### Layers
 
 `App\Seller\ListingTable::forSeller()` and `::forListing()`
-(`Domain\Seller\{ListingTableRow,ListingTableSort,ListingSort,
+(`Domain\Seller\{ListingTableRow,RowSort,TableSort,
 ListingSortColumn,SortDirection,ListingView}`, and
 `Analytics\AnalyticsReport::countsForListingsSince()`) build the same
 `ListingTableRow` shape, so a listing's own page never disagrees with its
@@ -311,7 +311,7 @@ abandoned checkout from reading as a sale.
 
 Every table column header is an `<a href>` carrying `aria-sort`; clicking
 the already-sorted column flips `dir`
-(`App\Domain\Seller\ListingSort::nextDirectionFor()`), clicking another one
+(`App\Domain\Seller\TableSort::nextDirectionFor()`), clicking another one
 sorts it descending. The header's own `<select name="sort">` is the same
 choice for Grid, which has no headers to click; it posts back to the index
 route by GET through `data-sort-form`/`data-sort-select`/`data-sort-submit`
@@ -399,7 +399,7 @@ lane — the number on a tab and the rows beneath it cannot drift.
 ### What a row says beyond its own facts
 
 `App\Seller\FulfillmentLanes` hands the pane out as readonly value objects
-— `LaneTab`, `OrderRow`, `OrderPane` — so the Blade decides nothing. Beyond
+— `NavLink`, `OrderRow`, `OrderPane` — so the Blade decides nothing. Beyond
 the buyer, the scan line, the badge and the day, a row carries one note:
 **what the buyer asked and nobody answered**, else **the last step the
 seller marked done** ("Label printed") — both from one query each across

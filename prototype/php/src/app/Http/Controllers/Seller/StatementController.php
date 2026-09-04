@@ -20,6 +20,8 @@ final class StatementController extends SellerController
     public function __invoke(string $period): View
     {
         $seller = $this->seller();
+        $this->authorize('view', $seller);
+
         $now = $this->now();
         $periods = EarningsPeriods::for($seller, $now);
 

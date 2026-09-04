@@ -54,8 +54,6 @@ final class CustomerController extends SellerController
         $seller = $this->seller();
         $row = SellerCustomers::forCustomer($seller, $customer);
 
-        abort_if(! $row instanceof CustomerRow, 404);
-
         $kind = $request->kind();
 
         return view('seller.customers.show', [
