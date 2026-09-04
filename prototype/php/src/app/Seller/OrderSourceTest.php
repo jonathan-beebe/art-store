@@ -77,11 +77,23 @@ it('a declined fulfillment\'s refunded movement carries the refund reason as its
     app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
 
     $events = (new OrderSource)->events(FeedScope::forFulfillment($fulfillment->refresh()));
-    $refunded = array_values(array_filter($events, fn (FeedEvent $event): bool => $event->text === 'returned to the buyer'));
+    $refunded = array_values(array_filter($events, fn (FeedEvent $event): bool => str_starts_with($event->text, 'returned to the buyer')));
 
     expect($refunded)->toHaveCount(1)
         ->and($refunded[0]->quote)->toBe('The kiln cracked the glaze.')
         ->and($refunded[0]->kind)->toBe(ActivityKind::Order);
+});
+
+it('the refunded movement names the subtotal the buyer got back and the net that left the balance', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $fulfillment = $this->paidFulfillmentFor($seller, priceCents: 10000);
+    app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
+
+    $events = (new OrderSource)->events(FeedScope::forFulfillment($fulfillment->refresh()));
+    $refunded = array_values(array_filter($events, fn (FeedEvent $event): bool => str_starts_with($event->text, 'returned to the buyer')));
+
+    expect($refunded[0]->actor)->toBe('$100.00')
+        ->and($refunded[0]->text)->toBe('returned to the buyer · $90.00 out of your balance');
 });
 
 it('every row is ActivityKind::Order', function (): void {

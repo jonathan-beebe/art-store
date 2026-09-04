@@ -499,6 +499,11 @@ A decline is told once: the shipping row says the parcel was turned down and
 the `refunded` movement carries the amount and the words the seller typed. A
 message is a messages row whose quote is the body.
 
+The refunded row names two amounts. The buyer gets the whole subtotal
+(`App\Actions\Escrow\IssueRefund`), so that is the figure the row leads
+with; the ledger entry beside it is the seller's net leaving their balance,
+which the sentence names after it.
+
 ### Merging and filtering are pure
 
 `App\Domain\Seller\ActivityFeed::merge(...$sources)` takes each source's
