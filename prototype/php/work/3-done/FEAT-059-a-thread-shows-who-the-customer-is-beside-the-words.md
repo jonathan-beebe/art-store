@@ -1,7 +1,7 @@
 ---
 id: FEAT-059
 type: feature
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -43,3 +43,35 @@ Design decided before the first test:
 - `x-seller.context-rail` renders it; the thread component gains one prop.
 - Privacy: a buyer's numbers and their email show because an order carried
   them. A visitor who has only asked a question shows a name and nothing else.
+
+### What landed
+
+- `App\Seller\ThreadContext` and `x-seller.context-rail`: identity, the
+  buyer's numbers with this seller and a View customer link, About this
+  piece, About this order, and other conversations.
+- The rail is 320px at `xl` and stacks under the transcript below it, inside
+  the thread component's own pane; `seller/messages/show.blade.php` passes
+  one new prop.
+- `docs/seller-portal.md` gains a Messages section.
+
+### Decided along the way
+
+- The email in the rail is the `CustomerRow`'s, so it shows for a buyer and
+  reads "No email" for a visitor who has only asked a question. The seller
+  sees an address because an order carried it; a question does not carry one.
+- A support thread shows the desk and no other conversations, which is what
+  a desk thread has: no customer.
+- An order card shows for any thread naming one of this seller's parcels,
+  which includes a desk thread raised over an order.
+
+### Left alone
+
+- The rail scrolls with the transcript rather than on its own. The
+  list-detail scaffold gives the detail pane one scroll container, and
+  splitting it would touch every seller list/detail screen.
+- The transcript, the composer, resolve, reopen, Publish as FAQ, and the
+  FEAT-050 inbox rows and domain tabs are untouched.
+
+### Gate
+
+`make precommit` green on every commit; `make check` green before the PR.

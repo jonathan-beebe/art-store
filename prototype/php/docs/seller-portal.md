@@ -491,3 +491,38 @@ Message opens the buyer's newest thread with this seller, and, for a buyer
 they have never written to, opens the thread for the buyer's latest parcel
 through `App\Actions\Messaging\OpenConversation` — the subject the two of
 them already share, so no new kind of conversation exists for it.
+
+## Messages
+
+The inbox and the thread are `docs/messaging.md`. What the seller portal adds
+beside the transcript is the context rail: who the seller is talking to, and
+what the thread is about.
+
+```mermaid
+flowchart LR
+    C["Conversation"] --> TC["Seller\\ThreadContext"]
+    S["SellerCustomers::forCustomer()"] --> TC
+    TC --> R["x-seller.context-rail"]
+    R --> CU["the customer page"]
+    R --> L["the listing"]
+    R --> O["the order"]
+    R --> T["their other threads"]
+```
+
+`App\Seller\ThreadContext::forSeller()` is the rail's one read — the
+`FeedScope` idiom, a readonly value object with a named constructor that
+reads. It carries the counterpart's name and initials, the `CustomerRow`
+where the counterpart has bought from this seller, the listing a question
+is about, the parcel a fulfillment thread is about, and every other thread
+the two of them hold, newest first.
+
+The same privacy rule the customers section states: a buyer's numbers and
+their email show because an order carried them. A visitor who has only
+asked about a piece shows a name and nothing else — no figures, no email,
+no View customer link, since they have no customer page to open. A support
+thread shows the desk in place of a customer, and no other conversations.
+
+The rail sits beside the transcript at `xl` and under it below that, inside
+the thread component's own pane. Nothing about the transcript, the
+composer, resolve, reopen, or Publish as FAQ changed; the rate-limited
+reply re-renders the same rail with the thread it came back to.
