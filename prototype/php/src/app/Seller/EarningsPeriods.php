@@ -47,9 +47,8 @@ final readonly class EarningsPeriods
         $windowStart = $periods[0]->start;
 
         $sales = array_values($seller->fulfillments()
-            ->whereHas('order', fn (Builder $orders): Builder => $orders
-                ->where('placed_at', '>=', $windowStart)
-                ->whereIn('status', Order::paidStatuses()))
+            ->onPaidOrder()
+            ->whereHas('order', fn (Builder $orders): Builder => $orders->where('placed_at', '>=', $windowStart))
             ->with('order')
             ->get()
             ->map(self::toSaleFact(...))

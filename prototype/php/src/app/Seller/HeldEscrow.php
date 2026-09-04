@@ -9,10 +9,8 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Seller\HeldOrder;
 use App\Domain\Seller\HeldState;
 use App\Models\Fulfillment;
-use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Seller;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
@@ -66,7 +64,7 @@ final readonly class HeldEscrow
     {
         return $seller->fulfillments()
             ->whereIn('status', [FulfillmentStatus::AwaitingShipment, FulfillmentStatus::Shipped])
-            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()));
+            ->onPaidOrder();
     }
 
     private static function toHeldOrder(Fulfillment $fulfillment): HeldOrder

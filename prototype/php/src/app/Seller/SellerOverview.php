@@ -15,7 +15,6 @@ use App\Domain\Seller\FeedIcon;
 use App\Domain\Seller\PayoutEstimate;
 use App\Domain\Seller\Sparkline;
 use App\Models\Fulfillment;
-use App\Models\Order;
 use App\Models\Seller;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -187,9 +186,9 @@ final readonly class SellerOverview
     private static function parcelsPlacedBetween(Seller $seller, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
         $rows = Fulfillment::query()
-            ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
             ->where('fulfillments.seller_id', $seller->id)
-            ->whereIn('orders.status', Order::paidStatuses())
+            ->onPaidOrder()
+            ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
             ->where('orders.placed_at', '>=', $from)
             ->where('orders.placed_at', '<=', $to)
             ->toBase()

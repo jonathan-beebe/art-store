@@ -185,18 +185,31 @@ class Fulfillment extends Model
     }
 
     /**
+     * A fulfillment on an order that has been paid. A fulfillment row
+     * exists from the moment an order is placed, before a card is even
+     * charged, so this is the paid gate every money figure reads through —
+     * including one that keeps a declined or refunded parcel, since the
+     * money it moved still happened.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function onPaidOrder(Builder $query): void
+    {
+        $query->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()));
+    }
+
+    /**
      * The parcels every seller figure counts: still live, on an order that
-     * has been paid. A fulfillment row exists from the moment an order is
-     * placed, before a card is even charged, so the paid gate is what keeps
-     * an abandoned checkout out of a seller's buyers, sales, and totals.
+     * has been paid — the pair that keeps an abandoned checkout out of a
+     * seller's buyers, sales, and totals.
      *
      * @param  Builder<$this>  $query
      */
     #[Scope]
     protected function counted(Builder $query): void
     {
-        $query->whereIn('fulfillments.status', self::liveStatuses())
-            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()));
+        $query->live()->onPaidOrder();
     }
 
     /**
