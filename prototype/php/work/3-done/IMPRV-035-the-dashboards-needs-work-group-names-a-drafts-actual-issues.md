@@ -61,3 +61,20 @@ fixture, and pins the fixed-query-count claim at two and five drafts.
 once, for the IMPRV-040 commit that landed first; this ticket's changes
 were validated with targeted sidecar runs plus that same hook run on
 this commit).
+
+### Review pass
+
+A merge review found the row reading `PublishIssue::$message` raw (a
+variant issue named a bare ULID) and `DraftPublishIssues` re-deriving
+`Variant::resolvedPrice()`'s pricing math with the mode read off
+`variant_options.axis_id` directly. Fixed: `PublishIssuePresenter::genericMessage()`
+gives the row the publish panel's own label-less phrasing;
+`Variant::resolvedPrice()` reads an eager-loaded `options.optionValue.axis`
+chain when one is set (`pricedOptions()`), so the batch wires its own rows
+onto each variant and calls the real method.
+Every grouped read is now an unconditional `whereIn`, so the query count
+holds at ten regardless of whether any draft in the batch carries an axis —
+the guard no longer depends on fixture shape. `DraftPublishIssuesTest` gained
+a dataset over the nine FEAT-025 configurator archetypes comparing whole
+`PublishIssue` objects against `Listing::publishIssues()`'s own answer.
+Commit `88ff205d`.

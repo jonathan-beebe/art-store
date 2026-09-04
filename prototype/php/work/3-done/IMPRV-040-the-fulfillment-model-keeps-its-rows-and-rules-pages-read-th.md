@@ -63,3 +63,26 @@ One commit for the move (`refactor[php]: …`), preceded by none — there was
 no prep that changed nothing observable to separate out. `make precommit`
 green (lint + targeted sidecars; the coordinator asked lanes to stop
 running the full suite by hand while five run concurrently).
+
+### Review pass
+
+A merge review asked for four more moves on top of the one above, applied
+as separate commits:
+
+- Two Blade views called `App\Support\ParcelLine` by its fully-qualified
+  name. `ThreadContext` now carries `orderLabel`, built once; `CustomerController`
+  builds a `CustomerParcelRow` list (the same row-adapter shape `OrderRow`
+  already sets) for the customer page's order list. Commit `8d7820fb`.
+- `App\Admin` joined `tests/Arch.php`'s domain-purity ban and
+  `docs/architecture.md`'s adapters row, beside `App\Seller`. Commit `f6b3a1b3`.
+- `FulfillmentFlowReader` gained one entry point, `read(Fulfillment): FulfillmentFlowFacts`,
+  in place of the three separate methods `OrderDetail` and `CompleteFlowStep`
+  each called. `CompleteFlowStep` reads it inside `assertInFront()`, after
+  `takeForTransition()` has locked the row — the load that used to run
+  before the transaction is gone, folded into the post-lock read, so a step
+  submitted between the read and the lock cannot slip past the
+  same-step-twice guard. `Tests\CommerceTestCase::loadedForFlow()` replaced
+  three copies of the same eager-load array. Commit `feffaba9`.
+- `Admin\OrderController::show()` sets each fulfillment's `order` relation
+  from the row already in hand, in place of the `fulfillments.order` eager
+  load added for the same purpose during the original move. Commit `7db652d2`.
