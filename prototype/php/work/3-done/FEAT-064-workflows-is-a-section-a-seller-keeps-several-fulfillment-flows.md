@@ -124,5 +124,43 @@ more"; the four flagged contrast-clause comments are rephrased as plain
 statements. `make precommit` green.
 
 Item 1 (a parcel keeps the workflow it started under as a snapshot,
-`fulfillments.fulfillment_flow_id`) waits on `App\Seller\FulfillmentFlowReader`
+`fulfillments.fulfillment_flow_id`) waited on `App\Seller\FulfillmentFlowReader`
 landing on `php/fu-model` and a rebase onto `php/seller-portal-next`.
+
+### Item 1
+
+Rebased onto `php/seller-portal-next` (tip `8b565f1b`, carrying fu-model's
+`FulfillmentFlowReader` and IMPRV-034's `badgeTint()` rename) — the
+`OrderDetail::facts()` conflict took fu-model's `$this->flow->read()` call
+and kept the `flowId:` argument name the merged `OrderFacts` already
+carried. New migration `2026_09_04_000104_add_fulfillment_flow_id_to_fulfillments_table.php`
+(a new migration, not an edit to `create_fulfillments_table`, since it has
+to run after `fulfillment_flows` exists): nullable
+`fulfillments.fulfillment_flow_id`, `nullOnDelete()` matching the listings
+column's idiom. `PlaceOrder::flowIdFor()` stamps it per seller at
+placement — the first of that seller's own cart lines that names a flow,
+else the seller's default — reusing `Cart::items` already eager-loaded for
+the stock lock, so no extra query beyond the one for the seller's default.
+Every seeder that places an order (`OrderHistorySeeder` via `PlaceOrder`)
+inherits the stamp for free; no seeder edit needed.
+`FulfillmentFlowReader::flowInEffect()` reads the snapshot first, live
+resolution only for a pre-column row; `Fulfillment::fulfillmentFlow()` is
+the new relation, eager-loaded alongside the other flow relations in
+`OrderDetail::facts()`, `CompleteFlowStep::assertInFront()`, and the shared
+test helper `CommerceTestCase::loadedForFlow()`.
+
+One pre-existing test's premise flipped under the new rule and needed
+rewriting rather than just re-running: `CompleteFlowStepTest`'s "ships by
+the flow a listing names instead of the seller default" had repointed the
+listing's flow **after** placement and expected live resolution to follow
+it — that's exactly what the snapshot now refuses to do. Rewritten to set
+the listing's flow before placement, which is the case the snapshot is
+for.
+
+`FulfillmentFlowReaderTest` gained the two-scenario test the review asked
+for: complete a step, then (a) repoint the listing to a different flow, and
+(b) separately, make a different flow the seller's default — both assert
+the reader still resolves the original flow, the panel's steps still marks
+the original step done, and `Fulfillment::lane()` still reads `InProgress`.
+
+Gate: `make precommit` green, 5327 tests.
