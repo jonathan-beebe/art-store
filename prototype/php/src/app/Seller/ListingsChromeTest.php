@@ -59,14 +59,12 @@ it('builds one view link per view, marking the current one active', function ():
         ->and($table->href)->toContain('view=table');
 });
 
-it('carries one icon per view link, in the same order', function (): void {
+it('carries each view link\'s own icon', function (): void {
     $chrome = ListingsChrome::build([], ListingView::Table, TableSort::of(ListingSortColumn::Views, SortDirection::Desc));
 
-    expect($chrome->viewIcons)->toHaveCount(3)
-        ->and($chrome->viewIcons)->toBe(array_map(
-            fn (ListingView $view): string => $view->iconPath(),
-            ListingView::cases(),
-        ));
+    $table = viewLinkFor($chrome->viewLinks, ListingView::Table);
+
+    expect($table->iconPath)->toBe(ListingView::Table->iconPath());
 });
 
 it('offers every sort column but status in the select', function (): void {

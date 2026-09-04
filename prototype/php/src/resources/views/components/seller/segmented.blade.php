@@ -1,9 +1,8 @@
 {{--
     A segmented control: one link per choice, joined into a single pill,
     the choice in force carrying the accent and `aria-current`. Takes a
-    `list<App\Seller\NavLink>` — every href is built by the class that
-    knows the route, so this stays a renderer. `icons`, when given, is a
-    `list<string>` of `<path d="">`s in the same order as `links`.
+    `list<App\Seller\NavLink>` — every href, and every icon path, is built
+    by the class that knows the route, so this stays a renderer.
 --}}
 @props(['links', 'label', 'icons' => null])
 
@@ -17,6 +16,6 @@
                 'z-10 bg-indigo-50 text-indigo-700 inset-ring-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:inset-ring-indigo-400/30' => $link->active,
                 'bg-white text-gray-600 inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-gray-400 dark:inset-ring-white/10 dark:hover:bg-white/20' => ! $link->active,
             ])
-        >@if ($icons)<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true"><path d="{{ $icons[$loop->index] }}"></path></svg>@endif{{ $link->label }}</a>
+        >@if ($link->iconPath)<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true"><path d="{{ $link->iconPath }}"></path></svg>@endif{{ $link->label }}</a>
     @endforeach
 </div>

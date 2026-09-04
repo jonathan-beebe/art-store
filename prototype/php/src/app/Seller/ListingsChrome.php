@@ -20,7 +20,6 @@ final readonly class ListingsChrome
 {
     /**
      * @param  list<NavLink>  $viewLinks
-     * @param  list<string>  $viewIcons  one `<path d="">` per entry of `viewLinks`, in the same order
      * @param  TableSort<ListingTableRow>  $sort
      * @param  list<ListingSortColumn>  $sortOptions
      * @param  list<ColumnHeader>  $columnHeaders
@@ -29,7 +28,6 @@ final readonly class ListingsChrome
     private function __construct(
         public ListingView $view,
         public array $viewLinks,
-        public array $viewIcons,
         public TableSort $sort,
         public array $sortOptions,
         public array $columnHeaders,
@@ -56,8 +54,8 @@ final readonly class ListingsChrome
                 label: fn (ListingView $case): string => $case->label(),
                 value: fn (ListingView $case): string => $case->value,
                 active: fn (ListingView $case): bool => $case === $view,
+                iconPath: fn (ListingView $case): string => $case->iconPath(),
             ),
-            viewIcons: array_map(fn (ListingView $case): string => $case->iconPath(), ListingView::cases()),
             sort: $sort,
             sortOptions: self::sortOptions(),
             columnHeaders: ColumnHeaders::for('seller.listings.index', $roundTripped, $sort, ListingSortColumn::cases()),

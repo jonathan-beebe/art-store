@@ -20,6 +20,32 @@ it('builds one link per case, marking the one in force and carrying the round-tr
         ->and($links[2]->href)->toBe(route('seller.dashboard', ['storeName' => 'ignored', 'range' => 90]));
 });
 
+it('carries no icon when none is given, and each case\'s own icon when one is', function (): void {
+    $withoutIcons = NavLinks::for(
+        routeName: 'seller.dashboard',
+        without: [],
+        param: 'range',
+        cases: [7, 30],
+        label: fn (int $days): string => (string) $days,
+        value: fn (int $days): string => (string) $days,
+        active: fn (int $days): bool => false,
+    );
+
+    $withIcons = NavLinks::for(
+        routeName: 'seller.dashboard',
+        without: [],
+        param: 'range',
+        cases: [7, 30],
+        label: fn (int $days): string => (string) $days,
+        value: fn (int $days): string => (string) $days,
+        active: fn (int $days): bool => false,
+        iconPath: fn (int $days): string => "M{$days}",
+    );
+
+    expect(array_map(fn (NavLink $link): ?string => $link->iconPath, $withoutIcons))->toBe([null, null])
+        ->and(array_map(fn (NavLink $link): ?string => $link->iconPath, $withIcons))->toBe(['M7', 'M30']);
+});
+
 it('leaves an empty case list empty', function (): void {
     $links = NavLinks::for(
         routeName: 'seller.dashboard',

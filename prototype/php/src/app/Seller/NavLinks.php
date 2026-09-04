@@ -22,6 +22,7 @@ final class NavLinks
      * @param  callable(TCase): string  $label
      * @param  callable(TCase): string  $value
      * @param  callable(TCase): bool  $active
+     * @param  ?callable(TCase): string  $iconPath  one `<path d="">` per case, for a control that draws one
      * @return list<NavLink>
      */
     public static function for(
@@ -32,11 +33,13 @@ final class NavLinks
         callable $label,
         callable $value,
         callable $active,
+        ?callable $iconPath = null,
     ): array {
         return array_map(fn ($case): NavLink => new NavLink(
             label: $label($case),
             href: route($routeName, [...$without, $param => $value($case)]),
             active: $active($case),
+            iconPath: $iconPath === null ? null : $iconPath($case),
         ), $cases);
     }
 }
