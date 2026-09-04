@@ -30,7 +30,7 @@ Every duplicated shape is a place two lanes already disagreed (the tie-break) or
 
 ## Discovery notes
 - `__local__/design/seller-portal/AUDIT.md` §3 items 1, 2, 3, 5, 7, 8, 9; §2 items 6, 20; §4 bullets 2, 3, 4, 5, 6, 8. Items 6, 10, 12, 13 of §3 are design decisions recorded in `DECISIONS.md` and out of scope here.
-- Behavior-preserving except the customers table's descending tie order; every stack has sidecar coverage, so the refactor is test-guarded.
+- Behavior-preserving except the listings table's descending tie order (`ListingTableSort` negated the id under desc; `CustomerTableSort` already kept it ascending both ways); every stack has sidecar coverage, so the refactor is test-guarded.
 
 ## Related work
 - FEAT-053..056, FEAT-059 (the lanes that built the duplicates)
