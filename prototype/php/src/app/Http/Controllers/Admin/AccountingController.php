@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Admin\PlatformFulfillmentReader;
 use App\Domain\Escrow\PlatformMoney;
 use App\Http\Controllers\Controller;
-use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
 use Illuminate\View\View;
@@ -23,7 +23,7 @@ final class AccountingController extends Controller
         return view('admin.accounting.index', [
             'sellers' => Seller::query()->orderedForFilter()->get(),
             'balances' => $balances,
-            'totals' => PlatformMoney::of($balances->total(), Fulfillment::platformFees()),
+            'totals' => PlatformMoney::of($balances->total(), PlatformFulfillmentReader::fees()),
         ]);
     }
 }

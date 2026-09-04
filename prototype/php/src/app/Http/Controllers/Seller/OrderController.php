@@ -49,7 +49,7 @@ final class OrderController extends SellerController
 
         $seller = $this->seller();
         $facts = $detail->facts($fulfillment, $seller, $this->now());
-        $lane = $request->lane(LaneFilter::of($fulfillment->lane()));
+        $lane = $request->lane(LaneFilter::of($fulfillment->lane($facts->progress)));
 
         return view('seller.orders.show', [
             'fulfillment' => $fulfillment,

@@ -30,6 +30,8 @@ use Illuminate\Database\Eloquent\Relations\Relation;
  */
 final readonly class OrderDetail
 {
+    public function __construct(private FulfillmentFlowReader $flow) {}
+
     /**
      * @param  Seller  $seller  the signed-in seller, whose own lines the page shows
      */
@@ -38,16 +40,16 @@ final readonly class OrderDetail
         $fulfillment->load([
             'customer',
             'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
-            'order.items.listing.fulfillmentFlow',
+            'order.items.listing.fulfillmentFlow.steps',
             'order.latestPayment',
             'ledgerEntries',
             'refund',
             'fulfillmentEvents',
-            'seller.defaultFulfillmentFlow',
+            'seller.defaultFulfillmentFlow.steps',
         ]);
 
-        $flow = $fulfillment->flowInEffect();
-        $steps = $fulfillment->flowSteps();
+        $flow = $this->flow->flowInEffect($fulfillment);
+        $steps = $this->flow->flowSteps($fulfillment);
         $payment = $fulfillment->order->latestPayment;
 
         return new OrderFacts(
@@ -55,7 +57,7 @@ final readonly class OrderDetail
             escrow: $this->escrow($fulfillment),
             flowName: $flow instanceof FulfillmentFlow ? $flow->name : DefaultFlow::NAME,
             steps: $steps,
-            progress: $fulfillment->progress(),
+            progress: $this->flow->progress($fulfillment),
             completed: $this->completions($fulfillment, $steps),
             cardLastFour: $payment?->card_last_four,
             paymentStatus: $payment?->status->label(),

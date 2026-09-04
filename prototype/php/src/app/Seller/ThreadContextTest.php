@@ -9,6 +9,20 @@ use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
+use App\Models\Fulfillment;
+use App\Support\ParcelLine;
+use RuntimeException;
+
+/**
+ * The parcel a context under test carries, narrowed from the nullable
+ * property a desk thread leaves empty.
+ */
+function contextOrder(ThreadContext $context): Fulfillment
+{
+    return $context->order instanceof Fulfillment
+        ? $context->order
+        : throw new RuntimeException('the context carries no order');
+}
 
 it('carries a buyer\'s identity and their numbers with this seller', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
@@ -131,7 +145,7 @@ it('names the parcel by this seller\'s own lines on a two-seller order', functio
 
     $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
-    expect($context->order?->itemLabel())->toBe('The Burrow at Dusk');
+    expect(ParcelLine::label(contextOrder($context)))->toBe('The Burrow at Dusk');
 });
 
 it('carries the pictures the rail renders, so no page queries for them', function (): void {

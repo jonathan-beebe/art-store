@@ -51,7 +51,7 @@
     <p class="mt-6 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">About this order</p>
     <a href="{{ route('seller.orders.show', $context->order) }}" class="mt-2 block rounded focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
         <span class="flex items-start justify-between gap-2">
-            <span class="min-w-0 truncate font-semibold text-gray-900 dark:text-gray-100">{{ $context->order->itemLabel() }}</span>
+            <span class="min-w-0 truncate font-semibold text-gray-900 dark:text-gray-100">{{ \App\Support\ParcelLine::label($context->order) }}</span>
             <x-seller.status-badge :tint="$context->order->status->sellerBadgeTint()">{{ $context->order->status->label() }}</x-seller.status-badge>
         </span>
         <span class="mt-0.5 block text-xs/5 text-gray-500 dark:text-gray-400">{{ $context->order->order_id }} &middot; {{ $context->order->subtotal()->format() }} &middot; placed {{ $context->order->order->placed_at?->format('M j, Y') }}</span>

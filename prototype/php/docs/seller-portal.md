@@ -413,12 +413,21 @@ lane — the number on a tab and the rows beneath it cannot drift.
 the buyer, the scan line, the badge and the day, a row carries one note:
 **what the buyer asked and nobody answered**, else **the last step the
 seller marked done** ("Label printed") — both from one query each across
-the whole window, never per row.
+the whole window, never per row. The scan line and its picture come from
+`App\Support\ParcelLine::label()`/`imageUrl()`, read by every row and feed
+adapter that shows a parcel; both require `order.items` eager-loaded and
+refuse a caller that has not.
 
 ### The detail
 
-`App\Seller\OrderDetail::state()` builds `App\Domain\Fulfillment\ParcelState`,
-the sentence under the buyer's name, one shape per status:
+`App\Seller\OrderDetail::facts()` eager-loads the parcel once, including the
+flow's steps, and reads the flow itself through `App\Seller\FulfillmentFlowReader`
+(`flowInEffect`, `flowSteps`, `progress`) — the class `App\Actions\Fulfillment\CompleteFlowStep`
+also reads, after loading the same relations for the one parcel a submit
+names. `Fulfillment::lane()` takes the `FulfillmentProgress` a caller already
+read rather than building its own. `App\Seller\OrderDetail::state()` builds
+`App\Domain\Fulfillment\ParcelState`, the sentence under the buyer's name,
+one shape per status:
 
 | Status | Line |
 | --- | --- |

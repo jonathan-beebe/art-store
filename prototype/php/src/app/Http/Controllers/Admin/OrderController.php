@@ -44,6 +44,9 @@ final class OrderController extends Controller
                 'items.seller',
                 'payments',
                 'fulfillments.seller',
+                // isRefundable(), which the refund form below reads per
+                // fulfillment, reads the order back off it.
+                'fulfillments.order',
                 'refunds.fulfillment.seller',
             ]),
             'cellOrders' => $window->items,

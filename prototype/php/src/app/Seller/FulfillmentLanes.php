@@ -12,6 +12,7 @@ use App\Models\FulfillmentEvent;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
+use App\Support\ParcelLine;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -63,7 +64,7 @@ final readonly class FulfillmentLanes
             href: route('seller.orders.show', ['fulfillment' => $fulfillment->id, 'lane' => $lane->value]),
             selected: $open !== null && $open->id === $fulfillment->id,
             buyer: $fulfillment->order->shipping_name,
-            itemLabel: $fulfillment->itemLabel(),
+            itemLabel: ParcelLine::label($fulfillment),
             subtotal: $fulfillment->subtotal()->format(),
             statusLabel: $fulfillment->status->label(),
             tint: $fulfillment->status->sellerBadgeTint(),

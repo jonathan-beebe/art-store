@@ -11,6 +11,7 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Fulfillment;
 use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlowStep;
+use App\Seller\FulfillmentFlowReader;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,10 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class CompleteFlowStep
 {
-    public function __construct(private AppendFulfillmentEvent $appendEvent) {}
+    public function __construct(
+        private AppendFulfillmentEvent $appendEvent,
+        private FulfillmentFlowReader $flow,
+    ) {}
 
     /**
      * @throws DomainRuleViolation when the parcel has left the studio, or the
@@ -35,6 +39,11 @@ final readonly class CompleteFlowStep
         ?string $trackingNumber,
         DateTimeImmutable $now,
     ): FulfillmentEvent {
+        $fulfillment->load([
+            'order.items.listing.fulfillmentFlow.steps',
+            'seller.defaultFulfillmentFlow.steps',
+        ]);
+
         return DB::transaction(function () use ($fulfillment, $step, $carrier, $trackingNumber, $now): FulfillmentEvent {
             $this->assertAwaitingShipment($fulfillment->takeForTransition());
             $this->assertInFront($fulfillment, $step);
@@ -59,7 +68,7 @@ final readonly class CompleteFlowStep
 
     private function assertInFront(Fulfillment $fulfillment, FulfillmentFlowStep $step): void
     {
-        $progress = $fulfillment->load('fulfillmentEvents')->progress();
+        $progress = $this->flow->progress($fulfillment->load('fulfillmentEvents'));
 
         if (! $progress->admits($step->id)) {
             throw new DomainRuleViolation("The step \"{$step->label}\" is not the next step on this fulfillment.");
