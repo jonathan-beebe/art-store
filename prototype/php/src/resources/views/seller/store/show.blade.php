@@ -136,12 +136,12 @@
                     @if ($images->isNotEmpty())
                         <ul role="list" class="grid grid-cols-4 gap-3 sm:grid-cols-6">
                             @foreach ($images as $image)
-                                <li class="relative">
+                                <li data-store-picture class="flex flex-col gap-1">
                                     <img src="{{ $image->url() }}" alt="{{ $image->alt ?? '' }}" class="aspect-square w-full rounded-md object-cover">
-                                    <form method="POST" action="{{ route('seller.store.images.destroy', $image) }}" class="absolute right-1 bottom-1">
+                                    <form method="POST" action="{{ route('seller.store.images.destroy', $image) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="rounded-full bg-gray-900/70 px-2 py-0.5 text-xs text-white">Remove<span class="sr-only"> {{ $image->alt ?: 'this picture' }}</span></button>
+                                        <button type="submit" class="{{ $secondarySmall }} w-full">Remove<span class="sr-only"> {{ $image->alt ?: 'this picture' }}</span></button>
                                     </form>
                                 </li>
                             @endforeach

@@ -193,3 +193,20 @@ it('IMPRV-030 gives each pictures Remove control its own accessible name', funct
 
     $response->assertSee('Remove<span class="sr-only"> A thrown stoneware bowl</span>', escape: false);
 });
+
+it('IMPRV-030 stacks a pictures Remove control under it, never overlapping the thumbnail', function (): void {
+    Storage::fake('public');
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('bowl.jpg'),
+        'role' => StorePictureRole::Gallery->value,
+        'alt' => 'A thrown stoneware bowl',
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $response->assertSee('data-store-picture', escape: false);
+    $response->assertDontSee('absolute right-1 bottom-1', escape: false);
+});
