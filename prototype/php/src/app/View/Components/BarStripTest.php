@@ -57,6 +57,8 @@ it('IMPRV-030 carries role=img and aria-labelledby when the caller names a headi
 
     expect($withLabel)->toContain('role="img"')
         ->and($withLabel)->toContain('aria-labelledby="views-strip-heading"')
+        ->and($withLabel)->not->toContain('aria-hidden')
         ->and($withoutLabel)->not->toContain('role="img"')
-        ->and($withoutLabel)->not->toContain('aria-labelledby');
+        ->and($withoutLabel)->not->toContain('aria-labelledby')
+        ->and($withoutLabel)->toContain('aria-hidden="true"');
 });

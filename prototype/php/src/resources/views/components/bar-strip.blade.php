@@ -8,9 +8,10 @@
      of them — a 1-unit gap between each would shrink every bar to a
      hairline. `labelledby` names the id of a heading that already
      describes this strip (which picture, which period), carried as
-     `role="img"` `aria-labelledby` rather than a repeated `aria-label`
-     string; omitted, the strip carries neither, since a caller with no
-     such heading has nothing distinct to point at. --}}
+     `role="img"` `aria-labelledby`; every caller without one already sits
+     beside its own count or label, so the strip itself carries
+     `aria-hidden="true"` instead, leaving that neighboring text as the
+     one thing assistive technology reads. --}}
 @props(['bars' => [], 'height' => 26, 'labelledby' => null])
 
 @php
@@ -21,7 +22,7 @@
     $totalWidth = max($unit, $count * $unit);
 @endphp
 
-<svg viewBox="0 0 {{ $totalWidth }} {{ $height }}" preserveAspectRatio="none" width="100%" style="height: {{ $height }}px" @if ($labelledby !== null) role="img" aria-labelledby="{{ $labelledby }}" @endif {{ $attributes->merge(['class' => 'block']) }}>
+<svg viewBox="0 0 {{ $totalWidth }} {{ $height }}" preserveAspectRatio="none" width="100%" style="height: {{ $height }}px" @if ($labelledby !== null) role="img" aria-labelledby="{{ $labelledby }}" @else aria-hidden="true" @endif {{ $attributes->merge(['class' => 'block']) }}>
     @foreach ($bars as $i => $bar)
         <rect
             x="{{ $i * $unit }}"
