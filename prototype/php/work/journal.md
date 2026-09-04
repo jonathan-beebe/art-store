@@ -20,6 +20,9 @@
 - 2026-09-03:23:15:00 — FEAT-058 — started: A store has a public page and every listing card leads to it
 - 2026-09-03:23:10:00 — FEAT-057 — resolved: A seller builds their store profile from typed sections
 - 2026-09-03:22:00:00 — FEAT-057 — started: A seller builds their store profile from typed sections
+- 2026-09-03:23:22:03 — FEAT-056 — review pass: sort determinism, CSP-safe sort select, unique overlay ids, ListingsChrome refactor, weak-test fixes
+- 2026-09-03:22:38:58 — FEAT-056 — resolved: Listings gets list, table, and grid views over one detail
+- 2026-09-03:21:32:31 — FEAT-056 — started
 - 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
 - 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout

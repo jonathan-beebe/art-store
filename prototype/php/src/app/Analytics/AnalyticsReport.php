@@ -39,6 +39,53 @@ final class AnalyticsReport
     }
 
     /**
+     * How many views, favorites, and cart-adds each of `$listingIds`
+     * recorded since `$from` — the seller listings table and grid's
+     * source for their range-bound columns, and the seller listing-detail
+     * page's own ranged tally, so the two never disagree. One `whereIn`
+     * query, joined back onto each listing id in PHP.
+     *
+     * @param  list<string>  $listingIds
+     * @return array<string, ListingEventCounts> listing id => tally
+     */
+    public static function countsForListingsSince(array $listingIds, DateTimeImmutable $from): array
+    {
+        if ($listingIds === []) {
+            return [];
+        }
+
+        $rows = DB::connection('analytics')->table('analytics_events')
+            ->where('subject_type', 'listing')
+            ->whereIn('subject_id', $listingIds)
+            ->where('occurred_at', '>=', $from->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'))
+            ->select('subject_id', 'name')
+            ->selectRaw('count(*) as tally')
+            ->groupBy('subject_id', 'name')
+            ->get();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            /** @var string $subjectId */
+            $subjectId = $row->subject_id;
+            /** @var string $name */
+            $name = $row->name;
+            /** @var int|string $tally */
+            $tally = $row->tally;
+
+            $counts[$subjectId][$name] = (int) $tally;
+        }
+
+        return array_combine($listingIds, array_map(
+            fn (string $listingId): ListingEventCounts => new ListingEventCounts(
+                views: $counts[$listingId][AnalyticsEventName::ListingView->value] ?? 0,
+                favorites: $counts[$listingId][AnalyticsEventName::ListingFavorite->value] ?? 0,
+                cartAdds: $counts[$listingId][AnalyticsEventName::ListingCartAdd->value] ?? 0,
+            ),
+            $listingIds,
+        ));
+    }
+
+    /**
      * How many events of each name one listing recorded on each day from
      * `$from` onward — the seller listing-detail page's activity timeline
      * source.

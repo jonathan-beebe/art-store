@@ -10,15 +10,24 @@ use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Listings\CreateListing;
 use App\Actions\Listings\UpdateListing;
 use App\Analytics\AnalyticsReport;
+use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\BarStrip;
+use App\Domain\Analytics\BarStripBar;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingCreationShape;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
-use App\Domain\Reports\ActivityTimeline;
+use App\Domain\Seller\ListingTableRow;
+use App\Domain\Seller\ListingTableSort;
+use App\Domain\Seller\ListingView;
 use App\Http\Requests\Seller\ListingRequest;
+use App\Http\Requests\Seller\ListingsQueryRequest;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OrderItem;
+use App\Seller\ListingsChrome;
+use App\Seller\ListingTable;
 use App\Support\Configurator\ListingBasicsPageData;
 use App\Support\Configurator\ListingEditPageData;
 use App\Support\ListPaneWindow;
@@ -33,15 +42,33 @@ use Illuminate\View\View;
 
 final class ListingController extends SellerController
 {
-    private const ACTIVITY_WINDOW_DAYS = 14;
+    private const int ACTIVITY_STRIP_HEIGHT_PX = 72;
 
-    public function index(): View
+    public function index(ListingsQueryRequest $request): View
     {
-        $window = ListPaneWindow::of($this->listingsQuery());
+        $view = $request->view();
+        $sort = $request->sort();
+        $roundTripped = $request->roundTripped();
+        $chrome = ListingsChrome::build($roundTripped, $view, $sort);
+
+        if ($view === ListingView::List) {
+            $window = ListPaneWindow::of($this->listingsQuery());
+
+            return view('seller.listings.index', [
+                'chrome' => $chrome,
+                'listings' => $window->items,
+                'listingsTotal' => $window->total,
+            ]);
+        }
+
+        $range = AnalyticsRange::of($request->rangeDays(), $this->now());
+        $rows = ListingTableSort::apply($sort, ListingTable::forSeller($this->seller(), $range));
 
         return view('seller.listings.index', [
-            'listings' => $window->items,
-            'listingsTotal' => $window->total,
+            'chrome' => $chrome,
+            'rows' => $rows,
+            'listingsTotal' => count($rows),
+            'rangeDays' => $range->days,
         ]);
     }
 
@@ -92,28 +119,53 @@ final class ListingController extends SellerController
             ->with('status', "\"{$listing->title}\" is saved as a draft.");
     }
 
-    public function show(Listing $listing): View
+    public function show(Listing $listing, ListingsQueryRequest $request): View
     {
         $this->authorize('view', $listing);
 
-        $endsOn = $this->now();
-        // DSGN-006: the show route's list pane is the same default,
-        // unfiltered list the index route opens with, mirroring the admin
-        // listings pane (App\Http\Controllers\Admin\ListingController).
-        $window = ListPaneWindow::of($this->listingsQuery(), $listing);
+        $from = $request->from();
+        $view = $from ?? ListingView::List;
+        $sort = $request->sort();
+        $range = AnalyticsRange::of($request->rangeDays(), $this->now());
 
-        return view('seller.listings.show', [
-            'listing' => $listing->load(['activeRemoval', 'category', 'images']),
-            'eventCounts' => AnalyticsReport::countsForListing($listing->id),
-            'days' => ActivityTimeline::lastDays(
-                AnalyticsReport::dailyCountsForListingSince($listing->id, ActivityTimeline::firstDay($endsOn, self::ACTIVITY_WINDOW_DAYS)),
-                $endsOn,
-                self::ACTIVITY_WINDOW_DAYS,
-            ),
-            'windowDays' => self::ACTIVITY_WINDOW_DAYS,
-            'sales' => $this->sales($listing),
-            'cellListings' => $window->items,
-            'cellListingsTotal' => $window->total,
+        if ($from === null) {
+            $chrome = ListingsChrome::build($request->roundTripped(), $view, $sort);
+            $detail = $this->detailData($listing, $range);
+
+            // DSGN-006: the show route's list pane is the same default,
+            // unfiltered list the index route opens with, mirroring the
+            // admin listings pane (App\Http\Controllers\Admin\ListingController).
+            $window = ListPaneWindow::of($this->listingsQuery(), $listing);
+
+            return view('seller.listings.show', [
+                ...$detail,
+                'chrome' => $chrome,
+                'listingsTotal' => $window->total,
+                'cellListings' => $window->items,
+                'cellListingsTotal' => $window->total,
+            ]);
+        }
+
+        // The detail route carries `from`, not `view`; every link the
+        // header and the workspace behind the overlay build needs `view`
+        // named explicitly, so switching mode or sort from here still
+        // lands on the right one.
+        $roundTripped = [...$request->roundTripped(), 'view' => $view->value];
+        $chrome = ListingsChrome::build($roundTripped, $view, $sort);
+
+        // One read of the seller's rows serves both the workspace behind
+        // the overlay and the opened listing's own detail, so a listing's
+        // sold, revenue, and ranged counts are read once, not twice.
+        $rows = ListingTableSort::apply($sort, ListingTable::forSeller($this->seller(), $range));
+        $detail = $this->detailData($listing, $range, self::rowFor($rows, $listing, $range));
+
+        return view('seller.listings.detail-overlay', [
+            ...$detail,
+            'chrome' => $chrome,
+            'rows' => $rows,
+            'listingsTotal' => count($rows),
+            'rangeDays' => $range->days,
+            'backHref' => route('seller.listings.index', $roundTripped),
         ]);
     }
 
@@ -204,6 +256,53 @@ final class ListingController extends SellerController
         foreach ($rows as $index => $row) {
             $addOptionValue($axis, $row['label'], $row['cents'], $index === 0, $index, null, $axis->pricing_mode === PricingMode::Standalone ? $row['cents'] : null);
         }
+    }
+
+    /**
+     * One listing's detail: the row every table and grid render it as, its
+     * full sales list, and its ranged daily view strip. `$row` is the same
+     * {@see ListingTableRow} a table or grid already read this listing as,
+     * when the caller has one; omitted, it reads its own — the list pane's
+     * detail, which has no table of rows to read one from.
+     *
+     * @return array{listing: Listing, row: ListingTableRow, sales: Collection<int, OrderItem>, strip: list<BarStripBar>, rangeDays: int}
+     */
+    private function detailData(Listing $listing, AnalyticsRange $range, ?ListingTableRow $row = null): array
+    {
+        $listing->load(['activeRemoval', 'category', 'images']);
+
+        $daily = AnalyticsReport::dailyCountsForListingSince($listing->id, $range->start);
+        $dayLabels = $range->dayLabels();
+        $viewCounts = array_map(
+            fn (string $day): int => $daily[$day][AnalyticsEventName::ListingView->value] ?? 0,
+            $dayLabels,
+        );
+
+        return [
+            'listing' => $listing,
+            'row' => $row ?? ListingTable::forListing($listing, $range),
+            'sales' => $this->sales($listing),
+            'strip' => BarStrip::bars($viewCounts, $dayLabels, self::ACTIVITY_STRIP_HEIGHT_PX),
+            'rangeDays' => $range->days,
+        ];
+    }
+
+    /**
+     * `$listing`'s own row out of `$rows`, when it is there — a fresh read
+     * of it otherwise, which a listing outside the seller's own rows
+     * should never need in practice.
+     *
+     * @param  list<ListingTableRow>  $rows
+     */
+    private static function rowFor(array $rows, Listing $listing, AnalyticsRange $range): ListingTableRow
+    {
+        foreach ($rows as $row) {
+            if ($row->id === $listing->id) {
+                return $row;
+            }
+        }
+
+        return ListingTable::forListing($listing, $range);
     }
 
     /**

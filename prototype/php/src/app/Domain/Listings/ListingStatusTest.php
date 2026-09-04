@@ -50,3 +50,24 @@ it('reads its stored value back as a sentence', function (ListingStatus $status,
     'sold' => [ListingStatus::Sold, 'Sold'],
     'archived' => [ListingStatus::Archived, 'Archived'],
 ]);
+
+it('reads the seller badge label off status and removal', function (ListingStatus $status, bool $removed, string $expected): void {
+    expect($status->sellerBadgeLabel($removed))->toBe($expected);
+})->with([
+    'draft reads draft' => [ListingStatus::Draft, false, 'Draft'],
+    'for sale reads live' => [ListingStatus::ForSale, false, 'Live'],
+    'sold reads sold out' => [ListingStatus::Sold, false, 'Sold out'],
+    'archived reads removed' => [ListingStatus::Archived, false, 'Removed'],
+    'an active removal outranks for sale' => [ListingStatus::ForSale, true, 'Removed'],
+    'an active removal outranks draft' => [ListingStatus::Draft, true, 'Removed'],
+]);
+
+it('reads the seller badge tint off status and removal', function (ListingStatus $status, bool $removed, string $expected): void {
+    expect($status->sellerBadgeTint($removed))->toBe($expected);
+})->with([
+    'draft is gray' => [ListingStatus::Draft, false, 'gray'],
+    'for sale is green' => [ListingStatus::ForSale, false, 'green'],
+    'sold is red' => [ListingStatus::Sold, false, 'red'],
+    'archived is red' => [ListingStatus::Archived, false, 'red'],
+    'an active removal is red' => [ListingStatus::ForSale, true, 'red'],
+]);

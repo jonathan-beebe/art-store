@@ -28,6 +28,8 @@
 |                                      | the routes and limits, the seeded stores, and the public `/s/{slug}` page.                                                              |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One       |
 |                                      | concept-level diagram.                                                                                      |
+| [`seller-portal.md`](seller-portal.md) | The seller portal's tools beyond the backbone, one section per tool as its lane lands. Listings: list/table/grid, |
+|                                      | the query vocabulary, and the overlay/takeover.                                                              |
 | [`review.md`](review.md)             | Every requirement in the brief, its status, and the route and test that prove it. Known gaps and next       |
 |                                      | steps.                                                                                                      |
 
