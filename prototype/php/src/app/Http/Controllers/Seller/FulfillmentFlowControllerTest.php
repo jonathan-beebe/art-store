@@ -7,26 +7,10 @@ namespace App\Http\Controllers\Seller;
 use App\Domain\Fulfillment\DefaultFlow;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
-use App\Models\Seller;
 
-/**
- * A flow of two steps for $seller, saved directly through the models rather
- * than through the save action, so a test that only reads the edit page does
- * not depend on the action under test elsewhere.
- *
- * @return array{0: FulfillmentFlowStep, 1: FulfillmentFlowStep}
- */
-$twoStepFlow = function (Seller $seller): array {
-    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id, 'name' => 'How Molly Ships']);
-    $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create(['label' => 'Label printed']);
-    $packStep = FulfillmentFlowStep::factory()->of($flow, 1)->create(['label' => 'Packed']);
-
-    return [$labelStep, $packStep];
-};
-
-it('renders the sellers flow name and step labels', function () use ($twoStepFlow): void {
+it('renders the sellers flow name and step labels', function (): void {
     $seller = $this->seller();
-    $twoStepFlow($seller);
+    $this->flowFor($seller, 'How Molly Ships');
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/orders/flow');
 
@@ -44,9 +28,9 @@ it('shows the default name and an empty list for a seller with no flow yet, crea
     expect(FulfillmentFlow::count())->toBe(0);
 });
 
-it('saves a rename, an added step, a renamed existing step, a removed step, and a reorder in one submit', function () use ($twoStepFlow): void {
+it('saves a rename, an added step, a renamed existing step, a removed step, and a reorder in one submit', function (): void {
     $seller = $this->seller();
-    [$labelStep, $packStep] = $twoStepFlow($seller);
+    [$labelStep, $packStep] = $this->flowFor($seller, 'How Molly Ships');
     $flow = $labelStep->fulfillmentFlow;
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/orders/flow', [
@@ -68,9 +52,9 @@ it('saves a rename, an added step, a renamed existing step, a removed step, and 
         ->and($flow->steps->firstWhere('label', 'Carefully packed')?->id)->toBe($packStep->id);
 });
 
-it('removes a step ticked for removal', function () use ($twoStepFlow): void {
+it('removes a step ticked for removal', function (): void {
     $seller = $this->seller();
-    [$labelStep, $packStep] = $twoStepFlow($seller);
+    [$labelStep, $packStep] = $this->flowFor($seller, 'How Molly Ships');
 
     $this->actingAs($seller, 'seller')->put('/seller/orders/flow', [
         'name' => 'How Molly Ships',
@@ -99,9 +83,9 @@ it('adds nothing for a submitted row with a blank label', function (): void {
     expect($flow->steps()->count())->toBe(1);
 });
 
-it('never touches another sellers flow', function () use ($twoStepFlow): void {
+it('never touches another sellers flow', function (): void {
     $other = $this->seller('Lovegood Curiosities');
-    [$otherLabelStep] = $twoStepFlow($other);
+    [$otherLabelStep] = $this->flowFor($other, 'How Molly Ships');
     $otherFlow = $otherLabelStep->fulfillmentFlow;
 
     $this->actingAs($this->seller(), 'seller')->put('/seller/orders/flow', [

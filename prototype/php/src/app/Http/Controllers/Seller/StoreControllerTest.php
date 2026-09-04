@@ -47,7 +47,7 @@ it('mints the store once however often the screen is opened', function (): void 
 
 it('saves the identity a seller typed', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')
         ->put('/seller/store', $form(['name' => 'Burrow Works', 'tagline' => 'Made by the fire', 'location' => 'Devon']))
@@ -61,7 +61,7 @@ it('saves the identity a seller typed', function () use ($form): void {
 
 it('publishes and hides the store', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')->put('/seller/store', $form(['visibility' => 'published']));
     expect($seller->storeProfile()->sole()->isPublished())->toBeTrue();
@@ -72,7 +72,7 @@ it('publishes and hides the store', function () use ($form): void {
 
 it('keeps the day a store first opened when it is hidden and published again', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $this->actingAs($seller, 'seller')->put('/seller/store', $form(['visibility' => 'published']));
     $first = $seller->storeProfile()->sole()->published_at;
 
@@ -84,7 +84,7 @@ it('keeps the day a store first opened when it is hidden and published again', f
 
 it('keeps the old address when the seller moves the store', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')->put('/seller/store', $form(['slug' => 'burrow-works']));
 
@@ -95,7 +95,7 @@ it('keeps the old address when the seller moves the store', function () use ($fo
 
 it('refuses a save with no name', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')
         ->put('/seller/store', $form(['name' => '']))
@@ -104,8 +104,8 @@ it('refuses a save with no name', function () use ($form): void {
 
 it('refuses an address another store answers to', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
-    $this->actingAs($this->seller('Nine Owls'), 'seller')->get('/seller/store');
+    $this->storeFor($seller);
+    $this->storeFor($this->seller('Nine Owls'));
 
     $this->actingAs($seller, 'seller')
         ->put('/seller/store', $form(['slug' => 'nine-owls']))
@@ -114,11 +114,11 @@ it('refuses an address another store answers to', function () use ($form): void 
 
 it('refuses an address another store retired', function () use ($form): void {
     $other = $this->seller('Nine Owls');
-    $this->actingAs($other, 'seller')->get('/seller/store');
+    $this->storeFor($other);
     $this->actingAs($other, 'seller')->put('/seller/store', $form(['name' => 'Nine Owls', 'slug' => 'nine-owls-nest']));
 
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $this->actingAs($seller, 'seller')
         ->put('/seller/store', $form(['slug' => 'nine-owls']))
         ->assertSessionHasErrors('slug');
@@ -126,7 +126,7 @@ it('refuses an address another store retired', function () use ($form): void {
 
 it('takes the address the store already holds without complaint', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')
         ->put('/seller/store', $form())
@@ -135,7 +135,7 @@ it('takes the address the store already holds without complaint', function () us
 
 it('keeps the links a seller filled in and drops the ones they cleared', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')->put('/seller/store', $form(['links' => [
         StoreLinkKind::Website->value => 'https://theburrow.example',

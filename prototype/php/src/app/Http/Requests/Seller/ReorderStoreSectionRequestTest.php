@@ -9,7 +9,7 @@ use App\Models\StoreSection;
 
 it('requires a direction', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     $section = StoreSection::factory()->create(['store_profile_id' => $profile->id]);
 
@@ -20,7 +20,7 @@ it('requires a direction', function (): void {
 
 it('refuses a direction other than up or down', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     $section = StoreSection::factory()->create(['store_profile_id' => $profile->id]);
 
@@ -33,7 +33,7 @@ it('refuses a direction other than up or down', function (): void {
 
 it('accepts up and down as legal directions', function (string $direction): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     $first = StoreSection::factory()->create(['store_profile_id' => $profile->id, 'position' => 0]);
     $second = StoreSection::factory()->create(['store_profile_id' => $profile->id, 'position' => 1]);
@@ -48,7 +48,7 @@ it('accepts up and down as legal directions', function (string $direction): void
 
 it('answers another sellers section as not found', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $otherProfile = StoreProfile::factory()->create();
     $otherSection = StoreSection::factory()->create(['store_profile_id' => $otherProfile->id]);
 

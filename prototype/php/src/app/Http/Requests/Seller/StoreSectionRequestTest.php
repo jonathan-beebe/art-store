@@ -11,7 +11,7 @@ use App\Models\StoreSection;
 
 it('requires a valid kind for a new section', function (array $overrides): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', $overrides);
 
@@ -23,7 +23,7 @@ it('requires a valid kind for a new section', function (array $overrides): void 
 
 it('accepts a story section with a heading and a body', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', [
         'kind' => StoreSectionKind::Story->value,
@@ -36,7 +36,7 @@ it('accepts a story section with a heading and a body', function (): void {
 
 it('refuses images on a story section', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     $image = StoreImage::factory()->create(['store_profile_id' => $profile->id, 'seller_id' => $seller->id]);
 
@@ -51,7 +51,7 @@ it('refuses images on a story section', function (): void {
 
 it('accepts a gallery section with a heading and images', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     $image = StoreImage::factory()->create(['store_profile_id' => $profile->id, 'seller_id' => $seller->id]);
 
@@ -66,7 +66,7 @@ it('accepts a gallery section with a heading and images', function (): void {
 
 it('refuses a body on a gallery section', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', [
         'kind' => StoreSectionKind::Gallery->value,
@@ -79,7 +79,7 @@ it('refuses a body on a gallery section', function (): void {
 
 it('refuses a body past the length ceiling', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', [
         'kind' => StoreSectionKind::Story->value,
@@ -91,7 +91,7 @@ it('refuses a body past the length ceiling', function (): void {
 
 it('refuses more images than a gallery holds', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     $images = StoreImage::factory()
         ->count(StoreSection::MAX_GALLERY_IMAGES + 1)
@@ -107,7 +107,7 @@ it('refuses more images than a gallery holds', function (): void {
 
 it('refuses an image id belonging to another stores profile', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $foreignImage = StoreImage::factory()->create();
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', [
@@ -120,7 +120,7 @@ it('refuses an image id belonging to another stores profile', function (): void 
 
 it('refuses a thirteenth section with its cap message', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     for ($position = 0; $position < StoreSection::MAX_PER_PROFILE; $position++) {
         StoreSection::factory()->create(['store_profile_id' => $profile->id, 'position' => $position]);
@@ -139,7 +139,7 @@ it('refuses a thirteenth section with its cap message', function (): void {
 
 it('answers another sellers section as not found', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $otherProfile = StoreProfile::factory()->create();
     $otherSection = StoreSection::factory()->create(['store_profile_id' => $otherProfile->id]);
 

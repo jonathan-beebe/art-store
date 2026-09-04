@@ -25,7 +25,7 @@ $form = function (array $overrides = []): array {
 
 it('refuses an address outside the regex or past the length ceiling', function (string $slug) use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form(['slug' => $slug]));
 
@@ -39,7 +39,7 @@ it('refuses an address outside the regex or past the length ceiling', function (
 
 it('requires a name', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form(['name' => '']));
 
@@ -48,7 +48,7 @@ it('requires a name', function () use ($form): void {
 
 it('refuses a tagline past the ceiling', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form([
         'tagline' => str_repeat('a', StoreProfile::MAX_TAGLINE_LENGTH + 1),
@@ -59,7 +59,7 @@ it('refuses a tagline past the ceiling', function () use ($form): void {
 
 it('refuses a visibility value outside published or hidden', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form(['visibility' => 'archived']));
 
@@ -68,7 +68,7 @@ it('refuses a visibility value outside published or hidden', function () use ($f
 
 it('requires the website link to be a url', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form([
         'links' => [StoreLinkKind::Website->value => 'not a url'],
@@ -79,7 +79,7 @@ it('requires the website link to be a url', function () use ($form): void {
 
 it('refuses a url in the instagram field', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form([
         'links' => [StoreLinkKind::Instagram->value => 'https://instagram.com/theburrow'],
@@ -90,7 +90,7 @@ it('refuses a url in the instagram field', function () use ($form): void {
 
 it('trims a blank tagline and location down to null', function () use ($form): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $this->actingAs($seller, 'seller')->put('/seller/store', $form([
         'tagline' => '   ',
