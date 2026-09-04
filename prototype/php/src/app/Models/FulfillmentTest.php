@@ -287,3 +287,10 @@ it('reads the last completed step into the state of a parcel that has started', 
     expect($fulfillment->refresh()->state($this->moment('2026-08-21 12:00:00'))->line())
         ->toBe('Label printed 3 hours ago · waiting for the parcel to leave');
 });
+
+it('says a parcel carrying none of the sellers lines has no items', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller('Rye Press'));
+    $fulfillment->forceFill(['seller_id' => $this->seller('Blue Kiln Studio')->id])->save();
+
+    expect($fulfillment->refresh()->itemLabel())->toBe('no items');
+});
