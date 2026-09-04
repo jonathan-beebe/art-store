@@ -1,4 +1,5 @@
-{{-- A daily or hourly series as one SVG bar chart. `preserveAspectRatio="none"`
+{{-- A daily or hourly series as one SVG bar chart, read by the admin
+     analytics pages, the seller listing detail, and the seller dashboard. `preserveAspectRatio="none"`
      and `width="100%"` let the same markup fill a 26px table cell or a
      112px panel without redrawing anything: only the container's height
      changes. Each bar is one `<rect>` with `fill="currentColor"`, so the

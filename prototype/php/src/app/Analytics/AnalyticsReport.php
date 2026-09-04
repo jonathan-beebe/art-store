@@ -8,6 +8,7 @@ use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\Channel;
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use stdClass;
 
@@ -42,22 +43,32 @@ final class AnalyticsReport
      * How many views, favorites, and cart-adds each of `$listingIds`
      * recorded since `$from` — the seller listings table and grid's
      * source for their range-bound columns, and the seller listing-detail
-     * page's own ranged tally, so the two never disagree. One `whereIn`
-     * query, joined back onto each listing id in PHP.
+     * page's own ranged tally, so the two never disagree.
      *
      * @param  list<string>  $listingIds
      * @return array<string, ListingEventCounts> listing id => tally
      */
     public static function countsForListingsSince(array $listingIds, DateTimeImmutable $from): array
     {
+        return self::countsForListingsBetween($listingIds, $from, null);
+    }
+
+    /**
+     * The same tally bounded at both ends, which is what a page comparing
+     * one range with the range before it reads for the earlier window. A
+     * null `$until` runs to now. One `whereIn` query, joined back onto
+     * each listing id in PHP.
+     *
+     * @param  list<string>  $listingIds
+     * @return array<string, ListingEventCounts> listing id => tally
+     */
+    public static function countsForListingsBetween(array $listingIds, DateTimeImmutable $from, ?DateTimeImmutable $until): array
+    {
         if ($listingIds === []) {
             return [];
         }
 
-        $rows = DB::connection('analytics')->table('analytics_events')
-            ->where('subject_type', 'listing')
-            ->whereIn('subject_id', $listingIds)
-            ->where('occurred_at', '>=', $from->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'))
+        $rows = self::listingEvents($listingIds, $from, $until)
             ->select('subject_id', 'name')
             ->selectRaw('count(*) as tally')
             ->groupBy('subject_id', 'name')
@@ -118,6 +129,68 @@ final class AnalyticsReport
         }
 
         return $counts;
+    }
+
+    /**
+     * How many views each of `$listingIds` recorded on each day of the
+     * window — the daily strip beside a listing on the seller dashboard,
+     * every listing in one query.
+     *
+     * @param  list<string>  $listingIds
+     * @return array<string, array<string, int>> listing id => day (Y-m-d) => views
+     */
+    public static function dailyViewsForListings(array $listingIds, DateTimeImmutable $from, ?DateTimeImmutable $until): array
+    {
+        if ($listingIds === []) {
+            return [];
+        }
+
+        $rows = self::listingEvents($listingIds, $from, $until)
+            ->where('name', AnalyticsEventName::ListingView->value)
+            ->select('subject_id')
+            ->selectRaw('date(occurred_at) as day')
+            ->selectRaw('count(*) as tally')
+            ->groupBy('subject_id', 'day')
+            ->get();
+
+        $views = [];
+
+        foreach ($rows as $row) {
+            /** @var string $subjectId */
+            $subjectId = $row->subject_id;
+            /** @var string $day */
+            $day = $row->day;
+            /** @var int|string $tally */
+            $tally = $row->tally;
+
+            $views[$subjectId][$day] = (int) $tally;
+        }
+
+        return $views;
+    }
+
+    /**
+     * Every listing event on `$listingIds` inside the window, as a query
+     * still open to grouping.
+     *
+     * @param  list<string>  $listingIds
+     */
+    private static function listingEvents(array $listingIds, DateTimeImmutable $from, ?DateTimeImmutable $until): QueryBuilder
+    {
+        $events = DB::connection('analytics')->table('analytics_events')
+            ->where('subject_type', 'listing')
+            ->whereIn('subject_id', $listingIds)
+            ->where('occurred_at', '>=', self::stamp($from));
+
+        return $until instanceof DateTimeImmutable
+            ? $events->where('occurred_at', '<=', self::stamp($until))
+            : $events;
+    }
+
+    /** A moment the way `analytics_events.occurred_at` stores one: UTC, to the second. */
+    private static function stamp(DateTimeImmutable $moment): string
+    {
+        return $moment->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     }
 
     /**
@@ -182,7 +255,7 @@ final class AnalyticsReport
     }
 
     /**
-     * @param  callable(\Illuminate\Database\Query\Builder): \Illuminate\Database\Query\Builder  $scope
+     * @param  callable(QueryBuilder): QueryBuilder  $scope
      * @return list<AnalyticsEventRow>
      */
     private static function eventRows(callable $scope, DateTimeImmutable $from): array
@@ -233,7 +306,7 @@ final class AnalyticsReport
     }
 
     /**
-     * @param  callable(\Illuminate\Database\Query\Builder): \Illuminate\Database\Query\Builder  $scope
+     * @param  callable(QueryBuilder): QueryBuilder  $scope
      * @return array<string, int> event name => count
      */
     private static function tallyByName(callable $scope): array

@@ -21,6 +21,7 @@ arch('the domain core stays pure')
         'App\Analytics',
         'App\Console',
         'App\Seller',
+        'App\Support',
         'Illuminate\Database',
         'Illuminate\Support\Facades',
         'now',

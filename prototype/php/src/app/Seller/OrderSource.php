@@ -11,6 +11,7 @@ use App\Domain\Seller\ActivityKind;
 use App\Domain\Seller\FeedEvent;
 use App\Domain\Seller\FeedIcon;
 use App\Models\Fulfillment;
+use App\Models\LedgerEntry;
 use App\Models\Payment;
 
 /**
@@ -114,8 +115,8 @@ final readonly class OrderSource implements ActivityFeedSource
                 occurredAt: $entry->occurred_at->toDateTimeImmutable(),
                 kind: ActivityKind::Order,
                 icon: FeedIcon::Cash,
-                actor: Money::fromCents(abs($entry->amount_cents))->format(),
-                text: $this->movementText($entry->type),
+                actor: $this->movementAmount($fulfillment, $entry)->format(),
+                text: $this->movementText($fulfillment, $entry->type),
                 quote: $entry->type === LedgerEntryType::Refunded ? $fulfillment->refund?->reason : null,
             );
         }
@@ -123,12 +124,25 @@ final readonly class OrderSource implements ActivityFeedSource
         return $events;
     }
 
-    private function movementText(LedgerEntryType $type): string
+    /**
+     * A refund sends the buyer the whole subtotal
+     * ({@see \App\Actions\Escrow\IssueRefund}); its ledger entry is the
+     * seller's net leaving their balance, which the sentence names beside
+     * it. Every other movement is the amount the entry carries.
+     */
+    private function movementAmount(Fulfillment $fulfillment, LedgerEntry $entry): Money
+    {
+        return $entry->type === LedgerEntryType::Refunded
+            ? $fulfillment->subtotal()
+            : Money::fromCents(abs($entry->amount_cents));
+    }
+
+    private function movementText(Fulfillment $fulfillment, LedgerEntryType $type): string
     {
         return match ($type) {
             LedgerEntryType::Held => 'held in escrow after the platform fee',
             LedgerEntryType::Released => 'released to your available balance',
-            LedgerEntryType::Refunded => 'returned to the buyer',
+            LedgerEntryType::Refunded => 'returned to the buyer · '.$fulfillment->net()->format().' out of your balance',
             LedgerEntryType::PaidOut => 'paid out',
         };
     }

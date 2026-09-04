@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace App\View\Components;
+
 use App\Domain\Analytics\BarStripBar;
 
 it('renders one rect per bar, each at an increasing x, carrying its tooltip', function (): void {
@@ -11,7 +13,7 @@ it('renders one rect per bar, each at an increasing x, carrying its tooltip', fu
         new BarStripBar(26, 'Aug 3: 10'),
     ];
 
-    $html = (string) $this->blade('<x-admin.analytics.bar-strip :bars="$bars" :height="26" class="text-stone-400" />', ['bars' => $bars]);
+    $html = (string) $this->blade('<x-bar-strip :bars="$bars" :height="26" class="text-stone-400" />', ['bars' => $bars]);
 
     expect(substr_count($html, '<rect'))->toBe(3)
         ->and($html)->toContain('<title>Aug 1: 0</title>')
@@ -29,7 +31,7 @@ it('overrides a flagged bar\'s own color, leaving the rest to the svg class', fu
         new BarStripBar(26, 'flagged', true),
     ];
 
-    $html = (string) $this->blade('<x-admin.analytics.bar-strip :bars="$bars" :height="26" class="text-stone-500" />', ['bars' => $bars]);
+    $html = (string) $this->blade('<x-bar-strip :bars="$bars" :height="26" class="text-stone-500" />', ['bars' => $bars]);
 
     expect(substr_count($html, 'text-red-600 dark:text-red-500'))->toBe(1);
 });
@@ -37,7 +39,7 @@ it('overrides a flagged bar\'s own color, leaving the rest to the svg class', fu
 it('closes the gap between bars once the series passes thirty-one days', function (): void {
     $bars = array_fill(0, 90, new BarStripBar(10, 'day'));
 
-    $html = (string) $this->blade('<x-admin.analytics.bar-strip :bars="$bars" :height="26" />', ['bars' => $bars]);
+    $html = (string) $this->blade('<x-bar-strip :bars="$bars" :height="26" />', ['bars' => $bars]);
 
     expect(substr_count($html, '<rect'))->toBe(90)
         ->and($html)->toContain('width="3"')

@@ -286,16 +286,21 @@ class Fulfillment extends Model
     #[Scope]
     protected function inLane(Builder $query, LaneFilter $filter): void
     {
+        // `orders` carries a `status` column too, so the clauses name the
+        // table: a caller joining orders to sort by `placed_at` reads the
+        // same lane rule without an ambiguous column.
+        $status = 'fulfillments.status';
+
         match ($filter) {
             LaneFilter::ToShip => $query
-                ->where('status', FulfillmentStatus::AwaitingShipment)
+                ->where($status, FulfillmentStatus::AwaitingShipment)
                 ->whereDoesntHave('fulfillmentEvents', self::stepCompletions(...)),
             LaneFilter::InProgress => $query->where(fn (Builder $lane): Builder => $lane
                 ->where(fn (Builder $started): Builder => $started
-                    ->where('status', FulfillmentStatus::AwaitingShipment)
+                    ->where($status, FulfillmentStatus::AwaitingShipment)
                     ->whereHas('fulfillmentEvents', self::stepCompletions(...)))
-                ->orWhere('status', FulfillmentStatus::Shipped)),
-            LaneFilter::Done => $query->whereIn('status', [
+                ->orWhere($status, FulfillmentStatus::Shipped)),
+            LaneFilter::Done => $query->whereIn($status, [
                 FulfillmentStatus::Delivered,
                 FulfillmentStatus::Declined,
                 FulfillmentStatus::Refunded,

@@ -1,25 +1,23 @@
 # Seller portal
 
 The seller's own site: what a seller shows the world, what they have for
-sale, what they owe a buyer, and what they are owed. The chrome, the
-dashboard, and messages are in [`architecture.md`](architecture.md); each
-tool gets its own section here as its lane lands.
+sale, what they owe a buyer, and what they are owed. The chrome is in
+[`architecture.md`](architecture.md); each tool gets its own section here
+as its lane lands.
 
-| Section                                 | Read it for                                                     |
-| --------------------------------------- | --------------------------------------------------------------- |
-| [Store profile](#store-profile)         | The six store tables, the typed-section rule, addresses as      |
-|                                         | history, the routes, the limits, the seeds                      |
-| [The public page](#the-public-page)     | `/s/{slug}`, how an address resolves, what the page shows,      |
-|                                         | the listing cards that lead to it, `store.view`                 |
-| [Listings](#listings)                   | List, table, and grid over one detail component; the query      |
-|                                         | vocabulary; sorting as a link; overlay against takeover         |
-| [Activity feed](#activity-feed)         | The four sources, which one owns which row, and why merging     |
-|                                         | and filtering are pure                                          |
-| [Earnings](#earnings)                   | Next payout, held escrow, this period against the seven before  |
-|                                         | it, and the printable statement                                 |
-| [Support](#support)                     | The desk, its presence and reply time, help articles from       |
-|                                         | markdown, and the seller's own support threads                  |
-| [Data](#data)                           | The nine tables the portal added, drawn from the migrations     |
+| Section                             | Read it for                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [Store profile](#store-profile)     | The six store tables, the typed-section rule, addresses as history, the routes, the limits, the seeds     |
+| [The public page](#the-public-page) | `/s/{slug}`, how an address resolves, what the page shows, the listing cards that lead to it, `store.view` |
+| [Listings](#listings)               | List, table, and grid over one detail component; the query vocabulary; sorting as a link; overlay against takeover |
+| [Orders](#orders)                   | Lanes as a query parameter, one rule read two ways, what a row says beyond its own facts, the parcel's detail |
+| [Activity feed](#activity-feed)     | The four sources, which one owns which row, and why merging and filtering are pure                        |
+| [Customers](#customers)             | Where the list comes from, the privacy rule, the query vocabulary, the customer page                      |
+| [Messages](#messages)               | The context rail beside the transcript: the buyer's numbers, the piece or the parcel, their other threads  |
+| [Earnings](#earnings)               | Next payout, held escrow, this period against the seven before it, and the printable statement            |
+| [Support](#support)                 | The desk, its presence and reply time, help articles from markdown, and the seller's own support threads   |
+| [Dashboard](#dashboard)             | The range, the three tiles and their lines, listing activity, and the four focus groups                    |
+| [Data](#data)                       | The nine tables the portal added, drawn from the migrations                                               |
 
 ## Store profile
 
@@ -502,6 +500,11 @@ A decline is told once: the shipping row says the parcel was turned down and
 the `refunded` movement carries the amount and the words the seller typed. A
 message is a messages row whose quote is the body.
 
+The refunded row names two amounts. The buyer gets the whole subtotal
+(`App\Actions\Escrow\IssueRefund`), so that is the figure the row leads
+with; the ledger entry beside it is the seller's net leaving their balance,
+which the sentence names after it.
+
 ### Merging and filtering are pure
 
 `App\Domain\Seller\ActivityFeed::merge(...$sources)` takes each source's
@@ -521,6 +524,142 @@ the optional `quote` and `link`. `FeedIcon` carries the heroicon path, so a
 row brings its own picture and `x-seller.feed` stays a renderer — the only
 feed markup in the portal, in the Tailwind Plus feed shape: a 32px round icon
 on a rail, the body, the instant.
+
+## Customers
+
+Question: a seller wants to know who buys from them. Where does that list
+come from, given no table holds it — and what does a seller get to see about
+a person?
+
+A customer is a buyer. Someone holding at least one paid fulfillment with
+the seller that still stands is on the list; browsing, favoriting, and
+asking about a piece join their timeline once they have bought. Every
+request derives the list from `fulfillments`; no table holds it.
+
+```mermaid
+flowchart LR
+    F["fulfillments\nseller, status is live"] --> T["totals per buyer\norders · spent · first · last"]
+    T --> R["CustomerRow"]
+    C["customers"] --> R
+    FAV["favorites\njoined to the seller's listings"] --> R
+    CON["conversations\nseller ↔ buyer"] --> R
+    R --> S["CustomerSegment · CustomerTableSort"]
+    R --> TA["CustomerTally"]
+```
+
+A `fulfillments` row exists from the moment an order is placed, so the
+derivation gates on the order having been paid: an abandoned checkout
+leaves the list alone and leaves Spent alone. A declined or refunded parcel
+settled its money back, so it counts toward nothing here — a buyer whose
+only parcel was declined drops off the list and their page answers 404,
+while the parcel itself stays listed on a page they still hold.
+
+### Privacy
+
+A seller sees a customer's name and email because an order carried them.
+That is the whole permission: `GET /seller/customers/{customer}` answers
+404 for anyone who has never bought from this seller, so a visitor who
+favorited a piece or asked a question has no page a seller can open. The
+name is the account's own where it has one, and the latest order's
+`shipping_name` where it does not — the same fall-back for the email.
+
+### Query vocabulary
+
+`App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
+routes read, the `docs/alignment.md` §5 idiom: an absent or emptied value
+reads as its default, an unrecognised one answers a bare 400.
+
+| Param     | Values                                                                   | Default | Read by         |
+| --------- | ------------------------------------------------------------------------ | ------- | --------------- |
+| `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
+| `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
+| `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` | the index route |
+| `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
+| `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
+
+`range` is what "new this period" means: a buyer is new when their first
+order falls inside the window. The four figures above the table count every
+buyer whatever the segment shows, so switching segments never moves them.
+
+### Layers
+
+```mermaid
+flowchart TB
+    controller["Http\\Controllers\\Seller\\{CustomerController,CustomerMessageController}"] --> customers["Seller\\SellerCustomers"]
+    controller --> chrome["Seller\\{CustomersChrome,FeedFilters}"]
+    controller --> reader["Seller\\ActivityFeedReader"]
+    customers --> domain["Domain\\Seller\\{CustomerRow,CustomerSegment,CustomerSort,CustomerSortColumn,CustomerTableSort,CustomerTally}"]
+    chrome --> domain
+```
+
+`SellerCustomers::forSeller()` folds the figures in one grouped query —
+`count(*)`, `sum(subtotal_cents)`, and `min`/`max(orders.placed_at)` over
+the seller's counted parcels joined to their orders, grouped by customer —
+then joins the account rows, the favorites, and the thread counts by id in
+PHP. A buyer holding no account name or address takes both from their
+latest order, which is one more query, run only when such a buyer is in the
+list. `forCustomer()` is the same fold narrowed to one person and hands
+back null for a stranger; the customer page, the Message button, and the
+thread rail all read it. `conversationCounts()` is the two thread figures
+the tiles carry.
+
+Sorting is a link carrying `aria-sort`, `App\Seller\ColumnHeader` per
+column through `x-seller.sortable-th`; a click on the sorted column flips
+`dir` (`CustomerSort::nextDirectionFor()`). The segment control and the
+timeline's kind filter are the same `x-seller.segmented` over
+`App\Seller\SegmentLink`, built by `CustomersChrome` and `FeedFilters`.
+
+### The customer page
+
+Identity (name, email, customer since, a Repeat buyer badge from two
+orders), four figures, the activity feed under its kind filter
+(`ActivityFeedReader` over `FeedScope::forCustomer()`), every parcel
+between the two of them — a declined or refunded one included, which the
+figures leave out and the seller still has to be able to look back at —
+their favorites of this seller's pieces, and their threads.
+
+Message opens the buyer's newest thread with this seller. For a buyer the
+seller has yet to write to, it opens the thread for the buyer's latest
+parcel — latest by `orders.placed_at`, the recency this section reads
+everywhere — through `App\Actions\Messaging\OpenConversation`. That is a
+subject the two of them already share, so the button needs no new kind of
+conversation.
+
+## Messages
+
+The inbox and the thread are `docs/messaging.md`. What the seller portal adds
+beside the transcript is the context rail: who the seller is talking to, and
+what the thread is about.
+
+```mermaid
+flowchart LR
+    C["Conversation"] --> TC["Seller\\ThreadContext"]
+    S["SellerCustomers::forCustomer()"] --> TC
+    TC --> R["x-seller.context-rail"]
+    R --> CU["the customer page"]
+    R --> L["the listing"]
+    R --> O["the order"]
+    R --> T["their other threads"]
+```
+
+`App\Seller\ThreadContext::forSeller()` is the rail's one read — the
+`FeedScope` idiom, a readonly value object with a named constructor that
+reads. It carries the counterpart's name and initials, the `CustomerRow`
+where the counterpart has bought from this seller, the listing a question
+is about, the parcel a fulfillment thread is about — named by this seller's
+own lines, since a two-seller order carries both — and every other thread
+the two of them hold, newest first.
+
+The same privacy rule the customers section states: a buyer's numbers and
+their email show because an order carried them. A visitor who has only
+asked about a piece shows a name alone — no figures, no email, no View
+customer link, since they have no customer page to open. A support thread
+shows the desk in place of a customer, and no other conversations.
+
+The rail sits beside the transcript at `xl` and under it below that, inside
+the thread component's own pane. Nothing about the transcript, the
+composer, resolve, reopen, or Publish as FAQ changed; the rate-limited
+reply re-renders the same rail with the thread it came back to.
 
 ## Earnings
 
@@ -674,6 +813,135 @@ are unchanged: the seller's existing titled new-conversation form, now
 reached from the hub's "Start a conversation" button rather than being the
 `/seller/support` route itself.
 
+## Dashboard
+
+Question: a seller opens the portal in the morning. What are the three
+numbers that say how the business is doing, which listings are working, and
+what has to be done today — each one click from the tool that does it?
+
+`GET /seller?range=7|30|90` is the whole vocabulary.
+`App\Http\Requests\Seller\DashboardQueryRequest` owns it, the
+docs/alignment.md §5 idiom: an absent or emptied value reads as `30`, an
+unrecognised one answers a bare 400. Every figure, delta, line, and strip
+on the page is read over that one range, and the caption under the title
+names the store and the window
+(`App\Domain\Analytics\AnalyticsRange::caption()`).
+
+```mermaid
+flowchart LR
+    C["Http\Controllers\Seller\DashboardController"] --> P["Seller\NextPayout"]
+    C --> O["Seller\SellerOverview"]
+    C --> L["Seller\ListingActivity"]
+    C --> N["Seller\NeedsAttention"]
+    C --> H["Seller\DashboardChrome"]
+    O --> SC["Seller\SellerCustomers"]
+    O --> SP["Domain\Seller\Sparkline"]
+    L --> LT["Seller\ListingTable"]
+    L --> AR["Analytics\AnalyticsReport"]
+    L --> BS["Domain\Analytics\BarStrip"]
+    N --> HE["Seller\HeldEscrow"]
+    N --> AQ["Domain\Seller\AttentionQueue"]
+    P --> PE["Domain\Seller\PayoutEstimate"]
+```
+
+`NextPayout` is read once in the controller and handed to both
+`SellerOverview` and `NeedsAttention`, so the earnings tile's footer and
+the payout group's heading can never name two different Mondays.
+
+### Three tiles
+
+Each is the Tailwind Plus "with brand icon" shape, and the whole tile is
+the link. `App\Seller\SellerOverview` builds all three as
+`App\Seller\OverviewTile` values.
+
+| Tile | Figure | Change | Line | Opens |
+| --- | --- | --- | --- | --- |
+| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers?range=` |
+| Orders | parcels placed in the range | vs the range before it (`RangeChange`) | parcels per day | `/seller/orders?lane=ship` |
+| Earnings | net of the range's live parcels | vs the range before it | net per day | `/seller/earnings` |
+
+The buyers are `SellerCustomers::forSeller()`'s own rows, so the tile and
+the customers table count the same people, and "new" is the same
+`CustomerRow::isNewSince()` the customers tally reads.
+
+Orders and earnings come from one query: the seller's parcels on paid
+orders placed anywhere between the previous range's first day and this
+range's last, folded in PHP by the UTC day of `orders.placed_at`. A parcel
+declined or refunded later still counts as an order placed and earns
+nothing — the rule `EarningsPeriods` reads a period by.
+
+`App\Domain\Seller\Sparkline::of()` scales a daily series onto one SVG
+polyline and names its last point, which `x-seller.sparkline` marks with a
+dot. The line keeps a two-pixel inset top and bottom and is scaled against
+the series' own floor, so a high plateau still shows its dip.
+`BarStrip` is the same idea in bars.
+
+### Activity on your listings
+
+`App\Seller\ListingActivity` answers four totals and five rows.
+
+Views, favorites, and cart adds are summed off `ListingTable`'s rows for
+this range and off `AnalyticsReport::countsForListingsBetween()` for the
+previous one — the ranged form `countsForListingsSince()` now delegates
+to. Sold is units off `order_items` on paid orders whose parcel still
+stands, the pair `ListingTable` counts an all-time sale by, narrowed to
+the range and bucketed by day so both windows read off one query.
+
+The rows are `ListingTable`'s own `ListingTableRow` values sorted by
+`ListingTableSort` on Views descending and cut to five, so a listing's
+figures on the dashboard and in the listings table are the same figures.
+Each row carries the units it sold inside the range and a daily view strip
+from `AnalyticsReport::dailyViewsForListings()` — five listings in one
+query. The strip covers the range capped at thirty days, so ninety bars
+never squeeze into one table cell; the header says which window it draws,
+and the Sold column heads the same way, since the listings table's own
+Sold is all-time. Every row opens the listing at the range the dashboard
+was read over.
+
+### Needs your attention
+
+`App\Seller\NeedsAttention` reads four queues and
+`App\Domain\Seller\AttentionQueue` turns them into the panels. Each
+queue is counted whole and read down to five rows, so a heading says how
+big the pile is while the panel stays scannable and a "N more" link
+carries the rest to the tool.
+
+| Group | Rows | Header opens |
+| --- | --- | --- |
+| Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
+| Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
+| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::tallyFor()`) | `/seller/earnings` |
+| Listings that need work | drafts and sold-out pieces, most recently edited first | `/seller/listings` |
+
+Every row opens the exact thing: the parcel, the thread, the earnings
+page, the listing. The held row opens the earnings page's own held list
+(`#held-heading`) — the In progress lane leaves out the parcels nobody has
+started, which that figure counts. To ship reads oldest by
+`orders.placed_at`, the same fact the row's age and its urgency come from,
+so the order of the rows and the red on them cannot disagree
+(`Fulfillment::inLane()` names `fulfillments.status` so the lane rule
+survives that join). A group holding nothing shows a sentence in place of
+its rows — "Nothing is waiting to ship.", "Every buyer has heard back from
+you.", "Every listing is published and in stock." — so the page never
+renders a blank panel.
+
+`AttentionQueue` is pure: it owns the heading each group wears at each
+count, the sentence it shows holding nothing, and the two-day rule, and it
+takes rows an adapter already built. `AttentionRow` carries the initials,
+the two lines, the meta, the href, and whether the row reads urgent.
+
+### What the dashboard costs
+
+The page reads six queues across two connections and renders on a fixed
+number of queries however many rows a seller holds, which one test pins.
+Two reads are duplicated by design: `Seller::escrowBalance()` is folded
+once for the payout estimate and once for `HeldEscrow::tallyFor()`, and
+the parcels waiting to ship are counted once for the orders tile's footer
+and once for the focus group's heading. Both are cheap aggregates, and
+threading either through would tie two adapters together for one query.
+Nothing on the page hydrates a row it does not render: the held figures
+are a ledger fold and one count, never the parcels behind them.
+
 ## Data
 
 Question: which tables did the portal add, and what does each column carry?
@@ -802,138 +1070,3 @@ Six shapes the migrations hold that the lines above do not:
 - `store_section_images` and `store_links` each carry two unique indexes: one
   on position, so a section's pictures and a store's links hold an order, and
   one on the child (image, link kind), so neither is listed twice.
-## Customers
-
-Question: a seller wants to know who buys from them. Where does that list
-come from, given no table holds it — and what does a seller get to see about
-a person?
-
-A customer is a buyer. Someone holding at least one paid fulfillment with
-the seller that still stands is on the list; browsing, favoriting, and
-asking about a piece join their timeline once they have bought. Every
-request derives the list from `fulfillments`; no table holds it.
-
-```mermaid
-flowchart LR
-    F["fulfillments\nseller, status is live"] --> T["totals per buyer\norders · spent · first · last"]
-    T --> R["CustomerRow"]
-    C["customers"] --> R
-    FAV["favorites\njoined to the seller's listings"] --> R
-    CON["conversations\nseller ↔ buyer"] --> R
-    R --> S["CustomerSegment · CustomerTableSort"]
-    R --> TA["CustomerTally"]
-```
-
-A `fulfillments` row exists from the moment an order is placed, so the
-derivation gates on the order having been paid: an abandoned checkout
-leaves the list alone and leaves Spent alone. A declined or refunded parcel
-settled its money back, so it counts toward nothing here — a buyer whose
-only parcel was declined drops off the list and their page answers 404,
-while the parcel itself stays listed on a page they still hold.
-
-### Privacy
-
-A seller sees a customer's name and email because an order carried them.
-That is the whole permission: `GET /seller/customers/{customer}` answers
-404 for anyone who has never bought from this seller, so a visitor who
-favorited a piece or asked a question has no page a seller can open. The
-name is the account's own where it has one, and the latest order's
-`shipping_name` where it does not — the same fall-back for the email.
-
-### Query vocabulary
-
-`App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
-routes read, the `docs/alignment.md` §5 idiom: an absent or emptied value
-reads as its default, an unrecognised one answers a bare 400.
-
-| Param     | Values                                                                   | Default | Read by         |
-| --------- | ------------------------------------------------------------------------ | ------- | --------------- |
-| `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
-| `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
-| `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` | the index route |
-| `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
-| `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
-
-`range` is what "new this period" means: a buyer is new when their first
-order falls inside the window. The four figures above the table count every
-buyer whatever the segment shows, so switching segments never moves them.
-
-### Layers
-
-```mermaid
-flowchart TB
-    controller["Http\\Controllers\\Seller\\{CustomerController,CustomerMessageController}"] --> customers["Seller\\SellerCustomers"]
-    controller --> chrome["Seller\\{CustomersChrome,FeedFilters}"]
-    controller --> reader["Seller\\ActivityFeedReader"]
-    customers --> domain["Domain\\Seller\\{CustomerRow,CustomerSegment,CustomerSort,CustomerSortColumn,CustomerTableSort,CustomerTally}"]
-    chrome --> domain
-```
-
-`SellerCustomers::forSeller()` folds the figures in one grouped query —
-`count(*)`, `sum(subtotal_cents)`, and `min`/`max(orders.placed_at)` over
-the seller's counted parcels joined to their orders, grouped by customer —
-then joins the account rows, the favorites, and the thread counts by id in
-PHP. A buyer holding no account name or address takes both from their
-latest order, which is one more query, run only when such a buyer is in the
-list. `forCustomer()` is the same fold narrowed to one person and hands
-back null for a stranger; the customer page, the Message button, and the
-thread rail all read it. `conversationCounts()` is the two thread figures
-the tiles carry.
-
-Sorting is a link carrying `aria-sort`, `App\Seller\ColumnHeader` per
-column through `x-seller.sortable-th`; a click on the sorted column flips
-`dir` (`CustomerSort::nextDirectionFor()`). The segment control and the
-timeline's kind filter are the same `x-seller.segmented` over
-`App\Seller\SegmentLink`, built by `CustomersChrome` and `FeedFilters`.
-
-### The customer page
-
-Identity (name, email, customer since, a Repeat buyer badge from two
-orders), four figures, the activity feed under its kind filter
-(`ActivityFeedReader` over `FeedScope::forCustomer()`), every parcel
-between the two of them — a declined or refunded one included, which the
-figures leave out and the seller still has to be able to look back at —
-their favorites of this seller's pieces, and their threads.
-
-Message opens the buyer's newest thread with this seller. For a buyer the
-seller has yet to write to, it opens the thread for the buyer's latest
-parcel — latest by `orders.placed_at`, the recency this section reads
-everywhere — through `App\Actions\Messaging\OpenConversation`. That is a
-subject the two of them already share, so the button needs no new kind of
-conversation.
-
-## Messages
-
-The inbox and the thread are `docs/messaging.md`. What the seller portal adds
-beside the transcript is the context rail: who the seller is talking to, and
-what the thread is about.
-
-```mermaid
-flowchart LR
-    C["Conversation"] --> TC["Seller\\ThreadContext"]
-    S["SellerCustomers::forCustomer()"] --> TC
-    TC --> R["x-seller.context-rail"]
-    R --> CU["the customer page"]
-    R --> L["the listing"]
-    R --> O["the order"]
-    R --> T["their other threads"]
-```
-
-`App\Seller\ThreadContext::forSeller()` is the rail's one read — the
-`FeedScope` idiom, a readonly value object with a named constructor that
-reads. It carries the counterpart's name and initials, the `CustomerRow`
-where the counterpart has bought from this seller, the listing a question
-is about, the parcel a fulfillment thread is about — named by this seller's
-own lines, since a two-seller order carries both — and every other thread
-the two of them hold, newest first.
-
-The same privacy rule the customers section states: a buyer's numbers and
-their email show because an order carried them. A visitor who has only
-asked about a piece shows a name alone — no figures, no email, no View
-customer link, since they have no customer page to open. A support thread
-shows the desk in place of a customer, and no other conversations.
-
-The rail sits beside the transcript at `xl` and under it below that, inside
-the thread component's own pane. Nothing about the transcript, the
-composer, resolve, reopen, or Publish as FAQ changed; the rate-limited
-reply re-renders the same rail with the thread it came back to.

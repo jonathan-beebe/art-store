@@ -112,7 +112,7 @@
 <section aria-labelledby="{{ $idPrefix }}views-strip-heading" class="mt-8">
     <h2 id="{{ $idPrefix }}views-strip-heading" class="font-semibold text-gray-700 dark:text-gray-300">Views, last {{ $rangeDays }} days</h2>
     <div class="mt-2 rounded-lg border border-gray-200 p-4 text-indigo-600 dark:border-white/10 dark:text-indigo-400">
-        <x-admin.analytics.bar-strip :bars="$strip" :height="72" />
+        <x-bar-strip :bars="$strip" :height="72" />
     </div>
 </section>
 

@@ -60,7 +60,9 @@ enum FulfillmentStatus: string
     }
 
     /**
-     * The seller portal's `x-seller.status-badge` tint for this status.
+     * The badge tint for this status: the seller portal's
+     * `x-seller.status-badge` and the admin's `x-admin.status-pill` both
+     * read it, so a parcel wears one color across the site.
      */
     public function sellerBadgeTint(): string
     {

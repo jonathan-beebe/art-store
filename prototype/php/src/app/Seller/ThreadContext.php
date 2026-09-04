@@ -6,13 +6,13 @@ namespace App\Seller;
 
 use App\Domain\Auth\ActorType;
 use App\Domain\Seller\CustomerRow;
+use App\Domain\Support\RelativeTime;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Seller;
 use App\Support\ActorDisplay;
-use App\Support\RelativeTime;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 

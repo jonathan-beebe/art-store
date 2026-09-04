@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Seller;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
@@ -34,9 +35,7 @@ final readonly class HeldEscrow
 
     public static function for(Seller $seller): self
     {
-        $fulfillments = $seller->fulfillments()
-            ->whereIn('status', [FulfillmentStatus::AwaitingShipment, FulfillmentStatus::Shipped])
-            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()))
+        $fulfillments = self::heldParcels($seller)
             ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
             ->orderBy('created_at')
             ->orderBy('id')
@@ -46,6 +45,28 @@ final readonly class HeldEscrow
             $seller->escrowBalance()->held,
             array_values($fulfillments->map(self::toHeldOrder(...))->all()),
         );
+    }
+
+    /**
+     * The same two figures the panel above the rows shows, read without
+     * hydrating a parcel — what a page wanting the numbers and none of the
+     * rows asks for.
+     */
+    public static function tallyFor(Seller $seller): HeldTally
+    {
+        return new HeldTally($seller->escrowBalance()->held, self::heldParcels($seller)->count());
+    }
+
+    /**
+     * Every paid parcel still holding the seller's money.
+     *
+     * @return HasMany<Fulfillment, Seller>
+     */
+    private static function heldParcels(Seller $seller): HasMany
+    {
+        return $seller->fulfillments()
+            ->whereIn('status', [FulfillmentStatus::AwaitingShipment, FulfillmentStatus::Shipped])
+            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()));
     }
 
     private static function toHeldOrder(Fulfillment $fulfillment): HeldOrder

@@ -74,6 +74,13 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Seller/SegmentLink.php' => 'value carrier; exercised through CustomersChromeTest',
         'app/Seller/ConversationCounts.php' => 'value carrier; exercised through SellerCustomersTest',
         'app/Seller/ThreadLink.php' => 'value carrier; exercised through ThreadContextTest',
+        'app/Domain/Seller/AttentionRow.php' => 'value carrier; exercised through AttentionQueueTest',
+        'app/Domain/Seller/AttentionGroup.php' => 'value carrier; exercised through AttentionQueueTest',
+        'app/Domain/Seller/AttentionLinks.php' => 'value carrier; exercised through AttentionQueueTest',
+        'app/Domain/Seller/AttentionRows.php' => 'value carrier; exercised through AttentionQueueTest and NeedsAttentionTest',
+        'app/Seller/OverviewTile.php' => 'value carrier; exercised through SellerOverviewTest',
+        'app/Seller/OverviewListingRow.php' => 'value carrier; exercised through ListingActivityTest',
+        'app/Seller/HeldTally.php' => 'value carrier; exercised through HeldEscrowTest and NeedsAttentionTest',
     ];
 
     $base = dirname(__DIR__);
