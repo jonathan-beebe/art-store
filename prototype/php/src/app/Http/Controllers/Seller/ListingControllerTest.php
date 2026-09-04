@@ -1309,6 +1309,65 @@ it('FEAT-056 gives the overlays and the takeovers copy of the detail their own h
     $response->assertSee('id="takeover-views-strip-heading"', escape: false);
 });
 
+it('IMPRV-030 renders the listings header as text on the detail route, never a second h1', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    // One `<h1>` per copy of the listing's own detail (overlay and
+    // takeover, only one ever exposed to assistive technology at a
+    // given width) — the header's own "Listings" renders as a `<p>` on
+    // both, so neither copy adds a second heading beside it.
+    expect(substr_count($content, '<h1'))->toBe(2)
+        ->and($content)->toContain('<p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</p>');
+});
+
+it('IMPRV-030 keeps the workspace header inside the inert region behind the modal', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    $inertPosition = strpos($content, 'inert class=');
+    // The earliest data-new-listing-open is the workspace copy's own
+    // button — the takeover copy, which carries the real dialog, comes
+    // after it in the response.
+    $workspaceHeaderPosition = strpos($content, 'data-new-listing-open');
+
+    expect($inertPosition)->not->toBeFalse()
+        ->and($workspaceHeaderPosition)->not->toBeFalse();
+
+    assert(is_int($inertPosition));
+    assert(is_int($workspaceHeaderPosition));
+
+    expect($inertPosition)->toBeLessThan($workspaceHeaderPosition);
+});
+
+it('IMPRV-030 puts the new-listing dialog only in the takeover, so it never repeats an id', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    expect(substr_count($content, 'id="new-listing-dialog"'))->toBe(1)
+        ->and(substr_count($content, 'data-new-listing-open'))->toBe(2);
+});
+
+it('IMPRV-030 loads the listing detail dialog script and autofocuses its Close control', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    expect($content)->toContain('<script defer src="'.asset('listing-detail-dialog.js').'"')
+        ->and($content)->toContain('aria-label="Close" autofocus data-dialog-close');
+});
+
 it('FEAT-056 opens a grid rows detail from the same route', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
@@ -1328,38 +1387,6 @@ it('FEAT-056 keeps the new-listing dialog on the table and grid views', function
     $response->assertSee('id="new-listing-dialog"', escape: false);
 })->with(['table', 'grid']);
 
-it('FEAT-056 keeps the new-listing dialog reachable at every viewport on the detail overlay', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
-    $content = (string) $response->getContent();
-
-    expect($content)->toContain('id="new-listing-dialog"');
-
-    // The header — and the New listing button and dialog it carries —
-    // renders once, before either viewport-gated block below it: the
-    // `inert` workspace a `2xl:` breakpoint shows, and the takeover
-    // `<dialog>` another shows. A header nested inside either would
-    // still appear in this same response, unreachable below or above
-    // `2xl` respectively; asserting it comes first is what proves it
-    // sits outside both.
-    $headerPosition = strpos($content, 'data-new-listing-open');
-    $workspacePosition = strpos($content, 'inert');
-    $dialogPosition = strpos($content, '<dialog open');
-
-    expect($headerPosition)->not->toBeFalse()
-        ->and($workspacePosition)->not->toBeFalse()
-        ->and($dialogPosition)->not->toBeFalse();
-
-    assert(is_int($headerPosition));
-    assert(is_int($workspacePosition));
-    assert(is_int($dialogPosition));
-
-    expect($headerPosition)->toBeLessThan($workspacePosition)
-        ->and($headerPosition)->toBeLessThan($dialogPosition);
-});
-
 it('FEAT-056 links the view switch to every view', function (): void {
     $seller = $this->seller();
 
@@ -1378,4 +1405,15 @@ it('FEAT-056 submits the sort select through a visible button, carrying no inlin
     $response->assertSee('data-sort-select', escape: false);
     $response->assertSee('data-sort-submit', escape: false);
     $response->assertDontSee('onchange=', escape: false);
+});
+
+it('IMPRV-030 names the views strip for assistive technology on the listing detail', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('role="img"', escape: false);
+    $response->assertSee('aria-labelledby="views-strip-heading"', escape: false);
 });
