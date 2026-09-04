@@ -11,6 +11,7 @@ use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Orders\PlaceOrder;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\UnavailableReason;
+use DateTimeImmutable;
 
 it('reads its totals as money', function (): void {
     $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller(), ['price_cents' => 45000]));
@@ -137,4 +138,59 @@ it('leaves out an order still awaiting a card, and keeps one that paid', functio
 
     expect($ids)->not->toContain($unpaid->id)
         ->and($ids)->toContain($paidOrderId);
+});
+
+it('orders its items by when they were added, breaking a tie by id', function (): void {
+    $seller = $this->seller();
+    $order = $this->orderFor(
+        $this->verifiedCustomer(),
+        $this->listing($seller, ['title' => 'Deluminator']),
+        $this->listing($seller, ['title' => 'Put-Outer']),
+    );
+
+    [$first, $second] = $order->items()->get()->all();
+
+    // Forced out of insertion order, to prove the relation orders the read
+    // rather than happening to reflect it.
+    $first->forceFill(['created_at' => new DateTimeImmutable('2026-08-20 09:00:00')])->save();
+    $second->forceFill(['created_at' => new DateTimeImmutable('2026-08-20 08:00:00')])->save();
+
+    [$ordered1, $ordered2] = $order->refresh()->items()->get()->all();
+
+    expect($ordered1->id)->toBe($second->id)
+        ->and($ordered2->id)->toBe($first->id);
+});
+
+it('reads the shipping address as one line per row, dropping the lines it never held', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+    $order->forceFill([
+        'shipping_line2' => null,
+        'shipping_city' => 'London',
+        'shipping_region' => 'Greater London',
+        'shipping_postal_code' => 'EC1A 1BB',
+    ])->save();
+
+    expect($order->refresh()->shippingAddressLines())->toBe([
+        'Ada Lovelace',
+        '12 Analytical Way',
+        'London, Greater London EC1A 1BB',
+        'GB',
+    ]);
+});
+
+it('drops the leading comma when the shipping address carries no city', function (): void {
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($this->seller()));
+    $order->forceFill([
+        'shipping_line2' => null,
+        'shipping_city' => '',
+        'shipping_region' => 'Greater London',
+        'shipping_postal_code' => 'EC1A 1BB',
+    ])->save();
+
+    expect($order->refresh()->shippingAddressLines())->toBe([
+        'Ada Lovelace',
+        '12 Analytical Way',
+        'Greater London EC1A 1BB',
+        'GB',
+    ]);
 });
