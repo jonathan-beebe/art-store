@@ -1,4 +1,9 @@
-@props(['title' => 'Art Store'])
+{{--
+    `description` and `image` are the page's own meta: a search result's
+    line under the title, and the picture a link preview shows. A page
+    that passes neither renders neither tag.
+--}}
+@props(['title' => 'Art Store', 'description' => null, 'image' => null])
 
 <!DOCTYPE html>
 <html lang="en" class="h-full">
@@ -6,6 +11,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title }}</title>
+    @if ($description !== null)
+        <meta name="description" content="{{ $description }}">
+        <meta property="og:description" content="{{ $description }}">
+    @endif
+    <meta property="og:title" content="{{ $title }}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ url()->current() }}">
+    @if ($image !== null)
+        <meta property="og:image" content="{{ url($image) }}">
+    @endif
 
     {{-- The two faces every shop page paints with, fetched in parallel with
          the stylesheet rather than after it. Without this the browser cannot

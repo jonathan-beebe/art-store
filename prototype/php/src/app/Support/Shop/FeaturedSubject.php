@@ -44,7 +44,7 @@ final readonly class FeaturedSubject
     private static function resolveListing(string $slug): ?self
     {
         $listing = Listing::query()->forSale()
-            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->where('slug', $slug)->first();
 
         if ($listing === null) {

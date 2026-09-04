@@ -1,6 +1,11 @@
 @php
     use App\Domain\Messaging\MessageBody;
     use Illuminate\Support\Str;
+
+    // A seller with a published store gets their name as the way into it.
+    // A hidden store, or none at all, keeps the plain name.
+    $storeProfile = $listing->seller->storeProfile;
+    $storeHref = $storeProfile?->isPublished() ? route('shop.store', ['slug' => $storeProfile->slug]) : null;
 @endphp
 <x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
@@ -14,7 +19,7 @@
 
             <div class="mt-6 flex items-center gap-3 rounded-field border border-line bg-surface px-4 py-3">
                 <x-ui.avatar :name="$listing->seller->displayName()" size="md" />
-                <p class="text-sm font-semibold text-ink">Made by {{ $listing->seller->displayName() }}</p>
+                <p class="text-sm font-semibold text-ink">Made by @if ($storeHref !== null)<a href="{{ $storeHref }}" class="text-accent hover:text-accent-strong">{{ $listing->seller->displayName() }}</a>@else{{ $listing->seller->displayName() }}@endif</p>
             </div>
 
             <dl class="mt-8 grid grid-cols-2 gap-y-4 border-y border-line py-6 text-base">

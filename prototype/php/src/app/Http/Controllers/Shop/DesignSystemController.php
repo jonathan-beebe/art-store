@@ -53,14 +53,14 @@ final class DesignSystemController extends ShopController
 
     public function __invoke(Request $request): View
     {
-        $listings = Listing::query()->forSale()->with('seller')
+        $listings = Listing::query()->forSale()->with('seller.storeProfile')
             ->orderByDesc('created_at')->orderByDesc('id')->limit(3)->get();
 
         // The same predicate ConfiguratorPageResolver::hasConfigurator()
         // checks per listing, asked of the database instead: one query for
         // the first for-sale listing carrying any configurator row, rather
         // than fetching a page of listings and testing each in PHP.
-        $configurable = Listing::query()->forSale()->with('seller')
+        $configurable = Listing::query()->forSale()->with('seller.storeProfile')
             ->where(function (Builder $query): void {
                 $query->whereHas('optionAxes')
                     ->orWhereHas('variants')

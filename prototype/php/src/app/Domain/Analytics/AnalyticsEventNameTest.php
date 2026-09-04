@@ -9,6 +9,7 @@ it('names the storefront interactions the analytics store accepts', function ():
         ->toBe([
             'listing.view', 'listing.favorite', 'listing.unfavorite', 'listing.cart_add',
             'checkout.open', 'order.place', 'order.pay', 'order.cancel',
+            'store.view',
         ]);
 });
 
@@ -23,6 +24,7 @@ it('labels every case', function (AnalyticsEventName $name, string $expected): v
     'order_place' => [AnalyticsEventName::OrderPlace, 'Order placed'],
     'order_pay' => [AnalyticsEventName::OrderPay, 'Order paid'],
     'order_cancel' => [AnalyticsEventName::OrderCancel, 'Order cancelled'],
+    'store_view' => [AnalyticsEventName::StoreView, 'Store view'],
 ]);
 
 it('gives every case a feed-row verb', function (AnalyticsEventName $name, string $expected): void {
@@ -36,6 +38,7 @@ it('gives every case a feed-row verb', function (AnalyticsEventName $name, strin
     'order_place' => [AnalyticsEventName::OrderPlace, 'placed an order'],
     'order_pay' => [AnalyticsEventName::OrderPay, 'paid an order'],
     'order_cancel' => [AnalyticsEventName::OrderCancel, 'cancelled an order'],
+    'store_view' => [AnalyticsEventName::StoreView, 'opened'],
 ]);
 
 it('gives every case a plural label', function (AnalyticsEventName $name, string $expected): void {
@@ -49,6 +52,7 @@ it('gives every case a plural label', function (AnalyticsEventName $name, string
     'order_place' => [AnalyticsEventName::OrderPlace, 'Orders placed'],
     'order_pay' => [AnalyticsEventName::OrderPay, 'Orders paid'],
     'order_cancel' => [AnalyticsEventName::OrderCancel, 'Orders cancelled'],
+    'store_view' => [AnalyticsEventName::StoreView, 'Store views'],
 ]);
 
 it('gives every case a non-empty icon path', function (AnalyticsEventName $name): void {

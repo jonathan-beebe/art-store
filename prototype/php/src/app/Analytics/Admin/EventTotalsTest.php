@@ -28,7 +28,7 @@ it('carries every event name plus a page.view roll-up, in that order', function 
 
     expect($names)->toBe([
         'listing.view', 'listing.favorite', 'listing.unfavorite', 'listing.cart_add',
-        'checkout.open', 'order.place', 'order.pay', 'order.cancel', 'page.view',
+        'checkout.open', 'order.place', 'order.pay', 'order.cancel', 'store.view', 'page.view',
     ]);
 });
 

@@ -25,7 +25,7 @@
 | [`item-configurator.md`](item-configurator.md) | The item configurator: taxonomy, option axes, sparse variants, serialized units, scoped modifiers, |
 |                                      | quantity breaks; price/availability resolution; seller and customer flows; what v1 defers.                  |
 | [`seller-portal.md`](seller-portal.md) | The seller portal: the store profile's six tables, the typed-section rule, addresses as history,   |
-|                                      | the routes, the limits, and the seeded stores.                                                              |
+|                                      | the routes and limits, the seeded stores, and the public `/s/{slug}` page.                                                              |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One       |
 |                                      | concept-level diagram.                                                                                      |
 | [`review.md`](review.md)             | Every requirement in the brief, its status, and the route and test that prove it. Known gaps and next       |

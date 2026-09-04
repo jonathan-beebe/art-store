@@ -292,10 +292,13 @@ batch — a store outage loses buffered rows, never blocks the request.
 `analytics_events` holds one row per occurrence, named from a closed
 vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
 `listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
-`order.cancel`), with a nullable `dedupe_key` unique index. A listing
-view collapses to one row per (listing, customer, UTC hour) by expressing
-that window as a dedupe key and inserting with `INSERT OR IGNORE` — no read
-happens in the request to decide whether the write is a duplicate.
+`order.cancel`, `store.view`), with a nullable `dedupe_key` unique index. A
+listing view collapses to one row per (listing, customer, UTC hour) by
+expressing that window as a dedupe key and inserting with `INSERT OR
+IGNORE` — no read happens in the request to decide whether the write is a
+duplicate. `store.view` carries `subject_type = 'store'` and the store
+profile's `sto_` id, and collapses to the same hour window; a seller
+previewing their own hidden page records nothing.
 `page_view_counts` stays the roll-up the flush maintains, one upsert per
 (site, path pattern, day) carrying the buffered hit count.
 
@@ -946,3 +949,16 @@ FEAT-057 — `prototype/php/docs/seller-portal.md` § "Store profile" is the
 reference. §2.3's event vocabulary and §3's limiter names gain nothing:
 store writes stay silent under §2.3's closed-vocabulary rule. Node and
 rails owe the whole feature.
+
+2026-09-03, public store page: §2.6's event vocabulary gains `store.view`
+(`subject_type = 'store'`, subject the `sto_` profile id), collapsed to one
+row per (store, customer, UTC hour) the same way a listing view is. A
+store's public page is `/s/{slug}`: the current address answers it, an
+address the store retired inside thirty days redirects 301 to the current
+one, and an older address, an unknown one, and a hidden store all answer
+the same 404 so a hidden store is never confirmed to exist — its own
+seller is the one exception and sees a banner. Every listing card and
+listing page names the seller as a link to their store when it is
+published. PHP ships it on FEAT-058 —
+`prototype/php/docs/seller-portal.md` § "The public page" is the
+reference. Node and rails owe the whole feature.

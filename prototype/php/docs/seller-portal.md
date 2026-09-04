@@ -153,3 +153,61 @@ listings already show, so the seed copies nothing.
 rate-limit names. Store writes emit neither: there is no `store.*` event and
 no store limiter until the contract gains them, so the actions here write
 silently rather than minting names the other two prototypes lack.
+
+## The public page
+
+`GET /s/{slug}` renders the store in the Warm Craft theme. It is the same
+component the seller previews beside their form
+(`resources/views/components/store/profile.blade.php`); only the shell
+(`x-layouts.shop`) and the listing grid below it differ.
+
+### Resolving an address
+
+```mermaid
+flowchart TB
+    A["GET /s/{slug}"] --> B{"a profile holds this slug?"}
+    B -- yes --> C{"published, or the seller's own?"}
+    C -- yes --> D["render the page"]
+    C -- no --> E["404"]
+    B -- no --> F{"a store_slugs row retired inside 30 days?"}
+    F -- yes --> G["301 to the current address"]
+    F -- no --> E
+```
+
+`App\Support\Store\StoreAddressLookup` is the query;
+`App\Domain\Store\RetiredSlugWindow` is the thirty-day rule.
+A hidden store, an address retired too long ago, and an address no store
+ever held all answer the same 404, so a hidden store is never confirmed to
+exist. Its own seller is the exception: they see the page with a banner
+saying buyers cannot open it.
+
+### What the page shows
+
+The cover, the portrait, the name, the tagline, the location, "N pieces for
+sale · Selling since <Month Year>" (`App\Support\Store\StoreFacts`), the
+sections in order, the links, and the seller's storefront listings
+(`Listing::onStorefront()` — for sale and sold, never draft, archived, or
+removed) in the storefront's own grid partial.
+
+The page carries a title, a description (the tagline, else the opening of
+the first story, else the name), and an Open Graph image (the cover, else
+the portrait). `x-layouts.shop` gained `description` and `image` props for
+this; a page passing neither renders neither tag.
+
+### Listing cards lead to it
+
+`x-listing-card` and `/art/{slug}` name the seller as a link to their store
+when the store is published, and as plain text otherwise. The link reads
+`$listing->seller->storeProfile`, so every query that feeds a card eager
+loads `seller.storeProfile` — `Model::shouldBeStrict()` turns a missed one
+into a lazy-loading violation outside production rather than an N+1.
+
+### Analytics
+
+A view of a published page records `store.view` in the analytics store with
+`subject_type = 'store'` and the profile's `sto_` id, deduplicated per
+(store, customer, UTC hour) by `App\Domain\Store\StoreViewCollapse` —
+`listing.view`'s shape. A seller previewing their own hidden page records
+nothing. The admin analytics event list reads
+`AnalyticsEventName::cases()`, so the event appears there; an actor's feed
+names the store unlinked, the way it already names a cart.

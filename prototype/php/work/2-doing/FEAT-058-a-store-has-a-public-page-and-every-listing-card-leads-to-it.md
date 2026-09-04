@@ -1,7 +1,7 @@
 ---
 id: FEAT-058
 type: feature
-status: open
+status: in-progress
 created: 2026-09-03
 ---
 

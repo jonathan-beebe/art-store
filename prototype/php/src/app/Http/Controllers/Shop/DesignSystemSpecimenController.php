@@ -26,7 +26,7 @@ final class DesignSystemSpecimenController extends ShopController
         return view('shop.design-system.specimens.'.$specimen, [
             'browse' => MediumBrowse::forStorefront(),
             'listings' => Listing::query()->forSale()
-                ->with(['seller', 'images' => fn (Relation $query): Relation => $query->orderBy('position')])
+                ->with(['seller.storeProfile', 'images' => fn (Relation $query): Relation => $query->orderBy('position')])
                 ->orderByDesc('created_at')->orderByDesc('id')->limit(4)->get(),
         ]);
     }

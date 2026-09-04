@@ -22,7 +22,7 @@ final class FavoriteController extends ShopController
         return view('shop.favorites', [
             'listings' => $this->visitor()->favoriteListings()
                 ->onStorefront()
-                ->with('seller')
+                ->with('seller.storeProfile')
                 ->orderByDesc('listings.id')
                 ->get(),
         ]);

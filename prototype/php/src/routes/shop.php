@@ -19,6 +19,7 @@ use App\Http\Controllers\Shop\OrderController;
 use App\Http\Controllers\Shop\OrderMessageController;
 use App\Http\Controllers\Shop\OrderPaymentController;
 use App\Http\Controllers\Shop\SearchController;
+use App\Http\Controllers\Shop\StoreController;
 use App\Http\Controllers\Shop\StorefrontController;
 use App\Http\Controllers\Shop\SupportController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,12 @@ Route::middleware('customer.identity')->name('shop.')->group(function (): void {
         ->where('categoryPath', '[a-z0-9]+(?:-[a-z0-9]+)*(?:/[a-z0-9]+(?:-[a-z0-9]+)*)?')
         ->name('browse');
     Route::get('/art/{listing:slug}', ListingController::class)->name('listing');
+    // A maker's own page. The slug is read by the controller rather than
+    // bound to a model: an address the store left behind names no row on
+    // `store_profiles` and still has to redirect.
+    Route::get('/s/{slug}', StoreController::class)
+        ->where('slug', '[a-z0-9]+(?:-[a-z0-9]+)*')
+        ->name('store');
     Route::get('/design-system', DesignSystemController::class)->name('design-system');
     Route::get('/design-system/specimens/{specimen}', DesignSystemSpecimenController::class)->name('design-system.specimen');
 
