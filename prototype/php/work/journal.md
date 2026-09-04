@@ -27,6 +27,12 @@
 - 2026-09-03:22:16:00 — FEAT-052 — started: One activity feed over analytics, orders, fulfillment, and messages
 - 2026-09-03:22:15:00 — FEAT-051 — resolved: fulfillment flows, steps, and an append-only event log; every transition appends its event; seller flow editor, step completion, and the label page
 - 2026-09-03:21:26:32 — FEAT-051 — started: Fulfillment is an event log with seller-owned flow steps
+- 2026-09-03:23:21:49 — FEAT-060 — resolved: review pass fixed six money-correctness defects (unpaid orders counted, double-subtracted refunds, held list/total mismatch, missing sales-change bullet, unreadable negative bars, Sunday-delivery double count) plus badge-tint duplication and weak tests
+- 2026-09-03:23:21:49 — FEAT-061 — resolved: review pass fixed help-copy claims the app does not back, a live link to a bracketed placeholder, a static cache, Eloquent models handed to a view, and hardcoded admin names in tests
+- 2026-09-03:22:30:03 — FEAT-061 — resolved: Support feels like two people nearby
+- 2026-09-03:22:12:17 — FEAT-061 — doing: Support feels like two people nearby
+- 2026-09-03:22:03:02 — FEAT-060 — resolved: Earnings focuses on this period and the next payout
+- 2026-09-03:21:29:56 — FEAT-060 — doing: Earnings focuses on this period and the next payout
 - 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
 - 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout

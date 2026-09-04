@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Seller;
 
 it('refuses a title or a message past the domain limit', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/support', [
+    $response = $this->actingAs($this->seller(), 'seller')->post('/seller/support/new', [
         'title' => str_repeat('a', 121),
         'body' => str_repeat('a', 2001),
     ]);

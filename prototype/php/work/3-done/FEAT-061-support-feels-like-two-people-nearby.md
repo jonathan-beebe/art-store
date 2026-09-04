@@ -1,0 +1,119 @@
+---
+id: FEAT-061
+type: feature
+status: resolved
+created: 2026-09-03
+---
+
+# FEAT-061: Support feels like two people nearby
+
+## Problem
+Support in the seller portal is one form (`resources/views/seller/support/create.blade.php`) that opens a thread with the desk. There is no help to read, no contact way other than the form, and nothing that says who answers or when.
+
+## Goal
+A seller with a question finds the answer or the person in one place, and knows how soon they will hear back.
+
+## Outcome
+- Support opens on the desk: the two people who answer (name, role, presence), the reply-time promise, a Start a conversation button that opens the existing new-conversation form, and the seller's own last reply time.
+- Other ways to reach us: email, phone with hours, and a way to book a short call, each drawn from configuration, not hardcoded in the view.
+- Help articles grouped by topic (getting paid, shipping, listings, messages), each opening an article page with a "did this answer it?" pair whose No leads to the conversation form; articles are markdown files in the repository with front matter, and an unknown article answers 404.
+- The seller's own support threads list with status and open in Messages on the Support tab.
+- Four articles ship with real copy on the four topics the portal already documents (escrow and payouts, printing a label and shipping, what a listing needs to publish, turning a question into an FAQ). `make precommit` green; `make check` green before the PR.
+
+## Why it matters
+The brief: "Make it feel like we are close." A page that shows who answers, promises a time, and answers the common questions before they are asked is the difference between a form and a desk.
+
+## Discovery notes
+- Articles as `resources/help/seller/*.md` with front matter (`group`, `title`, `slug`, `position`); a small `App\Seller\HelpArticles` reader with a parsed cache; `league/commonmark` may already be in `composer.json` (check) — otherwise a minimal markdown subset is fine.
+- Desk facts (names, hours, email, phone, booking URL) in `config/support.php` read from env with `[PLACEHOLDER]`-safe defaults; the admin seeder's two admins are the desk.
+- Presence can be static configuration in this cut (hours-based), no realtime.
+- The existing `SupportController@create/store` stays the conversation form; the new page is the index.
+
+## Related work
+- PR #62 (messaging v2 — the desk), FEAT-050
+- Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Support)
+
+## Working
+
+`composer.json` carries no markdown library, so `HelpArticle::fromMarkdown()`
+is a minimal hand-rolled parser (front matter + blank-line-separated
+paragraphs, per the discovery note) rather than a dependency pull — the
+four shipped articles use no markdown beyond paragraphs.
+
+Pure domain (`App\Domain\Seller`): `HelpArticle`, `DeskPresence`/
+`PresenceStatus` (weekday hours from config, no realtime signal),
+`ReplyTime` (a duration in round words). Adapters (`App\Seller`):
+`HelpArticles` (reads `resources/help/seller/*.md`, request-cached,
+grouped in a fixed topic order), `SupportDesk` (every seeded admin under
+one shared presence, plus the seller's last-reply-time gap), `DeskPerson`
+(a small carrier), `SupportThreads` (the seller's own `admin_seller`
+conversations).
+
+`config/support.php`: role, reply-time promise, email, phone + hours,
+booking URL, desk hours — each `env()`-backed with a bracketed placeholder
+default for a fact not known yet. New `.env.example` entries, commented
+out like every other optional var.
+
+`SupportController` gained `index()` (the hub) and kept `create()`/`store()`
+unchanged; new `HelpArticleController@show` 404s on an unrecognised slug.
+`routes/seller.php`: `support` now names the hub; `support/new` carries the
+existing form (GET create, POST store); `support/articles/{article}` is
+new. This moved every existing test posting to `/seller/support` — the
+FormRequest test, an admin-messaging integration test, and the controller's
+own suite — onto `/seller/support/new`.
+
+Two small fixes, not scope creep: `EarningsController`/`StatementController`
+(FEAT-060) read `Illuminate\Support\Facades\Date::now()` directly instead of
+the base `Controller::now()` the codebase already gives every controller —
+caught while wiring `SupportController` and fixed there too, so every
+seller controller reads the shell's one clock the same way. Added
+`app/Seller/DeskPerson.php` and `SidecarsTest`'s exception list entry
+before that was noticed.
+
+Gate: `make precommit` green (composer lint:all + composer test, 4126
+passed). Left out: nothing from the ticket's outcome list. The "Yes" half
+of an article's "did this answer it?" pair has no tracking behind it (not
+asked for) — it returns to the support hub, same as a completed loop.
+
+### Review pass
+
+Copy and hygiene fixes from the coordinator's review, on the same branch:
+
+- **`getting-paid.md` claimed behavior the app does not have.** Removed
+  "seven days after the carrier marks the parcel delivered" (release is on
+  buyer confirmation only, no timer), "the account on your Earnings page"
+  (there is no payout-account field), and the shipping-charge pass-through
+  sentence (checkout carries no separate shipping charge).
+- **`listings.md`** dropped "within a minute" — publishing puts a listing
+  live; timing it is not a claim this article can back.
+- **`shipping.md`** describes the flow-step label action, the carrier and
+  tracking it records, and the activity feed — FEAT-051/052/053 build these
+  in sibling lanes of the same `php/seller-portal-next` integration branch.
+  Rephrased to name a flow's label step specifically — the current seller
+  order page has no bare "Print label" button.
+  **MAINT-008 should re-read this article once those lanes have merged**,
+  since its exact step names and the activity feed's own wording are set
+  there, not here.
+- **The booking URL rendered as a live, broken link while still a
+  placeholder.** `support/index.blade.php` now renders `[BOOKING URL]` as
+  plain text, the same way the phone number already did, and only wraps it
+  in an `<a href>` once it stops looking like `[...]`. Tested.
+- **`HelpArticles` cached in a `static` property with no reset.** A long-
+  lived process (or a test worker reusing the class across cases) would
+  keep serving the first-read parse forever. Converted to an instance
+  cache, resolved by the two controllers through the container.
+- **`SupportThreads` handed Eloquent `Conversation` models to the view.**
+  The blade called `$thread->status()` and `$thread->latestMessage?->body`
+  directly. `SupportThreads::for()` now returns
+  `list<App\Domain\Seller\SupportThreadRow>` — id, title, preview,
+  `isResolved` — computed in the adapter.
+- **Two tests hardcoded the seeded admins' real names.** `SupportDeskTest`
+  and `SupportControllerTest` now assert against
+  `AdminSeeder::ADMINS[…]['name']` and `config('support.role')`.
+- Removed the new docblocks' "X rather than Y" clauses across
+  `PeriodFigures`, `SaleFact`, `RefundFact`, `ReplyTime`, `DeskPerson`,
+  `HelpArticles`, `EarningsPeriods`, `StatementController`, and
+  `config/support.php` — each restated as what is true, not what it isn't.
+
+Gate after the review pass: `make check` green (lint → assets → the
+coverage-gated suite, 4144 tests passed).

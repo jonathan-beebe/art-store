@@ -406,7 +406,7 @@ it('carries a sellers support request to the admin and the answer back', functio
     $admin = $this->admin();
     $seller = $this->seller('Blue Kiln Studio');
 
-    $this->actingAs($seller, 'seller')->post('/seller/support', [
+    $this->actingAs($seller, 'seller')->post('/seller/support/new', [
         'title' => 'Payout timing',
         'body' => 'My payout is late.',
     ])->assertRedirect();

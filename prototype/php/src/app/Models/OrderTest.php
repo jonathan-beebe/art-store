@@ -127,3 +127,14 @@ it('counts every status across the whole platform', function (): void {
 
     expect(Order::platformCountsByStatus())->toBe([OrderStatus::AwaitingPayment->value => 1]);
 });
+
+it('leaves out an order still awaiting a card, and keeps one that paid', function (): void {
+    $seller = $this->seller();
+    $unpaid = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    $paidOrderId = $this->paidFulfillmentFor($seller)->order_id;
+
+    $ids = Order::query()->hasBeenPaid()->pluck('id')->all();
+
+    expect($ids)->not->toContain($unpaid->id)
+        ->and($ids)->toContain($paidOrderId);
+});

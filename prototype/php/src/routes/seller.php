@@ -11,6 +11,7 @@ use App\Http\Controllers\Seller\EarningsController;
 use App\Http\Controllers\Seller\FlowStepController;
 use App\Http\Controllers\Seller\FulfillmentFlowController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
+use App\Http\Controllers\Seller\HelpArticleController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingBasicsController;
 use App\Http\Controllers\Seller\ListingController;
@@ -32,6 +33,7 @@ use App\Http\Controllers\Seller\ReopenConversationController;
 use App\Http\Controllers\Seller\ResolveConversationController;
 use App\Http\Controllers\Seller\ShipmentController;
 use App\Http\Controllers\Seller\ShippingLabelController;
+use App\Http\Controllers\Seller\StatementController;
 use App\Http\Controllers\Seller\StoreController;
 use App\Http\Controllers\Seller\StoreImageController;
 use App\Http\Controllers\Seller\StoreSectionController;
@@ -117,6 +119,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::post('orders/{fulfillment}/messages', OrderMessageController::class)->name('orders.messages');
 
     Route::get('earnings', EarningsController::class)->name('earnings');
+    Route::get('earnings/statements/{period}', StatementController::class)->name('earnings.statements.show');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
@@ -127,6 +130,8 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::post('messages/{conversation}/resolve', ResolveConversationController::class)->name('messages.resolve');
     Route::post('messages/{conversation}/reopen', ReopenConversationController::class)->name('messages.reopen');
 
-    Route::get('support', [SupportController::class, 'create'])->name('support');
-    Route::post('support', [SupportController::class, 'store'])->name('support.store');
+    Route::get('support', [SupportController::class, 'index'])->name('support');
+    Route::get('support/new', [SupportController::class, 'create'])->name('support.create');
+    Route::post('support/new', [SupportController::class, 'store'])->name('support.store');
+    Route::get('support/articles/{article}', [HelpArticleController::class, 'show'])->name('support.articles.show');
 });
