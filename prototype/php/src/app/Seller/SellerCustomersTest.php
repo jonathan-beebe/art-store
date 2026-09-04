@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Actions\Fulfillment\DeclineFulfillment;
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Domain\Seller\CustomerRow;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -141,3 +142,30 @@ it('counts a seller\'s open buyer threads and the ones holding an unread message
     expect($counts->open)->toBe(2)
         ->and($counts->unread)->toBe(1);
 });
+
+it('leaves out an order that was placed and never paid for', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Cho Chang']);
+
+    $this->orderFor($customer, $this->listing($seller, ['price_cents' => 5000]));
+
+    expect(SellerCustomers::forSeller($seller))->toBe([])
+        ->and(SellerCustomers::forCustomer($seller, $customer))->toBeNull();
+});
+
+it('counts the parcels that still stand and drops the ones that settled back', function (string $settle): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Neville Longbottom']);
+
+    $this->paidFulfillmentFor($seller, $customer, 5000);
+    $settled = $this->paidFulfillmentFor($seller, $customer, 9000);
+
+    $settle === 'declined'
+        ? app(DeclineFulfillment::class)($settled, 'The kiln cracked it.', $this->moment('2026-08-21 09:00:00'))
+        : app(RefundFulfillment::class)($settled, $this->admin(), 'It arrived chipped.', $this->moment('2026-08-21 09:00:00'));
+
+    $row = SellerCustomers::forCustomer($seller, $customer);
+
+    expect($row?->orders)->toBe(1)
+        ->and($row?->spentCents)->toBe(5000);
+})->with(['declined', 'refunded']);

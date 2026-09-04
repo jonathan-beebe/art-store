@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Actions\Fulfillment\DeclineFulfillment;
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
@@ -223,12 +225,34 @@ it('answers 404 for another seller\'s buyer', function (): void {
     $response->assertNotFound();
 });
 
+it('counts one parcel and still lists the settled one under Orders', function (string $settle, string $badge): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Neville Longbottom']);
+    $this->paidFulfillmentFor($seller, $customer, 5000);
+    $settled = $this->paidFulfillmentFor($seller, $customer, 9000);
+
+    $settle === 'declined'
+        ? app(DeclineFulfillment::class)($settled, 'The kiln cracked it.', $this->moment('2026-08-21 09:00:00'))
+        : app(RefundFulfillment::class)($settled, $this->admin(), 'It arrived chipped.', $this->moment('2026-08-21 09:00:00'));
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/customers/{$customer->id}");
+
+    $response->assertOk()
+        ->assertSeeInOrder(['Orders', '1'])
+        ->assertSee('$50.00')
+        ->assertSee(route('seller.orders.show', $settled))
+        ->assertSee($badge);
+})->with([
+    'declined' => ['declined', 'Declined'],
+    'refunded' => ['refunded', 'Refunded'],
+]);
+
 it('answers 404 for a buyer whose only parcel this seller declined', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $customer = Customer::factory()->create(['name' => 'Cho Chang']);
     $fulfillment = $this->paidFulfillmentFor($seller, $customer);
 
-    app(\App\Actions\Fulfillment\DeclineFulfillment::class)($fulfillment, 'The kiln cracked it.', $this->moment('2026-08-21 09:00:00'));
+    app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked it.', $this->moment('2026-08-21 09:00:00'));
 
     $this->actingAs($seller, 'seller')->get("/seller/customers/{$customer->id}")->assertNotFound();
 });

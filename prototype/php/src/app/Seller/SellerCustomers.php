@@ -6,6 +6,7 @@ namespace App\Seller;
 
 use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Domain\Orders\OrderStatus;
 use App\Domain\Seller\CustomerRow;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -13,16 +14,23 @@ use App\Models\Favorite;
 use App\Models\Fulfillment;
 use App\Models\Seller;
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
-use LogicException;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
  * Who has bought from a seller, and what each of them is worth. A customer
- * is derived from `fulfillments` rather than stored: a live parcel is what
- * makes someone a seller's buyer, and browsing, favoriting, or asking about
- * a listing never does. Favorites and conversations join by id in PHP, so
- * they colour a buyer the seller already has.
+ * is derived from `fulfillments` rather than stored: a paid parcel that
+ * still stands is what makes someone a seller's buyer. Browsing,
+ * favoriting, and asking about a listing join a buyer's timeline once they
+ * have bought.
+ *
+ * A fulfillment row exists from the moment an order is placed, so the paid
+ * gate is what keeps an abandoned checkout out of the list and out of the
+ * money — the same pair of conditions {@see ListingTable} counts a sale by.
+ *
+ * The aggregates are one grouped query; favorites, conversations, and the
+ * names join by id in PHP.
  */
 final class SellerCustomers
 {
@@ -71,7 +79,7 @@ final class SellerCustomers
      */
     private static function rows(Seller $seller, ?Customer $only): array
     {
-        $totals = self::totalsByCustomer(self::liveFulfillments($seller, $only));
+        $totals = self::totalsByCustomer($seller, $only);
 
         if ($totals === []) {
             return [];
@@ -80,23 +88,21 @@ final class SellerCustomers
         /** @var list<string> $customerIds */
         $customerIds = array_keys($totals);
 
-        $accounts = Customer::query()->whereIn('id', $customerIds)->get()->keyBy('id');
+        $accounts = self::accountIdentities($customerIds);
+        $shipped = self::shippedIdentities($seller, self::idsMissingIdentity($accounts));
         $favorites = self::favoritesByCustomer($seller, $customerIds);
         $conversations = self::conversationsByCustomer($seller, $customerIds);
 
         $rows = [];
 
         foreach ($totals as $customerId => $total) {
-            // A fulfillment names a customer row, so there is always one to
-            // read; a name and an address are what an anonymous one lacks.
-            $account = $accounts->get($customerId);
-            $given = $account instanceof Customer ? $account->name : null;
-            $address = $account instanceof Customer ? $account->email : null;
+            $account = $accounts[$customerId] ?? ['name' => null, 'email' => null];
+            $order = $shipped[$customerId] ?? ['name' => '', 'email' => null];
 
             $rows[$customerId] = new CustomerRow(
                 customerId: $customerId,
-                name: $given ?? $total['shippingName'],
-                email: $address ?? $total['email'],
+                name: $account['name'] ?? $order['name'],
+                email: $account['email'] ?? $order['email'],
                 orders: $total['orders'],
                 spentCents: $total['spentCents'],
                 favorites: $favorites[$customerId] ?? 0,
@@ -110,67 +116,119 @@ final class SellerCustomers
     }
 
     /**
-     * The seller's parcels that still stand, oldest order first — a
-     * declined or refunded one sent the money back, and the person behind
-     * it is no longer a buyer on its account.
+     * Each buyer's parcels folded into their figures, in one grouped query
+     * over the seller's paid, still-standing parcels.
      *
-     * @return Collection<int, Fulfillment>
+     * @return array<string, array{orders: int, spentCents: int, firstOrderAt: DateTimeImmutable, lastOrderAt: DateTimeImmutable}>
      */
-    private static function liveFulfillments(Seller $seller, ?Customer $only): Collection
+    private static function totalsByCustomer(Seller $seller, ?Customer $only): array
     {
-        $live = array_values(array_filter(
-            FulfillmentStatus::cases(),
-            fn (FulfillmentStatus $status): bool => $status->isLive(),
-        ));
+        $rows = self::countedParcels($seller, $only)
+            ->groupBy('fulfillments.customer_id')
+            ->selectRaw('fulfillments.customer_id as customer_id, count(*) as orders, sum(fulfillments.subtotal_cents) as spent_cents, min(orders.placed_at) as first_order_at, max(orders.placed_at) as last_order_at')
+            ->get();
 
-        $query = Fulfillment::query()
-            ->where('seller_id', $seller->id)
-            ->whereIn('status', $live)
-            ->with('order:id,placed_at,shipping_name,email');
-
-        if ($only instanceof Customer) {
-            $query->where('customer_id', $only->id);
-        }
-
-        return $query->get()->sortBy(fn (Fulfillment $fulfillment): int => self::placedAt($fulfillment)->getTimestamp())->values();
-    }
-
-    /**
-     * Each buyer's parcels folded into one set of totals, read oldest
-     * first. A seller sees a name and an email because an order carries
-     * them, so the latest order — the last one folded in — names a buyer
-     * holding no account of their own.
-     *
-     * @param  Collection<int, Fulfillment>  $fulfillments
-     * @return array<string, array{orders: int, spentCents: int, firstOrderAt: DateTimeImmutable, lastOrderAt: DateTimeImmutable, shippingName: string, email: ?string}>
-     */
-    private static function totalsByCustomer(Collection $fulfillments): array
-    {
         $totals = [];
 
-        foreach ($fulfillments as $fulfillment) {
-            $placedAt = self::placedAt($fulfillment);
-            $customerId = $fulfillment->customer_id;
-            $carried = $totals[$customerId] ?? null;
-
-            $totals[$customerId] = [
-                'orders' => ($carried['orders'] ?? 0) + 1,
-                'spentCents' => ($carried['spentCents'] ?? 0) + $fulfillment->subtotal_cents,
-                'firstOrderAt' => $carried['firstOrderAt'] ?? $placedAt,
-                'lastOrderAt' => $placedAt,
-                'shippingName' => $fulfillment->order->shipping_name,
-                'email' => $fulfillment->order->email,
+        foreach ($rows as $row) {
+            $totals[self::text($row->customer_id)] = [
+                'orders' => self::number($row->orders),
+                'spentCents' => self::number($row->spent_cents),
+                'firstOrderAt' => self::moment($row->first_order_at),
+                'lastOrderAt' => self::moment($row->last_order_at),
             ];
         }
 
         return $totals;
     }
 
-    private static function placedAt(Fulfillment $fulfillment): DateTimeImmutable
+    /**
+     * The parcels a buyer's figures count: this seller's own, paid for, and
+     * neither declined nor refunded.
+     */
+    private static function countedParcels(Seller $seller, ?Customer $only): QueryBuilder
     {
-        return DateTimeImmutable::createFromInterface(
-            $fulfillment->order->placed_at ?? throw new LogicException('A placed order always carries placed_at.'),
+        $query = Fulfillment::query()
+            ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
+            ->where('fulfillments.seller_id', $seller->id)
+            ->whereIn('fulfillments.status', self::values(array_filter(
+                FulfillmentStatus::cases(),
+                fn (FulfillmentStatus $status): bool => $status->isLive(),
+            )))
+            ->whereIn('orders.status', self::values(array_filter(
+                OrderStatus::cases(),
+                fn (OrderStatus $status): bool => $status->hasBeenPaid(),
+            )));
+
+        if ($only instanceof Customer) {
+            $query->where('fulfillments.customer_id', $only->id);
+        }
+
+        return $query->toBase();
+    }
+
+    /**
+     * The name and address each buyer's own account holds. An anonymous
+     * visitor's row holds neither.
+     *
+     * @param  list<string>  $customerIds
+     * @return array<string, array{name: ?string, email: ?string}>
+     */
+    private static function accountIdentities(array $customerIds): array
+    {
+        $identities = [];
+
+        foreach (Customer::query()->whereIn('id', $customerIds)->get(['id', 'name', 'email']) as $customer) {
+            $identities[$customer->id] = ['name' => $customer->name, 'email' => $customer->email];
+        }
+
+        return $identities;
+    }
+
+    /**
+     * @param  array<string, array{name: ?string, email: ?string}>  $accounts
+     * @return list<string>
+     */
+    private static function idsMissingIdentity(array $accounts): array
+    {
+        $missing = array_filter(
+            $accounts,
+            fn (array $identity): bool => $identity['name'] === null || $identity['email'] === null,
         );
+
+        return array_keys($missing);
+    }
+
+    /**
+     * What the latest order carried for a buyer holding no account name or
+     * address — a seller reads a name and an address because an order
+     * carried them. Skipped when every buyer has both on their own account.
+     *
+     * @param  list<string>  $customerIds
+     * @return array<string, array{name: string, email: ?string}>
+     */
+    private static function shippedIdentities(Seller $seller, array $customerIds): array
+    {
+        if ($customerIds === []) {
+            return [];
+        }
+
+        $rows = self::countedParcels($seller, null)
+            ->whereIn('fulfillments.customer_id', $customerIds)
+            ->orderByDesc('orders.placed_at')
+            ->get(['fulfillments.customer_id as customer_id', 'orders.shipping_name as shipping_name', 'orders.email as email']);
+
+        $identities = [];
+
+        foreach ($rows as $row) {
+            // Newest first, so the first row read per buyer is their latest.
+            $identities[self::text($row->customer_id)] ??= [
+                'name' => self::text($row->shipping_name),
+                'email' => is_string($row->email) ? $row->email : null,
+            ];
+        }
+
+        return $identities;
     }
 
     /**
@@ -210,19 +268,45 @@ final class SellerCustomers
      */
     private static function talliedByCustomer(Builder $query): array
     {
-        /** @var array<string, mixed> $tallies */
-        $tallies = $query
+        $rows = $query->toBase()
             ->groupBy('customer_id')
             ->selectRaw('customer_id, count(*) as tally')
-            ->pluck('tally', 'customer_id')
-            ->all();
+            ->get();
 
         $counts = [];
 
-        foreach ($tallies as $customerId => $tally) {
-            $counts[(string) $customerId] = is_numeric($tally) ? (int) $tally : 0;
+        foreach ($rows as $row) {
+            $counts[self::text($row->customer_id)] = self::number($row->tally);
         }
 
         return $counts;
+    }
+
+    /**
+     * @param  array<int, FulfillmentStatus|OrderStatus>  $cases
+     * @return list<string>
+     */
+    private static function values(array $cases): array
+    {
+        return array_values(array_map(
+            fn (FulfillmentStatus|OrderStatus $status): string => $status->value,
+            $cases,
+        ));
+    }
+
+    private static function text(mixed $value): string
+    {
+        return is_string($value) ? $value : '';
+    }
+
+    private static function number(mixed $value): int
+    {
+        return is_numeric($value) ? (int) $value : 0;
+    }
+
+    /** A timestamp the way the app's own datetime casts read one: UTC. */
+    private static function moment(mixed $value): DateTimeImmutable
+    {
+        return new DateTimeImmutable(self::text($value), new DateTimeZone('UTC'));
     }
 }
