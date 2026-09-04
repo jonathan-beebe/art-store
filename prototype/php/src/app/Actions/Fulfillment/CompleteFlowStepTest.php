@@ -7,24 +7,10 @@ namespace App\Actions\Fulfillment;
 use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Fulfillment\FulfillmentLane;
-use App\Models\Fulfillment;
 use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
 use App\Seller\FulfillmentFlowReader;
-
-/**
- * Loads what {@see FulfillmentFlowReader} reads, the way
- * {@see CompleteFlowStep} does before it judges a submitted step.
- */
-function loadedForCompleteFlowStep(Fulfillment $fulfillment): Fulfillment
-{
-    return $fulfillment->load([
-        'order.items.listing.fulfillmentFlow.steps',
-        'seller.defaultFulfillmentFlow.steps',
-        'fulfillmentEvents',
-    ]);
-}
 
 it('completes the first step, appending one step_completed event for the seller', function (): void {
     $seller = $this->seller('Molly Weasley');
@@ -47,11 +33,11 @@ it('moves the lane from to ship into progress once the first step is behind it, 
     [$labelStep, $packStep] = $this->flowFor($seller);
     $reader = app(FulfillmentFlowReader::class);
 
-    expect($fulfillment->lane($reader->progress(loadedForCompleteFlowStep($fulfillment))))->toBe(FulfillmentLane::ToShip);
+    expect($fulfillment->lane($reader->read($this->loadedForFlow($fulfillment))->progress))->toBe(FulfillmentLane::ToShip);
 
     app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 09:00:00'));
-    $fulfillment = loadedForCompleteFlowStep($fulfillment->refresh());
-    $progress = $reader->progress($fulfillment);
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
+    $progress = $reader->read($fulfillment)->progress;
 
     expect($progress->next()?->id)->toBe($packStep->id)
         ->and($fulfillment->lane($progress))->toBe(FulfillmentLane::InProgress);
@@ -66,9 +52,9 @@ it('leaves the progress done once the second step is completed', function (): vo
     $completeStep($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 09:00:00'));
     $completeStep($fulfillment->refresh(), $packStep, null, null, $this->moment('2026-08-21 10:00:00'));
 
-    $fulfillment = loadedForCompleteFlowStep($fulfillment->refresh());
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
 
-    expect(app(FulfillmentFlowReader::class)->progress($fulfillment)->isDone())->toBeTrue();
+    expect(app(FulfillmentFlowReader::class)->read($fulfillment)->progress->isDone())->toBeTrue();
 });
 
 it('refuses completing the same step twice, leaving exactly one event', function (): void {
@@ -142,7 +128,7 @@ it('ships by the flow a listing names instead of the seller default', function (
     $listing = $fulfillment->load('order.items.listing')->order->items->sole()->listing;
     $listing->update(['fulfillment_flow_id' => $namedFlow->id]);
 
-    $fulfillment = loadedForCompleteFlowStep($fulfillment->refresh());
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
 
-    expect(app(FulfillmentFlowReader::class)->progress($fulfillment)->next()?->id)->toBe($namedStep->id);
+    expect(app(FulfillmentFlowReader::class)->read($fulfillment)->progress->next()?->id)->toBe($namedStep->id);
 });

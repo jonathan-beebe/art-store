@@ -136,13 +136,9 @@ it('agrees with the lane each fulfillment reads off its own flow', function (): 
     $reader = app(FulfillmentFlowReader::class);
 
     foreach (Fulfillment::query()->whereBelongsTo($seller)->get() as $fulfillment) {
-        $fulfillment->load([
-            'order.items.listing.fulfillmentFlow.steps',
-            'seller.defaultFulfillmentFlow.steps',
-            'fulfillmentEvents',
-        ]);
+        $fulfillment = $this->loadedForFlow($fulfillment);
 
-        $selected = Fulfillment::query()->inLane(LaneFilter::of($fulfillment->lane($reader->progress($fulfillment))))->pluck('id')->all();
+        $selected = Fulfillment::query()->inLane(LaneFilter::of($fulfillment->lane($reader->read($fulfillment)->progress)))->pluck('id')->all();
 
         expect($selected)->toContain($fulfillment->id);
     }

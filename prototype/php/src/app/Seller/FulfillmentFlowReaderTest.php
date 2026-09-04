@@ -9,43 +9,29 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
-use App\Models\Fulfillment;
 use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
 
-/**
- * Loads what {@see FulfillmentFlowReader} reads, the way the page and the
- * action that call it do.
- */
-function loadedForFlow(Fulfillment $fulfillment): Fulfillment
-{
-    return $fulfillment->load([
-        'order.items.listing.fulfillmentFlow.steps',
-        'seller.defaultFulfillmentFlow.steps',
-        'fulfillmentEvents',
-    ]);
-}
-
 it('ships by nothing at all when its seller has no flow', function (): void {
-    $fulfillment = loadedForFlow($this->paidFulfillmentFor($this->seller()));
-    $reader = app(FulfillmentFlowReader::class);
+    $fulfillment = $this->loadedForFlow($this->paidFulfillmentFor($this->seller()));
+    $facts = app(FulfillmentFlowReader::class)->read($fulfillment);
 
-    expect($reader->flowInEffect($fulfillment))->toBeNull()
-        ->and($reader->flowSteps($fulfillment))->toBe([])
-        ->and($reader->progress($fulfillment)->isDone())->toBeTrue()
-        ->and($fulfillment->lane($reader->progress($fulfillment)))->toBe(FulfillmentLane::ToShip);
+    expect($facts->flow)->toBeNull()
+        ->and($facts->steps)->toBe([])
+        ->and($facts->progress->isDone())->toBeTrue()
+        ->and($fulfillment->lane($facts->progress))->toBe(FulfillmentLane::ToShip);
 });
 
 it('ships by its seller default flow when no listing on it names one', function (): void {
     $seller = $this->seller('Molly Weasley');
     $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id, 'name' => 'How I ship']);
     FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed']);
-    $fulfillment = loadedForFlow($this->paidFulfillmentFor($seller));
-    $reader = app(FulfillmentFlowReader::class);
+    $fulfillment = $this->loadedForFlow($this->paidFulfillmentFor($seller));
+    $facts = app(FulfillmentFlowReader::class)->read($fulfillment);
 
-    expect($reader->flowInEffect($fulfillment)?->id)->toBe($flow->id)
-        ->and(array_map(fn (FlowStep $step): string => $step->label, $reader->flowSteps($fulfillment)))->toBe(['Packed']);
+    expect($facts->flow?->id)->toBe($flow->id)
+        ->and(array_map(fn (FlowStep $step): string => $step->label, $facts->steps))->toBe(['Packed']);
 });
 
 it('ships by the flow of its first item, in the order Order::items() reads', function (): void {
@@ -63,9 +49,9 @@ it('ships by the flow of its first item, in the order Order::items() reads', fun
     $order->items()->where('listing_id', $earlyListing->id)->update(['created_at' => $this->moment('2026-08-20 08:00:00')]);
     $order->items()->where('listing_id', $lateListing->id)->update(['created_at' => $this->moment('2026-08-20 09:00:00')]);
 
-    $fulfillment = loadedForFlow($fulfillment->refresh());
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
 
-    expect(app(FulfillmentFlowReader::class)->flowInEffect($fulfillment)?->id)->toBe($earlyFlow->id);
+    expect(app(FulfillmentFlowReader::class)->read($fulfillment)->flow?->id)->toBe($earlyFlow->id);
 });
 
 it('reads only step completions as progress, leaving the transition events out', function (): void {
@@ -77,11 +63,11 @@ it('reads only step completions as progress, leaving the transition events out',
 
     FulfillmentEvent::factory()->on($fulfillment)->create(['kind' => FulfillmentEventKind::Shipped]);
 
-    expect($reader->progress(loadedForFlow($fulfillment->refresh()))->hasStarted())->toBeFalse();
+    expect($reader->read($this->loadedForFlow($fulfillment->refresh()))->progress->hasStarted())->toBeFalse();
 
     FulfillmentEvent::factory()->on($fulfillment)->completing($step)->create();
 
-    expect($reader->progress(loadedForFlow($fulfillment->refresh()))->hasStarted())->toBeTrue();
+    expect($reader->read($this->loadedForFlow($fulfillment->refresh()))->progress->hasStarted())->toBeTrue();
 });
 
 it('keeps a parcel in progress after the seller removes the step they had completed', function (): void {
@@ -94,12 +80,12 @@ it('keeps a parcel in progress after the seller removes the step they had comple
 
     app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
 
-    $fulfillment = loadedForFlow($fulfillment->refresh());
-    expect($fulfillment->lane($reader->progress($fulfillment)))->toBe(FulfillmentLane::InProgress);
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
+    expect($fulfillment->lane($reader->read($fulfillment)->progress))->toBe(FulfillmentLane::InProgress);
 
     $labelStep->delete();
-    $fulfillment = loadedForFlow($fulfillment->refresh());
-    $progress = $reader->progress($fulfillment);
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
+    $progress = $reader->read($fulfillment)->progress;
 
     expect($progress->hasStarted())->toBeTrue()
         ->and($fulfillment->lane($progress))->toBe(FulfillmentLane::InProgress)

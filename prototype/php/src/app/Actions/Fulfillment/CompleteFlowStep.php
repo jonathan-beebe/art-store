@@ -39,11 +39,6 @@ final readonly class CompleteFlowStep
         ?string $trackingNumber,
         DateTimeImmutable $now,
     ): FulfillmentEvent {
-        $fulfillment->load([
-            'order.items.listing.fulfillmentFlow.steps',
-            'seller.defaultFulfillmentFlow.steps',
-        ]);
-
         return DB::transaction(function () use ($fulfillment, $step, $carrier, $trackingNumber, $now): FulfillmentEvent {
             $this->assertAwaitingShipment($fulfillment->takeForTransition());
             $this->assertInFront($fulfillment, $step);
@@ -68,7 +63,16 @@ final readonly class CompleteFlowStep
 
     private function assertInFront(Fulfillment $fulfillment, FulfillmentFlowStep $step): void
     {
-        $progress = $this->flow->progress($fulfillment->load('fulfillmentEvents'));
+        // Read after takeForTransition() has locked the row, so a step
+        // submitted between this read and the lock cannot slip past the
+        // same-step-twice guard.
+        $fulfillment->load([
+            'order.items.listing.fulfillmentFlow.steps',
+            'seller.defaultFulfillmentFlow.steps',
+            'fulfillmentEvents',
+        ]);
+
+        $progress = $this->flow->read($fulfillment)->progress;
 
         if (! $progress->admits($step->id)) {
             throw new DomainRuleViolation("The step \"{$step->label}\" is not the next step on this fulfillment.");
