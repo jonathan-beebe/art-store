@@ -18,6 +18,7 @@ arch('the domain core stays pure')
         'App\Models',
         'App\Http',
         'App\Actions',
+        'App\Admin',
         'App\Analytics',
         'App\Console',
         'App\Seller',
