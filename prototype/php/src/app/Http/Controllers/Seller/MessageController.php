@@ -19,7 +19,6 @@ use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -133,7 +132,7 @@ final class MessageController extends SellerController
      * the thread outright leaves it out too. This adds one more, unscoped
      * fetch for exactly that case.
      *
-     * @return array{items: Collection<int, Model>, total: int}
+     * @return array{items: Collection<int, Conversation>, total: int}
      */
     private function paneFor(Seller $seller, string $domain, Conversation $conversation): array
     {

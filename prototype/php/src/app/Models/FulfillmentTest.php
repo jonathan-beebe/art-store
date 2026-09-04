@@ -7,9 +7,11 @@ namespace App\Models;
 use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\RefundFulfillment;
+use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
+use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Orders\FulfillmentStatus;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
@@ -172,4 +174,89 @@ it('keeps the words of a step the seller removed on the row that recorded it', f
 
     expect($event->fulfillment_flow_step_id)->toBeNull()
         ->and($event->stepLabel())->toBe('Label printed');
+});
+
+it('selects each lane the way the loaded flow reads it', function (): void {
+    $seller = $this->seller('Molly Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $toShip = $this->paidFulfillmentFor($seller);
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $shipped = $this->shippedFulfillmentFor($seller);
+    $delivered = $this->deliveredFulfillmentFor($seller);
+
+    $inLane = fn (LaneFilter $filter): array => Fulfillment::query()
+        ->whereBelongsTo($seller)
+        ->inLane($filter)
+        ->pluck('id')
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($inLane(LaneFilter::ToShip))->toBe([$toShip->id])
+        ->and($inLane(LaneFilter::InProgress))->toEqualCanonicalizing([$started->id, $shipped->id])
+        ->and($inLane(LaneFilter::Done))->toBe([$delivered->id])
+        ->and($inLane(LaneFilter::All))->toHaveCount(4);
+});
+
+it('agrees with the lane each fulfillment reads off its own flow', function (): void {
+    $seller = $this->seller('Luna Lovegood');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->shippedFulfillmentFor($seller);
+    $this->deliveredFulfillmentFor($seller);
+    app(DeclineFulfillment::class)($this->paidFulfillmentFor($seller), 'The kiln cracked it.', $this->moment('2026-08-22 09:00:00'));
+    app(RefundFulfillment::class)($this->shippedFulfillmentFor($seller), $this->admin(), 'The parcel never arrived.', $this->moment('2026-08-23 09:00:00'));
+
+    foreach (Fulfillment::query()->whereBelongsTo($seller)->get() as $fulfillment) {
+        $selected = Fulfillment::query()->inLane(LaneFilter::of($fulfillment->lane()))->pluck('id')->all();
+
+        expect($selected)->toContain($fulfillment->id);
+    }
+});
+
+it('counts the two facts a lane is read from, one row per pair', function (): void {
+    $seller = $this->seller('Ginny Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->paidFulfillmentFor($seller);
+
+    $counted = [];
+    foreach (Fulfillment::query()->whereBelongsTo($seller)->countedByLane()->get() as $row) {
+        $counted[FulfillmentLane::forStarted($row->status, $row->started)->value] = $row->tally;
+    }
+
+    expect($counted)->toEqualCanonicalizing([
+        FulfillmentLane::ToShip->value => 2,
+        FulfillmentLane::InProgress->value => 1,
+    ]);
+});
+
+it('names the seller lines on the order as one phrase', function (): void {
+    $seller = $this->seller();
+    $order = $this->orderFor(
+        $this->verifiedCustomer(),
+        $this->listing($seller, ['title' => 'Harbour at Dusk']),
+        $this->listing($seller, ['title' => 'Kiln Study']),
+    );
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+
+    expect($order->fulfillments()->with('order.items')->sole()->itemLabel())->toBe('Harbour at Dusk +1 more');
+});
+
+it('says a parcel carrying none of the sellers lines has no items', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller('Rye Press'));
+    $fulfillment->forceFill(['seller_id' => $this->seller('Blue Kiln Studio')->id])->save();
+
+    expect(Fulfillment::query()->with('order.items')->findOrFail($fulfillment->id)->itemLabel())->toBe('no items');
 });

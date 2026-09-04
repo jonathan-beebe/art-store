@@ -16,6 +16,9 @@
 
 - 2026-09-04:02:05:00 — MAINT-008 — resolved: alignment §1/§2.3/§4.1/§4.4/§4.5/§8, both ontologies, seller-portal.md's intro and Data section, data-model.md's nine tables, one docs README row, node FEAT-023 and rails FEAT-022 filed, four help articles verified and three corrected; precommit green, 4758 tests
 - 2026-09-04:01:10:00 — MAINT-008 — started: The contract, the ontology, and the docs learn the seller portal
+- 2026-09-04:06:00:00 — FEAT-053 — reviewed: review-pass fixes (steps say who and when, completeStep policy, OrderDetail adapter, generic ListPaneWindow, aggregate customer card, query-count tests)
+- 2026-09-04:05:20:00 — FEAT-053 — resolved: lanes with counts, a step-aware detail with the state line and three cards, and the activity feed under its kind filter
+- 2026-09-04:05:00:00 — FEAT-053 — started: Orders is lanes, a step-aware detail, and the activity feed
 - 2026-09-04:00:40:00 — FEAT-058 — reviewed: review-pass fixes on php/sp-store (hidden-store redirect disclosure, for-sale count, publicUrl, feed-row test, scoped OG tags)
 - 2026-09-04:00:40:00 — FEAT-057 — reviewed: review-pass fixes on php/sp-store (gallery order input, per-section error bags and old(), alt field, sentinel position, upload rollback, url scheme rule)
 - 2026-09-03:23:55:00 — FEAT-058 — resolved: A store has a public page and every listing card leads to it

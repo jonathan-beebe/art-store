@@ -9,6 +9,7 @@ use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
 use App\Domain\Fulfillment\FulfillmentProgress;
+use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
@@ -26,7 +27,8 @@ use Override;
 /**
  * @property-read Order $order
  * @property-read Seller $seller
- * @property-read int $tally  only on a row the `countedByStatus` scope selected
+ * @property-read int $tally  on a row the `countedByStatus` or `countedByLane` scope selected
+ * @property-read bool $started  on a row the `countedByLane` scope selected
  */
 #[Fillable([
     'order_id', 'customer_id', 'seller_id', 'status', 'carrier', 'tracking_number',
@@ -248,6 +250,82 @@ class Fulfillment extends Model
     public function lane(): FulfillmentLane
     {
         return FulfillmentLane::of($this->status, $this->progress());
+    }
+
+    /**
+     * The seller's own lines on the order, as one phrase — the scan line
+     * every row and every feed sentence about this parcel reads. Both
+     * callers eager-load `order.items`; a caller that has not is refused by
+     * the lazy-loading guard.
+     */
+    public function itemLabel(): string
+    {
+        $items = $this->order->items
+            ->where('seller_id', $this->seller_id)
+            ->values();
+
+        $first = $items->first();
+
+        if (! $first instanceof OrderItem) {
+            return 'no items';
+        }
+
+        $label = $first->quantity > 1 ? "{$first->title} ×{$first->quantity}" : $first->title;
+        $rest = $items->count() - 1;
+
+        return $rest > 0 ? "{$label} +{$rest} more" : $label;
+    }
+
+    /**
+     * One pile of the seller's desk. To ship and In progress split the
+     * parcels awaiting shipment on whether a step is behind them, which is
+     * the same rule {@see FulfillmentLane} reads from a loaded flow.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function inLane(Builder $query, LaneFilter $filter): void
+    {
+        match ($filter) {
+            LaneFilter::ToShip => $query
+                ->where('status', FulfillmentStatus::AwaitingShipment)
+                ->whereDoesntHave('fulfillmentEvents', self::stepCompletions(...)),
+            LaneFilter::InProgress => $query->where(fn (Builder $lane): Builder => $lane
+                ->where(fn (Builder $started): Builder => $started
+                    ->where('status', FulfillmentStatus::AwaitingShipment)
+                    ->whereHas('fulfillmentEvents', self::stepCompletions(...)))
+                ->orWhere('status', FulfillmentStatus::Shipped)),
+            LaneFilter::Done => $query->whereIn('status', [
+                FulfillmentStatus::Delivered,
+                FulfillmentStatus::Declined,
+                FulfillmentStatus::Refunded,
+            ]),
+            LaneFilter::All => $query,
+        };
+    }
+
+    /**
+     * One row per (status, has a completed step) pair, carrying how many
+     * hold it — the two facts a lane is read from, counted in one round
+     * trip.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function countedByLane(Builder $query): void
+    {
+        $query->select('status')
+            ->selectRaw('count(*) as tally')
+            ->withExists(['fulfillmentEvents as started' => self::stepCompletions(...)])
+            ->groupBy('status', 'started');
+    }
+
+    /**
+     * @param  Builder<FulfillmentEvent>  $events
+     */
+    private static function stepCompletions(Builder $events): void
+    {
+        $events->where('kind', FulfillmentEventKind::StepCompleted);
     }
 
     public function subtotal(): Money

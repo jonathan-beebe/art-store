@@ -11,7 +11,6 @@ use App\Domain\Seller\ActivityKind;
 use App\Domain\Seller\FeedEvent;
 use App\Domain\Seller\FeedIcon;
 use App\Models\Fulfillment;
-use App\Models\OrderItem;
 use App\Models\Payment;
 
 /**
@@ -62,7 +61,7 @@ final readonly class OrderSource implements ActivityFeedSource
     {
         $order = $fulfillment->order;
         $placedAt = $order->placed_at->toDateTimeImmutable();
-        $label = $this->itemLabel($fulfillment);
+        $label = $fulfillment->itemLabel();
 
         return [new FeedEvent(
             occurredAt: $placedAt,
@@ -132,26 +131,5 @@ final readonly class OrderSource implements ActivityFeedSource
             LedgerEntryType::Refunded => 'returned to the buyer',
             LedgerEntryType::PaidOut => 'paid out',
         };
-    }
-
-    /**
-     * The seller's own lines on the order, as one phrase.
-     */
-    private function itemLabel(Fulfillment $fulfillment): string
-    {
-        $items = $fulfillment->order->items
-            ->where('seller_id', $fulfillment->seller_id)
-            ->values();
-
-        $first = $items->first();
-
-        if (! $first instanceof OrderItem) {
-            return 'no items';
-        }
-
-        $label = $first->quantity > 1 ? "{$first->title} ×{$first->quantity}" : $first->title;
-        $rest = $items->count() - 1;
-
-        return $rest > 0 ? "{$label} +{$rest} more" : $label;
     }
 }

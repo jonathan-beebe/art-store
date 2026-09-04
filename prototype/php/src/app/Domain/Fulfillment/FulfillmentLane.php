@@ -19,8 +19,19 @@ enum FulfillmentLane: string
 
     public static function of(FulfillmentStatus $status, FulfillmentProgress $progress): self
     {
+        return self::forStarted($status, $progress->hasStarted());
+    }
+
+    /**
+     * The same rule read from the two facts alone, for a caller that counted
+     * parcels instead of walking their flows: the lane counts come from one
+     * grouped query over status and "has a completed step", and the progress
+     * behind each row is never built.
+     */
+    public static function forStarted(FulfillmentStatus $status, bool $hasStarted): self
+    {
         return match ($status) {
-            FulfillmentStatus::AwaitingShipment => $progress->hasStarted() ? self::InProgress : self::ToShip,
+            FulfillmentStatus::AwaitingShipment => $hasStarted ? self::InProgress : self::ToShip,
             FulfillmentStatus::Shipped => self::InProgress,
             FulfillmentStatus::Delivered, FulfillmentStatus::Declined, FulfillmentStatus::Refunded => self::Done,
         };

@@ -16,3 +16,12 @@ it('reads its stored value back as a sentence', function (LedgerEntryType $type,
     'paid out' => [LedgerEntryType::PaidOut, 'Paid out'],
     'refunded' => [LedgerEntryType::Refunded, 'Refunded'],
 ]);
+
+it('says where the money for one parcel stands', function (LedgerEntryType $type, string $expected): void {
+    expect($type->escrowState())->toBe($expected);
+})->with([
+    'held' => [LedgerEntryType::Held, 'Held until delivery'],
+    'released' => [LedgerEntryType::Released, 'Released to your balance'],
+    'paid out' => [LedgerEntryType::PaidOut, 'Paid out'],
+    'refunded' => [LedgerEntryType::Refunded, 'Returned to the buyer'],
+]);

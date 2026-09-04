@@ -342,6 +342,111 @@ a ranged view strip (`x-seller.bar-strip` over
 `ListingTableRow`, and renders identically in the list pane, the overlay,
 and the takeover.
 
+## Orders
+
+Question: a seller opens Orders with three questions — what must go out,
+what is on its way, what is finished. How does one list answer all three,
+and how does one parcel's page tell the whole story of the sale?
+
+### Lanes are a query parameter
+
+```mermaid
+flowchart LR
+    idx["GET /seller/orders?lane="] --> tabs["To ship · In progress · Done · All"]
+    tabs --> pane["FulfillmentLanes::pane()"]
+    pane --> rows["OrderRow[] + OrderPane"]
+    rows -- "row carries ?lane=" --> show["GET /seller/orders/{fulfillment}?lane=&kind="]
+    show --> detail["state line · three cards · items · steps · shipment · feed"]
+    show -- "lane absent" --> own["the lane the parcel itself sits in"]
+```
+
+`App\Domain\Fulfillment\LaneFilter` is the vocabulary: the three
+`FulfillmentLane` piles plus `all`, the tab with no lane behind it. Each tab
+carries its own label, whether it wears a count, and which end of the queue
+it reads from — **To ship reads oldest first**, because the oldest unshipped
+parcel is the one keeping a buyer waiting, and every other tab reads newest
+first.
+
+`App\Http\Requests\Seller\OrdersQueryRequest` owns `lane` and `kind` for both
+routes and answers a bare 400 on a value outside either vocabulary
+(docs/alignment.md §5). An absent `lane` is the default on the index and, on
+a detail reached by a link that named none, the lane the open parcel sits in
+— so the row is always in the pane beside it. Every row's own link carries
+the lane it was opened from, and so does the back link below `lg`.
+
+### One rule, read two ways
+
+A lane is `status` plus "has a completed step". The tab counts come from one
+grouped read over exactly those two facts:
+
+```sql
+select status, exists (select * from fulfillment_events
+                       where fulfillment_id = fulfillments.id
+                         and kind = 'step_completed') as started,
+       count(*) as tally
+from fulfillments where seller_id = ? group by status, started
+```
+
+`Fulfillment::countedByLane` is that query and `FulfillmentLane::forStarted`
+folds each row into its pile, which is the same match
+`FulfillmentLane::of` runs against a loaded `FulfillmentProgress`. The rows
+under a tab come from `Fulfillment::inLane`, the same rule written as a where
+clause. Two tests hold the three readings together: one walks a parcel of
+every status and asserts `inLane` selects the parcel its own `lane()` names,
+and one asserts each tab's number equals what `inLane` counts for that lane.
+The number on a tab and the rows beneath it cannot drift.
+
+### What a row says beyond its own facts
+
+`App\Seller\FulfillmentLanes` hands the pane out as readonly value objects —
+`LaneTab`, `OrderRow`, `OrderPane` — so the Blade renders and decides
+nothing. Beyond the buyer, the scan line, the badge and the day, a row
+carries one note: **what the buyer asked and nobody answered** (the latest
+unread customer message on the parcel's thread), else **the last step the
+seller marked done** ("Label printed"). Both come from one query each across
+the whole window, never per row.
+
+### The detail
+
+`Fulfillment::state()` builds `App\Domain\Fulfillment\ParcelState`, the
+sentence under the buyer's name, one shape per status:
+
+| Status | Line |
+| --- | --- |
+| Awaiting shipment, nothing done | `Placed 2 days ago · ship by Sep 5` |
+| Awaiting shipment, a step done | `Label printed 3 hours ago · waiting for the parcel to leave` |
+| Shipped | `In transit with Owl Post since Sep 1` |
+| Delivered | `Delivered Aug 28 · $612.00 released to your balance` |
+| Declined or refunded | `Declined Sep 1 · $450.00 returned to the buyer` |
+
+"Ship by" is placed plus three days — a display rule, never a stored date.
+The money phrase reads the parcel's last ledger movement, which is also what
+the payment card's Escrow line says through
+`LedgerEntryType::escrowState()`.
+
+Three cards sit under the header: **Customer** (name, email, and what they
+have bought from this seller), **Ships to** (the address as the buyer gave it
+at checkout), and **Payment** (the card, buyer paid, platform fee, your take,
+escrow). Then the items, each linked to its listing; the flow's steps
+(`x-seller.flow-steps`, FEAT-051) with the next one live; the shipment —
+a carrier and tracking form while the parcel is in the studio, four
+read-only facts once it has left; and the activity feed under its `?kind=`
+filter.
+
+A seller sees a customer's name, email, and address because an order carries
+them. `App\Seller\CustomerOnOrder` counts what that buyer has bought from
+this seller, leaving out every parcel that was declined or refunded: the
+money went back.
+
+### Actions the state allows
+
+Message buyer is always there. Decline and Mark shipped are offered while
+the parcel awaits shipment, and the policy decides. The buttons in the
+header and in the mobile action bar submit the forms further down the page
+by `form=`, so one form serves both. Completing a step and
+marking shipped are POSTs that redirect back to the order, and the feed shows
+the new row on return.
+
 ## Activity feed
 
 Question: a seller wants to read everything that happened between them and
