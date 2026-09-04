@@ -82,3 +82,72 @@ sales table and `StatementController`'s printable statement
 (`/seller/earnings/statements/{period}`, `period` a payout period's start
 date). A period outside the eight-period window, or a string that matches
 no period in it, answers 404.
+
+## Support
+
+`/seller/support` is the desk hub: the two admins who answer, their
+presence, the reply-time promise, other ways to reach the desk, help
+articles by topic, and the seller's own support threads. Code:
+`app/Domain/Seller/{HelpArticle,DeskPresence,PresenceStatus,ReplyTime}`,
+`app/Seller/{HelpArticles,SupportDesk,DeskPerson,SupportThreads}`,
+`app/Http/Controllers/Seller/{SupportController,HelpArticleController}`,
+`config/support.php`, `resources/help/seller/*.md`,
+`resources/views/seller/support/{index,article,create}.blade.php`.
+
+```mermaid
+flowchart LR
+    subgraph http["Controllers"]
+        SC[SupportController]
+        HAC[HelpArticleController]
+    end
+    subgraph adapters["App\\Seller (adapters)"]
+        SD[SupportDesk]
+        ST[SupportThreads]
+        HA[HelpArticles]
+    end
+    subgraph domain["App\\Domain\\Seller (pure)"]
+        DP[DeskPresence]
+        RT[ReplyTime]
+        HAr[HelpArticle]
+    end
+    SC --> SD & ST & HA
+    HAC --> HA
+    SD --> DP & RT
+    HA --> HAr
+    SD -.-> ADM[App\\Models\\Admin]
+```
+
+### The desk
+
+`SupportDesk::for()` lists every seeded admin (`AdminSeeder`), each under
+the same shared role and presence — `DeskPresence::of()` reads weekday
+hours from `config('support.hours')` and answers Online or a "Back
+today/tomorrow/Monday at {opens_at}" label; no realtime signal backs it in
+this cut. `SupportDesk`'s `lastReplyTime` is the gap between the seller's
+most recent message across every `admin_seller` thread and the desk's first
+reply after it (`ReplyTime::between()`), or null while that message is
+still unanswered or the seller has never written in.
+
+Every other desk fact — email, phone and its hours, the booking URL, the
+reply-time promise — is `config('support.*')`, read from env with a
+bracketed placeholder default (`[PHONE NUMBER]`, `[BOOKING URL]`) for what
+is not known yet.
+
+### Help articles
+
+`HelpArticle::fromMarkdown()` parses one file's `---`-delimited front
+matter (`group`, `title`, `slug`, `position`) and splits its body into
+blank-line-separated paragraphs — the markdown subset the four shipped
+articles need, no library behind it. `HelpArticles` reads every
+`resources/help/seller/*.md` file, cached per request, and groups them by
+topic in a fixed order (Getting paid, Shipping, Listings, Messages).
+`HelpArticleController@show` 404s for a slug no article carries.
+
+### Own threads and the create form
+
+`SupportThreads::for()` lists the seller's own `admin_seller` conversations,
+newest first — the same rows Messages' Support tab lists
+(`MessageController`'s `support` domain). `SupportController@create`/`store`
+are unchanged: the seller's existing titled new-conversation form, now
+reached from the hub's "Start a conversation" button rather than being the
+`/seller/support` route itself.
