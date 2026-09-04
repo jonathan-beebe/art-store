@@ -31,7 +31,10 @@ final readonly class RangeChange
             return new self('new', ChangeDirection::Flat);
         }
 
-        $percent = (($current - $previous) / $previous) * 100;
+        // Divides by the previous range's size, not its sign — a negative
+        // previous (a period net of a refund) still reads the change
+        // toward zero as an improvement.
+        $percent = (($current - $previous) / abs($previous)) * 100;
 
         if (abs($percent) < self::FLAT_THRESHOLD_PERCENT) {
             return new self('0.0%', ChangeDirection::Flat);

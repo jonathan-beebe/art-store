@@ -141,6 +141,18 @@ it('agrees with the earnings page on a parcel declined in a later period', funct
         ->and(overviewTile($dashboardTiles, 'Earnings')->value)->toBe(Money::fromCents($saleWeek->net()->cents)->format());
 });
 
+it('reads a range holding only the refund as negative earnings', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $parcel = placedOn($this->paidFulfillmentFor($seller, priceCents: 10000), '2026-08-20 10:00:00');
+    app(DeclineFulfillment::class)($parcel->refresh(), 'Buyer changed their mind.', new DateTimeImmutable('2026-09-01 09:00:00'));
+
+    // The range holds the refund alone — the sale it undoes landed a
+    // payout period earlier, outside these seven days.
+    $tiles = overviewTiles($seller, days: 7);
+
+    expect(overviewTile($tiles, 'Earnings')->value)->toBe('-$90.00');
+});
+
 it('gives every tile a line with one point per day of the range', function (int $days): void {
     $seller = $this->seller('The Burrow Craftworks');
     placedOn($this->paidFulfillmentFor($seller), '2026-09-01 10:00:00');
