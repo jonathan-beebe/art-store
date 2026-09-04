@@ -66,3 +66,13 @@ it('reads its stored value back as a sentence', function (FulfillmentStatus $sta
     'declined' => [FulfillmentStatus::Declined, 'Declined'],
     'refunded' => [FulfillmentStatus::Refunded, 'Refunded'],
 ]);
+
+it('names its seller-portal badge tint', function (FulfillmentStatus $status, string $expected): void {
+    expect($status->sellerBadgeTint())->toBe($expected);
+})->with([
+    'awaiting shipment is yellow' => [FulfillmentStatus::AwaitingShipment, 'yellow'],
+    'shipped is blue' => [FulfillmentStatus::Shipped, 'blue'],
+    'delivered is green' => [FulfillmentStatus::Delivered, 'green'],
+    'declined is gray' => [FulfillmentStatus::Declined, 'gray'],
+    'refunded is red' => [FulfillmentStatus::Refunded, 'red'],
+]);

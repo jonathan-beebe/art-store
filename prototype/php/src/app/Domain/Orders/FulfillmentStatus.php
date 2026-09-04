@@ -58,4 +58,18 @@ enum FulfillmentStatus: string
     {
         return ucfirst(str_replace('_', ' ', $this->value));
     }
+
+    /**
+     * The seller portal's `x-seller.status-badge` tint for this status.
+     */
+    public function sellerBadgeTint(): string
+    {
+        return match ($this) {
+            self::AwaitingShipment => 'yellow',
+            self::Shipped => 'blue',
+            self::Delivered => 'green',
+            self::Refunded => 'red',
+            self::Declined => 'gray',
+        };
+    }
 }
