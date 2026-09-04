@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Auth\ActorType;
 use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Models\Fulfillment;
@@ -43,4 +44,32 @@ it('leaves a fulfillment that never shipped with no step event', function (): vo
     $fulfillment = Fulfillment::whereNull('shipped_at')->firstOrFail();
 
     expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::StepCompleted)->count())->toBe(0);
+});
+
+it('gives every seeded shipped or delivered parcel its shipped and delivered events', function (): void {
+    $shipped = Fulfillment::whereNotNull('shipped_at')->get();
+    expect($shipped)->not->toBeEmpty();
+
+    foreach ($shipped as $fulfillment) {
+        $shippedAt = $fulfillment->shipped_at ?? throw new RuntimeException('The query selected a shipped fulfillment.');
+        $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+            ->where('kind', FulfillmentEventKind::Shipped)
+            ->sole();
+
+        expect($event->occurred_at->equalTo($shippedAt))->toBeTrue()
+            ->and($event->actor_type)->toBe(ActorType::Seller);
+    }
+
+    $delivered = Fulfillment::whereNotNull('delivered_at')->get();
+    expect($delivered)->not->toBeEmpty();
+
+    foreach ($delivered as $fulfillment) {
+        $deliveredAt = $fulfillment->delivered_at ?? throw new RuntimeException('The query selected a delivered fulfillment.');
+        $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+            ->where('kind', FulfillmentEventKind::Delivered)
+            ->sole();
+
+        expect($event->occurred_at->equalTo($deliveredAt))->toBeTrue()
+            ->and($event->actor_type)->toBe(ActorType::Customer);
+    }
 });

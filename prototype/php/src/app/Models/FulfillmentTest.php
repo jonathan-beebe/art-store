@@ -127,6 +127,24 @@ it('ships by its seller default flow when no listing on it names one', function 
         ->and(array_map(fn (FlowStep $step): string => $step->label, $fulfillment->flowSteps()))->toBe(['Packed']);
 });
 
+it('ships by the flow of its first item, in the order Order::items() reads', function (): void {
+    $seller = $this->seller('Molly Weasley');
+    $earlyFlow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $lateFlow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $earlyListing = $this->listing($seller, ['fulfillment_flow_id' => $earlyFlow->id]);
+    $lateListing = $this->listing($seller, ['fulfillment_flow_id' => $lateFlow->id]);
+
+    // Added late listing first, so an unordered read would land on it.
+    $order = $this->orderFor($this->verifiedCustomer(), $lateListing, $earlyListing);
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = $order->fulfillments()->sole();
+
+    $order->items()->where('listing_id', $earlyListing->id)->update(['created_at' => $this->moment('2026-08-20 08:00:00')]);
+    $order->items()->where('listing_id', $lateListing->id)->update(['created_at' => $this->moment('2026-08-20 09:00:00')]);
+
+    expect($fulfillment->refresh()->flowInEffect()?->id)->toBe($earlyFlow->id);
+});
+
 it('reads only step completions as progress, leaving the transition events out', function (): void {
     $seller = $this->seller('Luna Lovegood');
     $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);

@@ -7,6 +7,7 @@ use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
 use App\Models\StoreSectionImage;
+use Illuminate\Support\Facades\Storage;
 
 it('takes the picture out of the store', function (): void {
     $image = StoreImage::factory()->create();
@@ -37,6 +38,16 @@ it('leaves a column pointing at another picture alone', function (): void {
     app(RemoveStoreImage::class)($portrait);
 
     expect($profile->fresh()?->cover_image_id)->toBe($cover->id);
+});
+
+it('deletes its file off disk', function (): void {
+    Storage::fake('public');
+    $image = StoreImage::factory()->create(['path' => 'stores/portrait.jpg']);
+    Storage::disk('public')->put($image->path, 'fake image bytes');
+
+    app(RemoveStoreImage::class)($image);
+
+    Storage::disk('public')->assertMissing($image->path);
 });
 
 it('takes the gallery placements that named it with it', function (): void {

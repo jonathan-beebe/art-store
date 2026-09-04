@@ -22,10 +22,13 @@ return new class extends Migration
         });
 
         // One default flow per seller, held by the database rather than by
-        // the action that writes it. Blueprint has no partial unique index;
-        // SQLite, which this prototype develops and tests on, and Postgres
-        // both take the clause.
-        DB::statement('create unique index fulfillment_flows_default_unique on fulfillment_flows (seller_id) where is_default = 1');
+        // the action that writes it. Blueprint has no partial unique index.
+        // The bare column as the predicate is what SQLite, which this
+        // prototype develops and tests on, and Postgres both read as
+        // "true" — Postgres has no `boolean = integer`, so `= 1` fails
+        // there. MySQL has no partial index at all; this table is not part
+        // of its contract.
+        DB::statement('create unique index fulfillment_flows_default_unique on fulfillment_flows (seller_id) where is_default');
     }
 
     public function down(): void

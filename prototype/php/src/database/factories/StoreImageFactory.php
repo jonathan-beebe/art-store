@@ -23,9 +23,23 @@ class StoreImageFactory extends Factory
     {
         return [
             'store_profile_id' => StoreProfile::factory(),
-            'seller_id' => Seller::factory(),
+            // The picture's seller is the profile's seller. A row whose two
+            // disagree is the state ownership must never read from.
+            'seller_id' => fn (array $attributes): mixed => $this->sellerOf($attributes['store_profile_id']),
             'path' => 'stores/'.fake()->unique()->uuid().'.jpg',
             'alt' => null,
         ];
+    }
+
+    /**
+     * The seller of the profile this picture belongs to.
+     *
+     * @return string|Factory<Seller>
+     */
+    private function sellerOf(mixed $profileId): string|Factory
+    {
+        $profile = is_string($profileId) ? StoreProfile::query()->find($profileId) : null;
+
+        return $profile instanceof StoreProfile ? $profile->seller_id : Seller::factory();
     }
 }

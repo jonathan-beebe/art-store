@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Actions\Fulfillment\CompleteFlowStep;
+use App\Actions\Fulfillment\MarkShipped;
 use App\Domain\Auth\ActorType;
 use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Messaging\ConversationKind;
@@ -252,6 +253,18 @@ it('counts each lane at what the lane itself selects', function () use ($flowWit
 
         expect($tab->count)->toBe(Fulfillment::query()->whereBelongsTo($seller)->inLane($tab->lane)->count());
     }
+});
+
+it('keeps the completed step\'s note on a parcel that has since shipped', function () use ($flowWithOneStep): void {
+    $seller = $this->seller('Percy Weasley');
+    $step = $flowWithOneStep($seller);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($fulfillment, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+    app(MarkShipped::class)($fulfillment->refresh(), 'Owl Post', 'OP 4471', $this->moment('2026-08-22 09:00:00'));
+
+    $pane = app(FulfillmentLanes::class)->pane($seller, LaneFilter::All);
+
+    expect($pane->rows[0]->note)->toBe('Label printed');
 });
 
 it('reads a pane of many rows in the same number of queries as a pane of one', function () use ($flowWithOneStep): void {

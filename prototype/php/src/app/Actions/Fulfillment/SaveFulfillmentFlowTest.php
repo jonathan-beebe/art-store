@@ -8,6 +8,8 @@ use App\Domain\Fulfillment\FlowStepAction;
 use App\Domain\Fulfillment\FlowStepDraft;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('creates a default flow named and ordered as submitted, for a seller with none', function (): void {
     $seller = $this->seller('Molly Weasley');
@@ -92,6 +94,40 @@ it('reorders two existing steps without a unique-index collision', function (): 
 
     expect($reordered->pluck('id')->all())->toBe([$second->id, $first->id])
         ->and($reordered->pluck('position')->all())->toBe([0, 1]);
+});
+
+it('parks a step at or above 9999 while it reorders, then writes the final range from zero', function (): void {
+    $seller = $this->seller();
+    $save = app(SaveFulfillmentFlow::class);
+    $flow = $save($seller, 'How I ship', [
+        FlowStepDraft::of(null, 'Label printed', FlowStepAction::PrintLabel),
+        FlowStepDraft::of(null, 'Packed', FlowStepAction::None),
+    ]);
+    $first = $flow->steps()->where('label', 'Label printed')->sole();
+    $second = $flow->steps()->where('label', 'Packed')->sole();
+
+    $positions = [];
+    DB::listen(function (QueryExecuted $query) use (&$positions): void {
+        if (str_contains($query->sql, 'update "fulfillment_flow_steps" set "position"')) {
+            foreach ($query->bindings as $binding) {
+                if (is_int($binding)) {
+                    $positions[] = $binding;
+                }
+            }
+        }
+    });
+
+    $save($seller, 'How I ship', [
+        FlowStepDraft::of($second->id, $second->label, $second->action),
+        FlowStepDraft::of($first->id, $first->label, $first->action),
+    ]);
+
+    // Two surviving steps: parkPositions() writes the first two bindings
+    // (the park, above the range), writeSteps() the last two (the final
+    // 0-based range).
+    expect($positions)->toHaveCount(4)
+        ->and(array_slice($positions, 0, 2))->each->toBeGreaterThanOrEqual(9999)
+        ->and(array_slice($positions, 2, 2))->toBe([0, 1]);
 });
 
 it('slugs a new step\'s key from its label, numbering a second step whose label slugs the same', function (): void {

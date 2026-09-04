@@ -31,9 +31,8 @@ final readonly class PeriodSales
     public static function for(Seller $seller, PayoutPeriod $period): array
     {
         return array_values($seller->fulfillments()
-            ->whereHas('order', fn (Builder $orders): Builder => $orders
-                ->whereBetween('placed_at', [$period->start, $period->end])
-                ->whereIn('status', Order::paidStatuses()))
+            ->onPaidOrder()
+            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereBetween('placed_at', [$period->start, $period->end]))
             ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
             ->get()
             ->sortByDesc(fn (Fulfillment $fulfillment): string => $fulfillment->order->placed_at->format('Y-m-d H:i:s.u').$fulfillment->id)

@@ -110,6 +110,26 @@ class Fulfillment extends Model
     }
 
     /**
+     * The most recently completed step on this parcel, read as one grouped
+     * subquery over the whole log — {@see \App\Seller\FulfillmentLanes}
+     * eager-loads it across a pane's whole page in one query. The kind
+     * filter has to run inside the MAX(occurred_at) subquery `ofMany()`
+     * builds, or a later `shipped`/`delivered` row on the same parcel wins
+     * the grouping and the step-completed row it should have picked never
+     * surfaces.
+     *
+     * @return HasOne<FulfillmentEvent, $this>
+     */
+    public function latestCompletedStep(): HasOne
+    {
+        return $this->hasOne(FulfillmentEvent::class)
+            ->ofMany(
+                ['occurred_at' => 'max'],
+                fn (Builder $query): Builder => $query->where('kind', FulfillmentEventKind::StepCompleted),
+            );
+    }
+
+    /**
      * The admin fulfillments list, narrowed to one status. A null filter adds
      * no clause, which is what the console's "All statuses" submits.
      *
@@ -134,6 +154,63 @@ class Fulfillment extends Model
         if ($sellerId !== null) {
             $query->where('seller_id', $sellerId);
         }
+    }
+
+    /**
+     * A fulfillment the seller portal still rolls up as ongoing business —
+     * awaiting shipment, shipped, or delivered, {@see FulfillmentStatus::isLive()}.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function live(Builder $query): void
+    {
+        // Named so a caller that has also joined `orders` — which carries a
+        // status column of its own — reads an unambiguous clause.
+        $query->whereIn('fulfillments.status', self::liveStatuses());
+    }
+
+    /**
+     * The statuses {@see live} filters to — named separately so a query
+     * built inside a `whereHas` closure can reach it as a plain `whereIn`,
+     * the way {@see Order::paidStatuses()} does for orders.
+     *
+     * @return list<FulfillmentStatus>
+     */
+    public static function liveStatuses(): array
+    {
+        return array_values(array_filter(
+            FulfillmentStatus::cases(),
+            fn (FulfillmentStatus $status): bool => $status->isLive(),
+        ));
+    }
+
+    /**
+     * A fulfillment on an order that has been paid. A fulfillment row
+     * exists from the moment an order is placed, before a card is even
+     * charged, so this is the paid gate every money figure reads through —
+     * including one that keeps a declined or refunded parcel, since the
+     * money it moved still happened.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function onPaidOrder(Builder $query): void
+    {
+        $query->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()));
+    }
+
+    /**
+     * The parcels every seller figure counts: still live, on an order that
+     * has been paid — the pair that keeps an abandoned checkout out of a
+     * seller's buyers, sales, and totals.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function counted(Builder $query): void
+    {
+        $query->live()->onPaidOrder();
     }
 
     /**

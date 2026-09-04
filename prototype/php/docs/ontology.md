@@ -460,7 +460,7 @@ everyone; the flow is where a seller's own method is written down.
 
 **Lifecycle.** None — a seller's default flow is seeded and edited from
 `/seller/orders/flow`. One default per seller is a partial unique index,
-`(seller_id) where is_default = 1`.
+`(seller_id) where is_default`.
 
 **Relates to.**
 - belongs to one Seller

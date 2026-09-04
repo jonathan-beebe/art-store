@@ -450,10 +450,11 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
 
     // Six queues over two connections: the layout's two counts and the
     // page-view roll-up, the next payout, the buyers, the parcels placed
-    // across both ranges, the listings table, the units sold, and the four
-    // focus queues read down and counted whole.
+    // across both ranges and the refunds that netted against them, the
+    // listings table, the units sold, and the four focus queues read down
+    // and counted whole.
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(35)
+        ->expectsDatabaseQueryCount(36)
         ->get('/seller');
 
     $response->assertOk();

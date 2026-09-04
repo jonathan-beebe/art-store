@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Messaging\OpenConversation;
 use App\Domain\Messaging\ConversationSubject;
-use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Seller\CustomerRow;
 use App\Models\Conversation;
@@ -51,20 +50,15 @@ final class CustomerMessageController extends SellerController
     }
 
     /**
-     * The buyer's newest live parcel with this seller, newest by when the
+     * The buyer's newest counted parcel with this seller, newest by when the
      * order was placed — the recency the customers section reads
      * everywhere. A row on the customer page means there is one.
      */
     private function latestParcel(Seller $seller, Customer $customer): string
     {
-        $live = array_values(array_filter(
-            FulfillmentStatus::cases(),
-            fn (FulfillmentStatus $status): bool => $status->isLive(),
-        ));
-
         return (string) $seller->fulfillments()
             ->where('fulfillments.customer_id', $customer->id)
-            ->whereIn('fulfillments.status', $live)
+            ->counted()
             ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
             ->orderByDesc('orders.placed_at')
             ->orderByDesc('fulfillments.id')

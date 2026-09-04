@@ -15,16 +15,24 @@ use App\Models\StoreSection;
 use App\Models\StoreSlug;
 use DateTimeImmutable;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 
 /**
- * A published store for every seeded seller: a tagline, where they work,
- * a story, and a gallery drawn from the photos already on their listings —
- * the picture rows name the same files on the public disk, so the seed
- * copies nothing. Runs after the listing image seeder and guards per
- * seller, so it also lands on a database that already holds some stores.
+ * A published store for every seeded seller: a tagline, where they work, a
+ * story, and a gallery drawn from the photos already on their listings —
+ * each one copied onto the store's own path, so a store picture and a
+ * listing picture never share a file. Runs after the listing image seeder
+ * and guards per seller, so it also lands on a database that already holds
+ * some stores.
  */
 class StoreProfileSeeder extends Seeder
 {
+    /**
+     * The directory a store's own pictures live under, matching
+     * {@see \App\Actions\Store\AddStoreImage}'s own upload directory.
+     */
+    private const string DIRECTORY = 'stores';
+
     /**
      * How many of a seller's listing photos become the store's pictures:
      * a portrait, a cover, and the gallery.
@@ -180,30 +188,37 @@ class StoreProfileSeeder extends Seeder
     }
 
     /**
-     * The store's pictures: the same files the seller's listings already
-     * show, named by rows of their own so a gallery can place them.
+     * The store's pictures: copies of the photos the seller's listings
+     * already show, one file per picture under the store's own directory —
+     * a store picture never names a listing's file.
      *
      * @return list<StoreImage>
      */
     private function pictures(StoreProfile $profile, Seller $seller): array
     {
-        $paths = [];
+        $listingPaths = [];
 
         foreach (Listing::query()->where('seller_id', $seller->id)->with('images')->get() as $listing) {
             foreach ($listing->images as $image) {
-                if (! in_array($image->path, $paths, true)) {
-                    $paths[] = $image->path;
+                if (! in_array($image->path, $listingPaths, true)) {
+                    $listingPaths[] = $image->path;
                 }
             }
         }
 
         $pictures = [];
 
-        foreach (array_slice($paths, 0, self::PICTURES_PER_STORE) as $path) {
+        foreach (array_slice($listingPaths, 0, self::PICTURES_PER_STORE) as $listingPath) {
+            // Named by the store's own id, so two stores drawing on
+            // listing photos that happen to share a filename never copy
+            // onto the same store path.
+            $storePath = self::DIRECTORY.'/'.$profile->id.'-'.basename($listingPath);
+            Storage::disk('public')->copy($listingPath, $storePath);
+
             $pictures[] = StoreImage::create([
                 'store_profile_id' => $profile->id,
                 'seller_id' => $seller->id,
-                'path' => $path,
+                'path' => $storePath,
             ]);
         }
 

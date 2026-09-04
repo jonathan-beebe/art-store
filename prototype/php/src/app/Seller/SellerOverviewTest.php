@@ -8,6 +8,7 @@ use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\ChangeDirection;
 use App\Domain\Escrow\PayoutPeriod;
+use App\Domain\Money\Money;
 use App\Domain\Seller\PayoutEstimate;
 use App\Models\Customer;
 use App\Models\Fulfillment;
@@ -108,6 +109,48 @@ it('earns nothing from a parcel the seller declined and still counts the order',
 
     expect(overviewTile($tiles, 'Earnings')->value)->toBe('$0.00')
         ->and(overviewTile($tiles, 'Orders')->value)->toBe('1');
+});
+
+it('leaves an order nobody paid for out of the orders and earnings tiles', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller, ['price_cents' => 10000]));
+    $order->update(['placed_at' => new DateTimeImmutable('2026-09-01 10:00:00')]);
+
+    $tiles = overviewTiles($seller, days: 7);
+
+    expect(overviewTile($tiles, 'Orders')->value)->toBe('0')
+        ->and(overviewTile($tiles, 'Earnings')->value)->toBe('$0.00');
+});
+
+it('agrees with the earnings page on a parcel declined in a later period', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $parcel = placedOn($this->paidFulfillmentFor($seller, priceCents: 10000), '2026-08-18 10:00:00');
+    app(DeclineFulfillment::class)($parcel->refresh(), 'Buyer changed their mind.', new DateTimeImmutable('2026-08-26 09:00:00'));
+
+    $saleWeek = EarningsPeriods::for($seller, new DateTimeImmutable('2026-08-27 09:00:00'))->past()[0];
+
+    // The dashboard's range is the sale's own payout week — the same week
+    // the earnings page's period covers — so the two read the same net.
+    $dashboardTiles = SellerOverview::for(
+        $seller,
+        AnalyticsRange::of(7, $saleWeek->period->end),
+        NextPayout::for($seller, $saleWeek->period->end)->estimate,
+    )->tiles();
+
+    expect($saleWeek->net()->cents)->toBeGreaterThan(0)
+        ->and(overviewTile($dashboardTiles, 'Earnings')->value)->toBe(Money::fromCents($saleWeek->net()->cents)->format());
+});
+
+it('reads a range holding only the refund as negative earnings', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $parcel = placedOn($this->paidFulfillmentFor($seller, priceCents: 10000), '2026-08-20 10:00:00');
+    app(DeclineFulfillment::class)($parcel->refresh(), 'Buyer changed their mind.', new DateTimeImmutable('2026-09-01 09:00:00'));
+
+    // The range holds the refund alone — the sale it undoes landed a
+    // payout period earlier, outside these seven days.
+    $tiles = overviewTiles($seller, days: 7);
+
+    expect(overviewTile($tiles, 'Earnings')->value)->toBe('-$90.00');
 });
 
 it('gives every tile a line with one point per day of the range', function (int $days): void {

@@ -65,10 +65,17 @@ class Order extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    /** @return HasMany<OrderItem, $this> */
+    /**
+     * The order's own lines, in the order they were placed in: `created_at`
+     * places them, `id` — a ULID minted the same moment — breaks a tie
+     * within the same request. {@see Fulfillment::flowNamedByAListing()}
+     * reads the first as the listing a parcel ships by.
+     *
+     * @return HasMany<OrderItem, $this>
+     */
     public function items(): HasMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(OrderItem::class)->orderBy('created_at')->orderBy('id');
     }
 
     /** @return HasMany<Fulfillment, $this> */
@@ -115,34 +122,38 @@ class Order extends Model
     }
 
     /**
+     * The shipping address as a parcel label prints it, one line per row,
+     * with the lines this order left empty dropped. A blank city drops
+     * straight to the region and postal code, with no leading comma.
+     *
+     * @return list<string>
+     */
+    public function shippingAddressLines(): array
+    {
+        $regionAndPostal = trim(implode(' ', array_filter([$this->shipping_region, $this->shipping_postal_code])));
+        $cityLine = implode(', ', array_filter([$this->shipping_city, $regionAndPostal]));
+
+        $lines = [
+            $this->shipping_name,
+            $this->shipping_line1,
+            $this->shipping_line2,
+            $cityLine,
+            $this->shipping_country,
+        ];
+
+        return array_values(array_filter(
+            array_map(fn (?string $line): string => trim($line ?? ''), $lines),
+            fn (string $line): bool => $line !== '',
+        ));
+    }
+
+    /**
      * How placement judges this order's items against the listings behind
      * them, as the rows stand right now. A retry after a decline calls this
      * before it retakes stock — against rows it holds for update — so an item
      * that went stale while the card sat declined is refused rather than sold
      * a second time out from under someone else.
      */
-    /**
-     * The shipping address as a parcel label prints it, one line per row,
-     * with the lines this order left empty dropped.
-     *
-     * @return list<string>
-     */
-    public function shippingAddressLines(): array
-    {
-        $lines = [
-            $this->shipping_name,
-            $this->shipping_line1,
-            $this->shipping_line2,
-            trim($this->shipping_city.', '.$this->shipping_region.' '.$this->shipping_postal_code),
-            $this->shipping_country,
-        ];
-
-        return array_values(array_filter(
-            array_map(fn (?string $line): string => trim($line ?? ''), $lines),
-            fn (string $line): bool => $line !== '' && $line !== ',',
-        ));
-    }
-
     public function placementPlan(): OrderPlacementPlan
     {
         return OrderPlacementPlan::for(array_values($this->items->map(

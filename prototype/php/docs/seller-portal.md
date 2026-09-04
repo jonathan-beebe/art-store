@@ -193,9 +193,10 @@ another seller's rows (`App\Policies\StoreProfilePolicy`).
 | Sections per store           | `StoreSection::MAX_PER_PROFILE` (12)       |
 
 `Database\Seeders\StoreProfileSeeder` gives every seeded seller a published
-store: a tagline, where they work, a story, a gallery, and two links. The
-picture rows name the same files on the public disk the seller's listings
-already show, so the seed copies nothing.
+store: a tagline, where they work, a story, a gallery, and two links. Each
+picture is a copy of one of the seller's listing photos, onto the store's
+own path under a name unique to the store — a store picture never names a
+listing's file, or another store's.
 
 ### What the store does not write
 
@@ -641,13 +642,16 @@ seller's own flow steps are a separate lane, not read here. The total is
 
 ### This period, past periods, and statements
 
-`EarningsPeriods::for()` opens an eight-payout-period window ending with
-the period `$now` falls in. Sales and fees fold from live fulfillments
-(`FulfillmentStatus::isLive()`) grouped by `orders.placed_at`; refunds fold
-from `ledger_entries` of type `refunded` grouped by `occurred_at`, so a
-refund lands in the period it happened. A declined or refunded order
-still counts toward `orderCount` for the period placed; it earns no
-sales or fees.
+the period `$now` falls in. Sales and fees are gross: every fulfillment of
+a paid order counts, live or since declined or refunded, grouped by
+`orders.placed_at`. Refunds fold separately, from `ledger_entries` of type
+`refunded` grouped by `occurred_at`, so a refund lands in the period it
+happened, not the period its sale was placed in — a parcel sold in one
+period and declined or refunded in a later one leaves the first period's
+sales untouched and nets the later period instead. `net()` is
+`sales - fees - refunds`. The dashboard's earnings tile
+(`App\Seller\SellerOverview`) reads the same model, folded by day instead
+of by payout period.
 
 `PeriodSettlement` reads a period's payout status from whether it is the
 period in progress and whether a `payouts` row exists for it — a completed

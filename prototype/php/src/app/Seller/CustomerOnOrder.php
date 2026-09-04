@@ -5,16 +5,15 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Money\Money;
-use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Fulfillment;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
  * The buyer behind one order, counted across everything they have bought
- * from this seller. A parcel that was turned down or refunded is left out
- * of the count, the spend, and the day they became a customer: the money
- * went back.
+ * from this seller. A parcel {@see Fulfillment::counted()} leaves out — an
+ * unpaid order, one turned down, one refunded — is left out of the count,
+ * the spend, and the day they became a customer.
  *
  * A seller sees a name, an email, and an address because an order carries
  * them.
@@ -53,6 +52,6 @@ final readonly class CustomerOnOrder
         return Fulfillment::query()
             ->where('fulfillments.seller_id', $fulfillment->seller_id)
             ->where('fulfillments.customer_id', $fulfillment->customer_id)
-            ->whereNotIn('fulfillments.status', [FulfillmentStatus::Declined, FulfillmentStatus::Refunded]);
+            ->counted();
     }
 }

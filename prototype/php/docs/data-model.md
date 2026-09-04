@@ -493,7 +493,7 @@ Caveats:
   `store_links` carry a second unique index — on the image and on the link
   kind — so neither is listed twice under one parent.
 - `fulfillment_flows` holds one default per seller as a partial unique index,
-  `(seller_id) where is_default = 1`. Blueprint writes no partial index, so
+  `(seller_id) where is_default`. Blueprint writes no partial index, so
   the migration writes the statement; SQLite and Postgres both take the
   clause.
 - `fulfillment_events` is append-only and unique on

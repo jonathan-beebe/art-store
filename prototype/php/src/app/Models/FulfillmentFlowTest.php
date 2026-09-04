@@ -7,6 +7,8 @@ namespace App\Models;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FlowStepAction;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 it('mints a prefixed id', function (): void {
     expect(FulfillmentFlow::factory()->create()->id)->toStartWith('ffl_');
@@ -46,6 +48,20 @@ it('resolves its seller', function (): void {
     $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
 
     expect($flow->load('seller')->seller->is($seller))->toBeTrue();
+});
+
+it('creates the default-flow index as a bare boolean predicate in the schema itself', function (): void {
+    $sql = DB::table('sqlite_master')
+        ->where('type', 'index')
+        ->where('name', 'fulfillment_flows_default_unique')
+        ->value('sql');
+
+    if (! is_string($sql)) {
+        throw new RuntimeException('sqlite_master carries no such index.');
+    }
+
+    expect($sql)->toContain('where is_default')
+        ->and($sql)->not->toContain('is_default = 1');
 });
 
 it('refuses a second default flow for one seller', function (): void {
