@@ -10,8 +10,7 @@ declare(strict_types=1);
 | The seller-facing desk facts the support hub shows beside the two admins
 | the AdminSeeder seeds — names and titles are the admin rows themselves,
 | this file carries only what has no row of its own to live on. A fact
-| that is not known yet keeps its bracketed placeholder rather than a
-| blank field.
+| that is not known yet keeps its bracketed placeholder.
 |
 */
 

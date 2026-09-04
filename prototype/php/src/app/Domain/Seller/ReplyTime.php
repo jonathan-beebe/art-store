@@ -8,8 +8,7 @@ use DateTimeImmutable;
 
 /**
  * How long the desk took to answer, in the round words a seller reads on
- * the support hub ("41 minutes", "2 hours") rather than a duration a
- * machine would parse.
+ * the support hub: "41 minutes", "2 hours".
  */
 final readonly class ReplyTime
 {
