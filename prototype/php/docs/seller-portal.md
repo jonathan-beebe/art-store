@@ -5,19 +5,102 @@ sale, what they owe a buyer, and what they are owed. The chrome is in
 [`architecture.md`](architecture.md); each tool gets its own section here
 as its lane lands.
 
+Four names below are forward-looking, ahead of the lane that lands them
+(IMPRV-031/032): `SellerQueryRequest` (the base every `*QueryRequest` will
+extend), `NavLink` (replacing `ViewLink`/`SegmentLink`/`FeedKindLink`/
+`LaneTab`), `Fulfillment::live()`/`counted()` (replacing the paid/live rule
+each adapter below states its own way), and `App\Seller\Store` (replacing
+`App\Support\Store`). Until then the code reads as this doc describes.
+
 | Section                             | Read it for                                                                                             |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [Store profile](#store-profile)     | The six store tables, the typed-section rule, addresses as history, the routes, the limits, the seeds     |
-| [The public page](#the-public-page) | `/s/{slug}`, how an address resolves, what the page shows, the listing cards that lead to it, `store.view` |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| [Dashboard](#dashboard)             | The range, the three tiles and their lines, listing activity, and the four focus groups                    |
+| [Store profile](#store-profile)     | The six store tables, the typed-section rule, addresses as history, the routes, the limits, the seeds, and the public page at `/s/{slug}` |
 | [Listings](#listings)               | List, table, and grid over one detail component; the query vocabulary; sorting as a link; overlay against takeover |
-| [Orders](#orders)                   | Lanes as a query parameter, one rule read two ways, what a row says beyond its own facts, the parcel's detail |
+| [Orders](#orders)                   | Lanes as a query parameter, one rule read two ways, the parcel's detail, the flow editor, the label page |
 | [Activity feed](#activity-feed)     | The four sources, which one owns which row, and why merging and filtering are pure                        |
 | [Customers](#customers)             | Where the list comes from, the privacy rule, the query vocabulary, the customer page                      |
 | [Messages](#messages)               | The context rail beside the transcript: the buyer's numbers, the piece or the parcel, their other threads  |
 | [Earnings](#earnings)               | Next payout, held escrow, this period against the seven before it, and the printable statement            |
 | [Support](#support)                 | The desk, its presence and reply time, help articles from markdown, and the seller's own support threads   |
-| [Dashboard](#dashboard)             | The range, the three tiles and their lines, listing activity, and the four focus groups                    |
-| [Data](#data)                       | The nine tables the portal added, drawn from the migrations                                               |
+| [Data](#data)                       | Where each table this portal added has its full shape                                                    |
+
+## Dashboard
+
+Question: a seller opens the portal in the morning. What are the three
+numbers that say how the business is doing, which listings are working, and
+what has to be done today — each one click from the tool that does it?
+
+`GET /seller?range=7|30|90` is the whole vocabulary
+(`App\Http\Requests\Seller\DashboardQueryRequest`, docs/alignment.md §5's
+idiom: absent/emptied reads as `30`, unrecognised is a bare 400). Every
+figure, delta, line, and strip reads over that one range.
+`Http\Controllers\Seller\DashboardController` reads `Seller\NextPayout`,
+`Seller\SellerOverview`, `Seller\ListingActivity`, and
+`Seller\NeedsAttention`. `NextPayout` is read once and handed to both
+`SellerOverview` and `NeedsAttention`, so the earnings tile's footer and
+the payout group's heading can never name two different Mondays.
+
+### Three tiles
+
+Each is the Tailwind Plus "with brand icon" shape, the whole tile a link,
+built by `App\Seller\SellerOverview` as three `OverviewTile` values.
+
+| Tile | Figure | Change | Line | Opens |
+| --- | --- | --- | --- | --- |
+| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers?range=` |
+| Orders | parcels placed in the range | vs the range before it (`RangeChange`) | parcels per day | `/seller/orders?lane=ship` |
+| Earnings | net of the range's live parcels | vs the range before it | net per day | `/seller/earnings` |
+
+The buyers are `SellerCustomers::forSeller()`'s own rows, so "new" is the
+same `CustomerRow::isNewSince()` the customers tally reads. Orders and
+earnings fold one query by the UTC day of `orders.placed_at`; a parcel
+declined or refunded later still counts as an order placed and earns
+nothing. `App\Domain\Seller\Sparkline::of()` scales a daily series onto one
+SVG polyline, inset two pixels and scaled against its own floor so a high
+plateau still shows its dip; `BarStrip` is the same idea in bars.
+
+### Activity on your listings
+
+`App\Seller\ListingActivity` answers four totals and five rows: views,
+favorites, and cart adds off `ListingTable`'s rows for this range and
+`AnalyticsReport::countsForListingsBetween()` for the previous one; sold is
+units off `order_items` on paid orders whose parcel still stands. The rows
+are `ListingTable`'s own `ListingTableRow` values sorted on Views
+descending and cut to five, so a listing's dashboard figures and its
+listings-table row agree, each carrying a daily view strip from
+`AnalyticsReport::dailyViewsForListings()` capped at thirty days so ninety
+bars never squeeze into one cell.
+
+### Needs your attention
+
+`App\Seller\NeedsAttention` reads four queues; `AttentionQueue` turns them
+into panels, each counted whole and cut to five rows with a "N more" link.
+
+| Group | Rows | Header opens |
+| --- | --- | --- |
+| Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
+| Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
+| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::tallyFor()`) | `/seller/earnings` |
+| Listings that need work | drafts and sold-out pieces, most recently edited first | `/seller/listings` |
+
+The held row opens the earnings page's own held list (`#held-heading`); To
+ship reads oldest by `orders.placed_at`, the fact the row's age and urgency
+both come from. An empty group shows a sentence in place of its rows:
+"Nothing is waiting to ship.", "Every buyer has heard back from you.",
+"Nothing has settled yet.", "Every listing is published and in stock."
+
+### What the dashboard costs
+
+The page reads six queues across two connections and renders on a fixed
+number of queries however many rows a seller holds, which one test pins.
+Two reads are duplicated by design: `Seller::escrowBalance()` is folded
+once for the payout estimate and once for `HeldEscrow::tallyFor()`, and
+the parcels waiting to ship are counted once for the orders tile's footer
+and once for the focus group's heading. Both are cheap aggregates, and
+threading either through would tie two adapters together for one query.
+Nothing on the page hydrates a row it does not render: the held figures
+are a ledger fold and one count, never the parcels behind them.
 
 ## Store profile
 
@@ -25,75 +108,23 @@ A seller presents on the site as a **store**: a name, an address under
 `/s/{slug}`, a tagline, where they work, a portrait, a cover, links, and an
 ordered list of sections. `GET /seller/store` is the screen; the same
 component that renders the preview beside the form is what the storefront
-renders as the page.
+renders as the public page.
 
 ### The tables
 
-The profile row holds only what every store has once. Everything the page
-*says* is a section row of a typed kind, ordered by position.
+The profile row holds only what every store has once (`store_profiles`,
+answering to `store_slugs`, `store_images`, `store_links`); everything the
+page *says* is a `store_sections` row of a typed kind, ordered by position,
+placing `store_images` through `store_section_images`. The full column
+list and every relationship are in [`data-model.md`](data-model.md).
 
-```mermaid
-erDiagram
-    sellers ||--o| store_profiles : "presents as"
-    store_profiles ||--o{ store_slugs : "has answered to"
-    store_profiles ||--o{ store_images : owns
-    store_profiles ||--o{ store_sections : "is built from"
-    store_sections ||--o{ store_section_images : places
-    store_images ||--o{ store_section_images : ""
-    store_profiles ||--o{ store_links : ""
-
-    store_profiles {
-        text id PK "sto_"
-        text seller_id FK "unique"
-        text slug "unique"
-        text name
-        text tagline "nullable, 80"
-        text location "nullable"
-        text portrait_image_id "nullable, sim_"
-        text cover_image_id "nullable, sim_"
-        datetime published_at "nullable; null = hidden"
-    }
-    store_slugs {
-        text id PK "ssl_"
-        text store_profile_id FK
-        text slug "unique across the table"
-        datetime retired_at "nullable; null = current"
-    }
-    store_images {
-        text id PK "sim_"
-        text store_profile_id FK
-        text seller_id FK
-        text path
-        text alt "nullable"
-    }
-    store_sections {
-        text id PK "sse_"
-        text store_profile_id FK
-        text kind "story | gallery"
-        int position "unique per profile"
-        text heading "nullable"
-        text body "nullable, 4000"
-    }
-    store_section_images {
-        text id PK "ssi_"
-        text store_section_id FK
-        text store_image_id FK
-        int position "unique per section"
-    }
-    store_links {
-        text id PK "slk_"
-        text store_profile_id FK
-        text kind "website | instagram"
-        text url
-        int position "unique per profile"
-    }
-```
-
-`portrait_image_id` and `cover_image_id` hold a `sim_` id without a database
-foreign key: `store_images` carries `store_profile_id`, so a key back the
-other way is a cycle SQLite cannot create in either order.
+`portrait_image_id` and `cover_image_id` hold a `sim_` id without a
+database foreign key: `store_images` carries `store_profile_id`, so a key
+back the other way is a cycle SQLite cannot create in either order.
 `App\Actions\Store\RemoveStoreImage` clears both columns before it deletes
-the row.
+the row. The tagline's 80 characters and a story's 4,000 are validation
+ceilings (`StoreProfile::MAX_TAGLINE_LENGTH`, `StoreSection::MAX_BODY_LENGTH`)
+the request enforces — both columns are `text`, with no length of their own.
 
 ### The section rule
 
@@ -106,37 +137,31 @@ statement of which fields a kind uses:
 | `gallery` | yes     | no   | yes    |
 
 `App\Http\Requests\Seller\StoreSectionRequest` reads it twice — once to
-decide which fields to validate, once in its after-validation pass to refuse
-a field the kind does not use, so a body posted at a gallery is an error
-the seller sees.
-
-Every section on the screen posts its own form under the same field names,
-so a section's errors go into a bag named for it
-(`StoreSectionRequest::errorBagFor()`), and the page reads that bag beside
-that section. The section that failed shows the words the seller typed; the
-others show what is stored. A gallery numbers its pictures with an
-`order[{image}]` field, and `imageIds()` sorts by it — a picture with no
-number sorts last.
+decide which fields to validate, once after validation to refuse a field
+the kind does not use. Every section posts its own form under the same
+field names, so its errors go into a bag named for it
+(`StoreSectionRequest::errorBagFor()`) and the page reads that bag beside
+the section that failed, showing the words the seller typed there and what
+is stored everywhere else. A gallery numbers its pictures with an
+`order[{image}]` field, `imageIds()` sorting by it and unnumbered last.
 
 A new kind of store content is a case here, a renderer in
 `resources/views/components/store/profile.blade.php`, and — when it needs
-columns no other kind has — a child table keyed by section. It is never a
-wider `store_profiles` row and never a JSON blob the database cannot index
-or validate.
+columns no other kind has — a child table keyed by section, never a wider
+`store_profiles` row or a JSON blob.
 
 ### Addresses are history
 
 The current address lives on the profile for the unique index and the fast
-lookup. Every address the store has ever answered to is a `store_slugs` row;
-`retired_at` says when it stopped being current. The column is unique across
-the whole table, so a rename can never take an address another store has
-ever used and a redirect can never be ambiguous.
+lookup. Every address the store has ever answered to is a `store_slugs`
+row; `retired_at` says when it stopped being current. The column is unique
+across the whole table, so a rename can never take an address another
+store has used and a redirect can never be ambiguous.
 
-`App\Actions\Store\RenameStoreSlug` is the one writer: in one transaction it
-stamps the current row retired, brings the new address in as the current
-row, and updates the profile. A rename back to an address the store retired
-earlier revives that row. A rename to the address the store already holds
-writes nothing.
+`App\Actions\Store\RenameStoreSlug` is the one writer: in one transaction
+it stamps the current row retired, brings the new address in as current,
+and updates the profile. A rename back to a retired address revives that
+row; a rename to the address the store already holds writes nothing.
 
 ### The routes
 
@@ -151,12 +176,12 @@ writes nothing.
 | `DELETE /seller/store/sections/{section}`          | Takes the section off the page                  |
 | `POST /seller/store/sections/{section}/reorder`    | Moves it one place up or down                   |
 
-The first `GET /seller/store` mints the store — hidden, named after the shop
-— through `App\Actions\Store\StartStore`, the shape
-`App\Models\Customer::cart()` already gives a storefront visitor. Every
-route answers 404 for another seller's rows (`App\Policies\StoreProfilePolicy`).
+The first `GET /seller/store` mints the store — hidden, named after the
+shop — through `App\Actions\Store\StartStore`, the shape
+`Customer::cart()` already gives a visitor. Every route answers 404 for
+another seller's rows (`App\Policies\StoreProfilePolicy`).
 
-### Limits
+### Limits and seeds
 
 | Thing                        | Ceiling                                    |
 | ---------------------------- | ------------------------------------------ |
@@ -167,12 +192,10 @@ route answers 404 for another seller's rows (`App\Policies\StoreProfilePolicy`).
 | Pictures per gallery         | `StoreSection::MAX_GALLERY_IMAGES` (8)     |
 | Sections per store           | `StoreSection::MAX_PER_PROFILE` (12)       |
 
-### Seeds
-
 `Database\Seeders\StoreProfileSeeder` gives every seeded seller a published
 store: a tagline, where they work, a story, a gallery, and two links. The
-picture rows name the same files on the public disk that the seller's
-listings already show, so the seed copies nothing.
+picture rows name the same files on the public disk the seller's listings
+already show, so the seed copies nothing.
 
 ### What the store does not write
 
@@ -182,14 +205,14 @@ no store limiter until the contract gains them, so the actions here write
 silently; minting a name the other two prototypes lack is what §2.3
 forbids.
 
-## The public page
+### The public page
 
 `GET /s/{slug}` renders the store in the Warm Craft theme. It is the same
 component the seller previews beside their form
 (`resources/views/components/store/profile.blade.php`); only the shell
 (`x-layouts.shop`) and the listing grid below it differ.
 
-### Resolving an address
+#### Resolving an address
 
 ```mermaid
 flowchart TB
@@ -212,23 +235,21 @@ ever held all answer the same 404, so a hidden store is never confirmed to
 exist. Its own seller is the exception: they see the page with a banner
 saying buyers cannot open it.
 
-### What the page shows
+#### What the page shows
 
 The cover, the portrait, the name, the tagline, the location, "N pieces for
 sale · Selling since <Month Year>" (`App\Support\Store\StoreFacts` — the
 count is `Listing::forSale()`, so a sold piece stays on the page and out of
 the number), the sections in order, the links, and the seller's storefront
-listings
-(`Listing::onStorefront()` — for sale and sold, never draft, archived, or
-removed) in the storefront's own grid partial.
+listings (`Listing::onStorefront()` — for sale and sold, never draft,
+archived, or removed) in the storefront's own grid partial.
 
 The page carries a title, a description (the tagline, else the opening of
 the first story, else the name), and an Open Graph image (the cover, else
-the portrait). `x-layouts.shop` gained `description` and `image` props for
-this, and emits the Open Graph group only for a page that passes one of
-them; every other storefront page renders as it did.
+the portrait) — `x-layouts.shop`'s `description`/`image` props, emitting
+the Open Graph group only when one is passed.
 
-### Listing cards lead to it
+#### Listing cards lead to it, and record a view
 
 `x-listing-card` and `/art/{slug}` name the seller as a link to their store
 when the store is published, and as plain text otherwise. The link reads
@@ -236,32 +257,19 @@ when the store is published, and as plain text otherwise. The link reads
 loads `seller.storeProfile` — `Model::shouldBeStrict()` turns a missed one
 into a lazy-loading violation outside production, so it fails loudly.
 
-### Analytics
-
-A view of a published page records `store.view` in the analytics store with
-`subject_type = 'store'` and the profile's `sto_` id, deduplicated per
-(store, customer, UTC hour) by `App\Domain\Store\StoreViewCollapse` —
-`listing.view`'s shape. A seller previewing their own hidden page records
-nothing. The admin analytics event list reads
-`AnalyticsEventName::cases()`, so the event appears there; an actor's feed
+A view of a published page records `store.view` with `subject_type =
+'store'` and the profile's `sto_` id, deduplicated per (store, customer,
+UTC hour) by `App\Domain\Store\StoreViewCollapse` — `listing.view`'s shape.
+A seller previewing their own hidden page records nothing; an actor's feed
 names the store unlinked, the way it already names a cart.
 
 ## Listings
 
 Question: how does a seller look at their inventory, and how does one
 listing's detail end up rendered in three different places without drifting?
-
-```mermaid
-flowchart LR
-    idx["GET /seller/listings\n?view=&sort=&dir=&range="] -->|view=list| list["list pane + detail"]
-    idx -->|view=table| table["sortable table"]
-    idx -->|view=grid| grid["storefront-style grid"]
-    table -- "row" --> show
-    grid -- "row" --> show
-    list -- "row" --> show["GET /seller/listings/{listing}\n?from=&sort=&dir=&range="]
-    show -->|from absent| detail1["list pane + detail (unchanged)"]
-    show -->|from=table or grid| overlay["workspace + <dialog> at 2xl,\ntakeover below it"]
-```
+`GET /seller/listings?view=list|table|grid` picks the index shape; a row's
+own link (`GET /seller/listings/{listing}?from=table|grid`) opens the same
+detail, unchanged when `from` is absent.
 
 ### Query vocabulary
 
@@ -284,21 +292,12 @@ explicitly.
 
 ### Layers
 
-```mermaid
-flowchart TB
-    controller["Http\\Controllers\\Seller\\ListingController"] --> table["Seller\\ListingTable"]
-    controller --> domain
-    table --> domain["Domain\\Seller\\{ListingTableRow,ListingTableSort,ListingSort,ListingSortColumn,SortDirection,ListingView}"]
-    table -.-> analytics["Analytics\\AnalyticsReport::countsForListingsSince()"]
-```
-
-`App\Seller\ListingTable::forSeller()` reads a seller's listings, their
-Medium attribute (batched, one query for every listing), their sold count
-and revenue, and their ranged analytics counts, joined by id in PHP into a
-`list<ListingTableRow>`; `App\Domain\Seller\ListingTableSort::apply()`
-orders them by the request's `ListingSort`. `ListingTable::forListing()`
-builds the same row for one listing — the detail component's source, so a
-listing's own page never disagrees with its row in the table.
+`App\Seller\ListingTable::forSeller()` and `::forListing()`
+(`Domain\Seller\{ListingTableRow,ListingTableSort,ListingSort,
+ListingSortColumn,SortDirection,ListingView}`, and
+`Analytics\AnalyticsReport::countsForListingsSince()`) build the same
+`ListingTableRow` shape, so a listing's own page never disagrees with its
+row in the table.
 
 **Sold and revenue** are all-time, unranged: an `order_items` row counts
 only when its order has been paid (`OrderStatus::hasBeenPaid()`) and its
@@ -312,33 +311,32 @@ abandoned checkout from reading as a sale.
 Every table column header is an `<a href>` carrying `aria-sort`; clicking
 the already-sorted column flips `dir`
 (`App\Domain\Seller\ListingSort::nextDirectionFor()`), clicking another one
-sorts it descending. The header's own `<select name="sort">` (every column
-but Status, which the table's header link already covers) is the same
-choice for Grid, which has no column headers to click; it posts back to
-the index route by GET, with a `<noscript>` fallback submit button.
+sorts it descending. The header's own `<select name="sort">` is the same
+choice for Grid, which has no headers to click; it posts back to the index
+route by GET through `data-sort-form`/`data-sort-select`/`data-sort-submit`
+hooks that `public/sort-autosubmit.js` submits on change — the CSP outside
+debug carries no inline `onchange`, so an always-rendered Sort button is
+what a visitor with the script blocked uses.
 
 ### Overlay vs takeover
 
 A table or grid row links to `/seller/listings/{id}?from=table` (or
 `grid`). `ListingController::show()` renders one view,
-`seller/listings/detail-overlay.blade.php`, that carries three blocks:
-the listings workspace (`hidden 2xl:flex`), a native `<dialog open>` over
-it (`hidden 2xl:flex`) holding the detail, and a takeover of the full
-content area (`2xl:hidden`) holding the same detail with a back link.
-Tailwind's `2xl:` variants pick which shows — no JavaScript decides, and
-the `<dialog>`'s "close" is a plain link back to the index at the
-resolved view, sort, and range.
+`seller/listings/detail-overlay.blade.php`, carrying three blocks: the
+listings workspace (`hidden … 2xl:block`, carrying `inert` since the
+dialog sits over it the whole time this view renders), a native
+`<dialog open>` over it (`hidden … 2xl:flex`), and a takeover of the
+content area (`2xl:hidden`) with a back link. Tailwind's `2xl:` variants
+pick which shows — no JavaScript decides.
 
 ### One detail component
 
-`x-seller.listing-detail` (`resources/views/components/seller/listing-detail.blade.php`)
-renders identity, status transitions, an active-removal alert,
-price/stock/dimensions/ranged-views/favorites/cart-adds/sold-and-revenue/last-sold,
-a ranged view strip (`x-seller.bar-strip` over
-`App\Domain\Analytics\BarStrip::bars()`), and the sales table. It takes a
-`Listing` (eager loaded with `activeRemoval`, `category`, `images`) and its
-`ListingTableRow`, and renders identically in the list pane, the overlay,
-and the takeover.
+`x-seller.listing-detail` renders identity, status transitions, an
+active-removal alert, price/stock/dimensions/ranged-views/favorites/
+cart-adds/sold-and-revenue/last-sold, a ranged view strip (`x-bar-strip`
+over `BarStrip::bars()`), and the sales table — a `Listing` and its
+`ListingTableRow`, rendered identically in the list pane, the overlay, and
+the takeover.
 
 ## Orders
 
@@ -374,40 +372,29 @@ the lane it was opened from, and so does the back link below `lg`.
 
 ### One rule, read two ways
 
-A lane is `status` plus "has a completed step". The tab counts come from one
-grouped read over exactly those two facts:
-
-```sql
-select status, exists (select * from fulfillment_events
-                       where fulfillment_id = fulfillments.id
-                         and kind = 'step_completed') as started,
-       count(*) as tally
-from fulfillments where seller_id = ? group by status, started
-```
-
-`Fulfillment::countedByLane` is that query and `FulfillmentLane::forStarted`
-folds each row into its pile, which is the same match
+A lane is `status` plus "has a completed step". `Fulfillment::countedByLane`
+is one grouped read over exactly those two facts, and
+`FulfillmentLane::forStarted` folds each row into its pile — the same match
 `FulfillmentLane::of` runs against a loaded `FulfillmentProgress`. The rows
-under a tab come from `Fulfillment::inLane`, the same rule written as a where
-clause. Two tests hold the three readings together: one walks a parcel of
-every status and asserts `inLane` selects the parcel its own `lane()` names,
-and one asserts each tab's number equals what `inLane` counts for that lane.
-The number on a tab and the rows beneath it cannot drift.
+under a tab come from `Fulfillment::inLane`, the same rule written as a
+where clause. Two tests hold the three readings together: one asserts
+`inLane` selects the parcel its own `lane()` names for a parcel of every
+status, one asserts each tab's number equals what `inLane` counts for that
+lane — the number on a tab and the rows beneath it cannot drift.
 
 ### What a row says beyond its own facts
 
-`App\Seller\FulfillmentLanes` hands the pane out as readonly value objects —
-`LaneTab`, `OrderRow`, `OrderPane` — so the Blade renders and decides
-nothing. Beyond the buyer, the scan line, the badge and the day, a row
-carries one note: **what the buyer asked and nobody answered** (the latest
-unread customer message on the parcel's thread), else **the last step the
-seller marked done** ("Label printed"). Both come from one query each across
+`App\Seller\FulfillmentLanes` hands the pane out as readonly value objects
+— `LaneTab`, `OrderRow`, `OrderPane` — so the Blade decides nothing. Beyond
+the buyer, the scan line, the badge and the day, a row carries one note:
+**what the buyer asked and nobody answered**, else **the last step the
+seller marked done** ("Label printed") — both from one query each across
 the whole window, never per row.
 
 ### The detail
 
-`Fulfillment::state()` builds `App\Domain\Fulfillment\ParcelState`, the
-sentence under the buyer's name, one shape per status:
+`App\Seller\OrderDetail::state()` builds `App\Domain\Fulfillment\ParcelState`,
+the sentence under the buyer's name, one shape per status:
 
 | Status | Line |
 | --- | --- |
@@ -417,33 +404,31 @@ sentence under the buyer's name, one shape per status:
 | Delivered | `Delivered Aug 28 · $612.00 released to your balance` |
 | Declined or refunded | `Declined Sep 1 · $450.00 returned to the buyer` |
 
-"Ship by" is placed plus three days — a display rule, never a stored date.
-The money phrase reads the parcel's last ledger movement, which is also what
-the payment card's Escrow line says through
-`LedgerEntryType::escrowState()`.
+"Ship by" is placed plus three days, a display rule never a stored date; the
+money phrase reads the parcel's last ledger movement, also what the payment
+card's Escrow line says through `LedgerEntryType::escrowState()`.
 
 Three cards sit under the header: **Customer** (name, email, and what they
-have bought from this seller), **Ships to** (the address as the buyer gave it
-at checkout), and **Payment** (the card, buyer paid, platform fee, your take,
-escrow). Then the items, each linked to its listing; the flow's steps
-(`x-seller.flow-steps`, FEAT-051) with the next one live; the shipment —
-a carrier and tracking form while the parcel is in the studio, four
-read-only facts once it has left; and the activity feed under its `?kind=`
-filter.
-
-A seller sees a customer's name, email, and address because an order carries
-them. `App\Seller\CustomerOnOrder` counts what that buyer has bought from
-this seller, leaving out every parcel that was declined or refunded: the
-money went back.
+have bought from this seller, via `App\Seller\CustomerOnOrder`, leaving out
+declined/refunded parcels), **Ships to** (the checkout address), and
+**Payment** (the card, buyer paid, platform fee, your take, escrow). Then
+the items, each linked to its listing; the flow's steps
+(`x-seller.flow-steps`) with the next one live; the shipment — a carrier
+and tracking form while the parcel is in the studio, four read-only facts
+once it has left; and the activity feed under its `?kind=` filter.
 
 ### Actions the state allows
 
 Message buyer is always there. Decline and Mark shipped are offered while
 the parcel awaits shipment, and the policy decides. The buttons in the
 header and in the mobile action bar submit the forms further down the page
-by `form=`, so one form serves both. Completing a step and
-marking shipped are POSTs that redirect back to the order, and the feed shows
-the new row on return.
+by `form=`, so one form serves both. Completing a step redirects back to
+the order — unless the step's action is `print_label`, which redirects to
+the printable label page (`GET /seller/orders/{fulfillment}/label`)
+instead; either way the feed shows the new row on return.
+`GET/PUT /seller/orders/flow` is the seller's own flow editor: add, rename,
+reorder, and remove a step, and choose which one prints the label — reached
+from every order page.
 
 ## Activity feed
 
@@ -465,16 +450,13 @@ flowchart LR
     Filter --> View["x-seller.feed"]
 ```
 
-`App\Seller\FeedScope` says which story: `forFulfillment()` is one parcel —
-its own listings, its own threads — and `forCustomer()` is everything between
-a seller and a buyer. Both carry the same shape (seller, customer, the
-customer's display name, fulfillment ids, listing ids), so a source never
-asks which scope it is answering, beyond the one narrowing an order scope
-does to threads.
-
-Each source is one method — `ActivityFeedSource::events(FeedScope): FeedEvent[]`
-— and `App\Seller\ActivityFeedReader` is the only thing that knows there are
-four of them.
+`App\Seller\FeedScope` says which story: `forFulfillment()` is one parcel,
+`forCustomer()` is everything between a seller and a buyer, both the same
+shape (seller, customer, display name, fulfillment ids, listing ids) so a
+source never asks which scope it is answering. Each source is one method —
+`ActivityFeedSource::events(FeedScope): FeedEvent[]` — and
+`App\Seller\ActivityFeedReader` is the only thing that knows there are four
+of them.
 
 ### Which source owns which row
 
@@ -507,23 +489,19 @@ which the sentence names after it.
 
 ### Merging and filtering are pure
 
-`App\Domain\Seller\ActivityFeed::merge(...$sources)` takes each source's
-`list<FeedEvent>` and sorts newest first. PHP's sort is stable, so two rows
-carrying the same instant come out in the order the reader passed their
-sources — browsing, order, shipping, messages — and a page reading the same
-scope twice reads the same feed.
-
-`filter(?ActivityKind)` narrows what the feed hands back, never what the
-sources return, so a page can never disagree with itself about what
-happened. A null kind is the whole feed, which is what an absent `?kind=`
-reads as. Both are unit tested with no database; each source is tested
-through it.
+`App\Domain\Seller\ActivityFeed::merge(...$sources)` sorts each source's
+`list<FeedEvent>` newest first with PHP's stable sort, so two rows sharing
+an instant keep the order the reader passed their sources — browsing,
+order, shipping, messages — and a page reading the same scope twice reads
+the same feed. `filter(?ActivityKind)` narrows what the feed hands back,
+never what the sources return, so a page can never disagree with itself; a
+null kind (an absent `?kind=`) is the whole feed. Both are unit tested with
+no database.
 
 `FeedEvent` is readonly: `occurredAt`, `kind`, `icon`, `actor`, `text`, and
 the optional `quote` and `link`. `FeedIcon` carries the heroicon path, so a
-row brings its own picture and `x-seller.feed` stays a renderer — the only
-feed markup in the portal, in the Tailwind Plus feed shape: a 32px round icon
-on a rail, the body, the instant.
+row brings its own picture and `x-seller.feed` stays a renderer — a 32px
+round icon on a rail, the body, the instant.
 
 ## Customers
 
@@ -534,18 +512,9 @@ a person?
 A customer is a buyer. Someone holding at least one paid fulfillment with
 the seller that still stands is on the list; browsing, favoriting, and
 asking about a piece join their timeline once they have bought. Every
-request derives the list from `fulfillments`; no table holds it.
-
-```mermaid
-flowchart LR
-    F["fulfillments\nseller, status is live"] --> T["totals per buyer\norders · spent · first · last"]
-    T --> R["CustomerRow"]
-    C["customers"] --> R
-    FAV["favorites\njoined to the seller's listings"] --> R
-    CON["conversations\nseller ↔ buyer"] --> R
-    R --> S["CustomerSegment · CustomerTableSort"]
-    R --> TA["CustomerTally"]
-```
+request derives the list from `fulfillments` — no table holds it — folded
+into totals per buyer (orders, spent, first, last) and joined to
+`customers`, `favorites`, and `conversations` for a `CustomerRow`.
 
 A `fulfillments` row exists from the moment an order is placed, so the
 derivation gates on the order having been paid: an abandoned checkout
@@ -583,47 +552,25 @@ buyer whatever the segment shows, so switching segments never moves them.
 
 ### Layers
 
-```mermaid
-flowchart TB
-    controller["Http\\Controllers\\Seller\\{CustomerController,CustomerMessageController}"] --> customers["Seller\\SellerCustomers"]
-    controller --> chrome["Seller\\{CustomersChrome,FeedFilters}"]
-    controller --> reader["Seller\\ActivityFeedReader"]
-    customers --> domain["Domain\\Seller\\{CustomerRow,CustomerSegment,CustomerSort,CustomerSortColumn,CustomerTableSort,CustomerTally}"]
-    chrome --> domain
-```
-
-`SellerCustomers::forSeller()` folds the figures in one grouped query —
-`count(*)`, `sum(subtotal_cents)`, and `min`/`max(orders.placed_at)` over
-the seller's counted parcels joined to their orders, grouped by customer —
-then joins the account rows, the favorites, and the thread counts by id in
+`Seller\SellerCustomers::forSeller()` folds the figures in one grouped
+query, then joins the account rows, favorites, and thread counts by id in
 PHP. A buyer holding no account name or address takes both from their
-latest order, which is one more query, run only when such a buyer is in the
-list. `forCustomer()` is the same fold narrowed to one person and hands
-back null for a stranger; the customer page, the Message button, and the
-thread rail all read it. `conversationCounts()` is the two thread figures
-the tiles carry.
-
-Sorting is a link carrying `aria-sort`, `App\Seller\ColumnHeader` per
-column through `x-seller.sortable-th`; a click on the sorted column flips
-`dir` (`CustomerSort::nextDirectionFor()`). The segment control and the
-timeline's kind filter are the same `x-seller.segmented` over
-`App\Seller\SegmentLink`, built by `CustomersChrome` and `FeedFilters`.
+latest order, one more query, run only when such a buyer is in the list.
+`forCustomer()` is the same fold narrowed to one person; the customer
+page, the Message button, and the thread rail all read it.
 
 ### The customer page
 
 Identity (name, email, customer since, a Repeat buyer badge from two
-orders), four figures, the activity feed under its kind filter
-(`ActivityFeedReader` over `FeedScope::forCustomer()`), every parcel
-between the two of them — a declined or refunded one included, which the
-figures leave out and the seller still has to be able to look back at —
-their favorites of this seller's pieces, and their threads.
+orders), four figures, the activity feed under its kind filter, every
+parcel between the two of them — a declined or refunded one included,
+which the figures leave out and the seller still has to be able to look
+back at — their favorites of this seller's pieces, and their threads.
 
-Message opens the buyer's newest thread with this seller. For a buyer the
-seller has yet to write to, it opens the thread for the buyer's latest
-parcel — latest by `orders.placed_at`, the recency this section reads
-everywhere — through `App\Actions\Messaging\OpenConversation`. That is a
-subject the two of them already share, so the button needs no new kind of
-conversation.
+Message opens the buyer's newest thread with this seller, or — for a buyer
+the seller has yet to write to — the thread for the buyer's latest parcel
+through `App\Actions\Messaging\OpenConversation`: a subject the two of them
+already share, so the button needs no new kind of conversation.
 
 ## Messages
 
@@ -631,24 +578,14 @@ The inbox and the thread are `docs/messaging.md`. What the seller portal adds
 beside the transcript is the context rail: who the seller is talking to, and
 what the thread is about.
 
-```mermaid
-flowchart LR
-    C["Conversation"] --> TC["Seller\\ThreadContext"]
-    S["SellerCustomers::forCustomer()"] --> TC
-    TC --> R["x-seller.context-rail"]
-    R --> CU["the customer page"]
-    R --> L["the listing"]
-    R --> O["the order"]
-    R --> T["their other threads"]
-```
-
 `App\Seller\ThreadContext::forSeller()` is the rail's one read — the
 `FeedScope` idiom, a readonly value object with a named constructor that
-reads. It carries the counterpart's name and initials, the `CustomerRow`
-where the counterpart has bought from this seller, the listing a question
-is about, the parcel a fulfillment thread is about — named by this seller's
-own lines, since a two-seller order carries both — and every other thread
-the two of them hold, newest first.
+reads `SellerCustomers::forCustomer()`. It carries the counterpart's name
+and initials, the `CustomerRow` where they have bought from this seller,
+the listing a question is about, the parcel a fulfillment thread is about
+— named by this seller's own lines, since a two-seller order carries both
+— and every other thread the two of them hold, newest first, rendered by
+`x-seller.context-rail`.
 
 The same privacy rule the customers section states: a buyer's numbers and
 their email show because an order carried them. A visitor who has only
@@ -669,80 +606,46 @@ per period. Code: `app/Domain/Seller/{PayoutEstimate,HeldOrder,HeldState,
 SaleFact,RefundFact,PeriodFigures,PeriodSettlement,PeriodPayoutStatus,
 PeriodSaleRow}`, `app/Seller/{NextPayout,HeldEscrow,EarningsPeriods,
 PeriodSales}`, `app/Http/Controllers/Seller/{EarningsController,
-StatementController}`, `resources/views/seller/earnings.blade.php`,
-`resources/views/seller/earnings/statement.blade.php`.
-
-```mermaid
-flowchart LR
-    subgraph http["Controllers"]
-        EC[EarningsController]
-        SC[StatementController]
-    end
-    subgraph adapters["App\\Seller (adapters)"]
-        NP[NextPayout]
-        HE[HeldEscrow]
-        EP[EarningsPeriods]
-        PS[PeriodSales]
-    end
-    subgraph domain["App\\Domain\\Seller (pure)"]
-        PE[PayoutEstimate]
-        HO[HeldOrder / HeldState]
-        PF[PeriodFigures]
-        PST[PeriodSettlement]
-    end
-    EC --> NP & HE & EP & PS
-    SC --> EP & PS
-    NP --> PE
-    HE --> HO
-    EP --> PF & PST
-    PE -.-> LB[App\\Domain\\Escrow\\LedgerBalance]
-    PF -.-> PP[App\\Domain\\Escrow\\PayoutPeriod]
-```
+StatementController}`.
 
 ### Next payout
 
 `PayoutEstimate::from(LedgerBalance, PayoutPeriod, releasedOrderCount)` reads
 its amount straight from `LedgerBalance::available` — released money not yet
 paid out, negative when a refund outran what escrow could cover
-(docs/escrow.md). The payout date is the Monday after the payout period
-`$now` falls in (`PayoutPeriod::containing()`), whether that period is
-still in progress or already complete. `NextPayout::for()` counts the
-delivered fulfillments since the seller's last real `payouts` row (every
-delivered fulfillment, when there has never been one) as the released order
-count.
+(docs/escrow.md) — for the Monday after the payout period `$now` falls in
+(`PayoutPeriod::containing()`). `NextPayout::for()` counts the delivered
+fulfillments since the seller's last real `payouts` row (every delivered
+fulfillment, when there has never been one) as the released order count.
 
 ### Held in escrow
 
 `HeldEscrow::for()` lists every `awaiting_shipment` or `shipped`
 fulfillment, oldest first, each carrying its net and a `HeldState`
-(`NotYetShipped` or `InTransit`) read from `shipped_at` alone — the seller's
-own flow steps (FEAT-051) are a separate lane and are not read here. The
-total is `LedgerBalance::held`, not a sum of the rows below it, so the
-figure always reconciles with the ledger fold even where a stray entry
-would make the two diverge.
+(`NotYetShipped` or `InTransit`) read from `shipped_at` alone — the
+seller's own flow steps are a separate lane, not read here. The total is
+`LedgerBalance::held`, not a sum of the rows, so it always reconciles.
 
 ### This period, past periods, and statements
 
 `EarningsPeriods::for()` opens an eight-payout-period window ending with
-the period `$now` falls in. Sales and fees are folded from live
-fulfillments (`FulfillmentStatus::isLive()`) grouped by `orders.placed_at`;
-refunds are folded from `ledger_entries` of type `refunded` grouped by
-`occurred_at` — a refund lands in the period it happened, not the period
-its sale was placed in. A declined or refunded order still counts toward
-`orderCount` for the period it was placed in; it earns no sales or fees.
+the period `$now` falls in. Sales and fees fold from live fulfillments
+(`FulfillmentStatus::isLive()`) grouped by `orders.placed_at`; refunds fold
+from `ledger_entries` of type `refunded` grouped by `occurred_at`, so a
+refund lands in the period it happened rather than its sale's period. A
+declined or refunded order still counts toward `orderCount` for the period
+placed; it earns no sales or fees.
 
-`PeriodSettlement` reads a period's payout status from two facts an adapter
-already has: whether it is the period in progress, and whether a `payouts`
-row exists for it. A completed period with no row reads as settled at zero
-— `RunWeeklyPayout` never writes one for a balance that was not payable
-(docs/escrow.md) — rather than as a run still owed.
+`PeriodSettlement` reads a period's payout status from whether it is the
+period in progress and whether a `payouts` row exists for it — a completed
+period with no row reads as settled at zero (`RunWeeklyPayout` never
+writes one for a balance that was not payable) rather than a run still owed.
 
 `PeriodSales::for()` lists every order placed inside one period, newest
 first, whatever its status — the rows behind both the current period's
 sales table and `StatementController`'s printable statement
-(`/seller/earnings/statements/{period}`, `period` a payout period's start
-date). A period outside the eight-period window, or a string that matches
-no period in it, answers 404.
+(`/seller/earnings/statements/{period}`). A period outside the window, or
+a string matching none in it, answers 404.
 
 ## Support
 
@@ -752,47 +655,21 @@ articles by topic, and the seller's own support threads. Code:
 `app/Domain/Seller/{HelpArticle,DeskPresence,PresenceStatus,ReplyTime}`,
 `app/Seller/{HelpArticles,SupportDesk,DeskPerson,SupportThreads}`,
 `app/Http/Controllers/Seller/{SupportController,HelpArticleController}`,
-`config/support.php`, `resources/help/seller/*.md`,
-`resources/views/seller/support/{index,article,create}.blade.php`.
-
-```mermaid
-flowchart LR
-    subgraph http["Controllers"]
-        SC[SupportController]
-        HAC[HelpArticleController]
-    end
-    subgraph adapters["App\\Seller (adapters)"]
-        SD[SupportDesk]
-        ST[SupportThreads]
-        HA[HelpArticles]
-    end
-    subgraph domain["App\\Domain\\Seller (pure)"]
-        DP[DeskPresence]
-        RT[ReplyTime]
-        HAr[HelpArticle]
-    end
-    SC --> SD & ST & HA
-    HAC --> HA
-    SD --> DP & RT
-    HA --> HAr
-    SD -.-> ADM[App\\Models\\Admin]
-```
+`config/support.php`, `resources/help/seller/*.md`.
 
 ### The desk
 
 `SupportDesk::for()` lists every seeded admin (`AdminSeeder`), each under
 the same shared role and presence — `DeskPresence::of()` reads weekday
 hours from `config('support.hours')` and answers Online or a "Back
-today/tomorrow/Monday at {opens_at}" label; no realtime signal backs it in
-this cut. `SupportDesk`'s `lastReplyTime` is the gap between the seller's
-most recent message across every `admin_seller` thread and the desk's first
-reply after it (`ReplyTime::between()`), or null while that message is
-still unanswered or the seller has never written in.
-
-Every other desk fact — email, phone and its hours, the booking URL, the
-reply-time promise — is `config('support.*')`, read from env with a
-bracketed placeholder default (`[PHONE NUMBER]`, `[BOOKING URL]`) for what
-is not known yet.
+today/tomorrow/Monday at {opens_at}" label, no realtime signal behind it.
+`lastReplyTime` is the gap between the seller's most recent message across
+every `admin_seller` thread and the desk's first reply after it
+(`ReplyTime::between()`), null while unanswered or unwritten. Every other
+desk fact — email, phone and its hours, the booking URL, the reply-time
+promise — is `config('support.*')`, read from env with a bracketed
+placeholder default (`[PHONE NUMBER]`, `[BOOKING URL]`) for what is not
+known yet.
 
 ### Help articles
 
@@ -800,273 +677,23 @@ is not known yet.
 matter (`group`, `title`, `slug`, `position`) and splits its body into
 blank-line-separated paragraphs — the markdown subset the four shipped
 articles need, no library behind it. `HelpArticles` reads every
-`resources/help/seller/*.md` file, cached per request, and groups them by
-topic in a fixed order (Getting paid, Shipping, Listings, Messages).
-`HelpArticleController@show` 404s for a slug no article carries.
+`resources/help/seller/*.md` file, cached per request, grouped by topic in
+a fixed order; `HelpArticleController@show` 404s for an unrecognised slug.
 
 ### Own threads and the create form
 
 `SupportThreads::for()` lists the seller's own `admin_seller` conversations,
-newest first — the same rows Messages' Support tab lists
-(`MessageController`'s `support` domain). `SupportController@create`/`store`
-are unchanged: the seller's existing titled new-conversation form, now
-reached from the hub's "Start a conversation" button rather than being the
-`/seller/support` route itself.
-
-## Dashboard
-
-Question: a seller opens the portal in the morning. What are the three
-numbers that say how the business is doing, which listings are working, and
-what has to be done today — each one click from the tool that does it?
-
-`GET /seller?range=7|30|90` is the whole vocabulary.
-`App\Http\Requests\Seller\DashboardQueryRequest` owns it, the
-docs/alignment.md §5 idiom: an absent or emptied value reads as `30`, an
-unrecognised one answers a bare 400. Every figure, delta, line, and strip
-on the page is read over that one range, and the caption under the title
-names the store and the window
-(`App\Domain\Analytics\AnalyticsRange::caption()`).
-
-```mermaid
-flowchart LR
-    C["Http\Controllers\Seller\DashboardController"] --> P["Seller\NextPayout"]
-    C --> O["Seller\SellerOverview"]
-    C --> L["Seller\ListingActivity"]
-    C --> N["Seller\NeedsAttention"]
-    C --> H["Seller\DashboardChrome"]
-    O --> SC["Seller\SellerCustomers"]
-    O --> SP["Domain\Seller\Sparkline"]
-    L --> LT["Seller\ListingTable"]
-    L --> AR["Analytics\AnalyticsReport"]
-    L --> BS["Domain\Analytics\BarStrip"]
-    N --> HE["Seller\HeldEscrow"]
-    N --> AQ["Domain\Seller\AttentionQueue"]
-    P --> PE["Domain\Seller\PayoutEstimate"]
-```
-
-`NextPayout` is read once in the controller and handed to both
-`SellerOverview` and `NeedsAttention`, so the earnings tile's footer and
-the payout group's heading can never name two different Mondays.
-
-### Three tiles
-
-Each is the Tailwind Plus "with brand icon" shape, and the whole tile is
-the link. `App\Seller\SellerOverview` builds all three as
-`App\Seller\OverviewTile` values.
-
-| Tile | Figure | Change | Line | Opens |
-| --- | --- | --- | --- | --- |
-| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers?range=` |
-| Orders | parcels placed in the range | vs the range before it (`RangeChange`) | parcels per day | `/seller/orders?lane=ship` |
-| Earnings | net of the range's live parcels | vs the range before it | net per day | `/seller/earnings` |
-
-The buyers are `SellerCustomers::forSeller()`'s own rows, so the tile and
-the customers table count the same people, and "new" is the same
-`CustomerRow::isNewSince()` the customers tally reads.
-
-Orders and earnings come from one query: the seller's parcels on paid
-orders placed anywhere between the previous range's first day and this
-range's last, folded in PHP by the UTC day of `orders.placed_at`. A parcel
-declined or refunded later still counts as an order placed and earns
-nothing — the rule `EarningsPeriods` reads a period by.
-
-`App\Domain\Seller\Sparkline::of()` scales a daily series onto one SVG
-polyline and names its last point, which `x-seller.sparkline` marks with a
-dot. The line keeps a two-pixel inset top and bottom and is scaled against
-the series' own floor, so a high plateau still shows its dip.
-`BarStrip` is the same idea in bars.
-
-### Activity on your listings
-
-`App\Seller\ListingActivity` answers four totals and five rows.
-
-Views, favorites, and cart adds are summed off `ListingTable`'s rows for
-this range and off `AnalyticsReport::countsForListingsBetween()` for the
-previous one — the ranged form `countsForListingsSince()` now delegates
-to. Sold is units off `order_items` on paid orders whose parcel still
-stands, the pair `ListingTable` counts an all-time sale by, narrowed to
-the range and bucketed by day so both windows read off one query.
-
-The rows are `ListingTable`'s own `ListingTableRow` values sorted by
-`ListingTableSort` on Views descending and cut to five, so a listing's
-figures on the dashboard and in the listings table are the same figures.
-Each row carries the units it sold inside the range and a daily view strip
-from `AnalyticsReport::dailyViewsForListings()` — five listings in one
-query. The strip covers the range capped at thirty days, so ninety bars
-never squeeze into one table cell; the header says which window it draws,
-and the Sold column heads the same way, since the listings table's own
-Sold is all-time. Every row opens the listing at the range the dashboard
-was read over.
-
-### Needs your attention
-
-`App\Seller\NeedsAttention` reads four queues and
-`App\Domain\Seller\AttentionQueue` turns them into the panels. Each
-queue is counted whole and read down to five rows, so a heading says how
-big the pile is while the panel stays scannable and a "N more" link
-carries the rest to the tool.
-
-| Group | Rows | Header opens |
-| --- | --- | --- |
-| Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
-| Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
-| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::tallyFor()`) | `/seller/earnings` |
-| Listings that need work | drafts and sold-out pieces, most recently edited first | `/seller/listings` |
-
-Every row opens the exact thing: the parcel, the thread, the earnings
-page, the listing. The held row opens the earnings page's own held list
-(`#held-heading`) — the In progress lane leaves out the parcels nobody has
-started, which that figure counts. To ship reads oldest by
-`orders.placed_at`, the same fact the row's age and its urgency come from,
-so the order of the rows and the red on them cannot disagree
-(`Fulfillment::inLane()` names `fulfillments.status` so the lane rule
-survives that join). A group holding nothing shows a sentence in place of
-its rows — "Nothing is waiting to ship.", "Every buyer has heard back from
-you.", "Every listing is published and in stock." — so the page never
-renders a blank panel.
-
-`AttentionQueue` is pure: it owns the heading each group wears at each
-count, the sentence it shows holding nothing, and the two-day rule, and it
-takes rows an adapter already built. `AttentionRow` carries the initials,
-the two lines, the meta, the href, and whether the row reads urgent.
-
-### What the dashboard costs
-
-The page reads six queues across two connections and renders on a fixed
-number of queries however many rows a seller holds, which one test pins.
-Two reads are duplicated by design: `Seller::escrowBalance()` is folded
-once for the payout estimate and once for `HeldEscrow::tallyFor()`, and
-the parcels waiting to ship are counted once for the orders tile's footer
-and once for the focus group's heading. Both are cheap aggregates, and
-threading either through would tie two adapters together for one query.
-Nothing on the page hydrates a row it does not render: the held figures
-are a ledger fold and one count, never the parcels behind them.
+newest first — the same rows Messages' Support tab lists. The existing
+titled new-conversation form (`SupportController@create`/`store`) is
+unchanged, now reached from the hub's "Start a conversation" button rather
+than being the `/seller/support` route itself.
 
 ## Data
 
-Question: which tables did the portal add, and what does each column carry?
-
-Nine tables, in two groups: six for how a seller presents, three for how a
-seller ships. `listings` gains one nullable column. Every id is a prefixed
-ULID (`docs/alignment.md` §1); the whole-database picture is
-[`data-model.md`](data-model.md).
-
-```mermaid
-erDiagram
-    sellers ||--o| store_profiles : "presents as"
-    store_profiles ||--o{ store_slugs : "has answered to"
-    store_profiles ||--o{ store_images : owns
-    store_profiles ||--o{ store_sections : "is built from"
-    store_sections ||--o{ store_section_images : places
-    store_images ||--o{ store_section_images : ""
-    store_profiles ||--o{ store_links : ""
-
-    sellers ||--o{ fulfillment_flows : owns
-    fulfillment_flows ||--o{ fulfillment_flow_steps : orders
-    listings }o--o| fulfillment_flows : "ships by"
-    fulfillments ||--o{ fulfillment_events : "is the record of"
-    fulfillment_flow_steps ||--o{ fulfillment_events : "completed as"
-
-    store_profiles {
-        text id PK "sto_"
-        text seller_id FK "unique"
-        text slug UK "the current address"
-        text name
-        text tagline "nullable"
-        text location "nullable"
-        text portrait_image_id "nullable, sim_, indexed, no foreign key"
-        text cover_image_id "nullable, sim_, indexed, no foreign key"
-        timestamp published_at "nullable, indexed; null = hidden"
-    }
-    store_slugs {
-        text id PK "ssl_"
-        text store_profile_id FK
-        text slug UK "unique across every store, current and retired"
-        timestamp retired_at "nullable, indexed; null = current"
-    }
-    store_images {
-        text id PK "sim_"
-        text store_profile_id FK
-        text seller_id FK "indexed"
-        text path "on the public disk"
-        text alt "nullable"
-    }
-    store_sections {
-        text id PK "sse_"
-        text store_profile_id FK
-        text kind "story | gallery"
-        integer position "unique with store_profile_id"
-        text heading "nullable"
-        text body "nullable"
-    }
-    store_section_images {
-        text id PK "ssi_"
-        text store_section_id FK
-        text store_image_id FK "unique with store_section_id"
-        integer position "unique with store_section_id"
-    }
-    store_links {
-        text id PK "slk_"
-        text store_profile_id FK
-        text kind "website | instagram, unique with store_profile_id"
-        text url
-        integer position "unique with store_profile_id"
-    }
-    fulfillment_flows {
-        text id PK "ffl_"
-        text seller_id FK "indexed with is_default"
-        text name
-        boolean is_default "partial unique index: one true per seller"
-    }
-    fulfillment_flow_steps {
-        text id PK "ffs_"
-        text fulfillment_flow_id FK
-        text seller_id FK "the flow's seller, copied down"
-        text key "40 chars, unique with fulfillment_flow_id"
-        text label "the words the seller gave the step"
-        text action "none | print_label"
-        integer position "unique with fulfillment_flow_id"
-    }
-    fulfillment_events {
-        text id PK "fev_"
-        text fulfillment_id FK "indexed with occurred_at"
-        text seller_id FK "indexed with occurred_at"
-        text kind "step_completed | shipped | delivered | declined | refunded"
-        text fulfillment_flow_step_id FK "nullable, nullOnDelete, unique with fulfillment_id"
-        text step_label "nullable, the step's words at completion"
-        text actor_type "seller | customer | admin | system"
-        text actor_id "nullable"
-        text carrier "nullable, from a print_label step"
-        text tracking_number "nullable, from a print_label step"
-        timestamp occurred_at
-    }
-    listings {
-        text id PK "lst_"
-        text fulfillment_flow_id FK "nullable, nullOnDelete; null = the seller's default flow"
-    }
-```
-
-Six shapes the migrations hold that the lines above do not:
-
-- `store_profiles.portrait_image_id` and `cover_image_id` carry a `sim_` id
-  with no database foreign key. `store_images` carries `store_profile_id`, so
-  a key back the other way is a cycle SQLite cannot create in either order.
-  `RemoveStoreImage` clears both columns before it deletes the row.
-- `store_slugs.slug` is unique across the whole table, retired rows included,
-  so a rename can never take an address another store has ever answered to
-  and a redirect can never be ambiguous.
-- `fulfillment_flows` holds one default per seller as
-  `create unique index … on fulfillment_flows (seller_id) where is_default = 1`.
-  Blueprint writes no partial index; SQLite and Postgres both take the
-  clause, so the migration writes the statement.
-- `fulfillment_events` is unique on
-  `(fulfillment_id, fulfillment_flow_step_id)`, so a step completed twice is
-  one row. A unique index counts each null as its own value, which leaves
-  every transition row — none of which names a step — outside the
-  constraint.
-- `fulfillment_events.step_label` copies the step's words at the moment of
-  completion, and `fulfillment_flow_step_id` is `nullOnDelete`, so a seller
-  who drops a step from their flow leaves the log still saying what they did.
-- `store_section_images` and `store_links` each carry two unique indexes: one
-  on position, so a section's pictures and a store's links hold an order, and
-  one on the child (image, link kind), so neither is listed twice.
+Nine tables, in two groups: six for how a seller presents (`store_profiles`,
+`store_slugs`, `store_images`, `store_sections`, `store_section_images`,
+`store_links`), three for how a seller ships (`fulfillment_flows`,
+`fulfillment_flow_steps`, `fulfillment_events`), plus `listings`' one
+nullable `fulfillment_flow_id` column. Every id is a prefixed ULID
+(`docs/alignment.md` §1); the full column list, every relationship, and the
+caveats a diagram cannot draw are in [`data-model.md`](data-model.md).
