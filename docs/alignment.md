@@ -514,7 +514,7 @@ layout is per stack.
 | `/admin/stats`                                                          | Node and Rails: page views by day (7-day window) and by route pattern,   |
 |                                                                         | listing event tallies. PHP: permanent redirect to `/admin/analytics`     |
 | `/admin/analytics?range=7\|30\|90&actors=all\|anonymous\|verified&q=`   | one tile per funnel (end-to-end conversion, change vs the range before,  |
-|                                                                         | `position` order) above every event name compared with the range before |
+|                                                                         | `position` order) above every event name compared with the range before  |
 |                                                                         | it, a daily bar strip, distinct subject/actor counts, and the actors     |
 |                                                                         | with the highest events-per-hour peak; `q` narrows both tables and a     |
 |                                                                         | pasted listing or customer id or a shared ip jumps straight to it        |
@@ -528,7 +528,7 @@ layout is per stack.
 |                                                                         | form                                                                     |
 | `/admin/analytics/listings/:listing?range=&event=`                      | the listing's identity, range tiles, a daily strip, and its event feed   |
 |                                                                         | newest first; links to the listing                                       |
-| `/admin/analytics/funnels/:funnel?range=`                               | one funnel's own steps (visitors through its last named step), the      |
+| `/admin/analytics/funnels/:funnel?range=`                               | one funnel's own steps (visitors through its last named step), the       |
 |                                                                         | range control; linked from its tile above and from `/admin/funnels`      |
 | `/admin/analytics/channels?range=`                                      | every channel — visitors, listing views, cart adds, orders placed, and   |
 |                                                                         | orders paid, against the range before — ordered by visitors              |
@@ -543,8 +543,9 @@ layout is per stack.
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
-| `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread; `filter=`/`status=`; open a  |
-| `POST /admin/sellers/:id/messages`, `/admin/customers/:id/messages`     | titled thread from the seller/customer detail page (PHP: `messaging.md`) |
+| `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread; PHP: `domain=`               |
+| `POST /admin/sellers/:id/messages`, `/admin/customers/:id/messages`     | (`messaging.md`); node/rails: `filter=`/`status=` until a parity ticket; |
+|                                                                         | open a titled thread from the seller/customer detail page                |
 
 Decisions carried by this table:
 

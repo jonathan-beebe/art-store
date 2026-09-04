@@ -363,22 +363,32 @@ oversight threads (seller ↔ customer) are listed on the admin inbox through a
 separate scope and never count toward the admin's badge, since nobody on the
 desk is waited on there.
 
-## Inbox filters and the seller's queue
+## Inbox domains
 
-Every inbox takes `?filter=` and `?status=`; unknown values answer 400 the way
-`docs/alignment.md` §5 says.
+The seller and admin inboxes each take one domain tab (`?domain=`); an
+unrecognised value answers 400 the way `docs/alignment.md` §5 says.
+`App\Http\Requests\{Seller,Admin}\MessagesQueryRequest` own validation and
+defaulting (`domain(): string`), which the controllers read to build the
+Eloquent query and the `x-messaging.inbox-tabs` component reads to render the
+tabs. The shop inbox is unchanged: it still takes `?filter=` and `?status=`
+(`all`/`unread` and `open`/`resolved`/`all`).
 
-| Site   | `filter` values                                         | Default sort                                     |
-| ------ | ------------------------------------------------------- | ------------------------------------------------ |
-| Seller | `all`, `unread`, `questions`, `orders`, `support`       | `last_message_at` desc; `questions` lists        |
-|        |                                                         | unanswered first (last message not the seller's) |
-| Admin  | `needs-reply`, `all`, `sellers`, `customers`, `orders`, | `last_message_at` desc                           |
-|        | `questions`                                             |                                                  |
-| Shop   | `all`, `unread`                                         | `last_message_at` desc                           |
+| Site   | `domain` values               |
+| ------ | ------------------------------ |
+| Seller | `all`, `buyers`, `support`     |
+| Admin  | `all`, `sellers`, `customers`  |
 
-`needs-reply` on the admin site is the desk's work queue: open desk threads
-whose latest message is not an admin's. `orders` and `questions` on the admin
-site are the oversight lists.
+`domain` defaults to `all`. A domain tab is the only thing that narrows an
+inbox: every conversation in the domain lists, open and resolved alike,
+ordered by `last_message_at` desc and by nothing else — reading a thread
+changes nothing about its sort key, so opening a row never moves it. The
+unread dot and the resolved check glyph on a row are the only signals the
+list itself carries; there is no separate filter.
+
+Domain narrows by `ConversationKind`: seller Buyers is `ListingQuestion` +
+`Fulfillment`, Support is `AdminSeller`; admin Sellers is `AdminSeller`,
+Customers is `AdminCustomer`, admin All is every kind — desk and oversight
+together.
 
 ## Telling the other side
 

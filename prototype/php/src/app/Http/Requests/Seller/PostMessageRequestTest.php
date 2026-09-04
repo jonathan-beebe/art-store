@@ -59,7 +59,10 @@ it('ignores a reply-to naming a message from another thread, rather than refusin
         'reply_to_message_id' => $otherThreadMessage->id,
     ]);
 
-    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
+    $response->assertRedirect(route('seller.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'all',
+    ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'It ships within 3 days.')->sole()->reply_to_message_id)
         ->toBeNull();
 });
@@ -73,7 +76,10 @@ it('ignores a reply-to naming no message at all, rather than refusing the reply'
         'reply_to_message_id' => 'msg_does_not_exist',
     ]);
 
-    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
+    $response->assertRedirect(route('seller.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'all',
+    ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'It ships within 3 days.')->sole()->reply_to_message_id)
         ->toBeNull();
 });
@@ -88,7 +94,10 @@ it('reads a reply-to naming a message of the same thread', function (): void {
         'reply_to_message_id' => $quoted->id,
     ]);
 
-    $response->assertRedirect(route('seller.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'open']));
+    $response->assertRedirect(route('seller.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'all',
+    ]));
     expect(Message::where('conversation_id', $conversation->id)->where('body', 'Yes, it does.')->sole()->reply_to_message_id)
         ->toBe($quoted->id);
 });

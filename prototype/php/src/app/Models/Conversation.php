@@ -349,38 +349,6 @@ class Conversation extends Model
     }
 
     /**
-     * The seller's `questions` filter: unanswered threads first (the latest
-     * message is not the seller's own), then newest first within each group.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function unansweredFirst(Builder $query): void
-    {
-        $query->orderByRaw(
-            '(select sender_type from messages where messages.conversation_id = conversations.id order by messages.sent_at desc, messages.id desc limit 1) = ?',
-            [ActorType::Seller->value],
-        )->orderByDesc('last_message_at');
-    }
-
-    /**
-     * The desk's work queue: open desk threads whose latest message is not
-     * an admin's.
-     *
-     * @param  Builder<$this>  $query
-     */
-    #[Scope]
-    protected function needsReply(Builder $query): void
-    {
-        $query->whereIn('kind', [ConversationKind::AdminSeller, ConversationKind::AdminCustomer])
-            ->whereNull('resolved_at')
-            ->whereHas('latestMessage', function (Builder $message): void {
-                /** @var Builder<Message> $message */
-                $message->where('sender_type', '!=', ActorType::Admin->value);
-            });
-    }
-
-    /**
      * The per-thread unread badge an inbox row carries, counted in SQL for
      * the whole page rather than per row.
      *

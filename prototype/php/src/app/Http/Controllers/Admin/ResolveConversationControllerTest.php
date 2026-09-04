@@ -12,17 +12,23 @@ it('marks a desk thread resolved', function (): void {
 
     $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/resolve");
 
-    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'all']));
+    $response->assertRedirect(route('admin.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'all',
+    ]));
     expect($conversation->fresh()?->resolved_at)->not->toBeNull();
 });
 
-it('carries the panes filter and status onward through the redirect', function (): void {
+it('carries the panes domain onward through the redirect', function (): void {
     $admin = $this->admin();
     $conversation = Conversation::factory()->adminSeller()->create();
 
-    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/resolve?filter=sellers&status=open");
+    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/resolve?domain=sellers");
 
-    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'sellers', 'status' => 'open']));
+    $response->assertRedirect(route('admin.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'sellers',
+    ]));
 });
 
 it('refuses to resolve an oversight thread, the desk never owns it', function (): void {

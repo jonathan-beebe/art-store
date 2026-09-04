@@ -4,39 +4,26 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Admin;
 
-it('defaults to the desks work queue when no query string is given', function (): void {
+it('defaults to the all domain with nothing in the query string', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages');
 
     $response->assertOk();
 });
 
-it('accepts every documented filter and status value', function (string $filter, string $status): void {
-    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/messages?filter={$filter}&status={$status}");
+it('accepts every documented domain value', function (string $domain): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/messages?domain={$domain}");
 
     $response->assertOk();
-})->with([
-    ['needs-reply', 'open'],
-    ['all', 'all'],
-    ['sellers', 'resolved'],
-    ['customers', 'open'],
-    ['orders', 'all'],
-    ['questions', 'resolved'],
-]);
+})->with(['all', 'sellers', 'customers']);
 
-it('answers 400 for an unrecognised filter', function (): void {
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?filter=bogus');
+it('answers 400 on a domain value outside the documented set', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?domain=bogus');
 
     $response->assertStatus(400);
 });
 
-it('answers 400 for an unrecognised status', function (): void {
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?status=bogus');
-
-    $response->assertStatus(400);
-});
-
-it('reads an emptied filter or status as absent, the way a blank select submits', function (): void {
-    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?filter=&status=');
+it('reads an emptied domain as absent rather than as a value to reject', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/messages?domain=');
 
     $response->assertOk();
 });

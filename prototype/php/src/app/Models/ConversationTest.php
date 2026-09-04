@@ -311,31 +311,6 @@ it('lists only threads carrying an unread message for the reader', function (): 
     expect(Conversation::query()->unreadOnly($seller)->pluck('id')->all())->toBe([$unread->id]);
 });
 
-it('orders the desk\'s needs-reply queue to open threads awaiting a non-admin reply', function (): void {
-    $admin = Admin::factory()->create();
-    $seller = $this->seller();
-    $awaiting = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
-    Message::factory()->from($seller)->create(['conversation_id' => $awaiting->id]);
-    $answered = Conversation::factory()->adminSeller()->create();
-    Message::factory()->from($admin)->create(['conversation_id' => $answered->id]);
-    $resolved = Conversation::factory()->adminSeller()->create(['resolved_at' => now()]);
-    Message::factory()->create(['conversation_id' => $resolved->id]);
-    Conversation::factory()->listingQuestion()->create();
-
-    expect(Conversation::query()->needsReply()->pluck('id')->all())->toBe([$awaiting->id]);
-});
-
-it('orders the seller\'s questions with the unanswered ones first', function (): void {
-    $seller = $this->seller();
-    $answered = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'last_message_at' => now()]);
-    Message::factory()->from($seller)->create(['conversation_id' => $answered->id, 'sent_at' => now()]);
-    $unanswered = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'last_message_at' => now()->subHour()]);
-    Message::factory()->create(['conversation_id' => $unanswered->id, 'sent_at' => now()->subHour()]);
-
-    expect(Conversation::query()->where('seller_id', $seller->id)->unansweredFirst()->pluck('id')->all())
-        ->toBe([$unanswered->id, $answered->id]);
-});
-
 it('counts the messages a reader has not read on each thread', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();

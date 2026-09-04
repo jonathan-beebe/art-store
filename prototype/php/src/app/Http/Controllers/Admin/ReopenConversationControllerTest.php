@@ -12,17 +12,23 @@ it('reopens a resolved desk thread', function (): void {
 
     $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/reopen");
 
-    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'all', 'status' => 'all']));
+    $response->assertRedirect(route('admin.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'all',
+    ]));
     expect($conversation->fresh()?->resolved_at)->toBeNull();
 });
 
-it('carries the panes filter and status onward through the redirect', function (): void {
+it('carries the panes domain onward through the redirect', function (): void {
     $admin = $this->admin();
     $conversation = Conversation::factory()->adminSeller()->create(['resolved_at' => now()]);
 
-    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/reopen?filter=customers&status=resolved");
+    $response = $this->actingAs($admin, 'admin')->post("/admin/messages/{$conversation->id}/reopen?domain=customers");
 
-    $response->assertRedirect(route('admin.messages.show', ['conversation' => $conversation, 'filter' => 'customers', 'status' => 'resolved']));
+    $response->assertRedirect(route('admin.messages.show', [
+        'conversation' => $conversation,
+        'domain' => 'customers',
+    ]));
 });
 
 it('refuses to reopen a thread that is not resolved', function (): void {

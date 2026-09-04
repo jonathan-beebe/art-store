@@ -7,13 +7,10 @@
     server-rendered first, so the form still works without the script.
     Admin-exclusive.
 --}}
-@props(['conversation', 'action', 'replyTo' => null, 'filter' => null, 'status' => null])
+@props(['conversation', 'action', 'domain', 'replyTo' => null])
 
 @php
-    $cancelRouteParams = array_filter(
-        ['conversation' => $conversation, 'filter' => $filter, 'status' => $status],
-        fn ($value) => $value !== null,
-    );
+    $cancelRouteParams = ['conversation' => $conversation, 'domain' => $domain];
 @endphp
 
 <form method="POST" action="{{ $action }}" class="mt-6">

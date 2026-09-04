@@ -10,20 +10,16 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 /**
- * The seller inbox's `?filter=` and `?status=` (docs/messaging.md § "Inbox
- * filters and the seller's queue"): an absent or empty value reads as the
- * default, an unrecognised one answers a bare 400 (docs/alignment.md §5)
- * rather than the framework's default redirect back with flashed errors.
+ * The seller inbox's `?domain=` (docs/messaging.md § "Inbox domains"): an
+ * absent or emptied value reads as the default, and an unrecognised value
+ * answers a bare 400 (docs/alignment.md §5) rather than the framework's
+ * default redirect back with flashed errors.
  */
 final class MessagesQueryRequest extends FormRequest
 {
-    public const string DEFAULT_FILTER = 'all';
+    public const string DEFAULT_DOMAIN = 'all';
 
-    public const string DEFAULT_STATUS = 'open';
-
-    private const array FILTERS = ['all', 'unread', 'questions', 'orders', 'support'];
-
-    private const array STATUSES = ['open', 'resolved', 'all'];
+    public const array DOMAINS = ['all', 'buyers', 'support'];
 
     /**
      * @return array<string, list<mixed>>
@@ -31,17 +27,16 @@ final class MessagesQueryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'filter' => ['nullable', Rule::in(self::FILTERS)],
-            'status' => ['nullable', Rule::in(self::STATUSES)],
+            'domain' => ['nullable', Rule::in(self::DOMAINS)],
         ];
     }
 
-    /** An emptied value reads as absent rather than as a value the rule above would otherwise have to admit. */
+    /** An emptied `domain` reads as absent rather than as a value the rule
+     * above would otherwise have to admit. */
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'filter' => $this->filled('filter') ? $this->input('filter') : null,
-            'status' => $this->filled('status') ? $this->input('status') : null,
+            'domain' => $this->filled('domain') ? $this->input('domain') : null,
         ]);
     }
 
@@ -50,26 +45,11 @@ final class MessagesQueryRequest extends FormRequest
         throw new HttpResponseException(response('', 400));
     }
 
-    public function filter(): string
+    /** The current domain tab, defaulted when absent. */
+    public function domain(): string
     {
-        return $this->stringOrDefault('filter', self::DEFAULT_FILTER);
-    }
+        $domain = $this->input('domain');
 
-    public function status(): string
-    {
-        return $this->stringOrDefault('status', self::DEFAULT_STATUS);
-    }
-
-    /**
-     * `input($key, $default)` falls back to `$default` only when the key is
-     * entirely absent — `prepareForValidation` above leaves a blanked value
-     * present with a `null` value, which `input()` returns as-is rather than
-     * defaulting, so the fallback is applied here instead.
-     */
-    private function stringOrDefault(string $key, string $default): string
-    {
-        $value = $this->input($key);
-
-        return is_string($value) && $value !== '' ? $value : $default;
+        return is_string($domain) && $domain !== '' ? $domain : self::DEFAULT_DOMAIN;
     }
 }
