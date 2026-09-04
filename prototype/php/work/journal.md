@@ -28,6 +28,7 @@
 - 2026-09-04:15:30:00 — IMPRV-036 — started
 - 2026-09-04:15:23:48 — IMPRV-034 — resolved: `sellerBadgeTint()` renamed to `badgeTint()`, every seller and admin caller and the test updated
 - 2026-09-04:14:30:06 — IMPRV-034 — started
+- 2026-09-04:15:39:35 — FEAT-064 — resolved — Workflows resource (index/create/edit/make-default/destroy) at /seller/workflows, old route 301-redirects, Basics-page picker for sellers with 2+ flows, docs/seller-portal.md Workflows section; make precommit green
 - 2026-09-04:14:31:10 — FEAT-064 — started — build the Workflows resource (index/create/edit/make-default/destroy), old-route redirect, listing picker, docs section
 - 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:12:06:48 — FEAT-064 — defined: A seller can keep more than one fulfillment flow and pick one per listing
