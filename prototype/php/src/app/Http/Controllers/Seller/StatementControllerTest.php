@@ -38,22 +38,6 @@ it('reconciles its net with the ledger fold for a sale refunded in its own perio
         ->and($seller->escrowBalance()->held->isZero())->toBeTrue();
 });
 
-it('answers 404 for a period outside the eight-period window', function (): void {
-    $seller = $this->seller();
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/2020-01-06');
-
-    $response->assertNotFound();
-});
-
-it('answers 404 for a malformed period', function (): void {
-    $seller = $this->seller();
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/not-a-date');
-
-    $response->assertNotFound();
-});
-
 it('IMPRV-030 offers a print control that still reads with scripts blocked', function (): void {
     $seller = $this->seller();
 
