@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Auth\ActorType;
-use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
 use App\Domain\Fulfillment\LaneFilter;
-use App\Models\Conversation;
 use App\Models\Fulfillment;
 use App\Models\FulfillmentEvent;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Query\JoinClause;
 
 /**
  * The orders list pane: how many parcels each lane holds, and the rows of
@@ -50,8 +50,8 @@ final readonly class FulfillmentLanes
     public function pane(Seller $seller, LaneFilter $lane, ?Fulfillment $open = null): OrderPane
     {
         $window = ListPaneWindow::of($this->query($seller, $lane), $open);
-        $fulfillments = array_values($window->items->all());
-        $notes = $this->notes(array_map(fn (Fulfillment $fulfillment): string => $fulfillment->id, $fulfillments));
+        $fulfillments = $window->items->load('latestCompletedStep');
+        $notes = $this->notes($fulfillments);
 
         $rows = array_map(fn (Fulfillment $fulfillment): OrderRow => new OrderRow(
             id: $fulfillment->id,
@@ -64,9 +64,9 @@ final readonly class FulfillmentLanes
             tint: $fulfillment->status->sellerBadgeTint(),
             placed: $fulfillment->order->placed_at->format('M j'),
             note: $notes[$fulfillment->id] ?? null,
-        ), $fulfillments);
+        ), $fulfillments->all());
 
-        return new OrderPane($lane, $rows, $window->total);
+        return new OrderPane($lane, array_values($rows), $window->total);
     }
 
     /**
@@ -112,71 +112,76 @@ final readonly class FulfillmentLanes
      * The one line a row carries beyond its own facts: what the buyer asked
      * and nobody has answered, else the last step the seller marked done.
      *
-     * @param  list<string>  $fulfillmentIds
+     * @param  Collection<int, Fulfillment>  $fulfillments  carrying `latestCompletedStep`
      * @return array<string, string>
      */
-    private function notes(array $fulfillmentIds): array
+    private function notes(Collection $fulfillments): array
     {
-        if ($fulfillmentIds === []) {
+        if ($fulfillments->isEmpty()) {
             return [];
         }
 
-        return [...$this->completedSteps($fulfillmentIds), ...$this->unansweredQuestions($fulfillmentIds)];
+        $ids = array_values($fulfillments->map(fn (Fulfillment $fulfillment): string => $fulfillment->id)->all());
+
+        return [...$this->completedSteps($fulfillments), ...$this->unansweredQuestions($ids)];
     }
 
     /**
-     * @param  list<string>  $fulfillmentIds
+     * @param  Collection<int, Fulfillment>  $fulfillments  carrying `latestCompletedStep`
      * @return array<string, string>
      */
-    private function completedSteps(array $fulfillmentIds): array
+    private function completedSteps(Collection $fulfillments): array
     {
         $notes = [];
 
-        $events = FulfillmentEvent::query()
-            ->whereIn('fulfillment_id', $fulfillmentIds)
-            ->where('kind', FulfillmentEventKind::StepCompleted)
-            ->inOrder()
-            ->get();
-
-        foreach ($events as $event) {
-            $notes[$event->fulfillment_id] = $event->stepLabel();
+        foreach ($fulfillments as $fulfillment) {
+            if ($fulfillment->latestCompletedStep instanceof FulfillmentEvent) {
+                $notes[$fulfillment->id] = $fulfillment->latestCompletedStep->stepLabel();
+            }
         }
 
         return $notes;
     }
 
     /**
+     * The newest unread customer message per fulfillment, one grouped query
+     * over a join to its thread rather than the whole backlog.
+     *
      * @param  list<string>  $fulfillmentIds
      * @return array<string, string>
      */
     private function unansweredQuestions(array $fulfillmentIds): array
     {
-        $threads = Conversation::query()
-            ->whereIn('fulfillment_id', $fulfillmentIds)
-            ->pluck('fulfillment_id', 'id');
+        $unread = Message::query()
+            ->join('conversations', 'conversations.id', '=', 'messages.conversation_id')
+            ->whereIn('conversations.fulfillment_id', $fulfillmentIds)
+            ->where('messages.sender_type', ActorType::Customer->value)
+            ->whereNull('messages.read_at');
 
-        if ($threads->isEmpty()) {
-            return [];
-        }
+        $latest = (clone $unread)
+            ->selectRaw('conversations.fulfillment_id as fulfillment_id, max(messages.sent_at) as sent_at')
+            ->groupBy('conversations.fulfillment_id');
 
-        $messages = Message::query()
-            ->whereIn('conversation_id', $threads->keys()->all())
-            ->where('sender_type', ActorType::Customer->value)
-            ->whereNull('read_at')
-            ->orderBy('sent_at')
-            ->orderBy('id')
-            ->get();
+        $rows = $unread
+            ->joinSub($latest, 'latest_message', function (JoinClause $join): void {
+                $join->on('conversations.fulfillment_id', '=', 'latest_message.fulfillment_id')
+                    ->on('messages.sent_at', '=', 'latest_message.sent_at');
+            })
+            ->toBase()
+            ->get(['conversations.fulfillment_id as fulfillment_id', 'messages.body as body']);
 
         $notes = [];
 
-        foreach ($messages as $message) {
-            $fulfillmentId = $threads->get($message->conversation_id);
-
-            if (is_string($fulfillmentId)) {
-                $notes[$fulfillmentId] = $message->body;
-            }
+        foreach ($rows as $row) {
+            // A tie on sent_at keeps the first row read for a parcel.
+            $notes[self::text($row->fulfillment_id)] ??= self::text($row->body);
         }
 
         return $notes;
+    }
+
+    private static function text(mixed $value): string
+    {
+        return is_string($value) ? $value : '';
     }
 }
