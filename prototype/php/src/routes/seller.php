@@ -29,6 +29,7 @@ use App\Http\Controllers\Seller\QuantityBreakController;
 use App\Http\Controllers\Seller\ReopenConversationController;
 use App\Http\Controllers\Seller\ResolveConversationController;
 use App\Http\Controllers\Seller\ShipmentController;
+use App\Http\Controllers\Seller\StatementController;
 use App\Http\Controllers\Seller\SupportController;
 use App\Http\Controllers\Seller\UnitController;
 use App\Http\Controllers\Seller\VariantController;
@@ -96,6 +97,7 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::post('orders/{fulfillment}/messages', OrderMessageController::class)->name('orders.messages');
 
     Route::get('earnings', EarningsController::class)->name('earnings');
+    Route::get('earnings/statements/{period}', StatementController::class)->name('earnings.statements.show');
 
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');

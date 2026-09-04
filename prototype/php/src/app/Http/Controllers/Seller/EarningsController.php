@@ -4,32 +4,30 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Domain\Escrow\LedgerEntryType;
-use App\Domain\Orders\FulfillmentStatus;
-use Illuminate\Database\Eloquent\Relations\Relation;
+use App\Seller\EarningsPeriods;
+use App\Seller\HeldEscrow;
+use App\Seller\NextPayout;
+use App\Seller\PeriodSales;
+use Illuminate\Support\Facades\Date;
 use Illuminate\View\View;
 
+/**
+ * The earnings page: the next payout, what is still held and why, this
+ * period against the seven before it, and a bar per period.
+ */
 final class EarningsController extends SellerController
 {
     public function __invoke(): View
     {
         $seller = $this->seller();
+        $now = Date::now()->toDateTimeImmutable();
+        $periods = EarningsPeriods::for($seller, $now);
 
         return view('seller.earnings', [
-            'fulfillments' => $seller->fulfillments()
-                ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->get(),
-            'balance' => $seller->escrowBalance(),
-            'openOrders' => $seller->fulfillments()->where('status', FulfillmentStatus::AwaitingShipment)->count(),
-            'refunds' => $seller->ledgerEntries()
-                ->ofType(LedgerEntryType::Refunded)
-                ->with('fulfillment')
-                ->orderByDesc('occurred_at')
-                ->orderByDesc('id')
-                ->get(),
-            'payouts' => $seller->payouts()->latest('period_start')->get(),
+            'nextPayout' => NextPayout::for($seller, $now),
+            'held' => HeldEscrow::for($seller),
+            'periods' => $periods,
+            'currentSales' => PeriodSales::for($seller, $periods->current()->period),
         ]);
     }
 }
