@@ -6,9 +6,9 @@ namespace App\Domain\Fulfillment;
 
 /**
  * The orders tool's `?lane=`: one of the three piles a parcel sits on, or
- * every parcel there is. `All` is the tab with no lane behind it, which is
- * why this carries its own vocabulary instead of a nullable
- * {@see FulfillmentLane}.
+ * every parcel there is. `All` is the tab with no lane behind it, so this
+ * carries its own vocabulary and {@see FulfillmentLane} stays the three
+ * piles.
  */
 enum LaneFilter: string
 {

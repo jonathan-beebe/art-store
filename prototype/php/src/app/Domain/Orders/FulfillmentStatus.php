@@ -60,10 +60,9 @@ enum FulfillmentStatus: string
     }
 
     /**
-     * The color the status badge wears. Named here so the row, the header,
-     * and the badge on one page cannot drift apart.
+     * The seller portal's `x-seller.status-badge` tint for this status.
      */
-    public function tint(): string
+    public function sellerBadgeTint(): string
     {
         return match ($this) {
             self::AwaitingShipment => 'yellow',
