@@ -32,7 +32,7 @@ final readonly class NextPayout
             ->when(
                 $lastPayout,
                 /** @param Builder<Fulfillment> $query */
-                fn (Builder $query, Payout $payout): Builder => $query->where('delivered_at', '>', $payout->period_end),
+                fn (Builder $query, Payout $payout): Builder => $query->where('delivered_at', '>', $payout->period_end->endOfDay()),
             )
             ->count();
 

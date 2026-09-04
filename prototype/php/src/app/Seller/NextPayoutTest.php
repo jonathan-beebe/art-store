@@ -37,6 +37,23 @@ it('counts every delivered fulfillment when the seller has never been paid', fun
     expect($payout->estimate->releasedOrderCount)->toBe(2);
 });
 
+it('does not count a Sunday delivery again once the payout that settled it has run', function (): void {
+    $seller = $this->seller();
+    $this->deliveredFulfillmentFor(
+        $seller,
+        priceCents: 5_000,
+        orderedAt: $this->moment('2026-08-10 09:00:00'),
+        shippedAt: $this->moment('2026-08-11 09:00:00'),
+        deliveredAt: $this->moment('2026-08-16 20:00:00'), // the settled period's last day
+    );
+    app(RunWeeklyPayout::class)($this->moment('2026-08-17 09:00:00'));
+
+    $payout = NextPayout::for($seller, $this->moment('2026-08-19 09:00:00'));
+
+    expect($payout->estimate->releasedOrderCount)->toBe(0)
+        ->and($payout->estimate->amount->isZero())->toBeTrue();
+});
+
 it('pays out on the Monday of the week following the one in progress', function (): void {
     $seller = $this->seller();
 
