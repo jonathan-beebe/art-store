@@ -55,14 +55,11 @@ final readonly class PeriodFigures
     }
 
     /**
-     * How this period's sales compare with `$previous`'s. Neither period
-     * having sold anything is not "new" sales; it is nothing to compare.
+     * How this period's sales compare with `$previous`'s.
      */
     public function salesChange(self $previous): RangeChange
     {
-        return $this->sales->isZero() && $previous->sales->isZero()
-            ? RangeChange::empty()
-            : RangeChange::between($this->sales->cents, $previous->sales->cents);
+        return RangeChange::between($this->sales->cents, $previous->sales->cents);
     }
 
     /**

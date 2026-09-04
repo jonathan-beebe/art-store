@@ -106,7 +106,7 @@ it('reads its sales change against the period passed as previous', function (): 
     expect($current->salesChange($previous)->text)->toBe('+50.0%');
 });
 
-it('IMPRV-030 reads an empty change, not new, when neither period sold anything', function (): void {
+it('IMPRV-030 reads an empty sales change when neither period sold anything', function (): void {
     $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-24 00:00:00'));
     $previousPeriod = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-17 00:00:00'));
     [$current] = PeriodFigures::bucket([$period], sales: [], refunds: []);
