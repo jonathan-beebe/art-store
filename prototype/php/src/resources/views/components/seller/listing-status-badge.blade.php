@@ -6,19 +6,14 @@
     (App\Domain\Listings\ListingAvailability) — an archived listing reads
     the same way, since the seller took it down themselves. Requires
     `activeRemoval` eager-loaded on `$listing`, same as the list pane query.
+    Renders through x-seller.status-badge, the same pill every other
+    seller-portal status reads through, so a listing's badge never reads a
+    different size than its own row's status cell in the listings table.
 --}}
 @props(['listing'])
 
 @php
     $hasActiveRemoval = (bool) $listing->activeRemoval;
-    $label = $listing->status->sellerBadgeLabel($hasActiveRemoval);
-    $color = $listing->status->sellerBadgeTint($hasActiveRemoval);
-
-    $colorClasses = match ($color) {
-        'green' => 'bg-green-50 text-green-700 inset-ring-green-600/20 dark:bg-green-400/10 dark:text-green-400 dark:inset-ring-green-500/20',
-        'red' => 'bg-red-50 text-red-700 inset-ring-red-600/10 dark:bg-red-400/10 dark:text-red-400 dark:inset-ring-red-400/20',
-        default => 'bg-gray-50 text-gray-600 inset-ring-gray-500/10 dark:bg-gray-400/10 dark:text-gray-400 dark:inset-ring-gray-400/20',
-    };
 @endphp
 
-<span {{ $attributes->merge(['class' => 'inline-flex items-center rounded-md px-2 py-1 text-xs font-medium inset-ring '.$colorClasses]) }}>{{ $label }}</span>
+<x-seller.status-badge {{ $attributes }} :tint="$listing->status->sellerBadgeTint($hasActiveRemoval)">{{ $listing->status->sellerBadgeLabel($hasActiveRemoval) }}</x-seller.status-badge>

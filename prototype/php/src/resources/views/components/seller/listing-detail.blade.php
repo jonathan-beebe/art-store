@@ -6,9 +6,18 @@
     table/grid overlay, and the table/grid takeover — from the same
     `listing` (eager loaded with `activeRemoval`, `category`, `images`)
     and `row` (its {@see \App\Domain\Seller\ListingTableRow}), so the
-    three never disagree.
+    three never disagree. `placement` names the caller when two copies
+    of this component render in the same document at once (the overlay
+    and the takeover both sit in the DOM, one hidden by CSS alone), and
+    prefixes this copy's heading ids so the two never collide; omitted,
+    the ids stay bare, since the list pane's detail is the only copy on
+    its page.
 --}}
-@props(['listing', 'row', 'sales', 'strip', 'rangeDays'])
+@props(['listing', 'row', 'sales', 'strip', 'rangeDays', 'placement' => null])
+
+@php
+    $idPrefix = $placement !== null ? $placement.'-' : '';
+@endphp
 
 <div class="flex flex-wrap items-start justify-between gap-4">
     <div class="flex flex-col gap-1">
@@ -100,15 +109,15 @@
     </dl>
 </div>
 
-<section aria-labelledby="views-strip-heading" class="mt-8">
-    <h2 id="views-strip-heading" class="font-semibold text-gray-700 dark:text-gray-300">Views, last {{ $rangeDays }} days</h2>
+<section aria-labelledby="{{ $idPrefix }}views-strip-heading" class="mt-8">
+    <h2 id="{{ $idPrefix }}views-strip-heading" class="font-semibold text-gray-700 dark:text-gray-300">Views, last {{ $rangeDays }} days</h2>
     <div class="mt-2 rounded-lg border border-gray-200 p-4 text-indigo-600 dark:border-white/10 dark:text-indigo-400">
-        <x-seller.bar-strip :bars="$strip" :height="72" />
+        <x-admin.analytics.bar-strip :bars="$strip" :height="72" />
     </div>
 </section>
 
-<section aria-labelledby="sales-heading" class="mt-8">
-    <h2 id="sales-heading" class="font-semibold text-gray-700 dark:text-gray-300">Sales</h2>
+<section aria-labelledby="{{ $idPrefix }}sales-heading" class="mt-8">
+    <h2 id="{{ $idPrefix }}sales-heading" class="font-semibold text-gray-700 dark:text-gray-300">Sales</h2>
 
     @if ($sales->isEmpty())
         <p class="mt-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 text-gray-600 dark:text-gray-400">No sales yet.</p>

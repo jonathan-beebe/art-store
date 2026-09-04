@@ -27,3 +27,7 @@ it('labels each view', function (ListingView $view, string $expected): void {
 it('carries an icon path for each view', function (ListingView $view): void {
     expect($view->iconPath())->not->toBe('');
 })->with([ListingView::List, ListingView::Table, ListingView::Grid]);
+
+it('opens a detail overlay from table and grid, not list', function (): void {
+    expect(ListingView::openable())->toBe([ListingView::Table, ListingView::Grid]);
+});

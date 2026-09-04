@@ -3,7 +3,7 @@
         @include('seller.listings._header')
 
         <div class="min-h-0 flex-1 overflow-hidden">
-            @if ($view === \App\Domain\Seller\ListingView::List)
+            @if ($chrome->view === \App\Domain\Seller\ListingView::List)
                 <x-seller.list-detail>
                     <x-slot:list>
                         <x-seller.listing-rows :listings="$listings" />
@@ -16,7 +16,7 @@
                 </x-seller.list-detail>
             @else
                 <div class="h-full overflow-y-auto p-6 lg:p-8">
-                    @if ($view === \App\Domain\Seller\ListingView::Table)
+                    @if ($chrome->view === \App\Domain\Seller\ListingView::Table)
                         @include('seller.listings._table')
                     @else
                         @include('seller.listings._grid')

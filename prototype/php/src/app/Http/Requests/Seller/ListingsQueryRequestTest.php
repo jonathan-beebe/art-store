@@ -58,7 +58,7 @@ it('answers 400 on a range outside the documented set', function (): void {
     $response->assertStatus(400);
 });
 
-it('reads emptied query values as absent rather than as values to reject', function (): void {
+it('reads emptied query values as absent', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings?view=&sort=&dir=&range=');
 
     $response->assertOk();

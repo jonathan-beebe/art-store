@@ -1219,32 +1219,32 @@ it('FEAT-056 renders the grid view', function (): void {
 
     $response->assertOk();
     $response->assertSee('The Burrow at Dusk');
-    $response->assertSee('views', escape: false);
+    $response->assertSee('0 views');
 });
 
 it('FEAT-056 sorts the table by price, ascending', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Cheap Charm', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Pygmy Puff', 'price_cents' => 500]);
     $this->listing($seller, ['title' => 'Dear Diadem', 'price_cents' => 50000]);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=asc');
 
-    $response->assertSeeInOrder(['Cheap Charm', 'Dear Diadem']);
+    $response->assertSeeInOrder(['Pygmy Puff', 'Dear Diadem']);
 });
 
 it('FEAT-056 sorts the table by price, descending', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Cheap Charm', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Pygmy Puff', 'price_cents' => 500]);
     $this->listing($seller, ['title' => 'Dear Diadem', 'price_cents' => 50000]);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=desc');
 
-    $response->assertSeeInOrder(['Dear Diadem', 'Cheap Charm']);
+    $response->assertSeeInOrder(['Dear Diadem', 'Pygmy Puff']);
 });
 
 it('FEAT-056 flips a sorted columns aria-sort and link direction on the next click', function (): void {
     $seller = $this->seller();
-    $this->listing($seller, ['title' => 'Cheap Charm', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Pygmy Puff', 'price_cents' => 500]);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=asc');
 
@@ -1258,7 +1258,10 @@ it('FEAT-056 counts sold and revenue on the table row from a paid, live fulfillm
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
 
-    $response->assertSee('$680.00', escape: false);
+    $response->assertViewHas('rows', function (array $rows): bool {
+        /** @var list<ListingTableRow> $rows */
+        return $rows[0]->sold === 1 && $rows[0]->revenueCents === 68000;
+    });
 });
 
 it('FEAT-056 narrows the tables ranged columns to the given range', function (): void {
@@ -1294,6 +1297,18 @@ it('FEAT-056 opens a table rows detail as an overlay and a takeover from the sam
     $response->assertSee('The Burrow at Dusk');
 });
 
+it('FEAT-056 gives the overlays and the takeovers copy of the detail their own heading ids', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+
+    $response->assertSee('id="overlay-sales-heading"', escape: false);
+    $response->assertSee('id="takeover-sales-heading"', escape: false);
+    $response->assertSee('id="overlay-views-strip-heading"', escape: false);
+    $response->assertSee('id="takeover-views-strip-heading"', escape: false);
+});
+
 it('FEAT-056 opens a grid rows detail from the same route', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
@@ -1313,13 +1328,36 @@ it('FEAT-056 keeps the new-listing dialog on the table and grid views', function
     $response->assertSee('id="new-listing-dialog"', escape: false);
 })->with(['table', 'grid']);
 
-it('FEAT-056 keeps the new-listing dialog on the detail overlay', function (): void {
+it('FEAT-056 keeps the new-listing dialog reachable at every viewport on the detail overlay', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
 
-    $response->assertSee('id="new-listing-dialog"', escape: false);
+    expect($content)->toContain('id="new-listing-dialog"');
+
+    // The header — and the New listing button and dialog it carries —
+    // renders once, before either viewport-gated block below it: the
+    // `inert` workspace a `2xl:` breakpoint shows, and the takeover
+    // `<dialog>` another shows. A header nested inside either would
+    // still appear in this same response, unreachable below or above
+    // `2xl` respectively; asserting it comes first is what proves it
+    // sits outside both.
+    $headerPosition = strpos($content, 'data-new-listing-open');
+    $workspacePosition = strpos($content, 'inert');
+    $dialogPosition = strpos($content, '<dialog open');
+
+    expect($headerPosition)->not->toBeFalse()
+        ->and($workspacePosition)->not->toBeFalse()
+        ->and($dialogPosition)->not->toBeFalse();
+
+    assert(is_int($headerPosition));
+    assert(is_int($workspacePosition));
+    assert(is_int($dialogPosition));
+
+    expect($headerPosition)->toBeLessThan($workspacePosition)
+        ->and($headerPosition)->toBeLessThan($dialogPosition);
 });
 
 it('FEAT-056 links the view switch to every view', function (): void {

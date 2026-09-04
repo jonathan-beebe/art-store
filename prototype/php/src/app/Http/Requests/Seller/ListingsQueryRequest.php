@@ -19,15 +19,13 @@ use Illuminate\Validation\Rule;
  * (`view`, `sort`, `dir`, `range`) and `GET /seller/listings/{listing}`
  * (`from`, `sort`, `dir`, `range`) — docs/alignment.md §5: an absent or
  * emptied value reads as the default, and an unrecognised value answers a
- * bare 400 rather than the framework's default redirect back with flashed
- * errors. `from` names the view a detail row was opened from: absent for
- * the list pane's own detail, `table` or `grid` for the overlay/takeover.
+ * bare 400. `from` names the view a detail row was opened from: absent
+ * for the list pane's own detail, `table` or `grid` for the
+ * overlay/takeover.
  */
 final class ListingsQueryRequest extends FormRequest
 {
     private const int DEFAULT_RANGE_DAYS = 30;
-
-    public const array FROM_VIEWS = ['table', 'grid'];
 
     /**
      * @return array<string, list<mixed>>
@@ -36,15 +34,15 @@ final class ListingsQueryRequest extends FormRequest
     {
         return [
             'view' => ['nullable', Rule::enum(ListingView::class)],
-            'from' => ['nullable', Rule::in(self::FROM_VIEWS)],
+            'from' => ['nullable', Rule::in(array_map(fn (ListingView $view): string => $view->value, ListingView::openable()))],
             'sort' => ['nullable', Rule::enum(ListingSortColumn::class)],
             'dir' => ['nullable', Rule::enum(ListingSortDirection::class)],
             'range' => ['nullable', Rule::in(array_map(strval(...), AnalyticsRange::SIZES))],
         ];
     }
 
-    /** An emptied value reads as absent rather than as a value the rules
-     * above would otherwise have to admit. */
+    /** An emptied value reads as absent, so the rules above see no value
+     * to validate. */
     protected function prepareForValidation(): void
     {
         $blanked = array_map(
@@ -65,9 +63,9 @@ final class ListingsQueryRequest extends FormRequest
         return $this->enum('view', ListingView::class) ?? ListingView::default();
     }
 
-    public function from(): ?string
+    public function from(): ?ListingView
     {
-        return $this->stringOrNull('from');
+        return $this->enum('from', ListingView::class);
     }
 
     /** Any `sort` or `dir` in the query sets the sort; neither present keeps the default. */

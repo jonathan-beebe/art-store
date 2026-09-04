@@ -1,20 +1,19 @@
 {{--
     Table view (04-listings.html): every column sortable by a header
     link, condensed rows leading to the listing's detail as an overlay or
-    takeover (?from=table). Expects `rows`, `columnLinks`, `sort`,
-    `rangeDays`.
+    takeover (?from=table). Expects `rows`, `chrome`, `rangeDays`.
 --}}
 <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
     <table class="w-full text-left">
         <caption class="sr-only">Every listing, with its price, stock, ranged analytics, sales, and conversion</caption>
         <thead class="border-b border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <tr>
-                @foreach ($columnLinks as $link)
-                    <th scope="col" class="px-4 py-2 font-semibold {{ $link['alignsRight'] ? 'text-right' : '' }}" aria-sort="{{ $link['ariaSort'] }}">
-                        <a href="{{ $link['href'] }}" class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200">
-                            {{ $link['label'] }}
-                            @if ($link['ariaSort'] !== 'none')
-                                <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12" aria-hidden="true" class="{{ $link['ariaSort'] === 'ascending' ? 'rotate-180' : '' }}"><path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" /></svg>
+                @foreach ($chrome->columnHeaders as $header)
+                    <th scope="col" class="px-4 py-2 font-semibold {{ $header->column->alignsRight() ? 'text-right' : '' }}" aria-sort="{{ $header->ariaSort }}">
+                        <a href="{{ $header->href }}" class="inline-flex items-center gap-1 hover:text-gray-700 dark:hover:text-gray-200">
+                            {{ $header->column->label() }}
+                            @if ($header->ariaSort !== 'none')
+                                <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12" aria-hidden="true" class="{{ $header->ariaSort === 'ascending' ? 'rotate-180' : '' }}"><path fill-rule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" /></svg>
                             @endif
                         </a>
                     </th>
@@ -25,7 +24,7 @@
             @forelse ($rows as $row)
                 <tr>
                     <td class="px-4 py-2">
-                        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'table', 'sort' => $sort->column->value, 'dir' => $sort->direction->value, 'range' => $rangeDays]) }}" class="flex items-center gap-3">
+                        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'table', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value, 'range' => $rangeDays]) }}" class="flex items-center gap-3">
                             <img src="{{ $row->imageUrl }}" alt="" class="size-9 flex-none rounded-md object-cover">
                             <span class="min-w-0">
                                 <span class="block truncate font-semibold text-gray-900 dark:text-gray-100">{{ $row->title }}</span>
@@ -46,7 +45,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No listings yet. Start with a new one.</td>
+                    <td colspan="{{ count($chrome->columnHeaders) }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">No listings yet. Start with a new one.</td>
                 </tr>
             @endforelse
         </tbody>

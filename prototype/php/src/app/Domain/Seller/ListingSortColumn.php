@@ -46,9 +46,9 @@ enum ListingSortColumn: string
 
     /**
      * The value one row sorts by on this column. A listing with no views
-     * yet reads as the lowest conversion rather than dropping out of the
-     * order; made-to-order stock (a null quantity) reads as unlimited, so
-     * it sorts above every counted number.
+     * yet reads as the lowest conversion, keeping it in the order;
+     * made-to-order stock (a null quantity) reads as unlimited, so it
+     * sorts above every counted number.
      */
     public function keyOf(ListingTableRow $row): int|float|string
     {

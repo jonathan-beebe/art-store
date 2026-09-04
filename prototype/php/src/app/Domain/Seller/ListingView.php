@@ -24,6 +24,18 @@ enum ListingView: string
         return $this !== self::List;
     }
 
+    /**
+     * The views a listing's detail may be opened from via `?from=` —
+     * every view but List, which shows the detail beside the list
+     * instead of linking to it.
+     *
+     * @return list<self>
+     */
+    public static function openable(): array
+    {
+        return [self::Table, self::Grid];
+    }
+
     public function label(): string
     {
         return match ($this) {
