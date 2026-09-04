@@ -279,7 +279,7 @@ is cleared. A hidden store answers 404 to everyone but its own seller.
 `App\Models\StoreImage`, `App\Models\StoreLink`,
 `App\Domain\Store\{StoreSlug,RetiredSlugWindow,StoreViewCollapse}`,
 `App\Actions\Store\{StartStore,RenameStoreSlug,RemoveStoreImage}`,
-`App\Support\Store\{StoreAddressLookup,StoreFacts}` (tables
+`App\Seller\Store\{StoreAddressLookup,StoreFacts,StoreFactsReader}` (tables
 `store_profiles`, `store_slugs`, `store_images`, `store_links`). See
 [`seller-portal.md`](seller-portal.md).
 
