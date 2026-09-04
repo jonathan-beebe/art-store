@@ -1,9 +1,0 @@
-<h1 class="text-2xl font-semibold">New listing</h1>
-
-<%- include('form', {
-  action: '/seller/listings',
-  submitLabel: 'Save as draft',
-  fields,
-  errors,
-  formError: typeof formError !== 'undefined' ? formError : null,
-}) %>

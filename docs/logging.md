@@ -1,14 +1,14 @@
 # Logging
 
 This document is the canonical definition of the log store and the admin
-log viewer every prototype implements: what happens to a log line after it
-leaves the process. The log line format and event vocabulary live in
-[alignment.md](alignment.md) §2.
+log viewer the app implements: what happens to a log line after it leaves
+the process. The log line format and event vocabulary live in
+[spec.md](spec.md) §2.
 
-Every JSON line a prototype logs — server and CLI runs alike — is also
+Every JSON line the app logs — server and CLI runs alike — is also
 written to a queryable SQLite store, and the admin site reads it back: a
 filterable time series at `/admin/logs` and a per-request story view. Stdout
-stays exactly as alignment.md §2 specifies; the store is a mirror of it.
+stays exactly as spec.md §2 specifies; the store is a mirror of it.
 Lines older than a retention window are pruned by the maintenance sweep.
 
 Three invariants govern the design:
@@ -95,7 +95,7 @@ application of invariant 2:
 - **Rowid primary key.** Log rows are telemetry: nothing references them,
   no URL carries their id (the story view keys on `request_id`), and the
   rowid gives `ORDER BY ts, id` its tiebreak with zero minting on the write
-  path. Stated exception to alignment.md §1, the way §1 already excepts
+  path. Stated exception to spec.md §1, the way §1 already excepts
   the `request_id` value.
 - **No CHECK constraints from the vocabularies.** A CHECK would refuse —
   lose — the first line of any event added to §2.3 before this DDL catches
@@ -177,7 +177,7 @@ set minus `level`, health-check lines excluded the same as the list; each
 tile links to the same query with `level` set, doubling as the level
 filter's fast path. Rows show `ts` (full ISO — milliseconds matter here),
 level, `event · phase`, the `msg` rendered with its severity prefix
-intact (⚠️ on `warn`, ❌ on `failed`, per alignment.md §2.4), the
+intact (⚠️ on `warn`, ❌ on `failed`, per spec.md §2.4), the
 `request_id`, the actor, and `duration_ms`. A line's own ids — request,
 transaction, session, actor — are filter links: tapping one applies that
 filter, carrying the other current filters and landing on page 1; ids the
@@ -205,17 +205,16 @@ A stored line carries no site field of its own. `?domain=` derives one from
 the line's request: a query correlated on `request_id` against that
 request's opening `http.request` line, prefix-matching `data.path` —
 `/admin*` and `/seller*` claim their site, the storefront claims the
-unprefixed root. The health-probe path (below) and `/events` (each site's
-own unread-events stream) are excluded from the storefront bucket by name.
+unprefixed root. The health-probe path (below) is excluded from the storefront bucket by
+name.
 A line with no `request_id` matches no domain.
 
 ### The health filter
 
-The container orchestrator polls the stack's health probe on an interval;
-its will/did pairs otherwise bury the traffic a founder came to read. The
-probe lives at the framework's preferred path — Node's owned `/health`
-route, Laravel's and Rails's built-in `/up` — and each stack's viewer names
-its own. `/admin/logs` hides a health-check request's lines by default —
+The container orchestrator polls the app's health probe on an interval; its
+will/did pairs otherwise bury the traffic a founder came to read. The probe
+lives at Laravel's built-in `/up`, which the viewer names. `/admin/logs`
+hides a health-check request's lines by default —
 the request whose opening line's path is the probe path, exact, the pair
 and every line sharing the request id — via the same correlation
 `?domain=` uses. The
@@ -335,17 +334,14 @@ disabled-store degradations. The viewer tests exercise `/admin/logs` and
 the story route against an in-memory store shared by writer and reader,
 signed in as an admin, with a filter matrix asserting each filter narrows
 the result set, round-trips through the form and pager, and 400s on an
-unrecognised value. Retention tests sit beside the stack's existing prune
+unrecognised value. Retention tests sit beside the app's existing prune
 tests, asserting the same batching and failure-isolation behavior.
 
-## Alignment
+## Reference
 
-This document is the reference definition alignment.md §2.5 names for the
+This document is the reference definition spec.md §2.5 names for the
 log store and the admin log viewer: the table shape, the rowid exception to
 §1, `LOG_DATABASE_FILE` and `LOG_RETENTION_DAYS`, the `/admin/logs` and
-story-view rows in §5. Node and PHP implement it —
-[prototype/node/docs/log-store.md](../prototype/node/docs/log-store.md) and
-[prototype/php/docs/log-store.md](../prototype/php/docs/log-store.md)
-describe each implementation — and Rails is queued (alignment.md §8). The
-shapes fixed here — the table, the three invariants, the filter set, the
-severity tint — stay shared across all three.
+story-view rows in §5.
+[app/docs/log-store.md](../app/docs/log-store.md) describes the
+implementation.

@@ -24,21 +24,21 @@
 
   // Laravel (official): routes, views, config, Blade components. PHP never
   // runs on the host; every artisan call goes through the running compose
-  // stack (`make up` from prototype/php first).
-  "Laravel.basePath": "prototype/php/src",
+  // stack (`make up` from app/ first).
+  "Laravel.basePath": "app/src",
   "Laravel.phpEnvironment": "docker",
   "Laravel.phpCommand": [
     "docker", "compose",
-    "-p", "art-store-php",
-    "-f", "prototype/php/docker-compose.yml",
+    "-p", "art-store-app",
+    "-f", "app/docker-compose.yml",
     "exec", "-T", "app", "php"
   ],
 
   // Laravel Extra Intellisense: same container, host paths for reading
   // files and the container's path for the code it requires.
-  "LaravelExtraIntellisense.basePath": "prototype/php/src",
+  "LaravelExtraIntellisense.basePath": "app/src",
   "LaravelExtraIntellisense.basePathForCode": "/var/www/src",
-  "LaravelExtraIntellisense.phpCommand": "docker compose -p art-store-php -f prototype/php/docker-compose.yml exec -T app php -r \"{code}\"",
+  "LaravelExtraIntellisense.phpCommand": "docker compose -p art-store-app -f app/docker-compose.yml exec -T app php -r \"{code}\"",
 
   "[php]": {
     "editor.defaultFormatter": null

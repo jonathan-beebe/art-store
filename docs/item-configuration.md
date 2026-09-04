@@ -1,13 +1,11 @@
 # Seller item configuration
 
-Written 2026-08-29. Elevates the PHP prototype's item configurator
-(FEAT-025..029, DSGN-002, DSGN-003; beta) to a project decision: how a
-seller describes, configures, prices, and stocks a listing, and how a buyer
-configures one on `/art/{slug}`. The vocabulary lives in
+How a seller describes, configures, prices, and stocks a listing, and how a
+buyer configures one on `/art/{slug}`. The vocabulary lives in
 [ontology.md](ontology.md); the full mechanics live in
-`prototype/php/docs/item-configurator.md`. This document fixes the state
-machines, the data model, and the structural UI/UX decisions the other
-prototypes adopt.
+[app/docs/item-configurator.md](../app/docs/item-configurator.md). This
+document fixes the state machines, the data model, and the structural
+UI/UX decisions.
 
 ## Rooted in research
 
@@ -19,19 +17,18 @@ The model comes from two documents in `research/product-configuration/`:
   observed hack with the primitive the seller actually needed.
 - [`seller-user-stories.md`](../research/product-configuration/seller-user-stories.md)
   — those needs restated as seller stories (A–E), with an Appendix A map
-  from every story to the mechanism that covers it. (An identical copy sits
-  at `prototype/php/__local__/seller-user-stories.md`.)
+  from every story to the mechanism that covers it.
 
 The hacks and the primitives that answer them:
 
-| Observed hack on Etsy                                           | Primitive here        |
-| --------------------------------------------------------------- | --------------------- |
-| Compound option strings ("Gold - Inside", "3 US - 4mm")          | Uncapped option axes  |
-| Full option matrix materialized, then cells disabled by hand     | Sparse variants       |
-| A 52-option dropdown of numbered one-of-a-kind pieces            | Serialized units      |
-| Personalization box shown to every buyer, needed by some         | Scoped modifiers      |
-| Quantity tiers modeled as variation options                      | Quantity breaks       |
-| Emoji headers and pasted size charts in one description field    | Typed description sections |
+| Observed hack on Etsy                                         | Primitive here             |
+| ------------------------------------------------------------- | -------------------------- |
+| Compound option strings ("Gold - Inside", "3 US - 4mm")       | Uncapped option axes       |
+| Full option matrix materialized, then cells disabled by hand  | Sparse variants            |
+| A 52-option dropdown of numbered one-of-a-kind pieces         | Serialized units           |
+| Personalization box shown to every buyer, needed by some      | Scoped modifiers           |
+| Quantity tiers modeled as variation options                   | Quantity breaks            |
+| Emoji headers and pasted size charts in one description field | Typed description sections |
 
 Each structural decision below carries its story ids.
 
@@ -97,12 +94,12 @@ stateDiagram-v2
 ## Data model
 
 Every table takes a prefixed ULID primary key per
-[alignment.md](alignment.md) §1. Prefixes: `cat` categories, `prp`
+[spec.md](spec.md) §1. Prefixes: `cat` categories, `prp`
 properties, `pvl` property_values, `cpr` category_properties, `lat`
 listing_attributes, `axs` option_axes, `ovl` option_values, `vrt` variants,
 `vop` variant_options, `unt` units, `mdf` modifiers, `mdo` modifier_options,
 `mds` modifier_scopes, `qbk` quantity_breaks, `dsc` description_sections,
-`img` listing_images — all recorded in alignment.md §1's prefix table.
+`img` listing_images — all recorded in spec.md §1's prefix table.
 
 ### Taxonomy layer
 
@@ -219,13 +216,13 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
    Choices, Combinations & Stock, Individual Pieces, Questions, Quantity
    Discounts, Listing Page Sections — is a row with a summary and its own
    Edit affordance; an empty row reads as an invitation ("Comes in more
-   than one version? Offer choices"). DSGN-002 retired the flat form that
-   sat above the rows: its price and quantity fields lost their meaning
+   than one version? Offer choices"). This retired the flat form that used
+   to sit above the rows: its price and quantity fields lost their meaning
    the moment a listing grew choices.
 2. **A live buyer preview sits beside the hub**, built from the same view
    model and partials `/art/{slug}` uses. It is a working form — changing
    an option re-renders availability and total — with add-to-cart inert.
-3. **Creating a listing starts from three pricing on-ramps** (DSGN-003), in
+3. **Creating a listing starts from three pricing on-ramps**, in
    the seller's own words: "one thing, one price" / "it comes in versions,
    each with its own price" / "one price, with extras that add to it" —
    mapping onto no axis / a standalone axis / an add-on axis. Each ramp
@@ -268,8 +265,7 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
 
 ## Open items
 
-- **Rollout.** PHP only, beta. Node and Rails owe the model when their
-  seller portals grow configuration (alignment.md §8, 2026-08-30).
+- **Rollout.** Beta.
 - **Cart-time reservation.** Units have zero `reserved` state; two shoppers
   can cart one piece and placement decides. Held as a product decision.
 - **Deferred by design** (`item-configurator.md` §9): cross-scale size
@@ -280,14 +276,8 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
 
 ## Design docs and records
 
-- `prototype/php/docs/item-configurator.md` — the full design: pricing and
-  availability resolution, seller and customer flows, limits, traceability.
-- `prototype/php/work/3-done/DSGN-002-retire-legacy-form-unify-editor-into-rows.md`
-  — the hub-of-rows and pricing-mode decisions.
-- `prototype/php/work/3-done/DSGN-003-guided-new-listing-three-pricing-on-ramps.md`
-  — the create flow and the made-to-order checkbox.
-- `prototype/php/work/3-done/FEAT-025…FEAT-029` — schema and domain, seller
-  UI, buyer configurator and cart, checkout snapshot, categorization and
-  highlights.
-- `prototype/php/src/app/Domain/Listings/ListingStatus.php` — the listing
-  state machine in code.
+- [app/docs/item-configurator.md](../app/docs/item-configurator.md) — the
+  full design: pricing and availability resolution, seller and customer
+  flows, limits, traceability.
+- `app/src/app/Domain/Listings/ListingStatus.php` — the listing state
+  machine in code.

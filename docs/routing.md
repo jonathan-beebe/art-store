@@ -1,11 +1,9 @@
 # Routing and URL strategy
 
-Written 2026-08-29. Elevates the URL decisions made in the PHP prototype
-(FEAT-034, PR #37) to project decisions. Node and Rails owe these shapes when
-their storefronts grow the equivalent surfaces. The identifier rules and the
-admin route table are fixed in [alignment.md](alignment.md) §1 and §5; this
-document covers everything above them — the site split, the storefront path
-scheme, query-parameter conventions, and miss behavior.
+The identifier rules and the admin route table are fixed in
+[spec.md](spec.md) §1 and §5; this document covers everything above them —
+the site split, the storefront path scheme, query-parameter conventions, and
+miss behavior.
 
 ## Three sites, one prefix each
 
@@ -27,16 +25,12 @@ flowchart LR
 - A sign-in link minted for one actor works only on that actor's site: a
   customer's or seller's magic link followed to `/admin` is refused, and the
   reverse. Admins are seeded; the admin site has no sign-up.
-- Each site carries its own `/events` unread-count stream under its prefix
-  (`/events`, `/seller/events`, `/admin/events`).
-- The orchestrator's health probe lives at the framework's preferred path:
-  Node's owned `/health` route, Laravel's and Rails's built-in `/up`. It and
-  `/events` are system paths: the log viewer's `domain=shop` bucket excludes
-  both by name ([logging.md](logging.md)).
+- The orchestrator's health probe lives at Laravel's built-in `/up`. It is a
+  system path: the log viewer's `domain=shop` bucket excludes it by name ([logging.md](logging.md)).
 
 ## Identifiers in URLs
 
-[alignment.md](alignment.md) §1 fixes this; summarized:
+[spec.md](spec.md) §1 fixes this; summarized:
 
 - URLs carry the full prefixed id: `/orders/ord_…`, `/admin/customers/cus_…`.
 - Storefront listing pages are the one slug route: `/art/{slug}`.
@@ -78,9 +72,9 @@ Query parameters hold state within a page; paths hold the dimension.
 - Pagination is `?page=N`, with the current filter set carried through every
   pager link.
 - On admin filter routes, an empty filter value means "all" and an
-  unrecognised value answers 400 (alignment.md §5). The full admin filter
+  unrecognised value answers 400 (spec.md §5). The full admin filter
   vocabulary lives in the §5 table.
-- Every `http.request` log line carries `data.query` (alignment.md §2.2), so
+- Every `http.request` log line carries `data.query` (spec.md §2.2), so
   any parameter is queryable after the fact:
   `/admin/logs?key=data.query.q` lists every search.
 
@@ -93,21 +87,18 @@ Query parameters hold state within a page; paths hold the dimension.
 - Ownership refusals answer 404 everywhere, so an id outside the actor's own
   is never confirmed to exist.
 - A removed listing leaves every storefront surface: browse, search,
-  `/art/{slug}`, favorites, and an existing cart line (alignment.md §5).
+  `/art/{slug}`, favorites, and an existing cart line (spec.md §5).
 
 ## Open items
 
-- PHP's admin filter routes outside `/admin/logs` still treat an
-  unrecognised value as absent; §5 says 400 (alignment.md §8, 2026-08-29
-  entry).
+- The admin filter routes outside `/admin/logs` still treat an unrecognised
+  value as absent; §5 says 400.
 
 ## References
 
-- `prototype/php/src/routes/{shop,seller,admin,auth}.php` — the route table
-  itself (`make routes` prints it).
-- `prototype/php/docs/architecture.md` — the sites table and the
-  route-binding/authorization flow.
-- `prototype/php/work/3-done/FEAT-034-first-class-browse-and-search-paths.md`
-  — the browse/search decision record.
-- [alignment.md](alignment.md) §1 (identifiers), §5 (admin routes and filter
-  rules), §8 (reconciliation log).
+- `app/src/routes/{shop,seller,admin,auth}.php` — the route table itself
+  (`make routes` prints it).
+- [app/docs/architecture.md](../app/docs/architecture.md) — the sites table
+  and the route-binding/authorization flow.
+- [spec.md](spec.md) §1 (identifiers), §5 (admin routes and filter
+  rules).
