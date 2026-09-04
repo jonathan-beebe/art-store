@@ -40,7 +40,16 @@ final class ActorDisplay
      */
     public static function initialsOf(Seller|Customer|Admin|null $actor): string
     {
-        $words = array_filter(preg_split('/\s+/', trim(self::nameOf($actor))) ?: []);
+        return self::initialsFor(self::nameOf($actor));
+    }
+
+    /**
+     * The same reduction over a name a page already holds — the support
+     * desk's, or a buyer's read off the order that carried it.
+     */
+    public static function initialsFor(string $name): string
+    {
+        $words = array_filter(preg_split('/\s+/', trim($name)) ?: []);
 
         $initials = array_map(
             fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)),

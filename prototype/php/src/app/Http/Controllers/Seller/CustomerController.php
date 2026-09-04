@@ -9,7 +9,10 @@ use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerTableSort;
 use App\Domain\Seller\CustomerTally;
 use App\Http\Requests\Seller\CustomersQueryRequest;
+use App\Models\Conversation;
 use App\Models\Customer;
+use App\Models\Fulfillment;
+use App\Models\Listing;
 use App\Models\Seller;
 use App\Seller\ActivityFeedReader;
 use App\Seller\CustomersChrome;
@@ -72,7 +75,7 @@ final class CustomerController extends SellerController
      * refunded one included, which the numbers above leave out and the
      * seller still has to be able to look back at.
      *
-     * @return Collection<int, \App\Models\Fulfillment>
+     * @return Collection<int, Fulfillment>
      */
     private function fulfillmentsFor(Seller $seller, Customer $customer): Collection
     {
@@ -92,7 +95,7 @@ final class CustomerController extends SellerController
     /**
      * The seller's own listings this buyer holds as a favorite.
      *
-     * @return Collection<int, \App\Models\Listing>
+     * @return Collection<int, Listing>
      */
     private function favoritesFor(Seller $seller, Customer $customer): Collection
     {
@@ -106,7 +109,7 @@ final class CustomerController extends SellerController
     /**
      * Every thread between the two of them, the inbox's own order.
      *
-     * @return Collection<int, \App\Models\Conversation>
+     * @return Collection<int, Conversation>
      */
     private function conversationsFor(Seller $seller, Customer $customer): Collection
     {

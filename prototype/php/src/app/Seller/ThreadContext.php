@@ -53,7 +53,7 @@ final readonly class ThreadContext
         return new self(
             name: $name,
             email: $row?->email,
-            initials: $isDesk ? 'AS' : ActorDisplay::initialsOf($customer),
+            initials: ActorDisplay::initialsFor($name),
             isDesk: $isDesk,
             customer: $row,
             listing: $conversation->listing,
