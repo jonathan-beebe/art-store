@@ -21,13 +21,17 @@ final readonly class ListingDraft
         // "Made to order" checkbox on create or Basics.
         public ?int $quantity,
         public ?string $categoryId = null,
+        // Null: ships by the seller's default flow. Set only from the
+        // Basics screen's workflow picker — a create names none.
+        public ?string $fulfillmentFlowId = null,
     ) {}
 
     /**
      * Three of the five fields are strings that transpose without a word of
-     * complaint, so the one way in takes them by name. `categoryId` defaults
-     * to null — an uncategorized listing is as valid as it was before the
-     * taxonomy existed.
+     * complaint, so the one way in takes them by name. `categoryId` and
+     * `fulfillmentFlowId` default to null — an uncategorized listing
+     * shipping by the seller's default is as valid as it was before either
+     * existed.
      */
     public static function of(
         string $title,
@@ -36,8 +40,9 @@ final readonly class ListingDraft
         Money $price,
         ?int $quantity,
         ?string $categoryId = null,
+        ?string $fulfillmentFlowId = null,
     ): self {
-        return new self($title, $description, $dimensions, $price, $quantity, $categoryId);
+        return new self($title, $description, $dimensions, $price, $quantity, $categoryId, $fulfillmentFlowId);
     }
 
     /**
@@ -52,6 +57,7 @@ final readonly class ListingDraft
             'price_cents' => $this->price->cents,
             'quantity' => $this->quantity,
             'category_id' => $this->categoryId,
+            'fulfillment_flow_id' => $this->fulfillmentFlowId,
         ];
     }
 }

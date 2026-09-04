@@ -471,10 +471,43 @@ header and in the mobile action bar submit the forms further down the page
 by `form=`, so one form serves both. Completing a step redirects back to
 the order — unless the step's action is `print_label`, which redirects to
 the printable label page (`GET /seller/orders/{fulfillment}/label`)
-instead; either way the feed shows the new row on return.
-`GET/PUT /seller/orders/flow` is the seller's own flow editor: add, rename,
-reorder, and remove a step, and choose which one prints the label — reached
-from every order page.
+instead; either way the feed shows the new row on return. The flow panel's
+heading links to the workflow the parcel runs under (`GET
+/seller/workflows/{workflow}/edit`), below.
+
+## Workflows
+
+Question: the domain calls this a fulfillment flow — an ordered list of
+steps between paid and shipped, one seller default plus as many others as
+they add. Every seller-facing word calls it a workflow instead: the nav tab,
+the page headings, the picker label. Where does that split live, and how
+does one order's parcel pick which workflow it runs under?
+
+The code keeps `FulfillmentFlow`, `fulfillment_flows`,
+`fulfillment_flow_steps`, `FulfillmentFlowController` — the concept is about
+fulfillment wherever it is read or written in PHP. `/seller/workflows` is
+the resource a seller sees: the index lists every flow, the default marked,
+each with its step count and the listings that name it; create and edit
+share one step editor (`resources/views/seller/workflows/_form.blade.php`);
+`POST /seller/workflows/{workflow}/default`
+(`App\Actions\Fulfillment\MakeFulfillmentFlowDefault`) hands the default
+role to another flow in one transaction, clearing whichever held it; destroy
+(`App\Actions\Fulfillment\DeleteFulfillmentFlow`) refuses a flow that still
+holds the default role, and refuses one a listing names. `GET
+/seller/orders/flow`, the old flow editor's address, redirects (301) to the
+default workflow's edit page, or to the workflows list for a seller who has
+made none yet.
+
+A listing may name a flow (`listings.fulfillment_flow_id`, nullable); the
+Basics screen's Workflow picker sets it, ownership-checked in
+`ListingRequest`, and shown only when the seller holds more than one flow —
+a seller with one has nothing to pick, so every listing ships by it.
+`Fulfillment::flowInEffect()` answers the same question once a parcel exists:
+the flow its own listing names, or the seller's default when it names none.
+A parcel already in progress keeps running the flow it started under — the
+`fulfillment_events` a step completion writes name their step by id, so a
+later change to the listing's flow, or a later default swap, never walks a
+parcel already under way back to a different list of steps.
 
 ## Activity feed
 

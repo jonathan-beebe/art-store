@@ -120,9 +120,9 @@
 
                     <div class="mt-7 flex flex-wrap items-baseline justify-between gap-3">
                         <h3 class="text-sm/6 font-semibold text-gray-900 dark:text-white">{{ $facts->flowName }}</h3>
-                        <a href="{{ route('seller.orders.flow.edit') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Flow settings</a>
+                        <a href="{{ $facts->flowId ? route('seller.workflows.edit', $facts->flowId) : route('seller.workflows.index') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Workflow settings</a>
                     </div>
-                    <x-seller.flow-steps :fulfillment="$fulfillment" :steps="$facts->steps" :progress="$facts->progress" :completed="$facts->completed" :can-complete="$canCompleteStep" />
+                    <x-seller.flow-steps :fulfillment="$fulfillment" :flow-id="$facts->flowId" :steps="$facts->steps" :progress="$facts->progress" :completed="$facts->completed" :can-complete="$canCompleteStep" />
 
                     <h3 class="mt-7 text-sm/6 font-semibold text-gray-900 dark:text-white">Shipment</h3>
                     @if ($canShip)

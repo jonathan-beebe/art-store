@@ -28,6 +28,19 @@
                 <x-form.field name="dimensions" label="Dimensions" class="mt-4" maxlength="255" :value="$listing->dimensions"
                               hint="The physical piece's own size — separate from any Size choice you offer." />
 
+                @if ($workflows->isNotEmpty())
+                    <div class="mt-4">
+                        <label for="fulfillment_flow_id" class="block font-medium text-gray-700 dark:text-gray-300">Workflow</label>
+                        <select id="fulfillment_flow_id" name="fulfillment_flow_id" class="mt-1 block w-full rounded-md border border-gray-400 dark:border-gray-600 px-3 py-2">
+                            <option value="">Seller default</option>
+                            @foreach ($workflows as $workflow)
+                                <option value="{{ $workflow->id }}" @selected($listing->fulfillment_flow_id === $workflow->id)>{{ $workflow->name }}{{ $workflow->is_default ? ' (default)' : '' }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">How this item ships. Leave it on the seller default unless it ships differently.</p>
+                    </div>
+                @endif
+
                 @if ($hasOwnPriceAndStock)
                     <div class="mt-4 grid gap-4 sm:grid-cols-2">
                         <x-form.field name="price" label="Price" type="number" step="0.01" min="0" required

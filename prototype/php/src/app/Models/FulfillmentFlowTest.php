@@ -88,6 +88,15 @@ it('lets two sellers each hold their own default flow', function (): void {
     expect(FulfillmentFlow::query()->defaults()->count())->toBe(2);
 });
 
+it('lists the listings that name it', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $named = $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+    $this->listing($seller);
+
+    expect($flow->listings->pluck('id')->all())->toBe([$named->id]);
+});
+
 it('carries the flow\'s seller onto a step built without one named', function (): void {
     $flow = FulfillmentFlow::factory()->create(['seller_id' => $this->seller('Neville Longbottom')->id]);
 

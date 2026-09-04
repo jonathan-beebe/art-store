@@ -4,7 +4,7 @@
     `completed` is keyed by step id, so a row reads its own completion
     without searching for it.
 --}}
-@props(['fulfillment', 'steps', 'progress', 'completed' => [], 'canComplete' => false])
+@props(['fulfillment', 'flowId', 'steps', 'progress', 'completed' => [], 'canComplete' => false])
 
 @php
     $next = $progress->next();
@@ -13,8 +13,8 @@
 <div class="mt-2 rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">
     @if ($steps === [])
         <p class="p-4 text-sm text-gray-500 dark:text-gray-400">
-            Your flow has no steps.
-            <a href="{{ route('seller.orders.flow.edit') }}" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Add some</a>
+            Your workflow has no steps.
+            <a href="{{ $flowId ? route('seller.workflows.edit', $flowId) : route('seller.workflows.index') }}" class="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Add some</a>
         </p>
     @else
         <ul role="list" class="divide-y divide-gray-200 dark:divide-white/10">

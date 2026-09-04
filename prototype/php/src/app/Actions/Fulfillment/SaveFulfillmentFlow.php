@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace App\Actions\Fulfillment;
 
-use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Fulfillment\FlowStepDraft;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
-use App\Models\Seller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Writes a seller's default flow from the list they submitted: the rows they
- * kept stay the rows they were, the ones they left out go, and the order is
- * the order they sent. A step a draft names by id keeps its key through a
- * rename, so the events pointing at it keep pointing at it.
+ * Writes a flow's name and steps from the list its seller submitted: the
+ * rows they kept stay the rows they were, the ones they left out go, and the
+ * order is the order they sent. A step a draft names by id keeps its key
+ * through a rename, so the events pointing at it keep pointing at it.
  */
 final readonly class SaveFulfillmentFlow
 {
@@ -35,10 +33,9 @@ final readonly class SaveFulfillmentFlow
     /**
      * @param  list<FlowStepDraft>  $drafts
      */
-    public function __invoke(Seller $seller, string $name, array $drafts): FulfillmentFlow
+    public function __invoke(FulfillmentFlow $flow, string $name, array $drafts): FulfillmentFlow
     {
-        return DB::transaction(function () use ($seller, $name, $drafts): FulfillmentFlow {
-            $flow = $this->defaultFlowOf($seller);
+        return DB::transaction(function () use ($flow, $name, $drafts): FulfillmentFlow {
             $flow->update(['name' => $name]);
 
             $this->removeStepsLeftOut($flow, $drafts);
@@ -47,14 +44,6 @@ final readonly class SaveFulfillmentFlow
 
             return $flow->load('steps');
         });
-    }
-
-    private function defaultFlowOf(Seller $seller): FulfillmentFlow
-    {
-        return FulfillmentFlow::firstOrCreate(
-            ['seller_id' => $seller->id, 'is_default' => true],
-            ['name' => DefaultFlow::NAME],
-        );
     }
 
     /**
