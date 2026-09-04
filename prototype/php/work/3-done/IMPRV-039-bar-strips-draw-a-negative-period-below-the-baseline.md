@@ -72,3 +72,37 @@ component test (6), `EarningsPeriodsTest.php` (11), `EarningsControllerTest.php`
 (7). `make precommit` green (pre-commit hook, this commit). Per the
 coordinator's load-management note, `make check` is skipped here — the
 orchestrator runs it once on the merged branch.
+
+### Review fixes
+- `baseline()` clamped the baseline itself but not each bar's own rounded
+  height against the room left on its side of it: two extremes could each
+  round up, overshooting `$maxPx` (the mixed dataset's `50/-30` rounded to
+  63/38, one past the 100px box) or, on a lopsided swing (`1000/-1`),
+  overshoot the baseline itself into a negative `y`. Each bar is now
+  clamped to its own side's budget after the baseline is fixed; the mixed
+  dataset reads `[63, 37, 13, 6, 2]` and a `[1000, -1]` case is added.
+- `role="img"` (from `labelledby`) hides the SVG's per-bar `<title>`s from
+  assistive technology; an `sr-only` `<ul>` beside the strip now carries
+  every bar's own tooltip.
+- The zero line read 1.6:1 against the panel; it now carries its own
+  `text-gray-500 dark:text-gray-400` and `stroke-width="1"`.
+- `BarStripBaseline` gained `heightPx` (the `$maxPx` passed in), so the
+  earnings view reads the strip's height off the object instead of a
+  second `160` literal; `netStrip()` is now called from `EarningsController`,
+  not the view.
+- Docblocks: `BarStrip::baseline()` said "the tallest positive value and
+  the tallest negative magnitude each set the scale for their own side" —
+  the code uses one shared scale for both; reworded. Contrast clauses
+  dropped from `BarStrip.php` and `BarStripBaseline.php`. `$tips`'s
+  description and `netStrip()`'s doc both said "accessible name"; `bars()`
+  already calls the same kind of value a "tooltip" — matched the term.
+  `EarningsPeriods::netStrip()` now hoists `$figures->net()` once instead
+  of calling it three times per period.
+- `docs/analytics.md` and `docs/seller-portal.md`'s Earnings section now
+  name `baseline()`/`BarStripBaseline` and `netStrip()`/the loss tint.
+
+Follow-ups filed rather than fixed here: IMPRV-041 (the admin listing tint
+disagrees with `ListingStatus`'s own badge — the same rename this ticket's
+sibling IMPRV-034 did, on a different enum) and IMPRV-042 (the net-per-period
+bars and their date labels are two independent layouts that can drift out
+of alignment).

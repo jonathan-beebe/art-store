@@ -48,7 +48,10 @@ it('scales a signed series around a zero baseline', function (array $values, arr
         [-10, -20, -5], [50, 100, 25], [true, true, true], 0,
     ],
     'mixed splits the strip at the proportional zero line' => [
-        [50, -30, 10, -5, 0], [63, 38, 13, 6, 2], [false, true, false, true, false], 63,
+        [50, -30, 10, -5, 0], [63, 37, 13, 6, 2], [false, true, false, true, false], 63,
+    ],
+    'an extreme swing never rounds a bar past its own side of the baseline' => [
+        [1000, -1], [98, 2], [false, true], 98,
     ],
 ]);
 

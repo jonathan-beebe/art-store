@@ -1,7 +1,6 @@
 <x-layouts.seller title="Earnings — Art Store seller">
     @php
         $current = $periods->current();
-        $netStrip = $periods->netStrip(160);
         $salesChange = $periods->currentSalesChange();
         $salesChangeClass = match ($salesChange->direction) {
             \App\Domain\Analytics\ChangeDirection::Up => 'text-green-600 dark:text-green-400',
@@ -86,9 +85,14 @@
     <div class="mt-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
         <section aria-labelledby="net-per-period-heading" class="rounded-lg border border-gray-200 px-6 pt-5 pb-3 lg:col-span-2 dark:border-white/10">
             <h3 id="net-per-period-heading" class="text-sm/6 font-semibold text-gray-900 dark:text-white">Net per period</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Last eight periods, this one in progress</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">Last eight periods, the last one in progress</p>
             <div class="mt-4">
-                <x-bar-strip :bars="$netStrip->bars" :baseline="$netStrip->baselinePx" :height="160" labelledby="net-per-period-heading" class="text-indigo-600 dark:text-indigo-500" />
+                <x-bar-strip :bars="$netStrip->bars" :baseline="$netStrip->baselinePx" :height="$netStrip->heightPx" labelledby="net-per-period-heading" class="text-indigo-600 dark:text-indigo-500" />
+                <ul class="sr-only">
+                    @foreach ($netStrip->bars as $bar)
+                        <li>{{ $bar->tip }}</li>
+                    @endforeach
+                </ul>
             </div>
             <div class="flex gap-1 pt-1.5">
                 @foreach ($periods->periods as $figures)

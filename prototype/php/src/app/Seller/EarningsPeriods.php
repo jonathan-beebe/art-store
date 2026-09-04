@@ -96,18 +96,17 @@ final readonly class EarningsPeriods
 
     /**
      * The window's net-per-period chart: each period's net scaled around a
-     * zero baseline, ready for `x-bar-strip`. A loss period's own
-     * accessible name says so, past the sign {@see Money::format()}
-     * already carries.
+     * zero baseline, ready for `x-bar-strip`. A loss period's own tooltip
+     * says so, past the sign {@see Money::format()} already carries.
      */
     public function netStrip(int $maxPx): BarStripBaseline
     {
         $cents = array_map(fn (PeriodFigures $figures): int => $figures->net()->cents, $this->periods);
-        $tips = array_map(
-            fn (PeriodFigures $figures): string => $figures->period->label().': '.$figures->net()->format()
-                .($figures->net()->isPositive() || $figures->net()->isZero() ? '' : ', a net loss'),
-            $this->periods,
-        );
+        $tips = array_map(function (PeriodFigures $figures): string {
+            $net = $figures->net();
+
+            return $figures->period->label().': '.$net->format().($net->isPositive() || $net->isZero() ? '' : ', a net loss');
+        }, $this->periods);
 
         return BarStrip::baseline($cents, $tips, $maxPx);
     }

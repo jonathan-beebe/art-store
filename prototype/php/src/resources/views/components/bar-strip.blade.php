@@ -29,7 +29,7 @@
 
 <svg viewBox="0 0 {{ $totalWidth }} {{ $height }}" preserveAspectRatio="none" width="100%" style="height: {{ $height }}px" @if ($labelledby !== null) role="img" aria-labelledby="{{ $labelledby }}" @else aria-hidden="true" @endif {{ $attributes->merge(['class' => 'block']) }}>
     @if ($baseline !== null)
-        <line x1="0" y1="{{ $zero }}" x2="{{ $totalWidth }}" y2="{{ $zero }}" stroke="currentColor" stroke-width="0.5" opacity="0.3" />
+        <line x1="0" y1="{{ $zero }}" x2="{{ $totalWidth }}" y2="{{ $zero }}" stroke="currentColor" stroke-width="1" class="text-gray-500 dark:text-gray-400" />
     @endif
     @foreach ($bars as $i => $bar)
         <rect

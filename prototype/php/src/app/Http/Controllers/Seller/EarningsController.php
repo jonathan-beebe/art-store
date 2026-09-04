@@ -26,6 +26,7 @@ final class EarningsController extends SellerController
             'nextPayout' => NextPayout::for($seller, $now),
             'held' => HeldEscrow::for($seller),
             'periods' => $periods,
+            'netStrip' => $periods->netStrip(160),
             'currentSales' => PeriodSales::for($seller, $periods->current()->period),
         ]);
     }
