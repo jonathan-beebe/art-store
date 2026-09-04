@@ -77,16 +77,16 @@ it('gives shipped and delivered their own rows, with their own times and actors'
         ->and($delivered[0]->occurredAt)->toEqual($this->moment('2026-08-23 10:00:00'));
 });
 
-it('a declined fulfillment\'s row carries the refund reason as its quote', function (): void {
+it('says only that a declined parcel was turned down, leaving the amount and the reason to the money row', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $fulfillment = $this->paidFulfillmentFor($seller);
     app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
 
     $events = (new FulfillmentSource)->events(FeedScope::forFulfillment($fulfillment->refresh()));
-    $declined = array_values(array_filter($events, fn (FeedEvent $event): bool => $event->text === 'declined the order and refunded '.$fulfillment->subtotal()->format()));
+    $declined = array_values(array_filter($events, fn (FeedEvent $event): bool => $event->text === 'declined the order'));
 
     expect($declined)->toHaveCount(1)
-        ->and($declined[0]->quote)->toBe('The kiln cracked the glaze.')
+        ->and($declined[0]->quote)->toBeNull()
         ->and($declined[0]->kind)->toBe(ActivityKind::Shipping);
 });
 

@@ -20,7 +20,8 @@ use App\Support\ActorDisplay;
  * their own times.
  *
  * The refund a decline issues is the order source's row: it carries the
- * amount, which the log does not.
+ * amount and the seller's reason, which the log does not, so the shipping row
+ * says only that the parcel was turned down.
  */
 final readonly class FulfillmentSource implements ActivityFeedSource
 {
@@ -55,7 +56,7 @@ final readonly class FulfillmentSource implements ActivityFeedSource
     {
         return array_values(Fulfillment::query()
             ->whereIn('id', $scope->fulfillmentIds)
-            ->with(['fulfillmentEvents', 'refund'])
+            ->with('fulfillmentEvents')
             ->get()
             ->all());
     }
@@ -68,7 +69,6 @@ final readonly class FulfillmentSource implements ActivityFeedSource
             icon: $this->iconOf($event),
             actor: $this->actorOf($event, $scope),
             text: $this->textOf($event, $fulfillment),
-            quote: $event->kind === FulfillmentEventKind::Declined ? $fulfillment->refund?->reason : null,
             link: route('seller.orders.show', $fulfillment->id),
         );
     }
@@ -98,16 +98,14 @@ final readonly class FulfillmentSource implements ActivityFeedSource
             FulfillmentEventKind::StepCompleted => $this->stepText($event),
             FulfillmentEventKind::Shipped => 'marked it shipped with '.($fulfillment->carrier ?? 'the carrier'),
             FulfillmentEventKind::Delivered => 'confirmed delivery',
-            default => 'declined the order and refunded '.$fulfillment->subtotal()->format(),
+            default => 'declined the order',
         };
     }
 
     private function stepText(FulfillmentEvent $event): string
     {
-        $label = $event->step_label ?? 'a step';
-
         return $event->carrier === null
-            ? "completed {$label}"
+            ? 'completed '.$event->stepLabel()
             : "printed the {$event->carrier} label · ".($event->tracking_number ?? '');
     }
 }

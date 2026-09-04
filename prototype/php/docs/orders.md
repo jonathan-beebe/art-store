@@ -284,13 +284,27 @@ the only one that touches the table:
 - **The steps.** `CompleteFlowStep` appends `step_completed` with the step
   id, and with the carrier and tracking number when the step prints a label.
 
+One default flow per seller is a partial unique index,
+`(seller_id) where is_default = 1` — SQLite and Postgres both take the clause,
+and Blueprint has none, so the migration writes it as a statement.
+
 `fulfillment_events` is unique on `(fulfillment_id, fulfillment_flow_step_id)`,
 so a step completed twice is refused by the database as well as by the
 action. A unique index counts each null as its own value, so the transition
 rows — which name no step — are outside the constraint. The row also copies
 `step_label`: a seller who later drops the step from their flow leaves the
 log still saying what they did, and the foreign key nulls out rather than
-cascading the history away.
+cascading the history away. The panel on the order page draws the flow as it
+stands now; the log keeps each step's words as they were, so a step renamed
+after the fact reads one way in the panel and another in the feed, which is
+what a record is for. `FulfillmentEvent::stepLabel()` refuses a completion
+that kept no words.
+
+Whether a parcel has started is read from the completions, not from the
+steps: `FulfillmentProgress::hasStarted()` counts every `step_completed` row,
+so removing a step the seller had already done leaves the parcel where it
+was. Which steps are behind it is read against the flow as it stands, so the
+panel never ticks a step that is gone.
 
 ```mermaid
 sequenceDiagram

@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Domain\Auth\ActorType;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use Illuminate\Database\QueryException;
+use RuntimeException;
 
 it('mints a prefixed id', function (): void {
     expect(FulfillmentEvent::factory()->create()->id)->toStartWith('fev_');
@@ -67,4 +68,21 @@ it('permits many events with no step on one fulfillment', function (): void {
     FulfillmentEvent::factory()->on($fulfillment)->create(['kind' => FulfillmentEventKind::Delivered]);
 
     expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->count())->toBe(2);
+});
+
+it('reads back the step words a completion recorded', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Kiln cooled']);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    $event = FulfillmentEvent::factory()->on($fulfillment)->completing($step)->create();
+
+    expect($event->stepLabel())->toBe('Kiln cooled');
+});
+
+it('refuses to read step words off a row that kept none', function (): void {
+    $event = new FulfillmentEvent(['kind' => FulfillmentEventKind::StepCompleted]);
+
+    expect(fn (): string => $event->stepLabel())->toThrow(RuntimeException::class);
 });

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Override;
+use RuntimeException;
 
 /**
  * One appended row of a fulfillment's life: a step the seller completed, or a
@@ -74,6 +75,19 @@ class FulfillmentEvent extends Model
     public function fulfillmentFlowStep(): BelongsTo
     {
         return $this->belongsTo(FulfillmentFlowStep::class);
+    }
+
+    /**
+     * The step's words as this row recorded them. Every `step_completed` row
+     * carries them — `AppendFulfillmentEvent` copies them off the step it was
+     * handed — so a reader needs no stand-in for a step that is gone.
+     *
+     * @throws RuntimeException on a row that names a step and kept no words
+     */
+    public function stepLabel(): string
+    {
+        return $this->step_label
+            ?? throw new RuntimeException("A step completion records the step label, and {$this->id} kept none.");
     }
 
     /**

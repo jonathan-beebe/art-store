@@ -56,8 +56,9 @@ Two boundaries keep a row from appearing twice:
   log does not, and it takes the refund's reason as its quote. The
   fulfillment source skips that kind.
 
-A decline is a shipping row whose quote is the refund's reason — the words
-the seller typed. A message is a messages row whose quote is the body.
+A decline is told once: the shipping row says the parcel was turned down and
+the `refunded` movement carries the amount and the words the seller typed. A
+message is a messages row whose quote is the body.
 
 ### Merging and filtering are pure
 
