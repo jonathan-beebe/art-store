@@ -21,6 +21,7 @@ use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Seller;
+use App\Support\Configurator\PublishIssuePresenter;
 use App\Support\ParcelLine;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -218,7 +219,7 @@ final readonly class NeedsAttention
             return 'Draft · not on the storefront yet';
         }
 
-        $first = $issues[0]->message;
+        $first = PublishIssuePresenter::genericMessage($issues[0]);
         $rest = count($issues) - 1;
 
         return $rest > 0 ? "{$first} +{$rest} more" : $first;

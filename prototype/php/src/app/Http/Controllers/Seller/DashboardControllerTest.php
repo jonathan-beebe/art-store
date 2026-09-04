@@ -399,7 +399,7 @@ it('names a drafts own publish issue in its needs-work row', function (): void {
         $rows = groupAt($groups, 3)->rows;
         $row = array_values(array_filter($rows, fn (AttentionRow $row): bool => $row->href === route('seller.listings.show', ['listing' => $draft->id])))[0] ?? null;
 
-        return $row instanceof AttentionRow && $row->supporting === 'The listing asks more than 5 questions.';
+        return $row instanceof AttentionRow && $row->supporting === 'This listing asks more questions than the platform allows — remove one before it can go live.';
     });
 });
 
@@ -492,12 +492,11 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
     // page-view roll-up, the next payout, the buyers, the parcels placed
     // across both ranges and the refunds that netted against them, the
     // listings table, the units sold, and the four focus queues read down
-    // and counted whole — plus DraftPublishIssues's nine grouped reads
-    // across the needs-work panel's drafts, fixed whatever their count (no
-    // draft here carries an axis, so the tenth read — variant option
-    // values, eager-loaded rather than a manual `whereIn` — never fires).
+    // and counted whole — plus DraftPublishIssues's ten grouped reads
+    // across the needs-work panel's drafts, every one an unconditional
+    // `whereIn` so the count holds at both row counts this test drives.
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(45)
+        ->expectsDatabaseQueryCount(46)
         ->get('/seller');
 
     $response->assertOk();

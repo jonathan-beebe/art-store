@@ -119,12 +119,10 @@ reads what `Listing::publishIssues()` reads for one listing — option axes
 with their value counts, variants and their options and units, category
 properties, listing attributes, modifiers, quantity breaks, and description
 sections — in one grouped query per concern across the whole group of
-drafts and sold-out listings the page already loaded, so the group costs a
-fixed number of queries whatever the count of drafts a seller holds. The
-seller's own publish panel (`ListingStatusController`) still calls
-`Listing::publishIssues()` per listing, one click away, and pays its own
-per-listing cost — the dashboard's fixed cost does not change what that
-panel pays.
+drafts and sold-out listings the page already loaded, so the group's own
+cost is fixed at any count of drafts. The seller's own publish panel
+(`ListingStatusController`) still calls `Listing::publishIssues()` per
+listing, one click away, at its own per-listing cost.
 
 ## Store profile
 
@@ -440,7 +438,7 @@ flow's steps, and reads the flow itself through `App\Seller\FulfillmentFlowReade
 (`flowInEffect`, `flowSteps`, `progress`) — the class `App\Actions\Fulfillment\CompleteFlowStep`
 also reads, after loading the same relations for the one parcel a submit
 names. `Fulfillment::lane()` takes the `FulfillmentProgress` a caller already
-read rather than building its own. `App\Seller\OrderDetail::state()` builds
+read. `App\Seller\OrderDetail::state()` builds
 `App\Domain\Fulfillment\ParcelState`, the sentence under the buyer's name,
 one shape per status:
 

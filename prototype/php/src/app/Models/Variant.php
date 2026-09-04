@@ -95,7 +95,7 @@ class Variant extends Model
         $standalonePrices = [];
         $addonSurcharges = [];
 
-        foreach ($this->options()->with('optionValue.axis')->get() as $option) {
+        foreach ($this->pricedOptions() as $option) {
             $value = $option->optionValue ?? throw new LogicException('A variant option always names an option value.');
             $axis = $value->axis ?? throw new LogicException('An option value always belongs to an axis.');
 
@@ -112,6 +112,18 @@ class Variant extends Model
             $addonSurcharges,
             $standalonePrices,
         )->amount;
+    }
+
+    /**
+     * This variant's options, with the value and axis each one prices
+     * against. Read off an eager-loaded `options.optionValue.axis` for a
+     * caller pricing many variants in one batch; queried fresh otherwise.
+     *
+     * @return iterable<VariantOption>
+     */
+    private function pricedOptions(): iterable
+    {
+        return $this->relationLoaded('options') ? $this->options : $this->options()->with('optionValue.axis')->get();
     }
 
     public function availableUnitCount(): int
