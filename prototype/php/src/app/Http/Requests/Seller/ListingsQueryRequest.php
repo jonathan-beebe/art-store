@@ -7,8 +7,8 @@ namespace App\Http\Requests\Seller;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Seller\ListingSort;
 use App\Domain\Seller\ListingSortColumn;
-use App\Domain\Seller\ListingSortDirection;
 use App\Domain\Seller\ListingView;
+use App\Domain\Seller\SortDirection;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -36,7 +36,7 @@ final class ListingsQueryRequest extends FormRequest
             'view' => ['nullable', Rule::enum(ListingView::class)],
             'from' => ['nullable', Rule::in(array_map(fn (ListingView $view): string => $view->value, ListingView::openable()))],
             'sort' => ['nullable', Rule::enum(ListingSortColumn::class)],
-            'dir' => ['nullable', Rule::enum(ListingSortDirection::class)],
+            'dir' => ['nullable', Rule::enum(SortDirection::class)],
             'range' => ['nullable', Rule::in(array_map(strval(...), AnalyticsRange::SIZES))],
         ];
     }
@@ -72,11 +72,11 @@ final class ListingsQueryRequest extends FormRequest
     public function sort(): ListingSort
     {
         $column = $this->enum('sort', ListingSortColumn::class);
-        $direction = $this->enum('dir', ListingSortDirection::class);
+        $direction = $this->enum('dir', SortDirection::class);
 
         return $column === null && $direction === null
             ? ListingSort::default()
-            : ListingSort::of($column ?? ListingSortColumn::Views, $direction ?? ListingSortDirection::Desc);
+            : ListingSort::of($column ?? ListingSortColumn::Views, $direction ?? SortDirection::Desc);
     }
 
     public function rangeDays(): int

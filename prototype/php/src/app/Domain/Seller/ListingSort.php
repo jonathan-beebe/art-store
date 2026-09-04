@@ -13,17 +13,17 @@ final readonly class ListingSort
 {
     private function __construct(
         public ListingSortColumn $column,
-        public ListingSortDirection $direction,
+        public SortDirection $direction,
     ) {}
 
-    public static function of(ListingSortColumn $column, ListingSortDirection $direction): self
+    public static function of(ListingSortColumn $column, SortDirection $direction): self
     {
         return new self($column, $direction);
     }
 
     public static function default(): self
     {
-        return new self(ListingSortColumn::Views, ListingSortDirection::Desc);
+        return new self(ListingSortColumn::Views, SortDirection::Desc);
     }
 
     public function isColumn(ListingSortColumn $column): bool
@@ -42,8 +42,8 @@ final readonly class ListingSort
      * flip of the current direction when it is already the sorted
      * column, descending otherwise.
      */
-    public function nextDirectionFor(ListingSortColumn $column): ListingSortDirection
+    public function nextDirectionFor(ListingSortColumn $column): SortDirection
     {
-        return $this->isColumn($column) ? $this->direction->flipped() : ListingSortDirection::Desc;
+        return $this->isColumn($column) ? $this->direction->flipped() : SortDirection::Desc;
     }
 }

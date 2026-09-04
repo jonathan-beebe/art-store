@@ -259,7 +259,7 @@ reads as its default, an unrecognised one answers a bare 400.
 | `view`  | `list` \| `table` \| `grid` (`App\Domain\Seller\ListingView`)          | `list`  | the index route              |
 | `from`  | `table` \| `grid`                                                     | absent  | the detail route             |
 | `sort`  | one of eleven `App\Domain\Seller\ListingSortColumn` cases               | `views` | table/grid, and the header's `<select>` |
-| `dir`   | `asc` \| `desc` (`App\Domain\Seller\ListingSortDirection`)              | `desc`  | table/grid                   |
+| `dir`   | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)              | `desc`  | table/grid                   |
 | `range` | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)      | `30`    | the ranged columns and the detail's view strip |
 
 The detail route carries `from`, not `view` — `ListingController::show()`
@@ -273,7 +273,7 @@ explicitly.
 flowchart TB
     controller["Http\\Controllers\\Seller\\ListingController"] --> table["Seller\\ListingTable"]
     controller --> domain
-    table --> domain["Domain\\Seller\\{ListingTableRow,ListingTableSort,ListingSort,ListingSortColumn,ListingSortDirection,ListingView}"]
+    table --> domain["Domain\\Seller\\{ListingTableRow,ListingTableSort,ListingSort,ListingSortColumn,SortDirection,ListingView}"]
     table -.-> analytics["Analytics\\AnalyticsReport::countsForListingsSince()"]
 ```
 

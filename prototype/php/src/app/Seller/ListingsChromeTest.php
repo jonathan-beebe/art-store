@@ -6,8 +6,8 @@ namespace App\Seller;
 
 use App\Domain\Seller\ListingSort;
 use App\Domain\Seller\ListingSortColumn;
-use App\Domain\Seller\ListingSortDirection;
 use App\Domain\Seller\ListingView;
+use App\Domain\Seller\SortDirection;
 use RuntimeException;
 
 /**
@@ -67,7 +67,7 @@ it('offers every sort column but status in the select', function (): void {
 });
 
 it('builds one column header per column, carrying the flipped direction', function (): void {
-    $sort = ListingSort::of(ListingSortColumn::Price, ListingSortDirection::Asc);
+    $sort = ListingSort::of(ListingSortColumn::Price, SortDirection::Asc);
     $chrome = ListingsChrome::build([], ListingView::Table, $sort);
 
     expect($chrome->columnHeaders)->toHaveCount(11);
