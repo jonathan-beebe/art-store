@@ -45,7 +45,12 @@
                     <dt class="font-medium text-gray-900 dark:text-white">A call</dt>
                     <dd class="text-gray-500 dark:text-gray-400">Book fifteen minutes for anything that is easier to talk through.</dd>
                     <dd class="mt-1">
-                        <a href="{{ config('support.booking_url') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Pick a time</a>
+                        @php $bookingUrl = config('support.booking_url'); @endphp
+                        @if (str_starts_with($bookingUrl, '['))
+                            <span class="text-gray-500 dark:text-gray-400">{{ $bookingUrl }}</span>
+                        @else
+                            <a href="{{ $bookingUrl }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Pick a time</a>
+                        @endif
                     </dd>
                 </div>
             </dl>
@@ -75,14 +80,13 @@
             <h2 class="text-sm/6 font-semibold text-gray-900 dark:text-white">Your conversations with us</h2>
             <ul class="mt-2 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">
                 @forelse ($threads as $thread)
-                    @php $isResolved = $thread->status() === \App\Domain\Messaging\ConversationStatus::Resolved; @endphp
                     <li class="border-t border-gray-100 first:border-t-0 dark:border-white/5">
-                        <a href="{{ route('seller.messages.show', ['conversation' => $thread, 'domain' => 'support']) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5">
+                        <a href="{{ route('seller.messages.show', ['conversation' => $thread->conversationId, 'domain' => 'support']) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5">
                             <span class="min-w-0 flex-1">
                                 <span class="block truncate font-medium text-gray-900 dark:text-white">{{ $thread->title }}</span>
-                                <span class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ $thread->latestMessage?->body }}</span>
+                                <span class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ $thread->preview }}</span>
                             </span>
-                            <x-seller.status-badge :tint="$isResolved ? 'gray' : 'green'">{{ $isResolved ? 'Resolved' : 'Open' }}</x-seller.status-badge>
+                            <x-seller.status-badge :tint="$thread->isResolved ? 'gray' : 'green'">{{ $thread->isResolved ? 'Resolved' : 'Open' }}</x-seller.status-badge>
                         </a>
                     </li>
                 @empty

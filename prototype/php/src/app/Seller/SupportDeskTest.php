@@ -19,10 +19,10 @@ it('lists every seeded admin under the desk role, in seed order', function (): v
     $desk = SupportDesk::for($seller, $this->moment('2026-08-19 12:00:00'));
 
     expect($desk->people)->toHaveCount(2)
-        ->and($desk->people[0]->name)->toBe('Jonathan Beebe')
-        ->and($desk->people[1]->name)->toBe('Anna Schmunk')
-        ->and($desk->people[0]->role)->toBe('Seller support')
-        ->and($desk->people[1]->role)->toBe('Seller support');
+        ->and($desk->people[0]->name)->toBe(AdminSeeder::ADMINS[0]['name'])
+        ->and($desk->people[1]->name)->toBe(AdminSeeder::ADMINS[1]['name'])
+        ->and($desk->people[0]->role)->toBe(config('support.role'))
+        ->and($desk->people[1]->role)->toBe(config('support.role'));
 });
 
 it('reads every person as online during the configured hours', function (): void {

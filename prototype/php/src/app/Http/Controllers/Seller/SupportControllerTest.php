@@ -26,8 +26,19 @@ it('shows the desk, one entry per seeded admin', function (): void {
     $response = $this->actingAs($seller, 'seller')->get('/seller/support');
 
     $response->assertOk();
-    $response->assertSee('Jonathan Beebe');
-    $response->assertSee('Anna Schmunk');
+    foreach (AdminSeeder::ADMINS as $admin) {
+        $response->assertSee($admin['name']);
+    }
+});
+
+it('renders the booking url as plain text while it is still a bracketed placeholder', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response->assertOk();
+    $response->assertDontSee('<a href="[', escape: false);
+    $response->assertSee((string) config('support.booking_url'));
 });
 
 it('lists the help articles by their group', function (): void {
