@@ -6,7 +6,7 @@ use App\Actions\Store\RenameStoreSlug;
 use App\Actions\Store\StartStore;
 use App\Models\Seller;
 use App\Models\StoreProfile;
-use App\Support\Store\StoreAddressLookup;
+use App\Seller\Store\StoreAddressLookup;
 
 it('finds the store answering to an address today', function (): void {
     $profile = StoreProfile::factory()->create(['slug' => 'the-burrow-craftworks']);

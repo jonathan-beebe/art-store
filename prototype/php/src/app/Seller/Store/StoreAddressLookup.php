@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Store;
+namespace App\Seller\Store;
 
 use App\Domain\Store\RetiredSlugWindow;
 use App\Models\StoreProfile;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Support\Store;
+namespace App\Seller\Store;
 
 use App\Models\Listing;
 use App\Models\StoreProfile;
@@ -25,10 +25,7 @@ final class StorefrontStorePageData
 
     private function __construct() {} // @codeCoverageIgnore
 
-    /**
-     * @return array<string, mixed>
-     */
-    public static function build(StoreProfile $profile, bool $isOwnStore): array
+    public static function build(StoreProfile $profile, bool $isOwnStore): StorefrontStorePage
     {
         $profile->load([
             'seller',
@@ -38,21 +35,23 @@ final class StorefrontStorePageData
             'sections.sectionImages.storeImage',
         ]);
 
-        return [
-            'profile' => $profile,
-            'facts' => StoreFacts::of($profile),
-            'isOwnStore' => $isOwnStore,
-            'listings' => Listing::query()
-                ->where('seller_id', $profile->seller_id)
-                ->onStorefront()
-                ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->paginate(self::PER_PAGE)
-                ->withQueryString(),
-            'description' => self::description($profile),
-            'ogImage' => $profile->coverImage?->url() ?? $profile->portraitImage?->url(),
-        ];
+        $listings = Listing::query()
+            ->where('seller_id', $profile->seller_id)
+            ->onStorefront()
+            ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->paginate(self::PER_PAGE)
+            ->withQueryString();
+
+        return new StorefrontStorePage(
+            profile: $profile,
+            facts: StoreFacts::of($profile),
+            isOwnStore: $isOwnStore,
+            listings: $listings,
+            description: self::description($profile),
+            ogImage: $profile->coverImage?->url() ?? $profile->portraitImage?->url(),
+        );
     }
 
     /**
