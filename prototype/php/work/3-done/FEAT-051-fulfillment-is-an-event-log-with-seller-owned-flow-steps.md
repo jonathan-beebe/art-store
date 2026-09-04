@@ -129,3 +129,68 @@ trailing "add a step" row.
 ### Gate
 
 `make precommit` green: 4182 passed, 33628 assertions.
+
+## Review pass
+
+Ten findings from the lane review, all applied on this branch.
+
+1. **Ownership read off a denormalized column.** `CompleteFlowStepRequest`
+   compared `fulfillment_flow_steps.seller_id` against the fulfillment's
+   seller. Nothing keeps that column true — the factory even minted a step
+   whose column named one seller and whose flow named another. Ownership now
+   reads `step->fulfillmentFlow->seller_id`, the side carrying the foreign
+   key, and the factory's seller follows the flow. A test posts a step whose
+   column says this seller and whose flow says another, and gets 404.
+2. **Removing a completed step walked the parcel back to To ship.**
+   `hasStarted()` read the completions intersected with the current flow, and
+   `nullOnDelete` empties that intersection. It now counts every
+   `step_completed` row — they survive with `step_label` — while which steps
+   are behind the parcel still reads against the flow as it stands, so the
+   panel never ticks a step that is gone. Two database tests delete a
+   completed step and hold the lane and the row.
+   `FulfillmentProgressTest` had been asserting a state the log cannot
+   produce (an id for a step the flow no longer holds); a removed step leaves
+   a null, and the case now says so.
+3. **One default flow per seller** is a partial unique index,
+   `(seller_id) where is_default = 1`. Blueprint carries no partial unique;
+   SQLite and Postgres both take the clause, so the migration writes it as a
+   statement.
+4. **`steps.*.id` took any 30-character string.** Two rows carrying one id
+   read as a step kept and a step dropped; an id from another flow minted a
+   new step. `distinct` plus an `exists` scoped to the seller's own flow
+   refuse both, and a seller with no flow yet may name no step at all.
+5. **`MAX_STEPS` counted the page's blank row**, so a full flow of twelve
+   submitted thirteen and was refused. The array rule admits `MAX_STEPS + 1`;
+   the count that matters is taken after the blank and removed rows go.
+6. **The headline invariant had no test where it lives.** Each of the four
+   transition sidecars now asserts the appended row's kind, actor type, actor
+   id, and instant, and that a refused transition appends nothing — the admin
+   refund path included.
+
+### Position columns and the sentinel
+
+Left as they are. Both `position` columns stay `unsignedInteger` and
+`SaveFulfillmentFlow` parks surviving rows on negatives while it refills the
+range from zero, the idiom `ReorderDescriptionSection` already set on
+`description_sections`. SQLite does not enforce unsignedness, so the sentinel
+works; switching both columns to signed `integer` would be a two-table
+migration that buys correctness on a database this prototype does not run,
+and would leave `description_sections` and `listing_images` still on the
+house idiom. One idiom, stated here, beats two.
+
+### What MAINT-008 owes
+
+- `docs/alignment.md` §1: prefixes `ffl` (fulfillment_flows), `ffs`
+  (fulfillment_flow_steps), `fev` (fulfillment_events).
+- `docs/alignment.md` §4: the fulfillment event log beside the status
+  machine, and the seller's flow steps; §4.4 gains "label printed" on the
+  seller surface. Node and Rails owe parity.
+- `docs/alignment.md` §2.3: `fulfillment.step` as a candidate log event.
+  The vocabulary is closed today, so step completion and the flow editor
+  write no `Story` line and the appended row is the record.
+- `docs/data-model.md`: the three tables above and
+  `listings.fulfillment_flow_id`.
+
+### Gate after the review pass
+
+`make precommit` green: 4257 passed, 33860 assertions.

@@ -106,3 +106,37 @@ whatever its subject.
 ### Gate
 
 `make precommit` green: 4232 passed, 33792 assertions.
+
+## Review pass
+
+Four findings from the lane review, all applied on this branch.
+
+1. **A decline was told twice.** The shipping row carried the amount and the
+   seller's reason, and so did the `refunded` ledger movement. The shipping
+   row now says the parcel was turned down; the money row keeps the amount
+   and the reason, which is where a reader looks for them.
+2. **The reader had a stand-in for missing words.** `FulfillmentEvent::stepLabel()`
+   replaces `'a step'` and refuses a completion that kept none. The assertion
+   sits at the read boundary rather than in `AppendFulfillmentEvent`: a guard
+   there is unreachable, because `NewFulfillmentEvent`'s named constructors
+   already pair a completion with its step. `docs/orders.md` says the log
+   keeps each step's words as they were while the panel draws the flow as it
+   stands.
+3. **Templates were doing core work.** `FulfillmentProgress::hasCompleted()`
+   replaces the id set the flow panel plucked and searched;
+   `FeedEvent::isAccented()` replaces a fully-qualified enum compare in the
+   feed; `Order::shippingAddressLines()` replaces the label page's address
+   block, and the controller hands the lines down.
+4. **`tests/Arch.php`** holds `App\Domain` off `App\Seller` and
+   `App\Analytics` too, so the adapters stay outside the core.
+
+### What MAINT-008 owes, for this ticket
+
+`docs/seller-portal.md` holds the Activity feed section alone; the rest of
+the seller portal's doc, `docs/data-model.md`'s new tables, and
+`docs/alignment.md` §1's `ffl`/`ffs`/`fev` prefixes and §4's event log are
+MAINT-008's, as is `fulfillment.step` if §2.3's vocabulary opens.
+
+### Gate after the review pass
+
+`make precommit` green: 4257 passed, 33860 assertions.
