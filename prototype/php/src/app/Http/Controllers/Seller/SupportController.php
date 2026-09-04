@@ -27,14 +27,14 @@ use Illuminate\View\View;
  */
 final class SupportController extends SellerController
 {
-    public function index(): View
+    public function index(HelpArticles $helpArticles): View
     {
         $seller = $this->seller();
 
         return view('seller.support.index', [
             'desk' => SupportDesk::for($seller, $this->now()),
-            'helpGroups' => HelpArticles::grouped(),
-            'threads' => SupportThreads::for($seller)->threads,
+            'helpGroups' => $helpArticles->grouped(),
+            'threads' => SupportThreads::for($seller),
         ]);
     }
 

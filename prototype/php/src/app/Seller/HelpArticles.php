@@ -10,30 +10,28 @@ use SplFileInfo;
 
 /**
  * The help articles under `resources/help/seller/*.md`, parsed once per
- * request and cached — the same handful of files back both the support
- * hub's grouped list and every article page.
+ * instance — the support hub's grouped list and an article page each
+ * resolve their own instance through the container, so the parse happens
+ * once per request.
  */
 final class HelpArticles
 {
     /**
-     * The order groups list in, whatever order their files happen to sort
-     * in. A group the taxonomy has not named yet sorts after every named
-     * one rather than failing.
+     * The order groups list in. A group the taxonomy has not named yet
+     * sorts after every named one.
      */
     private const array GROUP_ORDER = ['Getting paid', 'Shipping', 'Listings', 'Messages'];
 
     /** @var list<HelpArticle>|null */
-    private static ?array $cache = null;
-
-    private function __construct() {} // @codeCoverageIgnore
+    private ?array $cache = null;
 
     /**
      * @return list<HelpArticle> every article, grouped and then ordered by position within its group
      */
-    public static function all(): array
+    public function all(): array
     {
-        if (self::$cache !== null) {
-            return self::$cache;
+        if ($this->cache !== null) {
+            return $this->cache;
         }
 
         $articles = collect(File::files(resource_path('help/seller')))
@@ -47,12 +45,12 @@ final class HelpArticles
                 <=> [self::groupRank($b->group), $b->position],
         );
 
-        return self::$cache = $articles;
+        return $this->cache = $articles;
     }
 
-    public static function find(string $slug): ?HelpArticle
+    public function find(string $slug): ?HelpArticle
     {
-        foreach (self::all() as $article) {
+        foreach ($this->all() as $article) {
             if ($article->slug === $slug) {
                 return $article;
             }
@@ -64,11 +62,11 @@ final class HelpArticles
     /**
      * @return array<string, list<HelpArticle>> group title => its articles, in GROUP_ORDER
      */
-    public static function grouped(): array
+    public function grouped(): array
     {
         $grouped = [];
 
-        foreach (self::all() as $article) {
+        foreach ($this->all() as $article) {
             $grouped[$article->group][] = $article;
         }
 

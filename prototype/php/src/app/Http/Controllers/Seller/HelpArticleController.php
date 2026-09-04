@@ -14,9 +14,9 @@ use Illuminate\View\View;
  */
 final class HelpArticleController extends SellerController
 {
-    public function show(string $article): View
+    public function show(string $article, HelpArticles $helpArticles): View
     {
-        $found = HelpArticles::find($article);
+        $found = $helpArticles->find($article);
 
         if ($found === null) {
             abort(404);
