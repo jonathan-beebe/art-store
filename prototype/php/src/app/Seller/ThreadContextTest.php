@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
+use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\ConversationSubject;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -107,4 +108,43 @@ it('lists the buyer\'s other threads with this seller, newest first', function (
     $context = ThreadContext::forSeller($seller, $open);
 
     expect($context->others->pluck('id')->all())->toBe([$newer->id, $older->id]);
+});
+
+it('names the parcel by this seller\'s own lines on a two-seller order', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $other = $this->seller('Lovegood Curiosities');
+    $customer = Customer::factory()->create(['name' => 'Harry Potter']);
+
+    $order = $this->orderFor(
+        $customer,
+        $this->listing($seller, ['title' => 'The Burrow at Dusk']),
+        $this->listing($other, ['title' => 'Nine Owls']),
+    );
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = $order->fulfillments()->where('seller_id', $seller->id)->sole();
+
+    $conversation = Conversation::factory()
+        ->forSubject(ConversationSubject::fulfillment($seller->id, $customer->id, $fulfillment->id))
+        ->create();
+
+    $context = ThreadContext::forSeller($seller, $conversation);
+
+    expect($context->order?->itemLabel())->toBe('The Burrow at Dusk');
+});
+
+it('carries the pictures the rail renders, so no page queries for them', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);
+    $listing = $this->listing($seller, ['title' => 'Nine Owls']);
+    $this->listingImage($listing);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $listing->id,
+    ]);
+
+    $context = ThreadContext::forSeller($seller, $conversation);
+
+    expect($context->listing?->relationLoaded('images'))->toBeTrue()
+        ->and($context->listing?->imageUrl())->not->toBeEmpty();
 });

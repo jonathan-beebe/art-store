@@ -13,6 +13,7 @@ use App\Models\Listing;
 use App\Models\Seller;
 use App\Support\ActorDisplay;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
  * Who a seller is talking to, beside the words: the counterpart's identity,
@@ -41,7 +42,14 @@ final readonly class ThreadContext
 
     public static function forSeller(Seller $seller, Conversation $conversation): self
     {
-        $conversation->loadMissing(['customer', 'listing', 'fulfillment.order.items']);
+        $conversation->loadMissing([
+            'customer',
+            'listing.images' => fn (Relation $images) => $images->orderBy('position'),
+            // The parcel is named by this seller's own lines: a two-seller
+            // order carries the other seller's pieces on the same order.
+            'fulfillment.order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
+            'fulfillment.order.items.listing.images' => fn (Relation $images) => $images->orderBy('position'),
+        ]);
 
         $customer = $conversation->customer;
         $isDesk = $conversation->kind->isDesk();
