@@ -7,6 +7,8 @@ namespace App\Actions\Fulfillment;
 use App\Actions\Escrow\IssueRefund;
 use App\Actions\Orders\RollUpOrderStatus;
 use App\Domain\Auth\ActorType;
+use App\Domain\Fulfillment\FulfillmentEventKind;
+use App\Domain\Fulfillment\NewFulfillmentEvent;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Logging\StoryEvent;
 use App\Models\Fulfillment;
@@ -30,6 +32,7 @@ final readonly class DeclineFulfillment
     public function __construct(
         private IssueRefund $issueRefund,
         private RollUpOrderStatus $rollUpOrderStatus,
+        private AppendFulfillmentEvent $appendEvent,
     ) {}
 
     public function __invoke(Fulfillment $fulfillment, string $reason, DateTimeImmutable $now): Fulfillment
@@ -51,6 +54,13 @@ final readonly class DeclineFulfillment
                 $this->restockItems($fulfillment);
 
                 $fulfillment->update(['status' => $status]);
+
+                ($this->appendEvent)($fulfillment, NewFulfillmentEvent::transition(
+                    kind: FulfillmentEventKind::forStatus($status),
+                    actorType: ActorType::Seller,
+                    actorId: $fulfillment->seller_id,
+                    occurredAt: $now,
+                ));
 
                 $refund = ($this->issueRefund)($fulfillment, ActorType::Seller, $fulfillment->seller_id, $reason, $now);
 
