@@ -8,7 +8,6 @@ use App\Seller\EarningsPeriods;
 use App\Seller\HeldEscrow;
 use App\Seller\NextPayout;
 use App\Seller\PeriodSales;
-use Illuminate\Support\Facades\Date;
 use Illuminate\View\View;
 
 /**
@@ -20,7 +19,7 @@ final class EarningsController extends SellerController
     public function __invoke(): View
     {
         $seller = $this->seller();
-        $now = Date::now()->toDateTimeImmutable();
+        $now = $this->now();
         $periods = EarningsPeriods::for($seller, $now);
 
         return view('seller.earnings', [

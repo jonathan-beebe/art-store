@@ -7,7 +7,6 @@ namespace App\Http\Controllers\Seller;
 use App\Domain\Seller\PeriodFigures;
 use App\Seller\EarningsPeriods;
 use App\Seller\PeriodSales;
-use Illuminate\Support\Facades\Date;
 use Illuminate\View\View;
 
 /**
@@ -21,7 +20,7 @@ final class StatementController extends SellerController
     public function __invoke(string $period): View
     {
         $seller = $this->seller();
-        $now = Date::now()->toDateTimeImmutable();
+        $now = $this->now();
         $periods = EarningsPeriods::for($seller, $now);
 
         $figures = $this->periodFigures($periods, $period);

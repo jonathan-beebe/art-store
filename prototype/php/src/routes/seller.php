@@ -9,6 +9,7 @@ use App\Http\Controllers\Seller\DescriptionSectionController;
 use App\Http\Controllers\Seller\DescriptionSectionReorderController;
 use App\Http\Controllers\Seller\EarningsController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
+use App\Http\Controllers\Seller\HelpArticleController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingBasicsController;
 use App\Http\Controllers\Seller\ListingController;
@@ -108,6 +109,8 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::post('messages/{conversation}/resolve', ResolveConversationController::class)->name('messages.resolve');
     Route::post('messages/{conversation}/reopen', ReopenConversationController::class)->name('messages.reopen');
 
-    Route::get('support', [SupportController::class, 'create'])->name('support');
-    Route::post('support', [SupportController::class, 'store'])->name('support.store');
+    Route::get('support', [SupportController::class, 'index'])->name('support');
+    Route::get('support/new', [SupportController::class, 'create'])->name('support.create');
+    Route::post('support/new', [SupportController::class, 'store'])->name('support.store');
+    Route::get('support/articles/{article}', [HelpArticleController::class, 'show'])->name('support.articles.show');
 });
