@@ -53,16 +53,97 @@ Two of these defects mean a seller in production cannot create a listing or navi
   `public/listing-detail-dialog.js` upgrades the dialog to `showModal()` at
   `2xl` (matchMedia-synced, so a resize crossing the breakpoint opens or
   closes it), with `autofocus` on Close; without the script the dialog
-  stays exactly as CSS-visible-but-non-modal as it already was.
+  stays exactly as CSS-visible-but-non-modal as it already was. (The
+  review pass below turns `_header.blade.php` into a real component and
+  makes closing the dialog navigate away.)
 - Two items from the owner's walk (§6), both cosmetic: the store
   Pictures row's Remove button moves from an absolute overlay on the
   thumbnail's corner to a stacked cell under it, so it never overlaps
   the picture beside it at the row's narrower widths. The earnings
   Sales tile read "new" when neither this period nor the last one sold
-  anything; `RangeChange::between()` is unchanged (an admin analytics
-  "new" cart-add count still reads the same), and
-  `PeriodFigures::salesChange()` — its one caller — takes the new
-  `RangeChange::empty()` instead when both sides are zero.
+  anything; `PeriodFigures::salesChange()` special-cased both-zero
+  locally with a new `RangeChange::empty()`. (The review pass folds the
+  rule into `RangeChange::between()` itself instead — see below.)
 - All eight audit-item fixes plus the two owner-walk fixes landed as
-  ten small commits; `git log --oneline` on the branch lists them.
-  `make check` (lint, assets, coverage-gated suite) is green.
+  ten small commits; the branch's full `git log --oneline` lists them
+  alongside the review pass. `make check` (lint, assets, coverage-gated
+  suite) is green.
+
+## Review pass
+
+A review of the first pass came back with twelve findings; all twelve are
+fixed, each its own small commit on top of the original ten (after
+rebasing onto `php/seller-portal-next`, which had moved to IMPRV-041/
+FEAT-064 in the meantime — the journal keeps every base entry and appends
+only this ticket's two lines).
+
+- **Escape painted the modal over an inert page.** `dialog:not([open])`'s
+  default `display:none` loses to the markup's own `2xl:flex` once `.close()`
+  removes `open`, so nothing hid the dialog after a genuine close while
+  `inert` kept the workspace behind it unreachable either way.
+  `listing-detail-dialog.js` now listens for the dialog's own `close`
+  event and navigates to `data-close-href` ($backHref) — guarded so the
+  matchMedia down-transition close (viewport drops below `2xl`) does not
+  navigate, since that swap stays on the page.
+- **`aria-current` was inconsistent both ways.** Lane tabs and the shared
+  inbox tabs (filters) carried `page`; the five admin cells, both
+  messaging inboxes, and the seller fulfillment cells (pane rows) carried
+  `true`. Both flipped to the stated rule; one sweep test renders a page
+  from each family and checks the pairing. Four pre-existing tests pinned
+  the old, inconsistent values and needed their own fix.
+- **Only one of five bar strips was named.** The other four already sit
+  beside their own count or label; the component now defaults to
+  `aria-hidden="true"` when no `labelledby` is given, instead of a bare,
+  unlabeled `role`-less graphic.
+- **The statement's `dark:` classes never matched anything.** `dark:` is
+  a custom Tailwind variant scoped to `.supports-dark`; every layout's
+  `<body>` carries it except the statement's own standalone one, so the
+  earlier print fix's `print:dark:*` overrides were dead code. Fixed with
+  one class.
+- **`RangeChange::empty()` fixed one of twelve call sites.** The rule
+  moves into `between()` itself (`previous === 0` → `current === 0 ?
+  empty : "new"`); the factory is gone, and the two admin analytics call
+  sites that read `RangeChange::between()` directly for a true zero/zero
+  case get the same fix their own tests now pin.
+- **The CSP smoke test only rendered three pages.** A `Finder` sweep over
+  every `resources/views/**/*.blade.php` file's own source, plus a count
+  of `'unsafe-inline'` in the production CSP (one, `style-src`'s own),
+  replaces it.
+- **Backdrop-click dismissal isn't native.** `nav-drawer.js` and both
+  layouts' comments said Escape and a backdrop click were both native
+  `<dialog>` behavior; only Escape is — the nav drawers' backdrop click
+  works through a flex-1 filler button `nav-drawer.js` already wires via
+  `data-drawer-close`, and `listing-detail-dialog.js` gets the same
+  `event.target === dialog` handler `new-listing-modal.js` already had,
+  since its dialog has no such filler button.
+- **Several tests asserted literal Tailwind class strings.**
+  `data-thread`, `data-thread-header`, `data-thread-rail`,
+  `data-thread-actions`, and `data-listings-title` scope the thread and
+  listings-header assertions to their own elements; `data-store-picture`
+  replaces a negative match on the picture row's old absolute-position
+  classes; the statement's print-color check moves to its own `<h1>`.
+- **The inert-region test compared string positions.** Replaced with
+  `Symfony\Component\DomCrawler\Crawler` (added as a dev dependency,
+  with `symfony/css-selector`): `[inert] [data-new-listing-open]`
+  matches, and `#new-listing-dialog` has no `[inert]` ancestor.
+- **Three refactors moved logic out of Blade.** The support page's
+  placeholder guard is `SupportDesk::published(?string): ?string`, unit
+  tested and now covering `phone_hours` too. `customers/show.blade.php`'s
+  inline placeholder fallback is `Fulfillment::itemImageUrl()`, seller-
+  scoped like `itemLabel()` beside it. `_header.blade.php` is now
+  `resources/views/components/seller/listings-header.blade.php`, an
+  anonymous component with `@props(['asHeading' => true,
+  'withNewListingDialog' => true])` in place of `@php($x ??= true)`.
+- **`docs/seller-portal.md` still described the pre-fix behavior.** The
+  rail section said `xl`; the Overlay vs takeover section described
+  `<dialog open>` with no JS. Both now match what shipped.
+- **Contrast clauses** ("not X", "rather than") in `RangeChange.php`,
+  `PeriodFigures.php`, `bar-strip.blade.php`, `print-button.js`, six test
+  names, and three commit subjects (reworded via a non-interactive
+  `git filter-branch --msg-filter`, since `git rebase -i` is unavailable
+  here) are now positive statements.
+
+`make check` is green; `git log --oneline php/seller-portal-next..php/au-ui`
+on the branch lists all twenty-two commits — the original twelve (ten
+fixes plus the ticket's start and resolution) and ten for the review
+pass.
