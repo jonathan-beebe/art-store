@@ -15,7 +15,7 @@ it('shows a known article by its slug', function (): void {
 
     $response->assertOk();
     $response->assertSee('Printing a label from an order');
-    $response->assertSee('Open the order, choose a carrier', escape: false);
+    $response->assertSee('asks for a carrier and tracking number', escape: false);
 });
 
 it('answers 404 for an unknown article slug', function (): void {

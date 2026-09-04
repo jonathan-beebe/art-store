@@ -5,6 +5,6 @@ slug: printing-a-label-from-an-order
 position: 1
 ---
 
-Open the order, choose a carrier, and press Print label. The label carries the buyer's address exactly as they entered it at checkout; if they have asked for a change in Messages, edit the address on the order before printing.
+Open the order and complete your flow's label step. A step that prints a label asks for a carrier and tracking number, and records both as an event on the order's activity feed.
 
-Printing a label moves the order to In progress and records the event on the order's activity feed. Mark shipped once the parcel is with the carrier so the buyer gets tracking.
+Complete the rest of your flow's steps as the parcel moves, so the buyer's tracking and the order's activity feed both stay current.
