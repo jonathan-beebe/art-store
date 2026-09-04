@@ -23,25 +23,30 @@ final readonly class MoveStoreSection
 
     public function __invoke(StoreSection $section, StoreSectionMove $direction): void
     {
-        $neighbor = $this->neighbor($section, $direction);
+        DB::transaction(function () use ($section, $direction): void {
+            $locked = $section->newQuery()->whereKey($section->getKey())->lockForUpdate()->sole();
+            $neighbor = $this->neighbor($locked, $direction);
 
-        if (! $neighbor instanceof StoreSection) {
-            return;
-        }
+            if (! $neighbor instanceof StoreSection) {
+                return;
+            }
 
-        DB::transaction(function () use ($section, $neighbor): void {
-            $sectionPosition = $section->position;
+            $sectionPosition = $locked->position;
             $neighborPosition = $neighbor->position;
 
-            $section->update(['position' => self::SENTINEL_POSITION]);
+            $locked->update(['position' => self::SENTINEL_POSITION]);
             $neighbor->update(['position' => $sectionPosition]);
-            $section->update(['position' => $neighborPosition]);
+            $locked->update(['position' => $neighborPosition]);
         });
     }
 
+    /**
+     * The section's neighbor, held for the rest of the transaction so a
+     * second move reads the position this one is about to write.
+     */
     private function neighbor(StoreSection $section, StoreSectionMove $direction): ?StoreSection
     {
-        $siblings = StoreSection::where('store_profile_id', $section->store_profile_id);
+        $siblings = StoreSection::where('store_profile_id', $section->store_profile_id)->lockForUpdate();
 
         return $direction === StoreSectionMove::Up
             ? $siblings->where('position', '<', $section->position)->orderByDesc('position')->first()
