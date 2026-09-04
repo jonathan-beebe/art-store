@@ -271,9 +271,12 @@ the kind. `CompleteFlowStep` calls it for a step, appending `step_completed`
 with the step id, and with the carrier and tracking number when the step
 prints a label.
 
-One default flow per seller is a partial unique index,
-`(seller_id) where is_default = 1` — SQLite and Postgres both take the clause,
-and Blueprint has none, so the migration writes it as a statement.
+One default flow per seller is a partial unique index, `(seller_id) where
+is_default` — the bare column is what SQLite and Postgres both read as
+true; Postgres has no `boolean = integer`, so `= 1` fails there. MySQL has
+no partial index at all and this table is not part of its contract.
+Blueprint has no partial-index builder, so the migration writes it as a
+statement.
 
 `fulfillment_events` is unique on `(fulfillment_id, fulfillment_flow_step_id)`,
 so a step completed twice is refused by the database as well as by the
@@ -330,9 +333,10 @@ are `DomainRuleViolation`s judged inside the transaction that appends, the
 way every fulfillment transition is. `SaveFulfillmentFlow` writes the whole
 flow from the seller's form in one transaction, keeping the rows the form
 names by id (a rename keeps the events pointing at them) and parking
-surviving positions on negatives while it refills the range from zero,
-because `(fulfillment_flow_id, position)` is unique and SQLite judges it row
-by row.
+surviving positions above the range a flow ever holds while it refills the
+range from zero — `position` is an unsigned column, and
+`(fulfillment_flow_id, position)` is unique, which SQLite judges row by
+row.
 
 ## Decline and refund
 
