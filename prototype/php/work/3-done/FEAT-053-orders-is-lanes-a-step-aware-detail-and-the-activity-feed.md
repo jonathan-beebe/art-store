@@ -112,3 +112,54 @@ touches the tail Earnings, Support, and Data were appended to.
 ### Gate
 
 `make precommit` green on every commit. `make check` green before handover.
+
+### Review pass
+
+Twelve findings came back with "merge after fixes". All twelve are applied.
+
+- **The steps panel says who and when.** `App\Seller\CompletedStep` (step,
+  actor, moment) renders "Done by Molly Weasley · Aug 21" where the panel
+  said "Done". A completion naming a step the seller has since removed
+  leaves no row, which is the reading `FulfillmentProgress` already takes.
+- **View customer** sits behind `Route::has('seller.customers.show')`, so it
+  appears the moment FEAT-054 merges. Two tests: one defines a route of that
+  name and asserts the link, one asserts its absence.
+- **`FulfillmentPolicy::completeStep()`** is ownership plus the parcel still
+  being in the studio, and the panel's live button asks it. The shipment
+  form's answer no longer stands in for it.
+- **The show view's `@php` block is gone.** The controller resolves the
+  signed-in seller, the three policy answers, and the card; the view reads
+  values. Nothing dereferences a nullable guard user in Blade.
+- **`CustomerOnOrder`** counts, sums, and takes the earliest placed date in
+  one aggregate read over the parcels that were kept.
+- **`App\Seller\OrderDetail`** took the page-shaped reads off the model:
+  `state()`, `escrowState()`, `latestStepCompletion()`, `settledAt()`, and
+  `latestLedgerEntry()` opened with `loadMissing()`, and now sit behind one
+  eager load. The model keeps relations, scopes, and Money accessors.
+  `itemLabel()` stayed on the model — its two callers (the pane and the
+  feed's placement row) both eager-load `order.items`, and it reads the
+  loaded relation, so the lazy-loading guard refuses a caller that has not.
+  `flowInEffect()`, `flowSteps()`, `progress()`, and `lane()` still use
+  `loadMissing`; they are FEAT-051's and every caller here loads first.
+- **`ListPaneWindow` is generic on its model.** `items` reads as the
+  collection the caller queried for, the `@var` re-assertion in
+  `FulfillmentLanes` is gone, and the two message panes name `Conversation`
+  in the shape they hand back.
+- **Tests.** The tab-count dataset gained a shipped parcel, so the summation
+  across two grouped rows runs (In progress = 2); the agreement loop gained a
+  refunded parcel; a new test asserts each tab's number equals what `inLane`
+  counts for that lane, and the docs sentence now describes both tests.
+- **The pane's query count is asserted, not implied.** `DB::listen` around
+  `pane()` with one parcel and again with five, both carrying a completed
+  step and an unread question: the same number either way. `OrderDetail` has
+  the same guard for the detail page.
+- **The action bar is found by a `data-action-bar` hook**, and the test
+  asserts the hook, `lg:hidden`, and the three labels in order.
+- **The index's window footer** passes no route and renders the total as
+  text; a footer only links where the whole list lives somewhere else.
+- Comments carrying "instead of" now state the positive.
+
+Found and left: `OrderSource` renders a refund movement as "returned to the
+buyer" with the seller's net, which is the ledger's amount rather than the
+buyer's. `ParcelState` reads the refund row for its own sentence and says
+the right sum; the feed's line is FEAT-052's and outside this tool.

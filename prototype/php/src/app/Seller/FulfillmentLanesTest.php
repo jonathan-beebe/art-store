@@ -14,6 +14,7 @@ use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
 use App\Models\Message;
 use App\Models\Seller;
+use Illuminate\Support\Facades\DB;
 
 $flowWithOneStep = function (Seller $seller, string $label = 'Label printed'): FulfillmentFlowStep {
     $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
@@ -28,6 +29,9 @@ it('counts the lanes that ask for work and leaves the archives uncounted', funct
     app(CompleteFlowStep::class)($started, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
     $this->paidFulfillmentFor($seller);
     $this->paidFulfillmentFor($seller);
+    // A shipped parcel is In progress off its status alone, so the tab's
+    // number is the sum of two rows of the grouped count.
+    $this->shippedFulfillmentFor($seller);
     $this->deliveredFulfillmentFor($seller);
 
     $counts = [];
@@ -38,7 +42,7 @@ it('counts the lanes that ask for work and leaves the archives uncounted', funct
 
     expect($counts)->toBe([
         LaneFilter::ToShip->value => 2,
-        LaneFilter::InProgress->value => 1,
+        LaneFilter::InProgress->value => 2,
         LaneFilter::Done->value => null,
         LaneFilter::All->value => null,
     ]);
@@ -223,12 +227,78 @@ it('holds an empty pane for a lane with nothing in it', function (): void {
         ->and($pane->lane)->toBe(LaneFilter::Done);
 });
 
-it('reads the pane through Fulfillment ids alone when nothing is open', function (): void {
+it('marks no row selected when nothing is open', function (): void {
     $seller = $this->seller();
     $this->paidFulfillmentFor($seller);
 
     $pane = app(FulfillmentLanes::class)->pane($seller, LaneFilter::ToShip);
 
-    expect($pane->rows[0]->selected)->toBeFalse()
-        ->and(Fulfillment::query()->count())->toBe(1);
+    expect($pane->rows[0]->selected)->toBeFalse();
+});
+
+it('counts each lane at what the lane itself selects', function () use ($flowWithOneStep): void {
+    $seller = $this->seller('Percy Weasley');
+    $step = $flowWithOneStep($seller);
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->shippedFulfillmentFor($seller);
+    $this->deliveredFulfillmentFor($seller);
+
+    foreach (app(FulfillmentLanes::class)->tabs($seller, LaneFilter::ToShip) as $tab) {
+        if ($tab->count === null) {
+            continue;
+        }
+
+        expect($tab->count)->toBe(Fulfillment::query()->whereBelongsTo($seller)->inLane($tab->lane)->count());
+    }
+});
+
+it('reads a pane of many rows in the same number of queries as a pane of one', function () use ($flowWithOneStep): void {
+    $seller = $this->seller('Bill Weasley');
+    $step = $flowWithOneStep($seller);
+    $lanes = app(FulfillmentLanes::class);
+
+    $addParcelWithNote = function () use ($seller, $step): void {
+        $fulfillment = $this->paidFulfillmentFor($seller);
+        app(CompleteFlowStep::class)($fulfillment, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+        $conversation = Conversation::create([
+            'kind' => ConversationKind::Fulfillment,
+            'seller_id' => $seller->id,
+            'customer_id' => $fulfillment->customer_id,
+            'fulfillment_id' => $fulfillment->id,
+            'order_id' => $fulfillment->order_id,
+            'last_message_at' => $this->moment('2026-08-22 09:00:00'),
+        ]);
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_type' => ActorType::Customer->value,
+            'sender_id' => $fulfillment->customer_id,
+            'body' => 'Could you wrap it as a gift?',
+            'sent_at' => $this->moment('2026-08-22 09:00:00'),
+        ]);
+    };
+
+    $queriesForPane = function () use ($lanes, $seller): int {
+        $queries = 0;
+        DB::listen(function () use (&$queries): void {
+            $queries++;
+        });
+
+        $lanes->pane($seller, LaneFilter::All);
+
+        return $queries;
+    };
+
+    $addParcelWithNote();
+    $withOne = $queriesForPane();
+
+    $addParcelWithNote();
+    $addParcelWithNote();
+    $addParcelWithNote();
+    $addParcelWithNote();
+    $withFive = $queriesForPane();
+
+    expect($lanes->pane($seller, LaneFilter::All)->rows)->toHaveCount(5)
+        ->and($withFive)->toBe($withOne);
 });

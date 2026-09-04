@@ -374,9 +374,10 @@ from fulfillments where seller_id = ? group by status, started
 folds each row into its pile, which is the same match
 `FulfillmentLane::of` runs against a loaded `FulfillmentProgress`. The rows
 under a tab come from `Fulfillment::inLane`, the same rule written as a where
-clause. A test walks every status and asserts the scope selects the parcel
-its own `lane()` names, so the number on a tab and the rows beneath it cannot
-drift.
+clause. Two tests hold the three readings together: one walks a parcel of
+every status and asserts `inLane` selects the parcel its own `lane()` names,
+and one asserts each tab's number equals what `inLane` counts for that lane.
+The number on a tab and the rows beneath it cannot drift.
 
 ### What a row says beyond its own facts
 

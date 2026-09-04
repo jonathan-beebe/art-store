@@ -25,6 +25,7 @@ use App\Models\FulfillmentFlowStep;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Models\Variant;
+use Illuminate\Support\Facades\Route;
 
 $paidFulfillment = function (Seller $seller, string $title = 'Harbour at Dusk'): Fulfillment {
     $order = test()->orderFor(test()->verifiedCustomer(), test()->listing($seller, ['title' => $title]));
@@ -435,7 +436,9 @@ it('keeps the action bar on the small screen', function () use ($paidFulfillment
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 
-    $response->assertSee('form="mark-shipped-form" class="min-h-11', escape: false);
+    $response->assertSee('data-action-bar', escape: false);
+    $response->assertSee('lg:hidden', escape: false);
+    $response->assertSeeInOrder(['data-action-bar', 'Message', 'Decline', 'Mark shipped'], escape: false);
 });
 
 it('carries the customer, the address, and the money on three cards', function (): void {
@@ -489,7 +492,43 @@ it('draws the flow with the next step live and the ones behind it done', functio
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 
     $response->assertSee('How I ship');
-    $response->assertSeeInOrder(['Label printed', 'Done', 'Packed', 'Next']);
+    $response->assertSeeInOrder(['Label printed', 'Done by Molly Weasley · Aug 21', 'Packed', 'Next']);
+});
+
+it('offers the live step only while the parcel is in the studio', function (): void {
+    $seller = $this->seller('Luna Lovegood');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+    $awaiting = $this->paidFulfillmentFor($seller);
+    $shipped = $this->shippedFulfillmentFor($seller);
+
+    $onAwaiting = $this->actingAs($seller, 'seller')->get("/seller/orders/{$awaiting->id}");
+    $onShipped = $this->actingAs($seller, 'seller')->get("/seller/orders/{$shipped->id}");
+
+    $onAwaiting->assertSee(route('seller.orders.steps.complete', [$awaiting->id, $flow->steps()->sole()->id]), escape: false);
+    $onShipped->assertDontSee(route('seller.orders.steps.complete', [$shipped->id, $flow->steps()->sole()->id]), escape: false);
+});
+
+it('links to the customer once a customers route exists', function () use ($paidFulfillment): void {
+    Route::get('/seller/customers/{customer}', fn (): string => 'customer')->name('seller.customers.show');
+    Route::getRoutes()->refreshNameLookups();
+
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertSee('View customer');
+    $response->assertSee(route('seller.customers.show', $fulfillment->customer_id), escape: false);
+});
+
+it('leaves the customer link off until that route exists', function () use ($paidFulfillment): void {
+    $seller = $this->seller();
+    $fulfillment = $paidFulfillment($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertDontSee('View customer');
 });
 
 it('closes the page with everything that happened on the order', function (): void {
