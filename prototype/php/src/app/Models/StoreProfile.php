@@ -20,7 +20,7 @@ use Override;
  * How one seller presents on the site: the identity every store has once —
  * name, address, pictures, visibility. Everything the page says is a
  * {@see StoreSection} row of a typed kind, so a new kind of store content
- * is a case and a renderer rather than a wider row here.
+ * is a case and a renderer, and this row keeps the columns it has.
  *
  * `slug` is the address the store answers to today; {@see StoreSlug} holds
  * every address it has ever answered to.
@@ -108,6 +108,16 @@ class StoreProfile extends Model
     public function visibility(): StoreVisibility
     {
         return $this->isPublished() ? StoreVisibility::Published : StoreVisibility::Hidden;
+    }
+
+    /**
+     * Where a buyer opens this store, or null while it is hidden. The one
+     * statement of when a listing card and a listing page name the maker as
+     * a link.
+     */
+    public function publicUrl(): ?string
+    {
+        return $this->isPublished() ? route('shop.store', ['slug' => $this->slug]) : null;
     }
 
     /**

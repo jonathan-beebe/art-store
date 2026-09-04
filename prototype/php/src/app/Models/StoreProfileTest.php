@@ -83,3 +83,13 @@ it('keeps every address it has answered to', function (): void {
 
     expect($profile->slugs()->count())->toBe(2);
 });
+
+it('offers the address a buyer opens a published store at', function (): void {
+    $profile = StoreProfile::factory()->create(['slug' => 'the-burrow-craftworks']);
+
+    expect($profile->publicUrl())->toBe(route('shop.store', ['slug' => 'the-burrow-craftworks']));
+});
+
+it('offers no address while the store is hidden', function (): void {
+    expect(StoreProfile::factory()->hidden()->create()->publicUrl())->toBeNull();
+});

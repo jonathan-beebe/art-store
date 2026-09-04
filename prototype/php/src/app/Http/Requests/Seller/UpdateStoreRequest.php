@@ -51,7 +51,7 @@ final class UpdateStoreRequest extends FormRequest
             'location' => ['nullable', 'string', 'max:255'],
             'visibility' => ['required', Rule::enum(StoreVisibility::class)],
             'links' => ['array'],
-            'links.'.StoreLinkKind::Website->value => ['nullable', 'string', 'url', 'max:'.self::MAX_LINK_LENGTH],
+            'links.'.StoreLinkKind::Website->value => ['nullable', 'string', 'url:http,https', 'max:'.self::MAX_LINK_LENGTH],
             'links.'.StoreLinkKind::Instagram->value => ['nullable', 'string', 'max:'.self::MAX_LINK_LENGTH, 'regex:/^@?[A-Za-z0-9._]+$/'],
         ];
     }

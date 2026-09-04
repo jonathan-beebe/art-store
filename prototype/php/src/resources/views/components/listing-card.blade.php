@@ -4,10 +4,9 @@
     use App\Domain\Listings\ListingStockLabel;
 
     $sellerDisplayName = $listing->seller->displayName();
-    // A seller with a published store gets their name as the way into it.
-    // A hidden store, or none at all, keeps the plain name.
-    $storeProfile = $listing->seller->storeProfile;
-    $storeHref = $storeProfile?->isPublished() ? route('shop.store', ['slug' => $storeProfile->slug]) : null;
+    // Null while the store is hidden, and for a seller who has none; the
+    // name then reads as plain text.
+    $storeHref = $listing->seller->storeProfile?->publicUrl();
 @endphp
 
 <article class="flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface">

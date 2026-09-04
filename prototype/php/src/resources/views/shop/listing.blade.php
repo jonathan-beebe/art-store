@@ -2,10 +2,9 @@
     use App\Domain\Messaging\MessageBody;
     use Illuminate\Support\Str;
 
-    // A seller with a published store gets their name as the way into it.
-    // A hidden store, or none at all, keeps the plain name.
-    $storeProfile = $listing->seller->storeProfile;
-    $storeHref = $storeProfile?->isPublished() ? route('shop.store', ['slug' => $storeProfile->slug]) : null;
+    // Null while the store is hidden, and for a seller who has none; the
+    // name then reads as plain text.
+    $storeHref = $listing->seller->storeProfile?->publicUrl();
 @endphp
 <x-layouts.shop :title="$listing->title.' — Art Store'">
     <article class="grid gap-12 lg:grid-cols-2">
