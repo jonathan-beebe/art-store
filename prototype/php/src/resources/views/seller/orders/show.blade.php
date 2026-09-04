@@ -22,7 +22,7 @@
                             <p class="text-xs/5 text-gray-500 dark:text-gray-400">{{ $fulfillment->order_id }} · placed {{ $fulfillment->order->placed_at->format('M j, Y') }}</p>
                             <h2 class="mt-1 flex flex-wrap items-center gap-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
                                 {{ $fulfillment->order->shipping_name }}
-                                <x-seller.status-badge :tint="$fulfillment->status->sellerBadgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
+                                <x-seller.status-badge :tint="$fulfillment->status->badgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
                             </h2>
                             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $facts->state->line() }}</p>
                         </div>

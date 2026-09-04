@@ -1,6 +1,6 @@
 <x-layouts.admin :title="'Fulfillment '.$fulfillment->id.' — Art Store admin'" mode="detail">
     @php
-        $tint = $fulfillment->status->sellerBadgeTint();
+        $tint = $fulfillment->status->badgeTint();
     @endphp
 
     <x-slot:cells>

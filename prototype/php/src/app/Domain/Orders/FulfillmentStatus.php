@@ -64,7 +64,7 @@ enum FulfillmentStatus: string
      * `x-seller.status-badge` and the admin's `x-admin.status-pill` both
      * read it, so a parcel wears one color across the site.
      */
-    public function sellerBadgeTint(): string
+    public function badgeTint(): string
     {
         return match ($this) {
             self::AwaitingShipment => 'yellow',

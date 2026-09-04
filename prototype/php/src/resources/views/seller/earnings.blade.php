@@ -144,7 +144,7 @@
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->subtotal->format() }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->fee->format() }}</td>
                                     <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $row->net->format() }}</td>
-                                    <td class="px-4 py-2"><x-seller.status-badge :tint="$row->status->sellerBadgeTint()">{{ $row->status->label() }}</x-seller.status-badge></td>
+                                    <td class="px-4 py-2"><x-seller.status-badge :tint="$row->status->badgeTint()">{{ $row->status->label() }}</x-seller.status-badge></td>
                                 </tr>
                             @endforeach
                         </tbody>
