@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-04:15:30:27 — IMPRV-036 — resolved: overlay/takeover viewport coverage rewritten as DomCrawler structural tests, `docs/seller-portal.md` corrected to `2xl:flex`
+- 2026-09-04:15:30:00 — IMPRV-036 — started
 - 2026-09-04:15:23:48 — IMPRV-034 — resolved: `sellerBadgeTint()` renamed to `badgeTint()`, every seller and admin caller and the test updated
 - 2026-09-04:14:30:06 — IMPRV-034 — started
 - 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule

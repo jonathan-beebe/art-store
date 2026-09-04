@@ -334,7 +334,7 @@ what a visitor with the script blocked uses.
 A table or grid row links to `/seller/listings/{id}?from=table` (or
 `grid`). `ListingController::show()` renders one view,
 `seller/listings/detail-overlay.blade.php`, carrying three blocks: the
-listings workspace (`hidden … 2xl:block`), a native `<dialog>` over it
+listings workspace (`hidden … 2xl:flex`), a native `<dialog>` over it
 (`hidden … 2xl:flex`), and a takeover of the content area (`2xl:hidden`)
 with a back link. Tailwind's `2xl:` variants pick which shows.
 

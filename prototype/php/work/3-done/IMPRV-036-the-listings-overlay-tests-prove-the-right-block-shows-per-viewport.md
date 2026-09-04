@@ -1,7 +1,7 @@
 ---
 id: IMPRV-036
 type: improvement
-status: open
+status: resolved
 created: 2026-09-04
 ---
 
@@ -25,3 +25,22 @@ A markup-presence assertion passes whether or not the classes are on the right e
 
 ## Related work
 - FEAT-056 (found and left this behind)
+
+## Working
+Replaced the two markup-presence assertions in `ListingControllerTest.php`
+with `Symfony\Component\DomCrawler\Crawler` structural tests, using the
+`filterXPath`/`closest` idiom IMPRV-030 already established in this file:
+- The workspace `<div>` (`div[@inert]`) carries `hidden` and `2xl:flex`.
+- The dialog (`dialog[open]`) carries `hidden` and `2xl:flex`.
+- The takeover block (the `<div>` carrying the `2xl:hidden` class token, via
+  XPath `contains(concat(' ', normalize-space(@class), ' '), ' 2xl:hidden ')`)
+  carries no `2xl:flex` and no `inert`.
+- The overlay/takeover heading-id test now asserts each `#overlay-*`/
+  `#takeover-*` heading is a descendant of its own block, not the other's.
+
+The doc's "Overlay vs takeover" section said the workspace carries
+`2xl:block`; the actual class is `2xl:flex` (matches the dialog). Corrected
+`docs/seller-portal.md` to match the code the new tests now pin.
+
+`ListingControllerTest.php` scoped run: 110 passed. `make precommit` green
+(pre-commit hook, this commit).
