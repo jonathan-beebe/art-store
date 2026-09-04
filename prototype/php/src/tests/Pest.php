@@ -34,6 +34,7 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Observers',
     '../app/Policies',
     '../app/Providers',
+    '../app/Seller',
     '../app/Support',
     '../app/View/Components',
 );
