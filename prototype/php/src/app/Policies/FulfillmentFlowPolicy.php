@@ -9,9 +9,8 @@ use App\Models\Seller;
 use Illuminate\Auth\Access\Response;
 
 /**
- * A flow belongs to one seller. Another seller's flow answers "not found"
- * rather than "forbidden", so an id outside a seller's own workflows is
- * never confirmed to exist.
+ * A flow belongs to one seller. Another seller's flow answers "not found",
+ * so an id outside a seller's own workflows is never confirmed to exist.
  */
 final class FulfillmentFlowPolicy
 {

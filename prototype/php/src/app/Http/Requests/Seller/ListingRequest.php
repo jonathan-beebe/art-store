@@ -65,11 +65,11 @@ final class ListingRequest extends FormRequest
     }
 
     /**
-     * The picker's "seller's default" option submits as an empty string,
-     * which `exists` reads as a value to look up rather than as absent —
-     * blanked to null here so `nullable` skips the lookup the way an
-     * unrendered field already does.
+     * The picker's "seller's default" option submits as an empty string.
+     * `exists` reads it as a value to look up, so it is blanked to null
+     * here, the value `nullable` skips the lookup for.
      */
+    #[Override]
     protected function prepareForValidation(): void
     {
         if ($this->input('fulfillment_flow_id') === '') {
@@ -127,9 +127,10 @@ final class ListingRequest extends FormRequest
             $this->boolean('made_to_order') ? null : ($this->filled('quantity') ? $this->integer('quantity') : $listing->quantity),
             $this->optionalString('category_id'),
             // The picker renders only for a seller with more than one
-            // workflow, so the field is absent — not blank — for everyone
-            // else; absent keeps the listing's own value rather than
-            // clearing it.
+            // workflow. A seller with one submits no field at all, and
+            // `has()` keeps the listing's own value for that request; a
+            // seller with the picker submits the field, blank or set, and
+            // that value writes.
             $this->has('fulfillment_flow_id') ? $this->optionalString('fulfillment_flow_id') : $listing->fulfillment_flow_id,
         );
     }

@@ -24,6 +24,19 @@ it('lists a sellers workflows, the default marked, with step counts and the list
     $response->assertSee('Big Frame');
 });
 
+it('names the first three listings on a workflow and folds the rest into a count', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    foreach (['Alder Bowl', 'Birch Cup', 'Cedar Plate', 'Dogwood Tray', 'Elm Vase'] as $title) {
+        $this->listing($seller, ['fulfillment_flow_id' => $flow->id, 'title' => $title]);
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/workflows');
+
+    $response->assertSee('Alder Bowl, Birch Cup, Cedar Plate and 2 more');
+    $response->assertDontSee('Dogwood Tray');
+});
+
 it('shows an empty state for a seller with no workflows yet', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/workflows');
 

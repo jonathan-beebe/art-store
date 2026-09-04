@@ -494,6 +494,26 @@ it('draws the flow with the next step live and the ones behind it done', functio
     $response->assertSeeInOrder(['Label printed', 'Done by Molly Weasley · Aug 21', 'Packed', 'Next']);
 });
 
+it('links the flow panel to the workflow the parcel runs under', function (): void {
+    $seller = $this->seller('Molly Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id, 'name' => 'How I ship']);
+    FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertSee(route('seller.workflows.edit', $flow), escape: false);
+});
+
+it('links the flow panel to the workflows list for a seller with no flow at all', function (): void {
+    $seller = $this->seller('Fleur Delacour');
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
+
+    $response->assertSee(route('seller.workflows.index'), escape: false);
+});
+
 it('offers the live step only while the parcel is in the studio', function (): void {
     $seller = $this->seller('Luna Lovegood');
     $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);

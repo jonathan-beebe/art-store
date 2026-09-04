@@ -23,7 +23,7 @@ it('hides the workflow picker for a seller with one workflow or none', function 
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
-    $response->assertDontSee('Workflow');
+    $response->assertDontSee('name="fulfillment_flow_id"', false);
 })->with([0, 1]);
 
 it('shows the workflow picker, the default marked, for a seller with more than one', function (): void {
@@ -34,7 +34,7 @@ it('shows the workflow picker, the default marked, for a seller with more than o
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}/basics");
 
-    $response->assertSee('Workflow');
+    $response->assertSee('name="fulfillment_flow_id"', false);
     $response->assertSee('How I ship (default)');
     $response->assertSee('Framed pieces');
 });

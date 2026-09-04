@@ -458,9 +458,12 @@ paid for and being shipped.
 ink. The Fulfillment status is the platform's contract and is the same for
 everyone; the flow is where a seller's own method is written down.
 
-**Lifecycle.** None — a seller's default flow is seeded and edited from
-`/seller/orders/flow`. One default per seller is a partial unique index,
-`(seller_id) where is_default`.
+**Lifecycle.** A seller's first flow is seeded as their default; `/seller/workflows`
+adds, edits, and removes flows after that (index, create, edit, make-default,
+destroy). One default per seller is a partial unique index, `(seller_id)
+where is_default`; the default flow itself cannot be removed, and neither can
+a flow a listing names — the seller reassigns the default or the listing
+first.
 
 **Relates to.**
 - belongs to one Seller

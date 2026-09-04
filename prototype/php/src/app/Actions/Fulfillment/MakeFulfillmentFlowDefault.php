@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class MakeFulfillmentFlowDefault
 {
-    public function __invoke(FulfillmentFlow $flow): FulfillmentFlow
+    public function __invoke(FulfillmentFlow $flow): void
     {
-        return DB::transaction(function () use ($flow): FulfillmentFlow {
+        DB::transaction(function () use ($flow): void {
             // Excludes $flow itself: an already-default flow would otherwise
             // be cleared here and then skip the write below, since Eloquent
             // never issues an UPDATE for a value that already matches its
@@ -29,8 +29,6 @@ final readonly class MakeFulfillmentFlowDefault
                 ->update(['is_default' => false]);
 
             $flow->update(['is_default' => true]);
-
-            return $flow;
         });
     }
 }

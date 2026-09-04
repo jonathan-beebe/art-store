@@ -22,6 +22,16 @@ it('refuses to delete the default flow', function (): void {
     expect(FulfillmentFlow::find($flow->id))->not->toBeNull();
 });
 
+it('deletes a flow once it has lost the default role to another', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    app(MakeFulfillmentFlowDefault::class)(FulfillmentFlow::factory()->create(['seller_id' => $seller->id]));
+
+    app(DeleteFulfillmentFlow::class)($flow->refresh());
+
+    expect(FulfillmentFlow::find($flow->id))->toBeNull();
+});
+
 it('refuses to delete a flow a listing names', function (): void {
     $seller = $this->seller();
     $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);

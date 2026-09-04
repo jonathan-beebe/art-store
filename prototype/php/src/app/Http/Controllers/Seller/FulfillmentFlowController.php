@@ -9,6 +9,7 @@ use App\Actions\Fulfillment\DeleteFulfillmentFlow;
 use App\Actions\Fulfillment\SaveFulfillmentFlow;
 use App\Http\Requests\Seller\FulfillmentFlowRequest;
 use App\Models\FulfillmentFlow;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -18,11 +19,17 @@ use Illuminate\View\View;
  */
 final class FulfillmentFlowController extends SellerController
 {
+    /**
+     * The listings cell names at most this many titles before it folds the
+     * rest into "and N more".
+     */
+    private const int LISTINGS_SHOWN = 3;
+
     public function index(): View
     {
         $flows = $this->seller()->fulfillmentFlows()
-            ->withCount('steps')
-            ->with('listings')
+            ->withCount(['steps', 'listings'])
+            ->with(['listings' => fn (Relation $listings): Relation => $listings->orderBy('title')->limit(self::LISTINGS_SHOWN)])
             ->orderByDesc('is_default')
             ->orderBy('name')
             ->get();
@@ -51,6 +58,8 @@ final class FulfillmentFlowController extends SellerController
 
     public function update(FulfillmentFlowRequest $request, FulfillmentFlow $workflow, SaveFulfillmentFlow $saveFlow): RedirectResponse
     {
+        $this->authorize('update', $workflow);
+
         $saveFlow($workflow, $request->name(), $request->drafts());
 
         return redirect()->route('seller.workflows.edit', $workflow)->with('status', 'Workflow saved.');

@@ -30,19 +30,27 @@
                         </td>
                         <td class="px-4 py-2 text-right tabular-nums">{{ $flow->steps_count }}</td>
                         <td class="px-4 py-2 text-gray-600 dark:text-gray-400">
-                            {{ $flow->listings->isEmpty() ? 'No listings' : $flow->listings->pluck('title')->implode(', ') }}
+                            @php
+                                $shownTitles = $flow->listings->pluck('title');
+                                $moreCount = $flow->listings_count - $shownTitles->count();
+                            @endphp
+                            @if ($flow->listings_count === 0)
+                                No listings
+                            @else
+                                {{ $shownTitles->implode(', ') }}{{ $moreCount > 0 ? " and {$moreCount} more" : '' }}
+                            @endif
                         </td>
                         <td class="px-4 py-2 text-right">
                             @unless ($flow->is_default)
                                 <div class="flex items-center justify-end gap-3">
                                     <form method="POST" action="{{ route('seller.workflows.default', $flow) }}">
                                         @csrf
-                                        <button type="submit" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Make default</button>
+                                        <button type="submit" class="text-sm font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Make default<span class="sr-only"> for {{ $flow->name }}</span></button>
                                     </form>
                                     <form method="POST" action="{{ route('seller.workflows.destroy', $flow) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-sm font-semibold text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300">Remove</button>
+                                        <button type="submit" class="text-sm font-semibold text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300">Remove<span class="sr-only"> {{ $flow->name }}</span></button>
                                     </form>
                                 </div>
                             @endunless

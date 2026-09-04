@@ -30,8 +30,8 @@ it('leaves every other sellers default alone', function (): void {
 it('leaves an already-default flow as the one default', function (): void {
     $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $this->seller()->id]);
 
-    $result = app(MakeFulfillmentFlowDefault::class)($flow);
+    app(MakeFulfillmentFlowDefault::class)($flow);
 
-    expect($result->is_default)->toBeTrue()
+    expect($flow->refresh()->is_default)->toBeTrue()
         ->and(FulfillmentFlow::where('seller_id', $flow->seller_id)->where('is_default', true)->count())->toBe(1);
 });

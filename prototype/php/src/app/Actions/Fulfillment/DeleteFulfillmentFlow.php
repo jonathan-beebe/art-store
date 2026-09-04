@@ -10,7 +10,7 @@ use App\Models\FulfillmentFlow;
 /**
  * Removes a flow no listing ships by and that carries no default role — the
  * two guards a seller's delete button has to pass, checked against the row
- * as it stands rather than the page that rendered the button.
+ * as it stands at delete time.
  */
 final readonly class DeleteFulfillmentFlow
 {

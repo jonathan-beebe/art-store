@@ -15,7 +15,7 @@ A seller whose goods ship differently can describe each way once and say which w
 
 ## Outcome
 - The seller nav gains **Workflows** between Orders and Customers. It opens `/seller/workflows`: the seller's fulfillment flows, the default marked, each with its step count and the listings that name it.
-- From there a seller adds a workflow (name and steps), edits any of them, marks one as the default, and removes one no listing names; removing the default is refused while no other holds the role. Cross-seller ids answer 404; unknown values 400.
+- From there a seller adds a workflow (name and steps), edits any of them, marks one as the default, and removes one no listing names; removing the default is always refused — a seller makes another workflow the default first. Cross-seller ids answer 404; unknown values 400.
 - The code keeps the domain's names (`FulfillmentFlow`, `fulfillment_flows`, `fulfillment_flow_steps`, `FulfillmentFlowController`); every seller-facing word (nav, headings, buttons, hints, route segment) says workflow. The old `/seller/orders/flow` route redirects to the default workflow's edit page.
 - The listing configurator's basics page shows a "Workflow" picker only when the seller has more than one; it lists them with the default marked and saves `listings.fulfillment_flow_id` (null means the seller's default). A seller with one workflow sees no picker.
 - An order shows the workflow its listing names, else the default; a parcel already in progress keeps the workflow it started under (its completed events name their steps). The order page's steps panel links to the workflow it runs under.
@@ -101,3 +101,28 @@ The event log was built so goods that fulfill differently could each have their 
   hook) took several minutes per commit; per the coordinator's guidance,
   `make check` was **not** run — the orchestrator runs one gate on the
   merged branch.
+
+### Review round
+
+Fixed items 2–12 from the merge review: explicit `authorize('update', …)`
+in `FulfillmentFlowController::update()`; two `OrderControllerTest` cases
+for the flow panel's link (a named workflow, and the index for a seller
+with none); the default-deletion rule is strict and stays that way — the
+Outcome bullet above now says so plainly, and `DeleteFulfillmentFlowTest`
+covers deleting a flow once it has lost the default role to another;
+`ListingBasicsControllerTest` asserts the `fulfillment_flow_id` control
+itself rather than loose text; `docs/ontology.md`'s Fulfillment flow
+lifecycle and `docs/orders.md`'s flow section both name `/seller/workflows`
+and the Basics picker; the index's "Make default"/"Remove" buttons carry an
+sr-only workflow name; `MakeFulfillmentFlowDefault` returns void, its own
+test and `DeleteFulfillmentFlowTest` re-read the row; `ListingRequest::prepareForValidation()`
+carries `#[Override]`; `CreateFulfillmentFlow`'s "does this seller have a
+flow yet" read is `lockForUpdate()`d inside the transaction; the index
+query adds `withCount('listings')` and eager-loads each flow's first three
+listings (ordered by title) for the row, folding the rest into "and N
+more"; the four flagged contrast-clause comments are rephrased as plain
+statements. `make precommit` green.
+
+Item 1 (a parcel keeps the workflow it started under as a snapshot,
+`fulfillments.fulfillment_flow_id`) waits on `App\Seller\FulfillmentFlowReader`
+landing on `php/fu-model` and a rebase onto `php/seller-portal-next`.
