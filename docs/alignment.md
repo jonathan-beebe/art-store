@@ -1048,9 +1048,13 @@ with its carrier and tracking number and its printable label page, and the
 flow editor. §2.3 reserves `fulfillment.step` and holds the vocabulary
 closed until all three prototypes carry it, so a step completion writes the
 appended row and no log line. PHP ships the nine tables, the log, the flow,
-the store profile and its public page, the listings table and grid, the
-earnings period view, the support hub, and the activity feed on FEAT-051,
-FEAT-052, FEAT-056, FEAT-057, FEAT-058, FEAT-060, and FEAT-061 —
+the store profile and its public page, the order lanes and step-aware
+detail, the customers section, the dashboard, the listings table and grid,
+the earnings period view, the thread context rail, the support hub, and the
+activity feed on FEAT-051, FEAT-052, FEAT-053, FEAT-054, FEAT-055,
+FEAT-056, FEAT-057, FEAT-058, FEAT-059, FEAT-060, and FEAT-061 —
 `prototype/php/docs/seller-portal.md` and `prototype/php/docs/orders.md`
-§ "The fulfillment event log and the seller's flow" are the reference. Node
-owes it as FEAT-023 and rails as FEAT-022.
+§ "The fulfillment event log and the seller's flow" are the reference.
+MAINT-008 corrects this reconciliation log against the eleven and adds the
+matching ontology and data-model entries. Node owes it as FEAT-023 and
+rails as FEAT-022.

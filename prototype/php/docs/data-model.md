@@ -35,6 +35,21 @@ prototypes share.
 | store_sections         | `sse`  | store_section_images | `ssi`  |
 | store_links            | `slk`  | fulfillment_flows    | `ffl`  |
 | fulfillment_flow_steps | `ffs`  | fulfillment_events   | `fev`  |
+| categories             | `cat`  | properties           | `prp`  |
+| property_values        | `pvl`  | category_properties  | `cpr`  |
+| listing_attributes     | `lat`  | listing_images       | `img`  |
+| option_axes            | `axs`  | option_values        | `ovl`  |
+| variants               | `vrt`  | variant_options       | `vop`  |
+| units                  | `unt`  | modifiers             | `mdf`  |
+| modifier_options       | `mdo`  | modifier_scopes       | `mds`  |
+| quantity_breaks        | `qbk`  | description_sections  | `dsc`  |
+
+The sixteen configurator tables above (`categories` through
+`description_sections`) hold a listing's structured configuration — units,
+option axes and variants, modifiers, quantity breaks, and a listing's own
+description sections and images. [`item-configurator.md`](item-configurator.md)
+is their reference; the diagram below keeps to the tables the seller and
+buyer lifecycle touches directly and omits their columns and relationships.
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock
@@ -111,12 +126,15 @@ erDiagram
     listings {
         text id PK
         text seller_id FK
+        text category_id FK "nullable, see item-configurator.md"
         text fulfillment_flow_id FK "nullable, null = the seller's default flow"
         string title
         string slug UK
+        text description "nullable"
         unsigned price_cents
-        unsigned quantity "default 1"
+        unsigned quantity "nullable, default 1; null = made to order"
         string status "draft|for_sale|sold|archived"
+        string dimensions "nullable"
     }
     store_profiles {
         text id PK
@@ -254,10 +272,13 @@ erDiagram
     fulfillments {
         text id PK
         text order_id FK "UK with seller_id"
+        text customer_id FK
         text seller_id FK
         string status "awaiting_shipment|shipped|delivered|declined|refunded"
         string carrier "nullable"
         string tracking_number "nullable"
+        timestamp shipped_at "nullable"
+        timestamp delivered_at "nullable"
         unsigned subtotal_cents
         unsigned fee_cents
         unsigned net_cents
@@ -300,12 +321,17 @@ erDiagram
     conversations {
         text id PK
         string kind "admin_seller|admin_customer|fulfillment|listing_question"
-        string subject_key UK "kind + participant ids, e.g. listing_question:ssel_01J…:ccus_01J…:llst_01J…"
+        string title "nullable; every kind but fulfillment carries one"
+        string subject_key UK "nullable; the fulfillment kind alone, e.g. fulfillment:sSEL…:cCUS…:fFUL…"
         text seller_id FK "nullable, indexed with last_message_at"
         text customer_id FK "nullable, indexed with last_message_at"
-        text admin_id FK "nullable, indexed with last_message_at"
+        text admin_id FK "nullable, indexed with last_message_at; who first answered a desk thread"
         text listing_id FK "nullable, the listing_question subject"
         text fulfillment_id FK "nullable, the fulfillment subject"
+        text order_id FK "nullable"
+        timestamp resolved_at "nullable"
+        string resolved_by_type "nullable, seller|customer|admin morph alias"
+        text resolved_by_id "nullable"
         timestamp last_message_at "nullable, the inbox sort"
     }
     messages {
@@ -313,6 +339,7 @@ erDiagram
         text conversation_id FK "cascade on delete"
         string sender_type "seller|customer|admin morph alias"
         text sender_id "the id within the table sender_type names"
+        text reply_to_message_id FK "nullable, -> messages, nullOnDelete"
         text body "<= 2000 characters"
         timestamp sent_at
         timestamp read_at "nullable, indexed with conversation_id"
@@ -338,6 +365,7 @@ erDiagram
     sellers ||--o{ listings : owns
     sellers ||--o{ order_items : sold_via
     sellers ||--o{ fulfillments : ships
+    customers ||--o{ fulfillments : receives
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
     customers ||..o{ analytics_events : acts_as
@@ -352,7 +380,9 @@ erDiagram
     admins ||--o{ conversations : participates_in
     listings ||--o{ conversations : asked_about
     fulfillments ||--o{ conversations : asked_about
+    orders ||--o{ conversations : raised_over
     conversations ||--o{ messages : holds
+    messages ||--o{ messages : "replied to by"
     listings ||--o{ listing_faqs : publishes
     messages ||--o{ listing_faqs : lifted_from
     listings ||..o{ analytics_events : subject_of
@@ -405,13 +435,20 @@ Caveats:
   names its sender the way a notification names its recipient and is drawn
   without a relationship line above.
 - `conversations.subject_key` is the uniqueness spine of "one thread per
-  subject": SQL treats null as distinct from null, so a composite unique
-  index over the five nullable id columns would let a duplicate row through.
-  The key folds the kind and those ids into one non-null string
-  (`listing_question:ssel_01J…:ccus_01J…:llst_01J…`). It names the
-  participants, so an
-  anonymous-customer merge moves `customer_id` and `subject_key` together —
-  see `docs/messaging.md` § "The merge".
+  fulfillment" — `App\Domain\Messaging\ConversationSubject::subjectKey()`
+  folds the seller, customer, and fulfillment ids into one non-null string
+  (`fulfillment:s…:c…:f…`) so a composite unique index need not lean on
+  three nullable columns, where SQL treats null as distinct from null. It is
+  the one kind whose thread is found again on a second ask; `AdminSeller`,
+  `AdminCustomer`, and `ListingQuestion` open a fresh row every time and
+  carry a `title`, with no `subject_key`. An anonymous-customer merge moves
+  `customer_id` and `subject_key` together — see `docs/messaging.md` §
+  "The merge".
+- `conversations.resolved_at` / `resolved_by_type` / `resolved_by_id` record
+  who closed a thread and when; `resolved_by` is a morph pair the way
+  `notifications.notifiable` is. `admin_id` on the two desk kinds
+  (`AdminSeller`, `AdminCustomer`) records who first answered, not a gate —
+  the desk is every admin, collectively.
 - `listing_faqs` rows exist only while published: `published_at` is not null,
   and unpublishing deletes the row rather than clearing it.
   `source_message_id` records which answer an entry was lifted from and is
@@ -472,3 +509,10 @@ Caveats:
 - `listings.fulfillment_flow_id` is nullable and `nullOnDelete`: a listing
   that names no flow ships by its seller's default
   (`Fulfillment::flowInEffect()`).
+- `listings.category_id` is nullable and `nullOnDelete`, drawn without a
+  relationship line above since `categories` sits outside this diagram —
+  [`item-configurator.md`](item-configurator.md) has the full
+  configuration model.
+- `messages.reply_to_message_id` is nullable and `nullOnDelete`: the
+  message a reply answers, so removing the quoted message leaves the reply
+  itself intact.

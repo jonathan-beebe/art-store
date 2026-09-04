@@ -6,7 +6,7 @@
 - DSGN: 11
 - ARCH: 1
 - FEAT: 62
-- IMPRV: 34
+- IMPRV: 37
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,11 @@
 
 ## Log
 
+- 2026-09-04:08:35:00 — IMPRV-033 — resolved: alignment.md §8 names all eleven tickets; orders.md links §4.5 instead of restating it (392 → 368 lines); seller-portal.md reordered to the nav's order, seven stale claims corrected, flow editor and label page named, 1072 → 699 lines; data-model.md's conversations/messages/fulfillments/listings match their migrations and its prefix table lists all 46 idPrefix() tables; ontology.md's analytics-event entry names all nine; IMPRV-034..036 filed for the three §6 rows with a definite outcome, the other seven deferred to DECISIONS.md
+- 2026-09-04:08:10:00 — IMPRV-036 — defined: The listings overlay tests prove the right block shows per viewport
+- 2026-09-04:08:10:00 — IMPRV-035 — defined: The dashboard's "needs work" group names a draft's actual issues
+- 2026-09-04:08:10:00 — IMPRV-034 — defined: The shared status-tint lookup carries a name that fits both portals
+- 2026-09-04:07:32:43 — IMPRV-033 — started
 - 2026-09-04:07:27:28 — IMPRV-033 — defined: The docs say the seller portal once, and the deferrals become tickets
 - 2026-09-04:07:27:28 — IMPRV-032 — defined: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:07:27:28 — IMPRV-031 — defined: Every seller figure counts the same parcels and survives Postgres
