@@ -18,6 +18,7 @@ use App\Models\CustomerMerge;
 use App\Models\Favorite;
 use App\Models\Listing;
 use App\Models\OrderItem;
+use App\Models\StoreProfile;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Query\Builder;
@@ -26,12 +27,12 @@ use Illuminate\Support\Facades\DB;
 use stdClass;
 
 /**
- * One listing's or one actor's own page: the identity card's facts, the
- * range tiles, the strip, and the event feed. `forListing()` and
- * `forActor()` are the only two entry points and share every query and
- * formatting helper below them — the two pages differ only in which
- * column of `analytics_events` scopes their reads and in the facts and
- * tiles that column supports.
+ * One listing's, one store's, or one actor's own page: the identity
+ * card's facts, the range tiles, the strip, and the event feed.
+ * `forListing()`, `forStore()`, and `forActor()` are the only entry points
+ * and share every query and formatting helper below them — the pages
+ * differ only in which column of `analytics_events` scopes their reads and
+ * in the facts and tiles that column supports.
  */
 final class EntityActivity
 {
@@ -72,6 +73,32 @@ final class EntityActivity
             flagged: false,
             flagText: '',
             tiles: self::listingTiles($listing, $range, $daily),
+            stripTitle: 'By day',
+            strip: self::dailyStripBars($daily, $dayLabels),
+            stripFirst: AnalyticsRange::dayCaption($dayLabels[0]),
+            stripLast: AnalyticsRange::dayCaption($dayLabels[count($dayLabels) - 1]),
+            feed: $feed,
+            feedCaption: self::feedCaption(count($feed), $feedTotal),
+            visits: [],
+        );
+    }
+
+    public static function forStore(StoreProfile $store, AnalyticsRange $range, ?AnalyticsEventName $filter): EntityActivityView
+    {
+        $scope = fn (Builder $query): Builder => $query->where('subject_type', 'store')->where('subject_id', $store->id);
+
+        $daily = self::dailyCounts($scope, $range);
+        [$feed, $feedTotal] = self::feed($scope, $range, $filter, self::OTHER_ACTOR);
+        $dayLabels = $range->dayLabels();
+
+        return new EntityActivityView(
+            kind: 'store',
+            id: $store->id,
+            title: $store->name,
+            facts: self::storeFacts($store),
+            flagged: false,
+            flagText: '',
+            tiles: self::storeTiles($store, $range, $daily),
             stripTitle: 'By day',
             strip: self::dailyStripBars($daily, $dayLabels),
             stripFirst: AnalyticsRange::dayCaption($dayLabels[0]),
@@ -165,21 +192,52 @@ final class EntityActivity
      */
     private static function listingTiles(Listing $listing, AnalyticsRange $range, array $daily): array
     {
-        $views = self::totalForName($listing, $range, AnalyticsEventName::ListingView);
-        $favorites = self::totalForName($listing, $range, AnalyticsEventName::ListingFavorite);
-        $cartAdds = self::totalForName($listing, $range, AnalyticsEventName::ListingCartAdd);
+        $views = self::totalForSubject('listing', $listing->id, $range, AnalyticsEventName::ListingView);
+        $favorites = self::totalForSubject('listing', $listing->id, $range, AnalyticsEventName::ListingFavorite);
+        $cartAdds = self::totalForSubject('listing', $listing->id, $range, AnalyticsEventName::ListingCartAdd);
         $standingFavorites = Favorite::query()->where('listing_id', $listing->id)->count();
         $becameOrders = OrderItem::query()
             ->where('listing_id', $listing->id)
             ->whereBetween('created_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->count();
-        $actors = self::distinctActorsForListing($listing, $range);
+        $actors = self::distinctActorsForSubject('listing', $listing->id, $range);
         $peakIndex = self::peakDayIndex($daily);
 
         return [
             new EventTile('Views', number_format($views), $range->days.' days'),
             new EventTile('Favorites', number_format($favorites), number_format($standingFavorites).' standing today'),
             new EventTile('Cart adds', number_format($cartAdds), number_format($becameOrders).' became orders'),
+            new EventTile('Distinct actors', number_format($actors['total']), number_format($actors['anonymous']).' anonymous'),
+            new EventTile('Busiest day', number_format($daily[$peakIndex] ?? 0), AnalyticsRange::dayCaption($range->dayLabels()[$peakIndex])),
+        ];
+    }
+
+    /**
+     * @return list<EntityFact>
+     */
+    private static function storeFacts(StoreProfile $store): array
+    {
+        $store->loadMissing('seller');
+
+        return [
+            new EntityFact('Slug', $store->slug),
+            new EntityFact('Seller', $store->seller->displayName()),
+            new EntityFact('Visibility', $store->visibility()->label()),
+        ];
+    }
+
+    /**
+     * @param  list<int>  $daily
+     * @return list<EventTile>
+     */
+    private static function storeTiles(StoreProfile $store, AnalyticsRange $range, array $daily): array
+    {
+        $views = self::totalForSubject('store', $store->id, $range, AnalyticsEventName::StoreView);
+        $actors = self::distinctActorsForSubject('store', $store->id, $range);
+        $peakIndex = self::peakDayIndex($daily);
+
+        return [
+            new EventTile('Views', number_format($views), $range->days.' days'),
             new EventTile('Distinct actors', number_format($actors['total']), number_format($actors['anonymous']).' anonymous'),
             new EventTile('Busiest day', number_format($daily[$peakIndex] ?? 0), AnalyticsRange::dayCaption($range->dayLabels()[$peakIndex])),
         ];
@@ -490,11 +548,11 @@ final class EntityActivity
         return $firstSeenAt === null ? null : new DateTimeImmutable($firstSeenAt, new DateTimeZone('UTC'));
     }
 
-    private static function totalForName(Listing $listing, AnalyticsRange $range, AnalyticsEventName $name): int
+    private static function totalForSubject(string $subjectType, string $subjectId, AnalyticsRange $range, AnalyticsEventName $name): int
     {
         return DB::connection('analytics')->table('analytics_events')
-            ->where('subject_type', 'listing')
-            ->where('subject_id', $listing->id)
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
             ->where('name', $name->value)
             ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->count();
@@ -503,11 +561,11 @@ final class EntityActivity
     /**
      * @return array{total: int, anonymous: int}
      */
-    private static function distinctActorsForListing(Listing $listing, AnalyticsRange $range): array
+    private static function distinctActorsForSubject(string $subjectType, string $subjectId, AnalyticsRange $range): array
     {
         $actorIds = DB::connection('analytics')->table('analytics_events')
-            ->where('subject_type', 'listing')
-            ->where('subject_id', $listing->id)
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
             ->whereNotNull('actor_id')
             ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)])
             ->distinct()
@@ -598,12 +656,14 @@ final class EntityActivity
      * The actor entity page's feed: every row's other party is whatever
      * the event's own subject names. A listing view, favorite, or cart
      * add names the listing it happened to, which may since have been
+     * deleted; a store view names the store, which may likewise have been
      * deleted. A checkout, order placement, order payment, or order
      * cancellation has no listing subject — its subject is a cart or an
      * order — so it names that instead, with the listings it spans read
      * back out of `data.listing_ids` ({@see listingIdsForFeedRow()}). One
      * `Listing::whereIn()` covers every row's listing ids at once, whether
-     * they came from `subject_id` or from that JSON array.
+     * they came from `subject_id` or from that JSON array; one
+     * `StoreProfile::whereIn()` covers every row's store id the same way.
      *
      * @param  Collection<int, stdClass>  $rows
      * @return list<EntityFeedRow>
@@ -612,9 +672,10 @@ final class EntityActivity
     {
         /** @var list<string> $listingIds */
         $listingIds = $rows->flatMap(self::listingIdsForFeedRow(...))->unique()->values()->all();
-        $listings = Listing::query()->whereIn('id', $listingIds)->get()->keyBy('id');
+        $listings = self::modelsById(Listing::class, $listingIds);
+        $stores = self::modelsById(StoreProfile::class, self::storeIdsForFeedRows($rows));
 
-        $mapped = $rows->map(function (stdClass $row) use ($listings): EntityFeedRow {
+        $mapped = $rows->map(function (stdClass $row) use ($listings, $stores): EntityFeedRow {
             /** @var string $eventName */
             $eventName = $row->name;
             $name = AnalyticsEventName::from($eventName);
@@ -624,12 +685,59 @@ final class EntityActivity
             return match ($subjectType) {
                 'order' => self::feedRowForOrder($row, $name, $listings),
                 'cart' => self::feedRowForCart($row, $name, $listings),
-                'store' => self::feedRowForStore($row, $name),
+                'store' => self::feedRowForStore($row, $name, $stores),
                 default => self::feedRowForListing($row, $name, $listings),
             };
         })->all();
 
         return array_values($mapped);
+    }
+
+    /**
+     * The store ids one page of feed rows names — the ids
+     * {@see modelsById()} needs for {@see feedRowForStore()}.
+     *
+     * @param  Collection<int, stdClass>  $rows
+     * @return list<string>
+     */
+    private static function storeIdsForFeedRows(Collection $rows): array
+    {
+        /** @var list<string> $storeIds */
+        $storeIds = $rows
+            ->filter(fn (stdClass $row): bool => $row->subject_type === 'store')
+            ->pluck('subject_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return $storeIds;
+    }
+
+    /**
+     * Every row of `$modelClass` named by `$ids`, keyed by id — empty
+     * without issuing a query when `$ids` is empty, so a feed that never
+     * names this model pays nothing here.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  class-string<TModel>  $modelClass
+     * @param  list<string>  $ids
+     * @return Collection<string, TModel>
+     */
+    private static function modelsById(string $modelClass, array $ids): Collection
+    {
+        if ($ids === []) {
+            /** @var Collection<string, TModel> $empty */
+            $empty = collect();
+
+            return $empty;
+        }
+
+        /** @var Collection<string, TModel> $found */
+        $found = $modelClass::query()->whereIn('id', $ids)->get()->keyBy('id');
+
+        return $found;
     }
 
     /**
@@ -672,15 +780,17 @@ final class EntityActivity
     }
 
     /**
-     * A store carries no admin page of its own to link to, the same as a
-     * cart — its row names the store it was opened at, unlinked.
+     * @param  Collection<string, StoreProfile>  $stores
      */
-    private static function feedRowForStore(stdClass $row, AnalyticsEventName $name): EntityFeedRow
+    private static function feedRowForStore(stdClass $row, AnalyticsEventName $name, Collection $stores): EntityFeedRow
     {
-        /** @var string $storeId */
-        $storeId = $row->subject_id ?? '';
+        /** @var string|null $subjectId */
+        $subjectId = $row->subject_id;
+        $store = $subjectId !== null ? $stores->get($subjectId) : null;
 
-        return self::feedRow($row, $name, "store {$storeId}", $storeId, self::OTHER_STORE, false, []);
+        $otherLabel = $store instanceof StoreProfile ? $store->name : 'store no longer exists';
+
+        return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', self::OTHER_STORE, $store instanceof StoreProfile, []);
     }
 
     /**

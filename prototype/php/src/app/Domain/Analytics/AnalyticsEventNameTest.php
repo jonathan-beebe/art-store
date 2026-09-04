@@ -58,3 +58,17 @@ it('gives every case a plural label', function (AnalyticsEventName $name, string
 it('gives every case a non-empty icon path', function (AnalyticsEventName $name): void {
     expect($name->iconPath())->not->toBe('');
 })->with(AnalyticsEventName::cases());
+
+it('narrows to the names a listing\'s or a store\'s own feed can hold', function (): void {
+    expect(AnalyticsEventName::forSubject('listing'))->toBe([
+        AnalyticsEventName::ListingView,
+        AnalyticsEventName::ListingFavorite,
+        AnalyticsEventName::ListingUnfavorite,
+        AnalyticsEventName::ListingCartAdd,
+    ])
+        ->and(AnalyticsEventName::forSubject('store'))->toBe([AnalyticsEventName::StoreView]);
+});
+
+it('falls back to every case for a subject type it does not narrow', function (): void {
+    expect(AnalyticsEventName::forSubject('actor'))->toBe(AnalyticsEventName::cases());
+});

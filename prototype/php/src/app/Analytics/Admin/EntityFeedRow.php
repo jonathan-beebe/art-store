@@ -8,15 +8,16 @@ use DateTimeImmutable;
 
 /**
  * One row of an entity page's event feed: what happened, and the other
- * party. On a listing's page, the other party is the actor that caused
- * it. On an actor's page, it is whatever the event's own subject names —
- * a listing, an order, or a cart, `$otherKind` says which, and the page
- * routes its link accordingly. `$otherExists` is false for a listing that
- * no longer exists and for a cart, which carries no page of its own to
- * link to; an actor's or an order's row is never missing since neither
- * kind of row is ever deleted. `$listingTitles` is the listings an order
- * or cart subject spans, empty for a listing or an actor subject, which
- * already names its one listing or the actor as `$otherLabel`.
+ * party. On a listing's or a store's page, the other party is the actor
+ * that caused it. On an actor's page, it is whatever the event's own
+ * subject names — a listing, an order, a cart, or a store, `$otherKind`
+ * says which, and the page routes its link accordingly. `$otherExists` is
+ * false for a listing or a store that no longer exists and for a cart,
+ * which carries no page of its own to link to; an actor's or an order's
+ * row is never missing since neither kind of row is ever deleted.
+ * `$listingTitles` is the listings an order or cart subject spans, empty
+ * for a listing, a store, or an actor subject, which already names its own
+ * listing, store, or the actor as `$otherLabel`.
  */
 final readonly class EntityFeedRow
 {

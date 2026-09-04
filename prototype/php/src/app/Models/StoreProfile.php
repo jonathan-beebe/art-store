@@ -24,6 +24,8 @@ use Override;
  *
  * `slug` is the address the store answers to today; {@see StoreSlug} holds
  * every address it has ever answered to.
+ *
+ * @property-read Seller $seller
  */
 #[Fillable(['seller_id', 'slug', 'name', 'tagline', 'location', 'portrait_image_id', 'cover_image_id', 'published_at'])]
 class StoreProfile extends Model

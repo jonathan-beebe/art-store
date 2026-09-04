@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Analytics\Admin\EntityActivity;
+use App\Analytics\Admin\EntityPageLinks;
 use App\Analytics\Admin\Funnel;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
@@ -22,7 +23,9 @@ use Illuminate\View\View;
  */
 final class ListingController extends Controller
 {
-    private const array RANGE_LABELS = [7 => '7d', 30 => '30d', 90 => '90d'];
+    private const string ROUTE_NAME = 'admin.analytics.listings.show';
+
+    private const string PARAM_KEY = 'listing';
 
     public function show(Listing $listing, AnalyticsEntityQueryRequest $request): View
     {
@@ -38,61 +41,12 @@ final class ListingController extends Controller
             'funnel' => Funnel::forListing(FunnelDefinition::storefront(), $listing->id, $range),
             'now' => $this->now(),
             'rangeCaption' => $range->caption(),
-            'rangeLinks' => $this->entityRangeLinks($listing->id, $roundTripped, $rangeDays),
-            'eventLinks' => $this->entityEventLinks($listing->id, $roundTripped, $filter),
+            'rangeLinks' => EntityPageLinks::range(self::ROUTE_NAME, self::PARAM_KEY, $listing->id, $roundTripped, $rangeDays),
+            'eventLinks' => EntityPageLinks::event(self::ROUTE_NAME, self::PARAM_KEY, $listing->id, $roundTripped, $filter, AnalyticsEventName::forSubject('listing')),
             'backHref' => route('admin.analytics.index', array_intersect_key($roundTripped, ['range' => true])),
             'backLabel' => 'Analytics',
             'actions' => $this->actions($listing),
         ]);
-    }
-
-    /**
-     * The listing page's range segmented control: `event` carried through
-     * unchanged.
-     *
-     * @param  array<string, string>  $roundTripped
-     * @return list<array{label: string, href: string, active: bool}>
-     */
-    private function entityRangeLinks(string $listingId, array $roundTripped, int $current): array
-    {
-        $without = collect($roundTripped)->except('range')->all();
-
-        return array_map(
-            fn (int $days): array => [
-                'label' => self::RANGE_LABELS[$days],
-                'href' => route('admin.analytics.listings.show', ['listing' => $listingId, ...$without, 'range' => $days]),
-                'active' => $days === $current,
-            ],
-            AnalyticsRange::SIZES,
-        );
-    }
-
-    /**
-     * The listing page's event-name segmented control: "All" plus one link
-     * per {@see AnalyticsEventName} case, `range` carried through unchanged.
-     *
-     * @param  array<string, string>  $roundTripped
-     * @return list<array{label: string, href: string, active: bool}>
-     */
-    private function entityEventLinks(string $listingId, array $roundTripped, ?AnalyticsEventName $current): array
-    {
-        $without = collect($roundTripped)->except('event')->all();
-
-        $links = [[
-            'label' => 'All',
-            'href' => route('admin.analytics.listings.show', ['listing' => $listingId, ...$without]),
-            'active' => $current === null,
-        ]];
-
-        foreach (AnalyticsEventName::cases() as $name) {
-            $links[] = [
-                'label' => $name->pluralLabel(),
-                'href' => route('admin.analytics.listings.show', ['listing' => $listingId, ...$without, 'event' => $name->value]),
-                'active' => $current === $name,
-            ];
-        }
-
-        return $links;
     }
 
     /**

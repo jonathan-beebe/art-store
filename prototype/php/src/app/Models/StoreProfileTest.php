@@ -19,7 +19,7 @@ it('belongs to the seller it presents', function (): void {
 
     $profile = StoreProfile::factory()->create(['seller_id' => $seller->id]);
 
-    expect($profile->seller?->id)->toBe($seller->id)
+    expect($profile->seller->id)->toBe($seller->id)
         ->and($seller->storeProfile?->id)->toBe($profile->id);
 });
 
