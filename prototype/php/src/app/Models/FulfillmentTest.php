@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\RefundFulfillment;
+use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
@@ -172,4 +173,27 @@ it('keeps the words of a step the seller removed on the row that recorded it', f
 
     expect($event->fulfillment_flow_step_id)->toBeNull()
         ->and($event->stepLabel())->toBe('Label printed');
+});
+
+it('names a parcel by its one line', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    expect($fulfillment->load('order.items')->itemLabel())->toBe($fulfillment->order->items->sole()->title);
+});
+
+it('names a parcel by its first line, its quantity, and how many follow', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = $this->verifiedCustomer();
+    $order = $this->orderFor(
+        $customer,
+        $this->listing($seller, ['title' => 'Nine Owls']),
+        $this->listing($seller, ['title' => 'Copper Cauldron Bowl']),
+    );
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = $order->fulfillments()->sole();
+    $first = $fulfillment->load('order.items')->order->items->firstOrFail();
+    $first->update(['quantity' => 2]);
+
+    expect($fulfillment->load('order.items')->itemLabel())->toBe($first->title.' ×2 +1 more');
 });

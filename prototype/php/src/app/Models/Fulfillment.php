@@ -250,6 +250,30 @@ class Fulfillment extends Model
         return FulfillmentLane::of($this->status, $this->progress());
     }
 
+    /**
+     * The parcel named by what is in it: the first line, its quantity when
+     * there is more than one of it, and how many other lines follow. Reads
+     * the items the order carries, which every seller screen loads narrowed
+     * to that seller's own lines.
+     */
+    public function itemLabel(): string
+    {
+        $items = $this->order->items;
+        $first = $items->first();
+
+        if ($first === null) {
+            return '—';
+        }
+
+        $label = $first->title;
+
+        if ($first->quantity > 1) {
+            $label .= ' ×'.$first->quantity;
+        }
+
+        return $items->count() > 1 ? $label.' +'.($items->count() - 1).' more' : $label;
+    }
+
     public function subtotal(): Money
     {
         return Money::fromCents($this->subtotal_cents);

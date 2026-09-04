@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Seller\BulkVariantsController;
+use App\Http\Controllers\Seller\CustomerController;
+use App\Http\Controllers\Seller\CustomerMessageController;
 use App\Http\Controllers\Seller\DashboardController;
 use App\Http\Controllers\Seller\DeclineController;
 use App\Http\Controllers\Seller\DescriptionSectionController;
@@ -115,6 +117,10 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::post('orders/{fulfillment}/shipment', ShipmentController::class)->name('orders.ship');
     Route::post('orders/{fulfillment}/decline', DeclineController::class)->name('orders.decline');
     Route::post('orders/{fulfillment}/messages', OrderMessageController::class)->name('orders.messages');
+
+    Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
+    Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');
+    Route::post('customers/{customer}/messages', CustomerMessageController::class)->name('customers.messages');
 
     Route::get('earnings', EarningsController::class)->name('earnings');
 

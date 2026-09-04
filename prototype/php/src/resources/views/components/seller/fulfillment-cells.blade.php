@@ -10,22 +10,6 @@
     @forelse ($fulfillments as $fulfillment)
         @php
             $isSelected = $selected !== null && $selected->id === $fulfillment->id;
-            $tint = match ($fulfillment->status) {
-                \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
-                \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
-                \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
-                \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
-                \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
-            };
-            $items = $fulfillment->order->items;
-            $primary = $items->first();
-            $itemLabel = $primary?->title ?? '—';
-            if ($primary && $primary->quantity > 1) {
-                $itemLabel .= ' ×'.$primary->quantity;
-            }
-            if ($items->count() > 1) {
-                $itemLabel .= ' +'.($items->count() - 1).' more';
-            }
         @endphp
         <x-pane-row
             accent="indigo"
@@ -39,11 +23,11 @@
             </x-slot:title>
             <x-slot:supporting>
                 <p class="mt-1 truncate text-xs/5 text-gray-500 dark:text-gray-400">
-                    {{ $itemLabel }} · {{ $fulfillment->subtotal()->format() }}
+                    {{ $fulfillment->itemLabel() }} · {{ $fulfillment->subtotal()->format() }}
                 </p>
             </x-slot:supporting>
             <x-slot:meta>
-                <x-seller.status-badge :tint="$tint">{{ $fulfillment->status->label() }}</x-seller.status-badge>
+                <x-seller.status-badge :tint="$fulfillment->status->sellerBadgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
                 <p class="mt-1 text-xs/5 text-gray-500 dark:text-gray-400">{{ $fulfillment->order->placed_at?->format('M j') }}</p>
             </x-slot:meta>
         </x-pane-row>

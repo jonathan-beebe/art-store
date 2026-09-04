@@ -60,6 +60,8 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Domain/Analytics/BarStripBar.php' => 'value carrier; exercised through BarStripTest and EntityActivityTest',
         'app/Seller/ViewLink.php' => 'value carrier; exercised through ListingsChromeTest',
         'app/Seller/ColumnHeader.php' => 'value carrier; exercised through ListingsChromeTest',
+        'app/Seller/SegmentLink.php' => 'value carrier; exercised through CustomersChromeTest',
+        'app/Seller/ConversationCounts.php' => 'value carrier; exercised through SellerCustomersTest',
     ];
 
     $base = dirname(__DIR__);
