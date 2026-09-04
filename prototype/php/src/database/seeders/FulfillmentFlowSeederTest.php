@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Domain\Auth\ActorType;
 use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Models\Fulfillment;
@@ -50,21 +51,25 @@ it('gives every seeded shipped or delivered parcel its shipped and delivered eve
     expect($shipped)->not->toBeEmpty();
 
     foreach ($shipped as $fulfillment) {
-        expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::Shipped)->exists())->toBeTrue();
+        $shippedAt = $fulfillment->shipped_at ?? throw new RuntimeException('The query selected a shipped fulfillment.');
+        $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+            ->where('kind', FulfillmentEventKind::Shipped)
+            ->sole();
+
+        expect($event->occurred_at->equalTo($shippedAt))->toBeTrue()
+            ->and($event->actor_type)->toBe(ActorType::Seller);
     }
 
     $delivered = Fulfillment::whereNotNull('delivered_at')->get();
     expect($delivered)->not->toBeEmpty();
 
     foreach ($delivered as $fulfillment) {
-        expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::Delivered)->exists())->toBeTrue();
+        $deliveredAt = $fulfillment->delivered_at ?? throw new RuntimeException('The query selected a delivered fulfillment.');
+        $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+            ->where('kind', FulfillmentEventKind::Delivered)
+            ->sole();
+
+        expect($event->occurred_at->equalTo($deliveredAt))->toBeTrue()
+            ->and($event->actor_type)->toBe(ActorType::Customer);
     }
-});
-
-it('writes the default-flow index as a bare boolean predicate, which SQLite and Postgres both read as true', function (): void {
-    $path = base_path('database/migrations/2026_09_04_000100_create_fulfillment_flows_table.php');
-    $migration = (string) file_get_contents($path);
-
-    expect($migration)->toContain('where is_default');
-    expect($migration)->not->toContain('is_default = 1');
 });

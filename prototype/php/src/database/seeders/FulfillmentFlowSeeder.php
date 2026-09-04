@@ -12,6 +12,7 @@ use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\NewFulfillmentEvent;
 use App\Models\Fulfillment;
+use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlow;
 use App\Models\Seller;
 use Illuminate\Database\Eloquent\Collection;
@@ -59,12 +60,14 @@ class FulfillmentFlowSeeder extends Seeder
                 ));
             }
 
-            $appendEvent($fulfillment, NewFulfillmentEvent::transition(
-                kind: FulfillmentEventKind::Shipped,
-                actorType: ActorType::Seller,
-                actorId: $seller->id,
-                occurredAt: $shippedAt,
-            ));
+            if (! $this->hasEvent($fulfillment, FulfillmentEventKind::Shipped)) {
+                $appendEvent($fulfillment, NewFulfillmentEvent::transition(
+                    kind: FulfillmentEventKind::Shipped,
+                    actorType: ActorType::Seller,
+                    actorId: $seller->id,
+                    occurredAt: $shippedAt,
+                ));
+            }
 
             $deliveredAt = $fulfillment->delivered_at?->toDateTimeImmutable();
 
@@ -72,13 +75,27 @@ class FulfillmentFlowSeeder extends Seeder
                 continue;
             }
 
-            $appendEvent($fulfillment, NewFulfillmentEvent::transition(
-                kind: FulfillmentEventKind::Delivered,
-                actorType: ActorType::Customer,
-                actorId: $fulfillment->customer_id,
-                occurredAt: $deliveredAt,
-            ));
+            if (! $this->hasEvent($fulfillment, FulfillmentEventKind::Delivered)) {
+                $appendEvent($fulfillment, NewFulfillmentEvent::transition(
+                    kind: FulfillmentEventKind::Delivered,
+                    actorType: ActorType::Customer,
+                    actorId: $fulfillment->customer_id,
+                    occurredAt: $deliveredAt,
+                ));
+            }
         }
+    }
+
+    /**
+     * Whether this parcel already carries the transition — true for one
+     * OrderHistorySeeder carried through the real MarkShipped or
+     * ConfirmDelivered action, which appended its own event.
+     */
+    private function hasEvent(Fulfillment $fulfillment, FulfillmentEventKind $kind): bool
+    {
+        return FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+            ->where('kind', $kind)
+            ->exists();
     }
 
     private function labelStep(FulfillmentFlow $flow): ?FlowStep

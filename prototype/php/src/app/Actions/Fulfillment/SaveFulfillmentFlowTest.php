@@ -96,7 +96,7 @@ it('reorders two existing steps without a unique-index collision', function (): 
         ->and($reordered->pluck('position')->all())->toBe([0, 1]);
 });
 
-it('parks a step above the range, never below zero, while it reorders', function (): void {
+it('parks a step at or above 9999 while it reorders, then writes the final range from zero', function (): void {
     $seller = $this->seller();
     $save = app(SaveFulfillmentFlow::class);
     $flow = $save($seller, 'How I ship', [
@@ -108,7 +108,7 @@ it('parks a step above the range, never below zero, while it reorders', function
 
     $positions = [];
     DB::listen(function (QueryExecuted $query) use (&$positions): void {
-        if (str_contains($query->sql, 'update "fulfillment_flow_steps"')) {
+        if (str_contains($query->sql, 'update "fulfillment_flow_steps" set "position"')) {
             foreach ($query->bindings as $binding) {
                 if (is_int($binding)) {
                     $positions[] = $binding;
@@ -122,11 +122,12 @@ it('parks a step above the range, never below zero, while it reorders', function
         FlowStepDraft::of($first->id, $first->label, $first->action),
     ]);
 
-    expect($positions)->not->toBeEmpty();
-
-    foreach ($positions as $position) {
-        expect($position)->toBeGreaterThanOrEqual(0);
-    }
+    // Two surviving steps: parkPositions() writes the first two bindings
+    // (the park, above the range), writeSteps() the last two (the final
+    // 0-based range).
+    expect($positions)->toHaveCount(4)
+        ->and(array_slice($positions, 0, 2))->each->toBeGreaterThanOrEqual(9999)
+        ->and(array_slice($positions, 2, 2))->toBe([0, 1]);
 });
 
 it('slugs a new step\'s key from its label, numbering a second step whose label slugs the same', function (): void {
