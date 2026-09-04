@@ -170,6 +170,7 @@
     @vite(['resources/css/app.css'])
     <x-theme-css />
     <script defer src="{{ asset('composer.js') }}"></script>
+    <script defer src="{{ asset('nav-drawer.js') }}"></script>
 </head>
 <body class="supports-dark h-full bg-gray-100 dark:bg-gray-950 font-sans text-sm text-gray-900 dark:text-gray-100 antialiased lg:flex lg:h-screen lg:flex-col lg:overflow-hidden">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-gray-900 focus:px-4 focus:py-2 focus:font-medium focus:text-white dark:focus:bg-gray-100 dark:focus:text-gray-900">Skip to content</a>
@@ -211,7 +212,7 @@
              header's hamburger and closed by its own button, a click on the
              backdrop area, or Escape (native <dialog> behavior — no JS
              needed for that one). --}}
-        <dialog id="admin-nav-drawer" class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-stone-900/80 lg:hidden">
+        <dialog id="admin-nav-drawer" data-nav-drawer class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-stone-900/80 lg:hidden">
             <div class="flex h-full w-72 max-w-[calc(100%-4rem)] flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 dark:bg-stone-900">
                 <div class="flex h-16 shrink-0 items-center justify-between">
                     <span class="flex items-center gap-x-3 font-semibold text-gray-900 dark:text-white">
@@ -293,20 +294,6 @@
             @endif
         </div>
 
-        <script>
-            (() => {
-                const drawer = document.getElementById('admin-nav-drawer');
-                if (! drawer) return;
-
-                document.querySelectorAll('[data-drawer-open]').forEach((button) => {
-                    button.addEventListener('click', () => drawer.showModal());
-                });
-
-                drawer.querySelectorAll('[data-drawer-close]').forEach((button) => {
-                    button.addEventListener('click', () => drawer.close());
-                });
-            })();
-        </script>
     @else
         <header class="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
