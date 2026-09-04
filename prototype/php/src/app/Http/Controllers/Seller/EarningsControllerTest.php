@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Actions\Escrow\RunWeeklyPayout;
+use App\Actions\Fulfillment\ConfirmDelivered;
+use App\Actions\Fulfillment\MarkShipped;
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Actions\Orders\FinalizeOrder;
 
 beforeEach(function (): void {
@@ -52,16 +56,41 @@ it('lists a shipped held order as in transit since it shipped', function (): voi
     $response->assertSee('In transit since Aug 18');
 });
 
-it("shows this period's sale in the sales table", function (): void {
+it("shows this period's sale in the sales table, linked to its order", function (): void {
     $seller = $this->seller();
-    $fulfillment = $this->paidFulfillmentFor($seller, priceCents: 10_000, paidAt: $this->moment('2026-08-18 10:00:00'));
-    $fulfillment->order()->update(['placed_at' => $this->moment('2026-08-18 10:00:00')]);
+    $order = $this->orderFor($this->verifiedCustomer(), $this->listing($seller, ['title' => 'Nine Owls', 'price_cents' => 10_000]));
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-18 10:00:00'));
+    $order->update(['placed_at' => $this->moment('2026-08-18 10:00:00')]);
+    $fulfillment = $order->fulfillments()->sole();
+    // Delivered, so it appears only in the sales table — not in the held-in-escrow list, which would
+    // otherwise print the same buyer and item and leave the assertion unable to tell the two apart.
+    app(MarkShipped::class)($fulfillment, 'Royal Mail', 'RM123', $this->moment('2026-08-18 11:00:00'));
+    app(ConfirmDelivered::class)($fulfillment->refresh(), $this->moment('2026-08-18 12:00:00'));
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
 
     $response->assertOk();
-    $response->assertSee('$100.00');
-    $response->assertSee('$90.00');
+    $response->assertSee('Nine Owls');
+    $response->assertSee(route('seller.orders.show', $fulfillment->id), escape: false);
+});
+
+it('shows the carried-balance badge once a refund after payout leaves the balance negative', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->deliveredFulfillmentFor(
+        $seller,
+        priceCents: 10_000,
+        orderedAt: $this->moment('2026-08-11 09:00:00'),
+        shippedAt: $this->moment('2026-08-11 12:00:00'),
+        deliveredAt: $this->moment('2026-08-12 10:00:00'),
+    );
+    app(RunWeeklyPayout::class)($this->moment('2026-08-17 09:00:00'));
+    app(RefundFulfillment::class)($fulfillment->refresh(), $this->admin(), 'Dispute resolved for the buyer.', $this->moment('2026-08-18 10:00:00'));
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
+
+    $response->assertOk();
+    $response->assertSee('Carried balance');
+    expect($seller->refresh()->escrowBalance()->available->isPositive())->toBeFalse();
 });
 
 it('links a past period to its statement page', function (): void {

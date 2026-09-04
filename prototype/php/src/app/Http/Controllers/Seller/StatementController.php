@@ -12,8 +12,8 @@ use Illuminate\View\View;
 /**
  * A printable statement for one payout period: the same figures the
  * earnings page's past-periods row shows, on their own page. Only a period
- * inside the eight the earnings page charts has a statement; a period
- * before that window answers 404 rather than a second read further back.
+ * inside the eight the earnings page charts has a statement; any other
+ * period answers 404.
  */
 final class StatementController extends SellerController
 {
