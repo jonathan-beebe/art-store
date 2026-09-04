@@ -23,6 +23,7 @@ final readonly class OrderFacts
     public function __construct(
         public ParcelState $state,
         public ?LedgerEntryType $escrow,
+        public ?string $flowId,
         public string $flowName,
         public array $steps,
         public FulfillmentProgress $progress,

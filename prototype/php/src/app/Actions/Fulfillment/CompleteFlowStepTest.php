@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Fulfillment;
 
+use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Fulfillment\FulfillmentLane;
@@ -117,18 +118,16 @@ it('refuses shipment details on a step that prints no label', function (): void 
         ->toThrow(DomainRuleViolation::class);
 });
 
-it('ships by the flow a listing names instead of the seller default', function (): void {
+it('ships by the flow its listing named at placement, snapshotted rather than read live', function (): void {
     $seller = $this->seller('Cho Chang');
     $this->flowFor($seller);
-    $fulfillment = $this->paidFulfillmentFor($seller);
-
     $namedFlow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id, 'name' => 'Framed pieces']);
     $namedStep = FulfillmentFlowStep::factory()->of($namedFlow, 0)->create(['label' => 'Wrapped in brown paper']);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $namedFlow->id]);
 
-    $listing = $fulfillment->load('order.items.listing')->order->items->sole()->listing;
-    $listing->update(['fulfillment_flow_id' => $namedFlow->id]);
-
-    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = $this->loadedForFlow($order->fulfillments()->sole());
 
     expect(app(FulfillmentFlowReader::class)->read($fulfillment)->progress->next()?->id)->toBe($namedStep->id);
 });

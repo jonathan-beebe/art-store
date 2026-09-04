@@ -30,6 +30,16 @@ it('adds the fee and the net back up to the subtotal', function (): void {
     expect($fulfillment->fee()->add($fulfillment->net())->equals($fulfillment->subtotal()))->toBeTrue();
 });
 
+it('resolves the flow it snapshot at placement', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    $fulfillment = $order->fulfillments()->sole();
+
+    expect($fulfillment->fulfillmentFlow?->id)->toBe($flow->id);
+});
+
 it('reads the ledger entries it produced', function (): void {
     $fulfillment = $this->deliveredFulfillmentFor($this->seller(), priceCents: 10000);
 

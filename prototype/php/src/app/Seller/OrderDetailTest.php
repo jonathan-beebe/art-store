@@ -124,14 +124,24 @@ it('leaves a completion whose step the seller removed out of the panel', functio
 
 it('names the flow the parcel ships by and the card the buyer paid with', function () use ($flowWithTwoSteps): void {
     $seller = $this->seller('Arthur Weasley');
-    $flowWithTwoSteps($seller);
+    $label = $flowWithTwoSteps($seller);
     $fulfillment = $this->paidFulfillmentFor($seller);
 
     $facts = app(OrderDetail::class)->facts($fulfillment, $seller, $this->moment('2026-08-22 09:00:00'));
 
-    expect($facts->flowName)->toBe('How I ship')
+    expect($facts->flowId)->toBe($label->fulfillmentFlow->id)
+        ->and($facts->flowName)->toBe('How I ship')
         ->and($facts->cardLastFour)->toBe('4242')
         ->and($facts->paymentStatus)->toBe('Approved');
+});
+
+it('carries no flow id for a seller with no flow at all', function (): void {
+    $seller = $this->seller('Fleur Delacour');
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    $facts = app(OrderDetail::class)->facts($fulfillment, $seller, $this->moment('2026-08-22 09:00:00'));
+
+    expect($facts->flowId)->toBeNull();
 });
 
 it('reads one order page in the same number of queries whatever its order holds', function () use ($flowWithTwoSteps): void {

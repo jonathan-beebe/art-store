@@ -14,6 +14,7 @@ use App\Http\Controllers\Seller\FlowStepController;
 use App\Http\Controllers\Seller\FulfillmentFlowController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
 use App\Http\Controllers\Seller\HelpArticleController;
+use App\Http\Controllers\Seller\LegacyFlowRedirectController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingBasicsController;
 use App\Http\Controllers\Seller\ListingController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Seller\ListingFaqController;
 use App\Http\Controllers\Seller\ListingImageController;
 use App\Http\Controllers\Seller\ListingImageReorderController;
 use App\Http\Controllers\Seller\ListingStatusController;
+use App\Http\Controllers\Seller\MakeFulfillmentFlowDefaultController;
 use App\Http\Controllers\Seller\MessageController;
 use App\Http\Controllers\Seller\ModifierController;
 use App\Http\Controllers\Seller\ModifierOptionController;
@@ -109,16 +111,18 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
         ->scopeBindings();
 
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
-    // Declared before `orders/{fulfillment}` so the flow editor's own path is
+    // Declared before `orders/{fulfillment}` so the old flow link's path is
     // not read as a fulfillment id.
-    Route::get('orders/flow', [FulfillmentFlowController::class, 'edit'])->name('orders.flow.edit');
-    Route::put('orders/flow', [FulfillmentFlowController::class, 'update'])->name('orders.flow.update');
+    Route::get('orders/flow', LegacyFlowRedirectController::class)->name('orders.flow.edit');
     Route::get('orders/{fulfillment}', [OrderController::class, 'show'])->name('orders.show');
     Route::get('orders/{fulfillment}/label', ShippingLabelController::class)->name('orders.label');
     Route::post('orders/{fulfillment}/steps/{step}', FlowStepController::class)->name('orders.steps.complete');
     Route::post('orders/{fulfillment}/shipment', ShipmentController::class)->name('orders.ship');
     Route::post('orders/{fulfillment}/decline', DeclineController::class)->name('orders.decline');
     Route::post('orders/{fulfillment}/messages', OrderMessageController::class)->name('orders.messages');
+
+    Route::resource('workflows', FulfillmentFlowController::class)->except('show');
+    Route::post('workflows/{workflow}/default', MakeFulfillmentFlowDefaultController::class)->name('workflows.default');
 
     Route::get('customers', [CustomerController::class, 'index'])->name('customers.index');
     Route::get('customers/{customer}', [CustomerController::class, 'show'])->name('customers.show');

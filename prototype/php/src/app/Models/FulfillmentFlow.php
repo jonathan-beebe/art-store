@@ -60,6 +60,16 @@ class FulfillmentFlow extends Model
     }
 
     /**
+     * The listings that name this flow.
+     *
+     * @return HasMany<Listing, $this>
+     */
+    public function listings(): HasMany
+    {
+        return $this->hasMany(Listing::class);
+    }
+
+    /**
      * The flow as the pure core reads it, in position order.
      *
      * @return list<FlowStep>

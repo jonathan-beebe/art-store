@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Models\FulfillmentFlow;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 
@@ -237,4 +238,50 @@ it('does not require a quantity to update a made-to-order listing', function () 
 
     $response->assertSessionDoesntHaveErrors('quantity');
     expect($listing->refresh()->quantity)->toBeNull();
+});
+
+it('sets the listings workflow to one the seller owns', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form(['fulfillment_flow_id' => $flow->id]));
+
+    $response->assertSessionDoesntHaveErrors('fulfillment_flow_id');
+    expect($listing->refresh()->fulfillment_flow_id)->toBe($flow->id);
+});
+
+it('refuses a workflow that belongs to another seller', function () use ($form): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+    $other = FulfillmentFlow::factory()->create(['seller_id' => $this->seller('Other Studio')->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form(['fulfillment_flow_id' => $other->id]));
+
+    $response->assertSessionHasErrors('fulfillment_flow_id');
+    expect($listing->refresh()->fulfillment_flow_id)->toBeNull();
+});
+
+it('reads the blank picker option as the sellers default, clearing a listings own workflow', function () use ($form): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $form(['fulfillment_flow_id' => '']));
+
+    $response->assertSessionDoesntHaveErrors('fulfillment_flow_id');
+    expect($listing->refresh()->fulfillment_flow_id)->toBeNull();
+});
+
+it('leaves a listings workflow untouched when the field is absent, the way one flow leaves the picker unrendered', function () use ($form): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+    $payload = $form();
+    unset($payload['fulfillment_flow_id']);
+
+    $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", $payload);
+
+    $response->assertSessionDoesntHaveErrors('fulfillment_flow_id');
+    expect($listing->refresh()->fulfillment_flow_id)->toBe($flow->id);
 });

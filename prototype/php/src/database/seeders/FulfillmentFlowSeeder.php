@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Actions\Fulfillment\AppendFulfillmentEvent;
-use App\Actions\Fulfillment\SaveFulfillmentFlow;
+use App\Actions\Fulfillment\CreateFulfillmentFlow;
 use App\Domain\Auth\ActorType;
 use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Fulfillment\FlowStep;
@@ -28,11 +28,11 @@ class FulfillmentFlowSeeder extends Seeder
 {
     public function run(): void
     {
-        $saveFlow = app(SaveFulfillmentFlow::class);
+        $createFlow = app(CreateFulfillmentFlow::class);
         $appendEvent = app(AppendFulfillmentEvent::class);
 
         foreach (Seller::query()->get() as $seller) {
-            $flow = $saveFlow($seller, DefaultFlow::NAME, DefaultFlow::drafts());
+            $flow = $createFlow($seller, DefaultFlow::NAME, DefaultFlow::drafts());
 
             $this->recordDepartureHistory($seller, $flow, $appendEvent);
         }

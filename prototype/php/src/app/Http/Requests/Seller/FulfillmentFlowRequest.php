@@ -7,26 +7,42 @@ namespace App\Http\Requests\Seller;
 use App\Domain\Fulfillment\FlowStepAction;
 use App\Domain\Fulfillment\FlowStepDraft;
 use App\Models\FulfillmentFlow;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use RuntimeException;
 
 /**
- * The whole flow arrives as one form: a name and a list of rows. A row the
- * seller ticked for removal and a row with no words are both left out — the
- * second is the empty row the page carries for adding a step. The rest are
- * ordered by the number the seller typed against them.
+ * A workflow arrives as one form, for a create and an edit alike: a name and
+ * a list of rows. A row the seller ticked for removal and a row with no
+ * words are both left out — the second is the empty row the page carries for
+ * adding a step. The rest are ordered by the number the seller typed against
+ * them.
  *
- * A row that names a step names one of this flow's own, and names it once:
- * two rows carrying one id would read as a step kept and a step dropped, and
- * an id from another flow would silently mint a new step.
+ * A row that names a step names one of the edited flow's own, and names it
+ * once: two rows carrying one id would read as a step kept and a step
+ * dropped, and an id from another flow would silently mint a new step. A
+ * create names no flow yet, so every id is refused.
  *
  * @phpstan-type StepRow array{id: ?string, label: string, action: FlowStepAction, position: int, remove: bool}
  */
-final class UpdateFulfillmentFlowRequest extends FormRequest
+final class FulfillmentFlowRequest extends FormRequest
 {
     public const int MAX_STEPS = 12;
+
+    /**
+     * A create names no flow to own; an edit names one, and it is the
+     * signed-in seller's or it does not exist for them.
+     */
+    public function authorize(): Response
+    {
+        $flow = $this->route('workflow');
+
+        return $flow instanceof FulfillmentFlow
+            ? Gate::inspect('update', $flow)
+            : Response::allow();
+    }
 
     /**
      * @return array<string, list<mixed>>
@@ -99,9 +115,9 @@ final class UpdateFulfillmentFlowRequest extends FormRequest
      */
     private function stepIdRules(): array
     {
-        $flowId = $this->defaultFlowId();
+        $flowId = $this->flowId();
 
-        // A seller with no flow yet has no step to name.
+        // A create names no flow yet, so it has no step to name.
         if ($flowId === null) {
             return ['prohibited'];
         }
@@ -115,13 +131,11 @@ final class UpdateFulfillmentFlowRequest extends FormRequest
         ];
     }
 
-    private function defaultFlowId(): ?string
+    private function flowId(): ?string
     {
-        $seller = $this->user('seller') ?? throw new RuntimeException('The flow editor runs behind the auth.seller middleware.');
+        $flow = $this->route('workflow');
 
-        $flowId = FulfillmentFlow::query()->where('seller_id', $seller->getAuthIdentifier())->defaults()->value('id');
-
-        return is_string($flowId) ? $flowId : null;
+        return $flow instanceof FulfillmentFlow ? $flow->id : null;
     }
 
     private function keptCount(): int

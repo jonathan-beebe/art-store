@@ -18,6 +18,7 @@
 - 2026-09-04:20:35:00 — IMPRV-038 — started
 - 2026-09-04:20:20:00 — IMPRV-037 — resolved: range dropped from the listings and customers query vocabularies, requests, chrome links, and the dashboard's outbound links to them; a stray `?range=` on either route is now an unvalidated, unlisted key (ignored); listings table headers name the fixed thirty-day window, the customers footnote does too; `make precommit` green
 - 2026-09-04:16:00:00 — IMPRV-037 — started
+- 2026-09-04:16:36:39 — FEAT-064 — review fix: items 2-12 (explicit authorize on update, order-page link tests, strict default-deletion wording, control-based picker assertions, docs naming /seller/workflows, sr-only button names, MakeFulfillmentFlowDefault returns void, #[Override], lockForUpdate on the first-flow read, withCount+first-three-listings-and-N-more, contrast-clause rewrites) plus item 1 (fulfillments.fulfillment_flow_id stamped at placement, FulfillmentFlowReader reads the snapshot first) after rebasing onto php/seller-portal-next; make precommit green, 5327 tests
 - 2026-09-04:20:35:00 — IMPRV-035 — done: App\Seller\DraftPublishIssues batches publishIssues()'s reads across the needs-work panel's drafts in nine or ten grouped queries whatever their count; rows name the first publish issue and how many more
 - 2026-09-04:20:25:00 — IMPRV-035 — started
 - 2026-09-04:20:20:00 — IMPRV-040 — done: platformCountsByStatus/platformFees to App\Admin\PlatformFulfillmentReader, itemLabel/itemImageUrl to App\Support\ParcelLine, flowInEffect/flowSteps/progress to App\Seller\FulfillmentFlowReader, lane() takes a FulfillmentProgress, every loadMissing() gone; 498 to 371 lines
@@ -32,6 +33,8 @@
 - 2026-09-04:15:30:00 — IMPRV-036 — started
 - 2026-09-04:15:23:48 — IMPRV-034 — resolved: `sellerBadgeTint()` renamed to `badgeTint()`, every seller and admin caller and the test updated
 - 2026-09-04:14:30:06 — IMPRV-034 — started
+- 2026-09-04:15:39:35 — FEAT-064 — resolved — Workflows resource (index/create/edit/make-default/destroy) at /seller/workflows, old route 301-redirects, Basics-page picker for sellers with 2+ flows, docs/seller-portal.md Workflows section; make precommit green
+- 2026-09-04:14:31:10 — FEAT-064 — started — build the Workflows resource (index/create/edit/make-default/destroy), old-route redirect, listing picker, docs section
 - 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:12:06:48 — FEAT-064 — defined: A seller can keep more than one fulfillment flow and pick one per listing
 - 2026-09-04:15:00:00 — IMPRV-030 — resolved: ten commits — external scripts for the CSP (mobile nav, admin drawer, New listing), the thread rail at 2xl, the listings detail dialog a real modal at 2xl (owner kept it), unpublished support facts as text, dark-mode print fixes plus a no-JS print fallback, bar-strip names and four other accessible-name fixes, six help-article corrections, FeedTest on data- markers, and two owner-walk fixes (store picture Remove overlap, empty vs "new" Sales change); make check green

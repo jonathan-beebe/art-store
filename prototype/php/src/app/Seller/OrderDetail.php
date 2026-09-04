@@ -45,6 +45,7 @@ final readonly class OrderDetail
             'ledgerEntries',
             'refund',
             'fulfillmentEvents',
+            'fulfillmentFlow.steps',
             'seller.defaultFulfillmentFlow.steps',
         ]);
 
@@ -54,6 +55,7 @@ final readonly class OrderDetail
         return new OrderFacts(
             state: $this->state($fulfillment, $now),
             escrow: $this->escrow($fulfillment),
+            flowId: $flow->flow?->id,
             flowName: $flow->flow instanceof FulfillmentFlow ? $flow->flow->name : DefaultFlow::NAME,
             steps: $flow->steps,
             progress: $flow->progress,

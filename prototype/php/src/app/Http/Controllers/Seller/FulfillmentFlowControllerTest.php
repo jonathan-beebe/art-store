@@ -4,15 +4,93 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Domain\Fulfillment\DefaultFlow;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
 
-it('renders the sellers flow name and step labels', function (): void {
+it('lists a sellers workflows, the default marked, with step counts and the listings that name each', function (): void {
+    $seller = $this->seller();
+    [$labelStep] = $this->flowFor($seller, 'How I ship');
+    $defaultFlow = $labelStep->fulfillmentFlow;
+    $defaultFlow->update(['is_default' => true]);
+    $second = FulfillmentFlow::factory()->create(['seller_id' => $seller->id, 'name' => 'Framed pieces']);
+    $named = $this->listing($seller, ['fulfillment_flow_id' => $second->id, 'title' => 'Big Frame']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/workflows');
+
+    $response->assertOk();
+    $response->assertSee('How I ship');
+    $response->assertSee('Framed pieces');
+    $response->assertSee('Default');
+    $response->assertSee('Big Frame');
+});
+
+it('names the first three listings on a workflow and folds the rest into a count', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    foreach (['Alder Bowl', 'Birch Cup', 'Cedar Plate', 'Dogwood Tray', 'Elm Vase'] as $title) {
+        $this->listing($seller, ['fulfillment_flow_id' => $flow->id, 'title' => $title]);
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/workflows');
+
+    $response->assertSee('Alder Bowl, Birch Cup, Cedar Plate and 2 more');
+    $response->assertDontSee('Dogwood Tray');
+});
+
+it('shows an empty state for a seller with no workflows yet', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/workflows');
+
+    $response->assertOk();
+    $response->assertSee('No workflows yet');
+});
+
+it('never shows another sellers workflows', function (): void {
+    FulfillmentFlow::factory()->create(['seller_id' => $this->seller('Other Studio')->id, 'name' => 'Their flow']);
+
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/workflows');
+
+    $response->assertOk();
+    $response->assertDontSee('Their flow');
+});
+
+it('renders the create form', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/workflows/create');
+
+    $response->assertOk();
+    $response->assertSee('New workflow');
+});
+
+it('creates a workflow, redirecting to its edit page', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/workflows', [
+        'name' => 'Made to order',
+        'steps' => [['id' => '', 'label' => 'Kiln cooled', 'action' => 'none', 'position' => 1]],
+    ]);
+
+    $flow = FulfillmentFlow::where('seller_id', $seller->id)->sole();
+    $response->assertRedirect(route('seller.workflows.edit', $flow));
+    $response->assertSessionHas('status', 'Workflow added.');
+    expect($flow->name)->toBe('Made to order')
+        ->and($flow->steps()->pluck('label')->all())->toBe(['Kiln cooled']);
+});
+
+it('makes a sellers first workflow the default, leaving a second off the role', function (): void {
+    $seller = $this->seller();
+    $this->actingAs($seller, 'seller')->post('/seller/workflows', ['name' => 'How I ship']);
+    $this->actingAs($seller, 'seller')->post('/seller/workflows', ['name' => 'Framed pieces']);
+
+    $flows = FulfillmentFlow::where('seller_id', $seller->id)->orderBy('name')->get();
+    expect($flows->firstWhere('name', 'How I ship')?->is_default)->toBeTrue()
+        ->and($flows->firstWhere('name', 'Framed pieces')?->is_default)->toBeFalse();
+});
+
+it('renders the edit form with the workflows name and steps', function (): void {
     $seller = $this->seller();
     $this->flowFor($seller, 'How Molly Ships');
+    $flow = FulfillmentFlow::where('seller_id', $seller->id)->sole();
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/orders/flow');
+    $response = $this->actingAs($seller, 'seller')->get("/seller/workflows/{$flow->id}/edit");
 
     $response->assertOk();
     $response->assertSee('How Molly Ships');
@@ -20,79 +98,83 @@ it('renders the sellers flow name and step labels', function (): void {
     $response->assertSee('Packed');
 });
 
-it('shows the default name and an empty list for a seller with no flow yet, creating no row', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/orders/flow');
+it('answers not found editing another sellers workflow', function (): void {
+    $other = FulfillmentFlow::factory()->create(['seller_id' => $this->seller('Other Studio')->id]);
 
-    $response->assertOk();
-    $response->assertSee(DefaultFlow::NAME);
-    expect(FulfillmentFlow::count())->toBe(0);
+    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/workflows/{$other->id}/edit");
+
+    $response->assertNotFound();
 });
 
-it('saves a rename, an added step, a renamed existing step, a removed step, and a reorder in one submit', function (): void {
+it('saves an edit, redirecting back to the same edit page', function (): void {
     $seller = $this->seller();
     [$labelStep, $packStep] = $this->flowFor($seller, 'How Molly Ships');
     $flow = $labelStep->fulfillmentFlow;
 
-    $response = $this->actingAs($seller, 'seller')->put('/seller/orders/flow', [
+    $response = $this->actingAs($seller, 'seller')->put("/seller/workflows/{$flow->id}", [
         'name' => 'How the Burrow Ships',
         'steps' => [
-            ['id' => $labelStep->id, 'label' => 'Label printed', 'action' => 'print_label', 'position' => 3],
-            ['id' => $packStep->id, 'label' => 'Carefully packed', 'action' => 'none', 'position' => 2, 'remove' => '0'],
-            ['id' => '', 'label' => 'Kiln cooled', 'action' => 'none', 'position' => 1],
-        ],
-    ]);
-
-    $response->assertRedirect(route('seller.orders.flow.edit'));
-    $response->assertSessionHas('status', 'Flow saved.');
-
-    $flow->refresh()->load('steps');
-    expect($flow->name)->toBe('How the Burrow Ships')
-        ->and($flow->steps->pluck('label')->all())->toBe(['Kiln cooled', 'Carefully packed', 'Label printed'])
-        ->and($flow->steps->firstWhere('label', 'Label printed')?->id)->toBe($labelStep->id)
-        ->and($flow->steps->firstWhere('label', 'Carefully packed')?->id)->toBe($packStep->id);
-});
-
-it('removes a step ticked for removal', function (): void {
-    $seller = $this->seller();
-    [$labelStep, $packStep] = $this->flowFor($seller, 'How Molly Ships');
-
-    $this->actingAs($seller, 'seller')->put('/seller/orders/flow', [
-        'name' => 'How Molly Ships',
-        'steps' => [
             ['id' => $labelStep->id, 'label' => 'Label printed', 'action' => 'print_label', 'position' => 1],
-            ['id' => $packStep->id, 'label' => 'Packed', 'action' => 'none', 'position' => 2, 'remove' => '1'],
+            ['id' => $packStep->id, 'label' => 'Carefully packed', 'action' => 'none', 'position' => 2],
         ],
     ]);
 
-    expect(FulfillmentFlowStep::find($packStep->id))->toBeNull()
-        ->and(FulfillmentFlowStep::find($labelStep->id))->not->toBeNull();
+    $response->assertRedirect(route('seller.workflows.edit', $flow));
+    $response->assertSessionHas('status', 'Workflow saved.');
+    expect($flow->refresh()->name)->toBe('How the Burrow Ships');
 });
 
-it('adds nothing for a submitted row with a blank label', function (): void {
-    $seller = $this->seller();
+it('never touches another sellers workflow on update', function (): void {
+    $other = FulfillmentFlow::factory()->create(['seller_id' => $this->seller('Lovegood Curiosities')->id, 'name' => 'Theirs']);
+    FulfillmentFlowStep::factory()->of($other, 0)->create();
 
-    $this->actingAs($seller, 'seller')->put('/seller/orders/flow', [
-        'name' => 'How Molly Ships',
-        'steps' => [
-            ['id' => '', 'label' => 'Packed', 'action' => 'none', 'position' => 1],
-            ['id' => '', 'label' => '', 'action' => 'none', 'position' => 2],
-        ],
-    ]);
-
-    $flow = FulfillmentFlow::where('seller_id', $seller->id)->sole();
-    expect($flow->steps()->count())->toBe(1);
-});
-
-it('never touches another sellers flow', function (): void {
-    $other = $this->seller('Lovegood Curiosities');
-    [$otherLabelStep] = $this->flowFor($other, 'How Molly Ships');
-    $otherFlow = $otherLabelStep->fulfillmentFlow;
-
-    $this->actingAs($this->seller(), 'seller')->put('/seller/orders/flow', [
+    $response = $this->actingAs($this->seller(), 'seller')->put("/seller/workflows/{$other->id}", [
         'name' => 'Mine',
-        'steps' => [['id' => '', 'label' => 'My step', 'action' => 'none', 'position' => 1]],
+        'steps' => [],
     ]);
 
-    expect($otherFlow->refresh()->name)->toBe('How Molly Ships')
-        ->and(FulfillmentFlowStep::find($otherLabelStep->id))->not->toBeNull();
+    $response->assertNotFound();
+    expect($other->refresh()->name)->toBe('Theirs');
+});
+
+it('removes a workflow no listing names and that holds no default role', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/workflows/{$flow->id}");
+
+    $response->assertRedirect(route('seller.workflows.index'));
+    $response->assertSessionHas('status', 'Workflow removed.');
+    expect(FulfillmentFlow::find($flow->id))->toBeNull();
+});
+
+it('refuses to remove the default workflow', function (): void {
+    $seller = $this->seller();
+    [$labelStep] = $this->flowFor($seller, 'How I ship');
+    $flow = $labelStep->fulfillmentFlow;
+    $flow->update(['is_default' => true]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/workflows/{$flow->id}");
+
+    $response->assertSessionHasErrors();
+    expect(FulfillmentFlow::find($flow->id))->not->toBeNull();
+});
+
+it('refuses to remove a workflow a listing names', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+
+    $response = $this->actingAs($seller, 'seller')->delete("/seller/workflows/{$flow->id}");
+
+    $response->assertSessionHasErrors();
+    expect(FulfillmentFlow::find($flow->id))->not->toBeNull();
+});
+
+it('answers not found removing another sellers workflow', function (): void {
+    $other = FulfillmentFlow::factory()->create(['seller_id' => $this->seller('Other Studio')->id]);
+
+    $response = $this->actingAs($this->seller(), 'seller')->delete("/seller/workflows/{$other->id}");
+
+    $response->assertNotFound();
 });

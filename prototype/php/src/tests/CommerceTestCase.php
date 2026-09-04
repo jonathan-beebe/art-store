@@ -203,6 +203,7 @@ abstract class CommerceTestCase extends TestCase
             'order.items.listing.fulfillmentFlow.steps',
             'seller.defaultFulfillmentFlow.steps',
             'fulfillmentEvents',
+            'fulfillmentFlow.steps',
         ]);
     }
 

@@ -65,6 +65,19 @@ final class ListingRequest extends FormRequest
     }
 
     /**
+     * The picker's "seller's default" option submits as an empty string.
+     * `exists` reads it as a value to look up, so it is blanked to null
+     * here, the value `nullable` skips the lookup for.
+     */
+    #[Override]
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('fulfillment_flow_id') === '') {
+            $this->merge(['fulfillment_flow_id' => null]);
+        }
+    }
+
+    /**
      * The create path's own cross-field checks — a version or an extra
      * option row is either complete (label and price) or wholly blank (a
      * dropped placeholder row); a shape that needs at least one complete row
@@ -113,6 +126,12 @@ final class ListingRequest extends FormRequest
             $this->filled('price') ? Money::fromDollars($this->string('price')->toString()) : $listing->price(),
             $this->boolean('made_to_order') ? null : ($this->filled('quantity') ? $this->integer('quantity') : $listing->quantity),
             $this->optionalString('category_id'),
+            // The picker renders only for a seller with more than one
+            // workflow. A seller with one submits no field at all, and
+            // `has()` keeps the listing's own value for that request; a
+            // seller with the picker submits the field, blank or set, and
+            // that value writes.
+            $this->has('fulfillment_flow_id') ? $this->optionalString('fulfillment_flow_id') : $listing->fulfillment_flow_id,
         );
     }
 
@@ -183,6 +202,7 @@ final class ListingRequest extends FormRequest
             'made_to_order' => ['nullable', 'boolean'],
             'quantity' => [Rule::requiredIf($ownsPriceAndStock && ! $madeToOrder), 'nullable', 'integer', 'min:0', 'max:999'],
             'category_id' => ['nullable', 'string', Rule::exists('categories', 'id')],
+            'fulfillment_flow_id' => ['nullable', 'string', Rule::exists('fulfillment_flows', 'id')->where('seller_id', $listing->seller_id)],
             // `image` and `mimes` both read the declared type, which an upload
             // controls. `dimensions` decodes the file, so a text file renamed
             // .jpg is rejected here rather than served as a broken listing image.

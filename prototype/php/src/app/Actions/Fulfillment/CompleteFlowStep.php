@@ -70,6 +70,7 @@ final readonly class CompleteFlowStep
             'order.items.listing.fulfillmentFlow.steps',
             'seller.defaultFulfillmentFlow.steps',
             'fulfillmentEvents',
+            'fulfillmentFlow.steps',
         ]);
 
         $progress = $this->flow->read($fulfillment)->progress;

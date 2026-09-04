@@ -29,7 +29,7 @@ use Override;
  * @property-read bool $started  on a row the `countedByLane` scope selected
  */
 #[Fillable([
-    'order_id', 'customer_id', 'seller_id', 'status', 'carrier', 'tracking_number',
+    'order_id', 'customer_id', 'seller_id', 'fulfillment_flow_id', 'status', 'carrier', 'tracking_number',
     'shipped_at', 'delivered_at', 'subtotal_cents', 'fee_cents', 'net_cents',
 ])]
 class Fulfillment extends Model
@@ -76,6 +76,17 @@ class Fulfillment extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
+    }
+
+    /**
+     * The flow this parcel started under, stamped at placement. Null on a
+     * row from before the column existed.
+     *
+     * @return BelongsTo<FulfillmentFlow, $this>
+     */
+    public function fulfillmentFlow(): BelongsTo
+    {
+        return $this->belongsTo(FulfillmentFlow::class);
     }
 
     /** @return HasMany<LedgerEntry, $this> */
