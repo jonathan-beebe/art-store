@@ -80,6 +80,30 @@ it('shows page views by route pattern, busiest first, with the recorded counts',
         ->assertSeeInOrder(['shop', '/art/{listing}', '2', 'seller', '/seller', '1']);
 });
 
+it('renders 200 with the by-article breakdown for help.answered', function (): void {
+    $seller = $this->seller('Weasley Studio');
+    $analytics = app(Analytics::class);
+
+    foreach (range(1, 3) as $i) {
+        $seller = $this->seller("Seller {$i}");
+        $analytics->recordEvent(AnalyticsEvent::forHelpArticle(AnalyticsEventName::HelpAnswered, 'printing-a-label-from-an-order', $seller->id, $this->moment('2026-08-19 09:00:00'), "a{$i}"));
+    }
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics/events/help.answered?range=7');
+
+    $response->assertOk();
+    $response->assertSee('By article')
+        ->assertSeeInOrder(['printing-a-label-from-an-order', '3']);
+});
+
+it('answers 400 for a listing breakdown on help.answered', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics/events/help.answered?by=listing');
+
+    $response->assertStatus(400);
+});
+
 it('carries range through the by links', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics/events/listing.view?range=7');
 

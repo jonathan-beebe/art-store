@@ -224,6 +224,19 @@ inside the commerce transaction and adds no write to the commerce database.
 customer- or admin-initiated cancellation does, with no ip or session since
 the sweep runs from the console.
 
+A seller's "Did this answer it?" click on a help article records
+`help.answered` (Yes) or `help.unanswered` (No): `subject_type =
+'help_article'`, `subject_id` the article's slug, `actor_id` null,
+`data.seller_id` the seller. Every `App\Analytics\Admin` actor reader
+resolves `actor_id` against `customers`, and a seller is never a customer,
+so the seller identity travels in `data` instead — docs/seller-portal.md's
+Support section has the routes and the redirect shape. The dedupe key is
+a UTC day and folds in the event name, so a Yes and a later No the same
+day each get their own row (`App\Domain\Seller\HelpArticleFeedbackCollapse`).
+The event page's own breakdown for these two names is `App\Domain\Analytics\EventBreakdown::Article`
+— one row per article slug, the vocabulary's only subject-shaped
+breakdown that names neither a listing nor an actor.
+
 ## Readers
 
 `App\Analytics\AnalyticsReport` is the query layer over `analytics_events`:
@@ -341,14 +354,21 @@ Every class in it is a static, stateless reader — no writer lives here.
   one listing or actor: a `lst_`/`cus_` id prefix, or an ip every event in
   the store agrees belongs to one actor; the entry page's jump row.
 - `EventDetail::forRange()` — one event name's range tiles, daily series, and
-  breakdown by listing, actor, or (`page.view`) route pattern; the event
-  page.
-- `EntityActivity::forListing()` / `forActor()` — one listing's or one
-  actor's identity facts, range tiles, strip, and event feed, sharing every
-  query and formatting helper between the two; the listing and actor pages.
-  An actor's feed reads its rows' own subject — a listing, an order, or a
-  cart — rather than assuming every subject is a listing; see "The funnel"
-  below for the order and cart shape. `forActor()` also reads
+  breakdown by listing, actor, article (`help.answered`/`help.unanswered`),
+  or (`page.view`) route pattern; the event page.
+- `EntityActivity::forListing()` / `forStore()` / `forActor()` — one
+  listing's, one store's, or one actor's identity facts, range tiles,
+  strip, and event feed, sharing every query and formatting helper across
+  the three; the listing, store, and actor pages. `forStore()`'s identity
+  facts carry the store's slug, its seller's name, and its visibility, and
+  its one action links to the seller's own admin page — the store page and
+  the seller page link each other both ways, and the admin seller list and
+  detail pages carry the same store name, link, and visibility. An actor's
+  feed reads its rows' own subject — a listing, an order, a cart, or a
+  store — rather than assuming every subject is a listing; see "The funnel"
+  below for the order and cart shape. Every feed row naming a store links
+  to `admin.analytics.stores.show` the way a feed row naming a listing
+  already links to `admin.analytics.listings.show`. `forActor()` also reads
   `AnalyticsReport::visitsForActor()` once: the identity card's "First
   channel" fact reads the earliest visit's `Channel` (the list comes back
   newest first, so the earliest is its last element), and the same list,
@@ -412,6 +432,7 @@ regresses into a query per row:
 | `/admin/analytics/actors`            | 15 actors               | 2       | 4         |
 | `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 12        |
 | `/admin/analytics/listings/:listing` | 15 feed events          | 7       | 10        |
+| `/admin/analytics/stores/:store`     | 15 feed events          | 5       | 6         |
 | `/admin/analytics/channels`          | 3 channels              | 1       | 3         |
 | `/admin/analytics/channels/:key`     | 15 visits               | 1       | 2         |
 

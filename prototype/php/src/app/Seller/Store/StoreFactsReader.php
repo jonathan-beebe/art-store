@@ -27,8 +27,8 @@ final class StoreFactsReader
                 ->where('seller_id', $profile->seller_id)
                 ->forSale()
                 ->count(),
-            sellingSince: $seller?->email_verified_at?->toDateTimeImmutable()
-                ?? $seller?->created_at?->toDateTimeImmutable(),
+            sellingSince: $seller->email_verified_at?->toDateTimeImmutable()
+                ?? $seller->created_at?->toDateTimeImmutable(),
         );
     }
 }

@@ -88,6 +88,39 @@ it('reads a listing\'s facts, tiles, and daily strip', function (): void {
         ->and($view->strip)->toHaveCount(7);
 });
 
+it('reads a store\'s facts, tiles, and daily strip', function (): void {
+    $seller = $this->seller('Weasley Studio');
+    $profile = StoreProfile::factory()->create(['seller_id' => $seller->id, 'name' => "Weasleys' Wizard Wheezes", 'slug' => 'weasleys-wizard-wheezes']);
+    $verified = $this->verifiedCustomer();
+    $anonymous = $this->anonymousCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forStore(AnalyticsEventName::StoreView, $profile->id, $verified->id, $this->moment('2026-08-19 09:00:00'), 'a'));
+    $analytics->recordEvent(AnalyticsEvent::forStore(AnalyticsEventName::StoreView, $profile->id, $anonymous->id, $this->moment('2026-08-20 09:00:00'), 'b'));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forStore($profile, $range, null);
+
+    expect($view->kind)->toBe('store')
+        ->and($view->id)->toBe($profile->id)
+        ->and($view->title)->toBe("Weasleys' Wizard Wheezes")
+        ->and($view->flagged)->toBeFalse()
+        ->and($view->flagText)->toBe('')
+        ->and($view->visits)->toBe([]);
+
+    expect(entityFact($view->facts, 'Slug')->value)->toBe('weasleys-wizard-wheezes')
+        ->and(entityFact($view->facts, 'Seller')->value)->toBe('Weasley Studio')
+        ->and(entityFact($view->facts, 'Visibility')->value)->toBe($profile->visibility()->label());
+
+    expect(entityTile($view->tiles, 'Views')->value)->toBe('2')
+        ->and(entityTile($view->tiles, 'Distinct actors')->value)->toBe('2')
+        ->and(entityTile($view->tiles, 'Distinct actors')->note)->toBe('1 anonymous');
+
+    expect($view->stripTitle)->toBe('By day')
+        ->and($view->strip)->toHaveCount(7);
+});
+
 it('reads a verified actor\'s identity, ips, and merged-from fact', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -347,9 +380,9 @@ it('names a cart subject "cart {id}" on an actor\'s feed, unlinked, with its lis
         ->and($view->feed[0]->listingTitles)->toBe(['Starry Night', 'Snowy Owl']);
 });
 
-it('names a store subject "store {id}" on an actor\'s feed, unlinked, with no listing titles', function (): void {
+it('names a store subject on an actor\'s feed, linked, by the store\'s name, with no listing titles', function (): void {
     $customer = $this->verifiedCustomer();
-    $profile = StoreProfile::factory()->create();
+    $profile = StoreProfile::factory()->create(['name' => 'Weasleys\' Wizard Wheezes']);
     $analytics = app(Analytics::class);
 
     $analytics->recordEvent(AnalyticsEvent::forStore(
@@ -366,9 +399,62 @@ it('names a store subject "store {id}" on an actor\'s feed, unlinked, with no li
     expect($view->feed)->toHaveCount(1)
         ->and($view->feed[0]->name)->toBe('store.view')
         ->and($view->feed[0]->verb)->toBe('opened')
-        ->and($view->feed[0]->otherLabel)->toBe("store {$profile->id}")
+        ->and($view->feed[0]->otherLabel)->toBe('Weasleys\' Wizard Wheezes')
         ->and($view->feed[0]->otherKind)->toBe('store')
         ->and($view->feed[0]->otherId)->toBe($profile->id)
+        ->and($view->feed[0]->otherExists)->toBeTrue()
+        ->and($view->feed[0]->listingTitles)->toBe([]);
+});
+
+it('names a deleted store "store no longer exists" on an actor\'s feed', function (): void {
+    $customer = $this->verifiedCustomer();
+    $profile = StoreProfile::factory()->create();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forStore(
+        AnalyticsEventName::StoreView,
+        $profile->id,
+        $customer->id,
+        $this->moment('2026-08-19 09:00:00'),
+    ));
+    $analytics->flush();
+    $profile->delete();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed[0]->otherLabel)->toBe('store no longer exists')
+        ->and($view->feed[0]->otherExists)->toBeFalse();
+});
+
+it('names a help article subject "article {slug}" on an actor\'s feed, unlinked, with no listing titles', function (): void {
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    // A help.answered/unanswered row's actor_id is always null in
+    // production (App\Analytics\AnalyticsEvent::forHelpArticle()) — built
+    // by hand here to prove the feed row still names the article
+    // correctly on the rare row an actor_id migration or a future writer
+    // might produce.
+    $analytics->recordEvent(new AnalyticsEvent(
+        AnalyticsEventName::HelpAnswered,
+        $this->moment('2026-08-19 09:00:00'),
+        'help_article',
+        'printing-a-label-from-an-order',
+        $customer->id,
+        'dedupe-key',
+    ));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed)->toHaveCount(1)
+        ->and($view->feed[0]->name)->toBe('help.answered')
+        ->and($view->feed[0]->verb)->toBe('marked an article helpful')
+        ->and($view->feed[0]->otherLabel)->toBe('article printing-a-label-from-an-order')
+        ->and($view->feed[0]->otherKind)->toBe('help_article')
+        ->and($view->feed[0]->otherId)->toBe('printing-a-label-from-an-order')
         ->and($view->feed[0]->otherExists)->toBeFalse()
         ->and($view->feed[0]->listingTitles)->toBe([]);
 });

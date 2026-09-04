@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin\Analytics;
 
 use App\Analytics\Admin\ActorList;
 use App\Analytics\Admin\EntityActivity;
+use App\Analytics\Admin\EntityPageLinks;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\ActorSort;
 use App\Domain\Analytics\AnalyticsEventName;
@@ -27,6 +28,10 @@ final class ActorController extends Controller
     /** Rows per page — small enough that a handful of seeded actors pages
      * over more than one screen. */
     public const int PER_PAGE = 25;
+
+    private const string ENTITY_ROUTE_NAME = 'admin.analytics.actors.show';
+
+    private const string ENTITY_PARAM_KEY = 'customer';
 
     private const array RANGE_LABELS = [7 => '7d', 30 => '30d', 90 => '90d'];
 
@@ -88,8 +93,8 @@ final class ActorController extends Controller
             'activity' => $activity,
             'now' => $now,
             'rangeCaption' => $range->caption(),
-            'rangeLinks' => $this->entityRangeLinks($customer->id, $roundTripped, $rangeDays),
-            'eventLinks' => $this->entityEventLinks($customer->id, $roundTripped, $filter),
+            'rangeLinks' => EntityPageLinks::range(self::ENTITY_ROUTE_NAME, self::ENTITY_PARAM_KEY, $customer->id, $roundTripped, $rangeDays),
+            'eventLinks' => EntityPageLinks::event(self::ENTITY_ROUTE_NAME, self::ENTITY_PARAM_KEY, $customer->id, $roundTripped, $filter, AnalyticsEventName::cases()),
             'backHref' => route('admin.analytics.index', array_intersect_key($roundTripped, ['range' => true])),
             'backLabel' => 'Analytics',
             'actions' => $this->actions($customer),
@@ -157,55 +162,6 @@ final class ActorController extends Controller
             ],
             ActorKindFilter::cases(),
         );
-    }
-
-    /**
-     * The actor page's range segmented control: `event` carried through
-     * unchanged.
-     *
-     * @param  array<string, string>  $roundTripped
-     * @return list<array{label: string, href: string, active: bool}>
-     */
-    private function entityRangeLinks(string $customerId, array $roundTripped, int $current): array
-    {
-        $without = collect($roundTripped)->except('range')->all();
-
-        return array_map(
-            fn (int $days): array => [
-                'label' => self::RANGE_LABELS[$days],
-                'href' => route('admin.analytics.actors.show', ['customer' => $customerId, ...$without, 'range' => $days]),
-                'active' => $days === $current,
-            ],
-            AnalyticsRange::SIZES,
-        );
-    }
-
-    /**
-     * The actor page's event-name segmented control: "All" plus one link
-     * per {@see AnalyticsEventName} case, `range` carried through unchanged.
-     *
-     * @param  array<string, string>  $roundTripped
-     * @return list<array{label: string, href: string, active: bool}>
-     */
-    private function entityEventLinks(string $customerId, array $roundTripped, ?AnalyticsEventName $current): array
-    {
-        $without = collect($roundTripped)->except('event')->all();
-
-        $links = [[
-            'label' => 'All',
-            'href' => route('admin.analytics.actors.show', ['customer' => $customerId, ...$without]),
-            'active' => $current === null,
-        ]];
-
-        foreach (AnalyticsEventName::cases() as $name) {
-            $links[] = [
-                'label' => $name->pluralLabel(),
-                'href' => route('admin.analytics.actors.show', ['customer' => $customerId, ...$without, 'event' => $name->value]),
-                'active' => $current === $name,
-            ];
-        }
-
-        return $links;
     }
 
     /**

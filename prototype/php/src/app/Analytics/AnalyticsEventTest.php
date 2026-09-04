@@ -47,6 +47,20 @@ it('builds an order event carrying the listing ids and a paid order\'s total', f
         ->and($event->data)->toBe(['listing_ids' => ['lst_1', 'lst_2'], 'total_cents' => 4500]);
 });
 
+it('builds a help article event carrying the seller in data, actor_id left null', function (): void {
+    $at = new DateTimeImmutable('2026-08-22T14:32:00+00:00');
+
+    $event = AnalyticsEvent::forHelpArticle(AnalyticsEventName::HelpAnswered, 'printing-a-label-from-an-order', 'sel_XYZ', $at, 'dedupe-key');
+
+    expect($event->name)->toBe(AnalyticsEventName::HelpAnswered)
+        ->and($event->occurredAt)->toBe($at)
+        ->and($event->subjectType)->toBe('help_article')
+        ->and($event->subjectId)->toBe('printing-a-label-from-an-order')
+        ->and($event->actorId)->toBeNull()
+        ->and($event->data)->toBe(['seller_id' => 'sel_XYZ'])
+        ->and($event->dedupeKey)->toBe('dedupe-key');
+});
+
 it('builds a cart event for checkout opened, before an order exists', function (): void {
     $event = AnalyticsEvent::forCart(AnalyticsEventName::CheckoutOpen, 'crt_ABC', 'cus_XYZ', new DateTimeImmutable, [
         'listing_ids' => ['lst_1'],

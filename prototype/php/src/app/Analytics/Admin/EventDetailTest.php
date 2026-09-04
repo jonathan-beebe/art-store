@@ -154,6 +154,32 @@ it('breaks down by actor, carrying identity kind and who', function (): void {
         ->and($second->current)->toBe(1);
 });
 
+it('breaks down help.answered by article, labelled by slug', function (): void {
+    $sellerOne = $this->seller('Weasley Studio');
+    $sellerTwo = $this->seller('Ollivanders');
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forHelpArticle(AnalyticsEventName::HelpAnswered, 'printing-a-label-from-an-order', $sellerOne->id, $this->moment('2026-08-19 09:00:00'), 'a'));
+    $analytics->recordEvent(AnalyticsEvent::forHelpArticle(AnalyticsEventName::HelpAnswered, 'printing-a-label-from-an-order', $sellerTwo->id, $this->moment('2026-08-19 09:00:00'), 'b'));
+    $analytics->recordEvent(AnalyticsEvent::forHelpArticle(AnalyticsEventName::HelpAnswered, 'when-money-reaches-your-account', $sellerOne->id, $this->moment('2026-08-19 09:00:00'), 'c'));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $detail = EventDetail::forRange('help.answered', $range, EventBreakdown::Article);
+
+    expect($detail->breakdown)->toBe(EventBreakdown::Article)
+        ->and($detail->rows)->toHaveCount(2);
+
+    [$first, $second] = $detail->rows;
+
+    expect($first->id)->toBe('printing-a-label-from-an-order')
+        ->and($first->title)->toBe('printing-a-label-from-an-order')
+        ->and($first->current)->toBe(2)
+        ->and($second->id)->toBe('when-money-reaches-your-account')
+        ->and($second->title)->toBe('when-money-reaches-your-account')
+        ->and($second->current)->toBe(1);
+});
+
 it('reads page.view from the roll-up, always by pattern, with no actor tile', function (): void {
     $analytics = app(Analytics::class);
 

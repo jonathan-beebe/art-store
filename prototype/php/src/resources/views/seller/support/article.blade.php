@@ -16,8 +16,14 @@
 
         <div class="mt-6 flex items-center gap-3 border-t border-gray-200 pt-4 dark:border-white/10">
             <span class="text-gray-500 dark:text-gray-400">Did this answer it?</span>
-            <a href="{{ route('seller.support') }}" class="rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Yes</a>
-            <a href="{{ route('seller.support.create') }}" class="rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">No, ask the desk</a>
+            <form method="POST" action="{{ route('seller.support.articles.answered', $article->slug) }}">
+                @csrf
+                <button type="submit" class="rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Yes</button>
+            </form>
+            <form method="POST" action="{{ route('seller.support.articles.unanswered', $article->slug) }}">
+                @csrf
+                <button type="submit" class="rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">No, ask the desk</button>
+            </form>
         </div>
     </article>
 </x-layouts.seller>

@@ -13,6 +13,7 @@
     $otherHref = fn (\App\Analytics\Admin\EntityFeedRow $row): string => match ($row->otherKind) {
         'listing' => route('admin.analytics.listings.show', ['listing' => $row->otherId]),
         'order' => route('admin.orders.show', ['order' => $row->otherId]),
+        'store' => route('admin.analytics.stores.show', ['store' => $row->otherId]),
         default => route('admin.analytics.actors.show', ['customer' => $row->otherId]),
     };
 @endphp
@@ -62,8 +63,8 @@
         </div>
     @endif
 
-    {{-- visits --}}
-    @if ($activity->kind !== 'listing')
+    {{-- visits: an actor's own first-touch rows — a visit belongs to a session, so a listing or a store carries none --}}
+    @if ($activity->kind === 'verified' || $activity->kind === 'anonymous')
         <section aria-labelledby="analytics-entity-visits-heading" class="mt-4">
             <h2 id="analytics-entity-visits-heading" class="font-semibold text-stone-700 dark:text-stone-300">Visits</h2>
 
@@ -163,7 +164,9 @@
                                         @else
                                             <span class="font-medium text-stone-900 dark:text-stone-100">{{ $row->otherLabel }}</span>
                                         @endif
-                                        <x-admin.log-id-chip :id="$row->otherId" />
+                                        @unless ($row->otherKind === 'help_article')
+                                            <x-admin.log-id-chip :id="$row->otherId" />
+                                        @endunless
                                         @if ($row->listingTitles !== [])
                                             <span class="text-stone-500 dark:text-stone-400">— {{ implode(', ', $row->listingTitles) }}</span>
                                         @endif

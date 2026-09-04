@@ -47,6 +47,16 @@ it('renders 200 with the range compared against the range before it', function (
     $response->assertSee('Page views');
 });
 
+it('lists help.answered and help.unanswered among the event names', function (): void {
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/analytics');
+
+    $response->assertOk();
+    $response->assertSee(AnalyticsEventName::HelpAnswered->value);
+    $response->assertSee(AnalyticsEventName::HelpUnanswered->value);
+    $response->assertSee('Marked helpful');
+    $response->assertSee('Marked not helpful');
+});
+
 it('shows the right counts, changes, and labels for a seeded event', function (): void {
     $listing = $this->listing($this->seller());
     $customer = $this->verifiedCustomer();

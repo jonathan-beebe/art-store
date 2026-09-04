@@ -43,6 +43,50 @@ it('folds every balance out of one read of the ledger, whatever the seller count
     expect($ledgerReads)->toBe(1);
 });
 
+it('shows the seller\'s store name and visibility, unlinked, on the sellers list row', function (): void {
+    $seller = $this->seller('Weasley Studio');
+    $store = $this->storeFor($seller);
+    $store->update(['published_at' => $this->moment('2026-08-01 09:00:00')]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/sellers');
+
+    $response->assertOk();
+    $response->assertSee($store->name);
+    $response->assertSee('Published');
+    $response->assertDontSee('href="'.route('admin.analytics.stores.show', $store).'"', escape: false);
+});
+
+it('links the seller\'s store, with its visibility, on the detail page', function (): void {
+    $seller = $this->seller('Weasley Studio');
+    $store = $this->storeFor($seller);
+    $store->update(['published_at' => $this->moment('2026-08-01 09:00:00')]);
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$seller->id}");
+
+    $response->assertOk();
+    $response->assertSee($store->name);
+    $response->assertSee('Published');
+    $response->assertSee('href="'.route('admin.analytics.stores.show', $store).'"', escape: false);
+});
+
+it('says a seller has no store yet, on the sellers list row', function (): void {
+    $seller = $this->seller('Quiet Press');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get('/admin/sellers');
+
+    $response->assertOk();
+    $response->assertSee('No store yet');
+});
+
+it('says a seller has no store yet, on the detail page', function (): void {
+    $seller = $this->seller('Quiet Press');
+
+    $response = $this->actingAs($this->admin(), 'admin')->get("/admin/sellers/{$seller->id}");
+
+    $response->assertOk();
+    $response->assertSee('No store yet');
+});
+
 it('shows a funnel covering only the seller\'s own listings, last 30 days, linked to analytics', function (): void {
     $sellerOne = $this->seller('Blue Kiln Studio');
     $sellerTwo = $this->seller('Rye Press');
@@ -72,7 +116,7 @@ it('renders the seller page on a fixed number of queries however many events its
 
     $this->travelTo($this->moment('2026-08-24 12:00:00'));
     $response = $this->actingAs($this->admin(), 'admin')
-        ->expectsDatabaseQueryCount(12, 'sqlite')
+        ->expectsDatabaseQueryCount(14, 'sqlite')
         ->expectsDatabaseQueryCount(3, 'analytics')
         ->get("/admin/sellers/{$seller->id}");
 

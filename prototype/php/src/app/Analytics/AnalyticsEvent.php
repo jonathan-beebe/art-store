@@ -29,6 +29,8 @@ final readonly class AnalyticsEvent
 
     private const string SUBJECT_STORE = 'store';
 
+    private const string SUBJECT_HELP_ARTICLE = 'help_article';
+
     /**
      * @param  array<string, scalar|list<string>|null>  $data
      */
@@ -70,6 +72,23 @@ final readonly class AnalyticsEvent
         ?string $dedupeKey = null,
     ): self {
         return new self($name, $at, self::SUBJECT_STORE, $storeProfileId, $customerId, $dedupeKey);
+    }
+
+    /**
+     * A seller's "Did this answer it?" click on a help article. `actorId`
+     * stays null: every actor reader in `App\Analytics\Admin` resolves an
+     * `actor_id` against `customers`, and a seller is never a customer.
+     * `$sellerId` rides in `data` instead, where a reader that wants it
+     * can read it without joining the actor vocabulary.
+     */
+    public static function forHelpArticle(
+        AnalyticsEventName $name,
+        string $articleSlug,
+        string $sellerId,
+        DateTimeImmutable $at,
+        string $dedupeKey,
+    ): self {
+        return new self($name, $at, self::SUBJECT_HELP_ARTICLE, $articleSlug, null, $dedupeKey, ['seller_id' => $sellerId]);
     }
 
     /**

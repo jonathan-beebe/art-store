@@ -20,6 +20,8 @@ enum AnalyticsEventName: string
     case OrderPay = 'order.pay';
     case OrderCancel = 'order.cancel';
     case StoreView = 'store.view';
+    case HelpAnswered = 'help.answered';
+    case HelpUnanswered = 'help.unanswered';
 
     public function label(): string
     {
@@ -33,6 +35,8 @@ enum AnalyticsEventName: string
             self::OrderPay => 'Order paid',
             self::OrderCancel => 'Order cancelled',
             self::StoreView => 'Store view',
+            self::HelpAnswered => 'Marked helpful',
+            self::HelpUnanswered => 'Marked not helpful',
         };
     }
 
@@ -51,6 +55,8 @@ enum AnalyticsEventName: string
             self::OrderPay => 'Orders paid',
             self::OrderCancel => 'Orders cancelled',
             self::StoreView => 'Store views',
+            self::HelpAnswered => 'Marked helpful',
+            self::HelpUnanswered => 'Marked not helpful',
         };
     }
 
@@ -67,6 +73,8 @@ enum AnalyticsEventName: string
             self::OrderPay => 'paid an order',
             self::OrderCancel => 'cancelled an order',
             self::StoreView => 'opened',
+            self::HelpAnswered => 'marked an article helpful',
+            self::HelpUnanswered => 'marked an article not helpful',
         };
     }
 
@@ -84,6 +92,26 @@ enum AnalyticsEventName: string
             self::OrderPay => 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z',
             self::OrderCancel => 'M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
             self::StoreView => 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 0 0 3.75.615m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z',
+            self::HelpAnswered => 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
+            self::HelpUnanswered => 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z',
+        };
+    }
+
+    /**
+     * The event names that ever carry this `analytics_events.subject_type`
+     * — a listing's or a store's own event-filter segmented control reads
+     * this instead of every case, so it offers only the names that page's
+     * feed can ever hold. An actor's feed can hold any case, so the actor
+     * page reads {@see cases()} directly rather than through this method.
+     *
+     * @return list<self>
+     */
+    public static function forSubject(string $subjectType): array
+    {
+        return match ($subjectType) {
+            'listing' => [self::ListingView, self::ListingFavorite, self::ListingUnfavorite, self::ListingCartAdd],
+            'store' => [self::StoreView],
+            default => self::cases(),
         };
     }
 }

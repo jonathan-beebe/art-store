@@ -29,6 +29,17 @@
             <dt class="font-medium text-stone-900 dark:text-stone-100">Joined</dt>
             <dd class="text-right text-stone-600 dark:text-stone-400">{{ $seller->created_at?->format('M j, Y') }}</dd>
         </div>
+        <div class="flex justify-between gap-4 border-b border-stone-200 dark:border-stone-800 py-3">
+            <dt class="font-medium text-stone-900 dark:text-stone-100">Store</dt>
+            <dd class="flex items-center justify-end gap-2 text-right text-stone-600 dark:text-stone-400">
+                @if ($seller->storeProfile)
+                    <a href="{{ route('admin.analytics.stores.show', $seller->storeProfile) }}" class="underline">{{ $seller->storeProfile->name }}</a>
+                    <x-admin.status-badge :tint="$seller->storeProfile->isPublished() ? 'ok' : 'neutral'">{{ $seller->storeProfile->visibility()->label() }}</x-admin.status-badge>
+                @else
+                    No store yet
+                @endif
+            </dd>
+        </div>
     </dl>
 
     <section aria-labelledby="funnel-heading" class="mt-6">
