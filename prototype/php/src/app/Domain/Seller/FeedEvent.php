@@ -26,4 +26,13 @@ final readonly class FeedEvent
     {
         return $this->kind === $kind;
     }
+
+    /**
+     * Whether the row wears the accent. The money is what a seller scans a
+     * feed for, so an order row stands out and the rest stay quiet.
+     */
+    public function isAccented(): bool
+    {
+        return $this->isOf(ActivityKind::Order);
+    }
 }

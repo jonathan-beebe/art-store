@@ -24,6 +24,7 @@ final class ShippingLabelController extends SellerController
 
         return view('seller.orders.label', [
             'fulfillment' => $fulfillment,
+            'addressLines' => $fulfillment->order->shippingAddressLines(),
             'shipment' => $this->latestLabelEvent($fulfillment),
         ]);
     }

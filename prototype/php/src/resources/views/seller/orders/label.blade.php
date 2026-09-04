@@ -1,15 +1,4 @@
 <x-layouts.seller :title="'Shipping label '.$fulfillment->order_id.' — Art Store seller'">
-    @php
-        $order = $fulfillment->order;
-        $addressLines = collect([
-            $order->shipping_name,
-            $order->shipping_line1,
-            $order->shipping_line2,
-            trim($order->shipping_city.', '.$order->shipping_region.' '.$order->shipping_postal_code),
-            $order->shipping_country,
-        ])->filter();
-    @endphp
-
     <div class="print:hidden">
         <x-seller.back-link :route="route('seller.orders.show', $fulfillment->id)" label="Order" />
 

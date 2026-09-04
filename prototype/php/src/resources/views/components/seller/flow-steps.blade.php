@@ -1,7 +1,6 @@
 @props(['fulfillment', 'steps', 'progress', 'canComplete' => false])
 
 @php
-    $completedIds = collect($progress->completed)->pluck('id')->all();
     $next = $progress->next();
 @endphp
 
@@ -15,7 +14,7 @@
         <ul role="list" class="divide-y divide-gray-200 dark:divide-white/10">
             @foreach ($steps as $step)
                 @php
-                    $isDone = in_array($step->id, $completedIds, true);
+                    $isDone = $progress->hasCompleted($step);
                     $isNext = $next !== null && $next->id === $step->id;
                 @endphp
                 <li class="flex flex-wrap items-center gap-4 p-4">

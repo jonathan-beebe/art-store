@@ -19,8 +19,8 @@
 
                 <span @class([
                     'relative flex size-8 flex-none items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900',
-                    'bg-indigo-600 text-white' => $event->kind === \App\Domain\Seller\ActivityKind::Order,
-                    'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400' => $event->kind !== \App\Domain\Seller\ActivityKind::Order,
+                    'bg-indigo-600 text-white' => $event->isAccented(),
+                    'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400' => ! $event->isAccented(),
                 ])>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true">
                         <path d="{{ $event->icon->path() }}" />
