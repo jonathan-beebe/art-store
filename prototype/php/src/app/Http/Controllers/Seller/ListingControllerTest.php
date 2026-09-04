@@ -1296,7 +1296,7 @@ it('FEAT-056 counts sold and revenue on the table row from a paid, live fulfillm
     });
 });
 
-it('FEAT-056 narrows the tables ranged columns to the given range', function (): void {
+it('IMPRV-037 reads the tables ranged columns over a fixed thirty days, ignoring a range in the query', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
     $analytics = app(Analytics::class);
@@ -1310,11 +1310,20 @@ it('FEAT-056 narrows the tables ranged columns to the given range', function ():
     }
     $analytics->flush();
 
-    $sevenDays = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&range=7');
-    $thirtyDays = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&range=30');
+    $withoutRange = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+    $withStrayRange = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&range=7');
 
-    $sevenDays->assertSee('>3<', escape: false);
-    $thirtyDays->assertSee('>12<', escape: false);
+    $withoutRange->assertSee('>12<', escape: false);
+    $withStrayRange->assertSee('>12<', escape: false);
+});
+
+it('IMPRV-037 drops range from a table rows link to its own detail', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertSee(route('seller.listings.show', ['listing' => $listing->id, 'from' => 'table', 'sort' => 'views', 'dir' => 'desc']));
 });
 
 it('FEAT-056 opens a table rows detail as an overlay and a takeover from the same response', function (): void {

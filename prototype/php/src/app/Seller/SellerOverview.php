@@ -97,7 +97,7 @@ final readonly class SellerOverview
             sparkline: $this->sparkline($this->arrivalsByDay()),
             footerLabel: 'View customers',
             footerNote: number_format($newInRange).' new in '.$this->range->days.' days',
-            href: route('seller.customers.index', ['range' => $this->range->days]),
+            href: route('seller.customers.index'),
         );
     }
 

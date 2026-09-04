@@ -196,10 +196,10 @@ it('sends each tile to the tool that answers it', function (): void {
     });
 });
 
-it('carries the range through to the customers tile link', function (): void {
+it('IMPRV-037 carries no range to the customers tile link, customers being evergreen', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller?range=90');
 
-    $response->assertViewHas('tiles', fn (array $tiles): bool => str_contains(tileNamed($tiles, 'Customers')->href, 'range=90'));
+    $response->assertViewHas('tiles', fn (array $tiles): bool => ! str_contains(tileNamed($tiles, 'Customers')->href, 'range'));
 });
 
 it('totals the ranges views, favorites, cart adds, and units sold', function (): void {
@@ -251,7 +251,7 @@ it('gives each listing row a daily strip and a link to the listing', function ()
     $response->assertViewHas('activity', function (ListingActivity $activity) use ($listing): bool {
         return $activity->stripDays === 30
             && count($activity->rows[0]->strip) === 30
-            && $activity->rows[0]->href === route('seller.listings.show', ['listing' => $listing->id, 'range' => 30]);
+            && $activity->rows[0]->href === route('seller.listings.show', ['listing' => $listing->id]);
     });
 });
 

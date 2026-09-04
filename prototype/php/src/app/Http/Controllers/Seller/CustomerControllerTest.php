@@ -134,6 +134,12 @@ it('says what makes someone a customer when the seller has none', function (): v
     $response->assertOk()->assertSee('A paid order is what makes someone a customer.');
 });
 
+it('IMPRV-037 names the fixed thirty-day window in the footnote', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers');
+
+    $response->assertSee('New counts a first order inside the last 30 days.');
+});
+
 it('narrows to repeat buyers', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $once = Customer::factory()->create(['name' => 'Cho Chang']);
@@ -147,16 +153,26 @@ it('narrows to repeat buyers', function (): void {
     $response->assertOk()->assertSee('Ginny Weasley')->assertDontSee('Cho Chang');
 });
 
-it('narrows to buyers whose first order falls inside the range', function (): void {
+it('narrows to buyers whose first order falls inside a fixed thirty days', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $old = Customer::factory()->create(['name' => 'Cho Chang']);
     $new = Customer::factory()->create(['name' => 'Ginny Weasley']);
     $this->paidFulfillmentFor($seller, $old)->order->update(['placed_at' => now()->subDays(120)]);
     $this->paidFulfillmentFor($seller, $new)->order->update(['placed_at' => now()->subDay()]);
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?segment=new&range=30');
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?segment=new');
 
     $response->assertOk()->assertSee('Ginny Weasley')->assertDontSee('Cho Chang');
+});
+
+it('IMPRV-037 keeps the new-buyer window at thirty days, ignoring a range in the query', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $withinThirty = Customer::factory()->create(['name' => 'Ginny Weasley']);
+    $this->paidFulfillmentFor($seller, $withinThirty)->order->update(['placed_at' => now()->subDays(20)]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?segment=new&range=7');
+
+    $response->assertOk()->assertSee('Ginny Weasley');
 });
 
 it('sorts a name alphabetically', function (): void {

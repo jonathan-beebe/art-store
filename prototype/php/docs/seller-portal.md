@@ -57,7 +57,7 @@ built by `App\Seller\SellerOverview` as three `OverviewTile` values.
 
 | Tile | Figure | Change | Line | Opens |
 | --- | --- | --- | --- | --- |
-| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers?range=` |
+| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers` |
 | Orders | parcels placed in the range | vs the range before it (`RangeChange`) | parcels per day | `/seller/orders?lane=ship` |
 | Earnings | net of the range's live parcels | vs the range before it | net per day | `/seller/earnings` |
 
@@ -294,12 +294,17 @@ reads as its default, an unrecognised one answers a bare 400.
 | `from`  | `table` \| `grid`                                                     | absent  | the detail route             |
 | `sort`  | one of eleven `App\Domain\Seller\ListingSortColumn` cases               | `views` (`ListingSortColumn::defaultSort()`) | table/grid, and the header's `<select>` |
 | `dir`   | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)              | `desc`  | table/grid                   |
-| `range` | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)      | `30`    | the ranged columns and the detail's view strip |
 
 The detail route carries `from`, not `view` — `ListingController::show()`
 resolves `view` from it before building the header and, on table/grid,
 the workspace behind the overlay, so every link there still names `view`
 explicitly.
+
+Listings are evergreen, so `range` is not part of this vocabulary. The
+table's ranged columns (Views, Favorites, Cart adds) and the detail's view
+strip read a fixed thirty days, named in the column headers and the
+strip's own heading; `rules()` never names `range`, so a stray `?range=`
+on either route validates nothing and changes nothing.
 
 ### Layers
 
@@ -564,15 +569,17 @@ reads as its default, an unrecognised one answers a bare 400.
 
 | Param     | Values                                                                   | Default | Read by         |
 | --------- | ------------------------------------------------------------------------ | ------- | --------------- |
-| `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
 | `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
 | `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` (`CustomerSortColumn::defaultSort()`) | the index route |
 | `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
 | `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
 
-`range` is what "new this period" means: a buyer is new when their first
-order falls inside the window. The four figures above the table count every
-buyer whatever the segment shows, so switching segments never moves them.
+Customers are evergreen, so `range` is not part of this vocabulary: a
+buyer is new when their first order falls inside a fixed thirty days,
+which the table's footnote names. `rules()` never names `range`, so a
+stray `?range=` validates nothing and changes nothing. The four figures
+above the table count every buyer whatever the segment shows, so
+switching segments never moves them.
 
 ### Layers
 

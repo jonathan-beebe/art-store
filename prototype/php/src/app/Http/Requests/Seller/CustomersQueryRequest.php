@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
-use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Seller\ActivityKind;
 use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerSegment;
@@ -18,8 +17,12 @@ use Illuminate\Validation\Rule;
 
 /**
  * The customers tool's query vocabulary, shared by `GET /seller/customers`
- * (`range`, `segment`, `sort`, `dir`) and `GET /seller/customers/{customer}`
- * (`kind`).
+ * (`segment`, `sort`, `dir`) and `GET /seller/customers/{customer}`
+ * (`kind`). Customers are evergreen — there is no `range`; the "New this
+ * period" segment reads a fixed thirty days
+ * ({@see \App\Http\Controllers\Seller\CustomerController}), and a stray
+ * `?range=` is a key `rules()` never names, so it validates nothing and
+ * changes nothing.
  */
 final class CustomersQueryRequest extends SellerQueryRequest
 {
@@ -40,7 +43,6 @@ final class CustomersQueryRequest extends SellerQueryRequest
     public function rules(): array
     {
         return [
-            'range' => ['nullable', Rule::in(array_map(strval(...), AnalyticsRange::SIZES))],
             'segment' => ['nullable', Rule::enum(CustomerSegment::class)],
             'sort' => ['nullable', Rule::enum(CustomerSortColumn::class)],
             'dir' => ['nullable', Rule::enum(SortDirection::class)],
@@ -85,6 +87,6 @@ final class CustomersQueryRequest extends SellerQueryRequest
      */
     public function roundTripped(): array
     {
-        return $this->roundTrippedOf(['range', 'segment', 'sort', 'dir']);
+        return $this->roundTrippedOf(['segment', 'sort', 'dir']);
     }
 }

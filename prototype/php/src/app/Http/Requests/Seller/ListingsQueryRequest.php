@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
-use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Seller\ListingSortColumn;
 use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingView;
@@ -14,10 +13,14 @@ use Illuminate\Validation\Rule;
 
 /**
  * The listings tool's query vocabulary, shared by `GET /seller/listings`
- * (`view`, `sort`, `dir`, `range`) and `GET /seller/listings/{listing}`
- * (`from`, `sort`, `dir`, `range`). `from` names the view a detail row was
- * opened from: absent for the list pane's own detail, `table` or `grid`
- * for the overlay/takeover.
+ * (`view`, `sort`, `dir`) and `GET /seller/listings/{listing}` (`from`,
+ * `sort`, `dir`). `from` names the view a detail row was opened from:
+ * absent for the list pane's own detail, `table` or `grid` for the
+ * overlay/takeover. Listings are evergreen — there is no `range`; the
+ * table's ranged columns and the detail's view strip read a fixed thirty
+ * days ({@see \App\Http\Controllers\Seller\ListingController}), and a
+ * stray `?range=` is a key `rules()` never names, so it validates
+ * nothing and changes nothing.
  */
 final class ListingsQueryRequest extends SellerQueryRequest
 {
@@ -31,7 +34,6 @@ final class ListingsQueryRequest extends SellerQueryRequest
             'from' => ['nullable', Rule::in(array_map(fn (ListingView $view): string => $view->value, ListingView::openable()))],
             'sort' => ['nullable', Rule::enum(ListingSortColumn::class)],
             'dir' => ['nullable', Rule::enum(SortDirection::class)],
-            'range' => ['nullable', Rule::in(array_map(strval(...), AnalyticsRange::SIZES))],
         ];
     }
 
@@ -60,12 +62,12 @@ final class ListingsQueryRequest extends SellerQueryRequest
     }
 
     /**
-     * The submitted filters, in the shape every view/sort/range link round-trips.
+     * The submitted filters, in the shape every view/sort link round-trips.
      *
      * @return array<string, string>
      */
     public function roundTripped(): array
     {
-        return $this->roundTrippedOf(['view', 'sort', 'dir', 'range']);
+        return $this->roundTrippedOf(['view', 'sort', 'dir']);
     }
 }

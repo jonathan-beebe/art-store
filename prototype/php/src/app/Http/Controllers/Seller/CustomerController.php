@@ -31,10 +31,13 @@ use Illuminate\View\View;
  */
 final class CustomerController extends SellerController
 {
+    /** Customers are evergreen; "New this period" reads this fixed window. */
+    private const int NEW_BUYER_WINDOW_DAYS = 30;
+
     public function index(CustomersQueryRequest $request): View
     {
         $seller = $this->seller();
-        $range = AnalyticsRange::of($request->rangeDays(), $this->now());
+        $newSince = AnalyticsRange::of(self::NEW_BUYER_WINDOW_DAYS, $this->now())->start;
         $segment = $request->customerSegment();
         $sort = $request->sort();
 
@@ -42,10 +45,10 @@ final class CustomerController extends SellerController
         $counts = SellerCustomers::conversationCounts($seller);
 
         return view('seller.customers.index', [
-            'rows' => RowSort::apply($sort, $segment->apply($rows, $range->start), fn (CustomerRow $row): string => $row->customerId),
-            'tally' => CustomerTally::of($rows, $range->start, $counts->open, $counts->unread),
+            'rows' => RowSort::apply($sort, $segment->apply($rows, $newSince), fn (CustomerRow $row): string => $row->customerId),
+            'tally' => CustomerTally::of($rows, $newSince, $counts->open, $counts->unread),
             'chrome' => CustomersChrome::build($request->roundTripped(), $segment, $sort),
-            'rangeDays' => $range->days,
+            'rangeDays' => self::NEW_BUYER_WINDOW_DAYS,
         ]);
     }
 

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-04:20:20:00 — IMPRV-037 — resolved: range dropped from the listings and customers query vocabularies, requests, chrome links, and the dashboard's outbound links to them; a stray `?range=` on either route is now an unvalidated, unlisted key (ignored); listings table headers name the fixed thirty-day window, the customers footnote does too; `make precommit` green
+- 2026-09-04:16:00:00 — IMPRV-037 — started
 - 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:12:06:48 — FEAT-064 — defined: A seller can keep more than one fulfillment flow and pick one per listing
 - 2026-09-04:15:00:00 — IMPRV-030 — resolved: ten commits — external scripts for the CSP (mobile nav, admin drawer, New listing), the thread rail at 2xl, the listings detail dialog a real modal at 2xl (owner kept it), unpublished support facts as text, dark-mode print fixes plus a no-JS print fallback, bar-strip names and four other accessible-name fixes, six help-article corrections, FeedTest on data- markers, and two owner-walk fixes (store picture Remove overlap, empty vs "new" Sales change); make check green

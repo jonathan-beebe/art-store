@@ -141,7 +141,7 @@ final readonly class ListingActivity
                 $days,
                 self::STRIP_HEIGHT_PX,
             ),
-            href: route('seller.listings.show', ['listing' => $row->id, 'range' => $range->days]),
+            href: route('seller.listings.show', ['listing' => $row->id]),
         ), $top);
     }
 

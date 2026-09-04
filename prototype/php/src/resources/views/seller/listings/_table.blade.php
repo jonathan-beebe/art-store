@@ -17,7 +17,7 @@
             @forelse ($rows as $row)
                 <tr>
                     <td class="px-4 py-2">
-                        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'table', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value, 'range' => $rangeDays]) }}" class="flex items-center gap-3">
+                        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'table', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value]) }}" class="flex items-center gap-3">
                             <img src="{{ $row->imageUrl }}" alt="" class="size-9 flex-none rounded-md object-cover">
                             <span class="min-w-0">
                                 <span class="block truncate font-semibold text-gray-900 dark:text-gray-100">{{ $row->title }}</span>

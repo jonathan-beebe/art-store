@@ -48,17 +48,11 @@ it('answers 400 on a direction outside asc or desc', function (): void {
     $response->assertStatus(400);
 });
 
-it('accepts every documented range', function (string $range): void {
+it('ignores a range on the index route, whatever value it carries', function (string $range): void {
     $response = $this->actingAs($this->seller(), 'seller')->get("/seller/customers?range={$range}");
 
     $response->assertOk();
-})->with(['7', '30', '90']);
-
-it('answers 400 on a range outside the documented set', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?range=14');
-
-    $response->assertStatus(400);
-});
+})->with(['7', '30', '90', '14', 'bogus']);
 
 it('reads emptied query values as absent', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?range=&segment=&sort=&dir=');

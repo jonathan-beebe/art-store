@@ -11,12 +11,15 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 /**
  * The seller query vocabulary every list/detail route's `?…` shares
  * (docs/alignment.md §5): an absent or emptied value reads as the
- * default, and an unrecognised value answers a bare 400.
+ * default, and an unrecognised value answers a bare 400. `range` is not
+ * part of this shared vocabulary — the dashboard is the one page that
+ * reads a range, and owns `rangeDays()` itself
+ * ({@see DashboardQueryRequest}); a stray `?range=` on every other seller
+ * route is a key `rules()` never names, so it validates nothing and
+ * changes nothing.
  */
 abstract class SellerQueryRequest extends FormRequest
 {
-    private const int DEFAULT_RANGE_DAYS = 30;
-
     /**
      * @return array<string, list<mixed>>
      */
@@ -36,14 +39,6 @@ abstract class SellerQueryRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response('', 400));
-    }
-
-    /** The `range` a page is read over, defaulted when absent. */
-    public function rangeDays(): int
-    {
-        $value = $this->stringOrNull('range');
-
-        return $value === null ? self::DEFAULT_RANGE_DAYS : (int) $value;
     }
 
     protected function stringOrNull(string $field): ?string
