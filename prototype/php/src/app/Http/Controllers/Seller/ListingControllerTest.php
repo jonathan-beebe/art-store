@@ -1309,6 +1309,81 @@ it('FEAT-056 gives the overlays and the takeovers copy of the detail their own h
     $response->assertSee('id="takeover-views-strip-heading"', escape: false);
 });
 
+it('IMPRV-030 renders the listings header as text on the detail route, the listing\'s own title the one heading', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    // One `<h1>` per copy of the listing's own detail (overlay and
+    // takeover, only one ever exposed to assistive technology at a
+    // given width) — the header's own "Listings" renders as a `<p>` on
+    // both copies, never an `<h1>`, so neither adds a second heading.
+    expect($crawler->filter('h1')->count())->toBe(2)
+        ->and($crawler->filter('p[data-listings-title]')->count())->toBe(2)
+        ->and($crawler->filter('h1[data-listings-title]')->count())->toBe(0);
+});
+
+it('IMPRV-030 keeps the workspace header inside the inert region behind the modal', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    // The workspace copy's New listing button sits inside the same
+    // `inert` wrapper as the table/grid, unreachable while the modal is
+    // open, with or without the script.
+    expect($crawler->filter('[inert] [data-new-listing-open]')->count())->toBe(1);
+
+    // The one real New listing dialog never sits behind an inert
+    // ancestor — an inert dialog could never be opened at all.
+    $dialog = $crawler->filter('#new-listing-dialog');
+    expect($dialog->count())->toBe(1)
+        ->and($dialog->closest('[inert]'))->toBeNull();
+});
+
+it('IMPRV-030 puts the new-listing dialog only in the takeover, so it never repeats an id', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    expect(substr_count($content, 'id="new-listing-dialog"'))->toBe(1)
+        ->and(substr_count($content, 'data-new-listing-open'))->toBe(2);
+});
+
+it('IMPRV-030 loads the listing detail dialog script and autofocuses its Close control', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    expect($content)->toContain('<script defer src="'.asset('listing-detail-dialog.js').'"')
+        ->and($content)->toContain('aria-label="Close" autofocus data-dialog-close');
+});
+
+it('IMPRV-030 carries a close href the dialog script navigates to on a genuine close', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    // The dialog's own Close link already points at $backHref; the dialog
+    // itself carries the same address, since the script navigates there
+    // on a genuine close, rather than leaving the dialog's box painted
+    // over the inert page behind it.
+    preg_match('#href="([^"]*)" aria-label="Close"#', $content, $closeLinkMatch);
+    $closeHref = $closeLinkMatch[1] ?? null;
+
+    expect($closeHref)->not->toBeNull();
+    expect($content)->toContain('data-close-href="'.$closeHref.'"');
+});
+
 it('FEAT-056 opens a grid rows detail from the same route', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
@@ -1328,38 +1403,6 @@ it('FEAT-056 keeps the new-listing dialog on the table and grid views', function
     $response->assertSee('id="new-listing-dialog"', escape: false);
 })->with(['table', 'grid']);
 
-it('FEAT-056 keeps the new-listing dialog reachable at every viewport on the detail overlay', function (): void {
-    $seller = $this->seller();
-    $listing = $this->listing($seller);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
-    $content = (string) $response->getContent();
-
-    expect($content)->toContain('id="new-listing-dialog"');
-
-    // The header — and the New listing button and dialog it carries —
-    // renders once, before either viewport-gated block below it: the
-    // `inert` workspace a `2xl:` breakpoint shows, and the takeover
-    // `<dialog>` another shows. A header nested inside either would
-    // still appear in this same response, unreachable below or above
-    // `2xl` respectively; asserting it comes first is what proves it
-    // sits outside both.
-    $headerPosition = strpos($content, 'data-new-listing-open');
-    $workspacePosition = strpos($content, 'inert');
-    $dialogPosition = strpos($content, '<dialog open');
-
-    expect($headerPosition)->not->toBeFalse()
-        ->and($workspacePosition)->not->toBeFalse()
-        ->and($dialogPosition)->not->toBeFalse();
-
-    assert(is_int($headerPosition));
-    assert(is_int($workspacePosition));
-    assert(is_int($dialogPosition));
-
-    expect($headerPosition)->toBeLessThan($workspacePosition)
-        ->and($headerPosition)->toBeLessThan($dialogPosition);
-});
-
 it('FEAT-056 links the view switch to every view', function (): void {
     $seller = $this->seller();
 
@@ -1378,4 +1421,15 @@ it('FEAT-056 submits the sort select through a visible button, carrying no inlin
     $response->assertSee('data-sort-select', escape: false);
     $response->assertSee('data-sort-submit', escape: false);
     $response->assertDontSee('onchange=', escape: false);
+});
+
+it('IMPRV-030 names the views strip for assistive technology on the listing detail', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('role="img"', escape: false);
+    $response->assertSee('aria-labelledby="views-strip-heading"', escape: false);
 });

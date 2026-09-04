@@ -35,7 +35,7 @@
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.customers.show', $customer) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $customer->id }}"
         >
             <x-slot:leading>

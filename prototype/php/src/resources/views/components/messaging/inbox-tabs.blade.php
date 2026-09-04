@@ -33,7 +33,7 @@
         @php $isActive = $domain === $value; @endphp
         <a
             href="{{ route($indexRoute, ['domain' => $value]) }}"
-            @if ($isActive) aria-current="page" @endif
+            @if ($isActive) aria-current="true" @endif
             class="{{ $isActive ? $palette['tabActive'] : $palette['tabInactive'] }}"
         >{{ $label }}</a>
     @endforeach

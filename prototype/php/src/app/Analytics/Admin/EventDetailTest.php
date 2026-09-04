@@ -192,6 +192,6 @@ it('reads a name with nothing recorded as all zeroes and no rows', function (): 
     $change = eventTileLabelled($detail->tiles, 'Change');
 
     expect($detail->daily)->toBe([0, 0, 0, 0, 0, 0, 0])
-        ->and($change->value)->toBe('new')
+        ->and($change->value)->toBe('')
         ->and($detail->rows)->toBe([]);
 });

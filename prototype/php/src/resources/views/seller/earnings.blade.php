@@ -143,7 +143,7 @@
                                     <td class="px-4 py-2">{{ $row->buyerName }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->subtotal->format() }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->fee->format() }}</td>
-                                    <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $row->net->format() }}</td>
+                                    <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $row->net->format() }}</td>
                                     <td class="px-4 py-2"><x-seller.status-badge :tint="$row->status->sellerBadgeTint()">{{ $row->status->label() }}</x-seller.status-badge></td>
                                 </tr>
                             @endforeach
@@ -179,7 +179,7 @@
                             <td class="px-4 py-2 text-right tabular-nums">{{ $figures->sales->format() }}</td>
                             <td class="px-4 py-2 text-right tabular-nums">{{ $figures->fees->format() }}</td>
                             <td class="px-4 py-2 text-right tabular-nums">{{ $figures->refunds->format() }}</td>
-                            <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $figures->net()->format() }}</td>
+                            <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $figures->net()->format() }}</td>
                             <td class="px-4 py-2">
                                 @if ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::Paid)
                                     <x-seller.status-badge tint="green">Paid {{ $settlement->paidAt?->format('M j') }}</x-seller.status-badge>
@@ -188,7 +188,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-right">
-                                <a href="{{ route('seller.earnings.statements.show', $figures->period->start->format('Y-m-d')) }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Statement</a>
+                                <a href="{{ route('seller.earnings.statements.show', $figures->period->start->format('Y-m-d')) }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Statement<span class="sr-only"> for {{ $figures->period->label() }}</span></a>
                             </td>
                         </tr>
                     @endforeach

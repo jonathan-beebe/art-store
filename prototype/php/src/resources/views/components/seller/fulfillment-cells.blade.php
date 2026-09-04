@@ -15,7 +15,7 @@
             accent="indigo"
             :selected="$row->selected"
             href="{{ $row->href }}"
-            :aria-current="$row->selected ? 'true' : null"
+            :aria-current="$row->selected ? 'page' : null"
             data-pane-cell="{{ $row->id }}"
         >
             <x-slot:title>

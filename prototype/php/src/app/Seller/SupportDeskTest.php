@@ -75,3 +75,14 @@ it('reads the gap between the seller\'s last question and the desk\'s reply to i
 
     expect($desk->lastReplyTime?->text)->toBe('41 minutes');
 });
+
+it('IMPRV-030 publishes a real value and withholds a blank or bracketed one', function (?string $value, ?string $expected): void {
+    expect(SupportDesk::published($value))->toBe($expected);
+})->with([
+    'a real value' => ['sellers@artstore.example', 'sellers@artstore.example'],
+    'a bracketed placeholder' => ['[PHONE NUMBER]', null],
+    'an empty string' => ['', null],
+    'null' => [null, null],
+    'phone hours, blank' => ['', null],
+    'phone hours, set' => ['weekdays 9:00 to 17:00', 'weekdays 9:00 to 17:00'],
+]);

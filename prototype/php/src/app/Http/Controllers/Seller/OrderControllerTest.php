@@ -71,7 +71,7 @@ it('marks the open fulfillment selected in the list pane', function () use ($pai
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 
     $response->assertOk();
-    $response->assertSee('aria-current="true"', escape: false);
+    $response->assertSee('aria-current="page"', escape: false);
 });
 
 it('keeps another sellers fulfillments off the page', function () use ($paidFulfillment): void {

@@ -303,7 +303,7 @@ it('keeps the selected row marked and the whole row one link, on a show route in
     expect($adminRow)->toHaveCount(1);
     expect($sellerRow)->toHaveCount(1);
 
-    expect($adminRow[0]['attrs'])->toContain('aria-current="true"');
+    expect($adminRow[0]['attrs'])->toContain('aria-current="page"');
     expect($sellerRow[0]['attrs'])->toContain('aria-current="page"');
 
     expect(rowHref($adminRow[0]))->toBe(route('admin.orders.show', $order));

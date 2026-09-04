@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use App\Domain\Store\StoreLinkKind;
+use App\Domain\Store\StorePictureRole;
 use App\Domain\Store\StoreVisibility;
 use App\Models\StoreProfile;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * The Store form as the screen posts it, with the case's own overrides on
@@ -151,4 +154,62 @@ it('keeps the links a seller filled in and drops the ones they cleared', functio
     $links = $seller->storeProfile()->sole()->links()->get();
     expect($links)->toHaveCount(1)
         ->and($links->first()?->kind)->toBe(StoreLinkKind::Website);
+});
+
+it('IMPRV-030 shows the alt text a seller gave the portrait and cover pictures', function (): void {
+    Storage::fake('public');
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('me.jpg'),
+        'role' => StorePictureRole::Portrait->value,
+        'alt' => 'Rubeus Hagrid at his workbench',
+    ]);
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('shop.jpg'),
+        'role' => StorePictureRole::Cover->value,
+        'alt' => 'The Burrow workshop at dusk',
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $response->assertSee('alt="Rubeus Hagrid at his workbench"', escape: false);
+    $response->assertSee('alt="The Burrow workshop at dusk"', escape: false);
+});
+
+it('IMPRV-030 gives each pictures Remove control its own accessible name', function (): void {
+    Storage::fake('public');
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('bowl.jpg'),
+        'role' => StorePictureRole::Gallery->value,
+        'alt' => 'A thrown stoneware bowl',
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $response->assertSee('Remove<span class="sr-only"> A thrown stoneware bowl</span>', escape: false);
+});
+
+it('IMPRV-030 stacks a pictures Remove control under it, never overlapping the thumbnail', function (): void {
+    Storage::fake('public');
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->actingAs($seller, 'seller')->get('/seller/store');
+
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('bowl.jpg'),
+        'role' => StorePictureRole::Gallery->value,
+        'alt' => 'A thrown stoneware bowl',
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/store');
+    $crawler = new Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+    $picture = $crawler->filter('[data-store-picture]');
+
+    expect($picture->count())->toBe(1)
+        ->and($picture->attr('class'))->toContain('flex-col')
+        ->and($picture->filter('button')->attr('class'))->not->toContain('absolute');
 });

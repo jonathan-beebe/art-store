@@ -6,8 +6,13 @@
      caller's `class` sets the whole strip's color, and a bar carrying
      `hot` overrides its own color to red. Bars sit edge to edge past 31
      of them — a 1-unit gap between each would shrink every bar to a
-     hairline. --}}
-@props(['bars' => [], 'height' => 26])
+     hairline. `labelledby` names the id of a heading that already
+     describes this strip (which picture, which period), carried as
+     `role="img"` `aria-labelledby`; every caller without one already sits
+     beside its own count or label, so the strip itself carries
+     `aria-hidden="true"` instead, leaving that neighboring text as the
+     one thing assistive technology reads. --}}
+@props(['bars' => [], 'height' => 26, 'labelledby' => null])
 
 @php
     $count = count($bars);
@@ -17,7 +22,7 @@
     $totalWidth = max($unit, $count * $unit);
 @endphp
 
-<svg viewBox="0 0 {{ $totalWidth }} {{ $height }}" preserveAspectRatio="none" width="100%" style="height: {{ $height }}px" {{ $attributes->merge(['class' => 'block']) }}>
+<svg viewBox="0 0 {{ $totalWidth }} {{ $height }}" preserveAspectRatio="none" width="100%" style="height: {{ $height }}px" @if ($labelledby !== null) role="img" aria-labelledby="{{ $labelledby }}" @else aria-hidden="true" @endif {{ $attributes->merge(['class' => 'block']) }}>
     @foreach ($bars as $i => $bar)
         <rect
             x="{{ $i * $unit }}"

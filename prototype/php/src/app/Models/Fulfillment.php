@@ -13,6 +13,7 @@ use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
+use App\Support\PlaceholderImage;
 use Database\Factories\FulfillmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -274,6 +275,22 @@ class Fulfillment extends Model
         $rest = $items->count() - 1;
 
         return $rest > 0 ? "{$label} +{$rest} more" : $label;
+    }
+
+    /**
+     * A picture for this parcel's first line, scoped to the seller the
+     * same way {@see self::itemLabel()} is — the listing's own cover, or
+     * a placeholder titled from the item label when the line's listing is
+     * gone.
+     */
+    public function itemImageUrl(): string
+    {
+        $listing = $this->order->items
+            ->where('seller_id', $this->seller_id)
+            ->first()
+            ?->listing;
+
+        return $listing?->imageUrl() ?? PlaceholderImage::dataUri($this->itemLabel());
     }
 
     /**

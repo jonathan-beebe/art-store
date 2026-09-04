@@ -32,22 +32,39 @@
 
         <section aria-labelledby="other-ways-heading" class="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 lg:col-span-2 dark:border-white/10 dark:bg-gray-900">
             <h2 id="other-ways-heading" class="text-sm/6 font-semibold text-gray-900 dark:text-white">Other ways to reach us</h2>
+            @php
+                $email = \App\Seller\SupportDesk::published(config('support.email'));
+                $phone = \App\Seller\SupportDesk::published(config('support.phone'));
+                $phoneHours = \App\Seller\SupportDesk::published(config('support.phone_hours'));
+                $bookingUrl = \App\Seller\SupportDesk::published(config('support.booking_url'));
+            @endphp
             <dl class="flex flex-col gap-4">
                 <div>
                     <dt class="font-medium text-gray-900 dark:text-white">Email</dt>
-                    <dd class="text-gray-500 dark:text-gray-400">{{ config('support.email') }}</dd>
+                    <dd data-support-email class="text-gray-500 dark:text-gray-400">
+                        @if ($email === null)
+                            Not published yet.
+                        @else
+                            {{ $email }}
+                        @endif
+                    </dd>
                 </div>
                 <div>
                     <dt class="font-medium text-gray-900 dark:text-white">Phone</dt>
-                    <dd class="text-gray-500 dark:text-gray-400">{{ config('support.phone') }} &middot; {{ config('support.phone_hours') }}</dd>
+                    <dd data-support-phone class="text-gray-500 dark:text-gray-400">
+                        @if ($phone === null)
+                            Not published yet.
+                        @else
+                            {{ $phone }}@if ($phoneHours !== null) &middot; {{ $phoneHours }} @endif
+                        @endif
+                    </dd>
                 </div>
                 <div>
                     <dt class="font-medium text-gray-900 dark:text-white">A call</dt>
                     <dd class="text-gray-500 dark:text-gray-400">Book fifteen minutes for anything that is easier to talk through.</dd>
-                    <dd class="mt-1">
-                        @php $bookingUrl = config('support.booking_url'); @endphp
-                        @if (str_starts_with($bookingUrl, '['))
-                            <span class="text-gray-500 dark:text-gray-400">{{ $bookingUrl }}</span>
+                    <dd class="mt-1" data-support-booking>
+                        @if ($bookingUrl === null)
+                            <span class="text-gray-500 dark:text-gray-400">Not published yet.</span>
                         @else
                             <a href="{{ $bookingUrl }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Pick a time</a>
                         @endif

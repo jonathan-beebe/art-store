@@ -140,10 +140,10 @@
         </header>
 
         {{-- Off-canvas drawer (<lg only): a native <dialog>, opened by the
-             header's hamburger and closed by its own button, a click on the
-             backdrop area, or Escape (native <dialog> behavior — no JS
-             needed for that one). --}}
-        <dialog id="seller-nav-drawer" class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-gray-900/80 lg:hidden">
+             header's hamburger, closed natively by Escape, and closed by
+             nav-drawer.js from its own button or the flex-1 filler button
+             below that spans the backdrop area. --}}
+        <dialog id="seller-nav-drawer" data-nav-drawer class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-gray-900/80 lg:hidden">
             <div class="flex h-full w-72 max-w-[calc(100%-4rem)] flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 dark:bg-gray-900">
                 <div class="flex h-16 shrink-0 items-center justify-between">
                     <span class="flex items-center gap-x-3 font-semibold text-gray-900 dark:text-white">
@@ -205,20 +205,6 @@
             </main>
         </div>
 
-        <script>
-            (() => {
-                const drawer = document.getElementById('seller-nav-drawer');
-                if (! drawer) return;
-
-                document.querySelectorAll('[data-drawer-open]').forEach((button) => {
-                    button.addEventListener('click', () => drawer.showModal());
-                });
-
-                drawer.querySelectorAll('[data-drawer-close]').forEach((button) => {
-                    button.addEventListener('click', () => drawer.close());
-                });
-            })();
-        </script>
     @else
         <header class="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
@@ -247,6 +233,8 @@
         </main>
     @endif
 
+    <script defer src="{{ asset('nav-drawer.js') }}"></script>
+    <script defer src="{{ asset('print-button.js') }}"></script>
     <script defer src="{{ asset('configurator-autosubmit.js') }}"></script>
     <script defer src="{{ asset('sort-autosubmit.js') }}"></script>
     <script defer src="{{ asset('composer.js') }}"></script>

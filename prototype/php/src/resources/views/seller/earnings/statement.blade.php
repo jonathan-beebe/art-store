@@ -7,19 +7,24 @@
     @vite(['resources/css/app.css'])
     <x-theme-css />
 </head>
-<body class="h-full bg-gray-100 font-sans text-sm text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
+<body class="supports-dark h-full bg-gray-100 font-sans text-sm text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100">
     <div class="mx-auto max-w-3xl px-6 py-10 print:max-w-none print:px-0 print:py-0">
         <div class="flex items-start justify-between gap-4 print:hidden">
             <a href="{{ route('seller.earnings') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">&larr; Earnings</a>
-            <button type="button" data-print class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">Print</button>
+            <div class="text-right">
+                <button type="button" data-print class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400">Print</button>
+                <noscript>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Use your browser's print command to print this statement.</p>
+                </noscript>
+            </div>
         </div>
 
         <div class="mt-6 rounded-lg border border-gray-200 bg-white p-8 print:border-0 print:p-0 dark:border-white/10 dark:bg-gray-900 print:dark:bg-white print:dark:text-black">
             <div class="flex items-start justify-between gap-4 border-b border-gray-200 pb-6 dark:border-white/10">
                 <div>
-                    <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Statement</p>
-                    <h1 class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $seller->displayName() }}</h1>
-                    <p class="mt-1 text-gray-500 dark:text-gray-400">{{ $figures->period->label() }}</p>
+                    <p class="text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400 print:dark:text-gray-600">Statement</p>
+                    <h1 class="mt-1 text-xl font-semibold text-gray-900 dark:text-white print:dark:text-black">{{ $seller->displayName() }}</h1>
+                    <p class="mt-1 text-gray-500 dark:text-gray-400 print:dark:text-gray-600">{{ $figures->period->label() }}</p>
                 </div>
                 <div class="text-right">
                     @if ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::Paid)
@@ -29,36 +34,36 @@
                     @else
                         <x-seller.status-badge tint="gray">No payout</x-seller.status-badge>
                     @endif
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Generated {{ $generatedAt->format('M j, Y g:ia') }}</p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400 print:dark:text-gray-600">Generated {{ $generatedAt->format('M j, Y g:ia') }}</p>
                 </div>
             </div>
 
             <dl class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
                 <div>
-                    <dt class="text-xs text-gray-500 dark:text-gray-400">Orders</dt>
-                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{{ $figures->orderCount }}</dd>
+                    <dt class="text-xs text-gray-500 dark:text-gray-400 print:dark:text-gray-600">Orders</dt>
+                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $figures->orderCount }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-gray-500 dark:text-gray-400">Sales</dt>
-                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{{ $figures->sales->format() }}</dd>
+                    <dt class="text-xs text-gray-500 dark:text-gray-400 print:dark:text-gray-600">Sales</dt>
+                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $figures->sales->format() }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-gray-500 dark:text-gray-400">Platform fees</dt>
-                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{{ $figures->fees->format() }}</dd>
+                    <dt class="text-xs text-gray-500 dark:text-gray-400 print:dark:text-gray-600">Platform fees</dt>
+                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $figures->fees->format() }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-gray-500 dark:text-gray-400">Refunds</dt>
-                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{{ $figures->refunds->format() }}</dd>
+                    <dt class="text-xs text-gray-500 dark:text-gray-400 print:dark:text-gray-600">Refunds</dt>
+                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $figures->refunds->format() }}</dd>
                 </div>
                 <div>
-                    <dt class="text-xs text-gray-500 dark:text-gray-400">Net</dt>
-                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white">{{ $figures->net()->format() }}</dd>
+                    <dt class="text-xs text-gray-500 dark:text-gray-400 print:dark:text-gray-600">Net</dt>
+                    <dd class="text-lg font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $figures->net()->format() }}</dd>
                 </div>
             </dl>
 
-            <h2 class="mt-8 text-sm/6 font-semibold text-gray-900 dark:text-white">Orders this period</h2>
+            <h2 class="mt-8 text-sm/6 font-semibold text-gray-900 dark:text-white print:dark:text-black">Orders this period</h2>
             @if (count($sales) === 0)
-                <p class="mt-2 text-gray-600 dark:text-gray-400">No orders were placed this period.</p>
+                <p class="mt-2 text-gray-600 dark:text-gray-400 print:dark:text-gray-600">No orders were placed this period.</p>
             @else
                 <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700">
                     <table class="w-full text-left">
@@ -81,7 +86,7 @@
                                     <td class="px-4 py-2">{{ $row->buyerName }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->subtotal->format() }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->fee->format() }}</td>
-                                    <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $row->net->format() }}</td>
+                                    <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white print:dark:text-black">{{ $row->net->format() }}</td>
                                     <td class="px-4 py-2"><x-seller.status-badge :tint="$row->status->sellerBadgeTint()">{{ $row->status->label() }}</x-seller.status-badge></td>
                                 </tr>
                             @endforeach
@@ -92,6 +97,6 @@
         </div>
     </div>
 
-    <script defer src="{{ asset('statement-print.js') }}"></script>
+    <script defer src="{{ asset('print-button.js') }}"></script>
 </body>
 </html>

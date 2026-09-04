@@ -57,3 +57,35 @@ it('answers 404 for a malformed period', function (): void {
 
     $response->assertNotFound();
 });
+
+it('IMPRV-030 offers a print control that still reads with scripts blocked', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/2026-08-10');
+    $content = (string) $response->getContent();
+
+    $response->assertOk();
+    expect($content)->toContain('data-print')
+        ->toContain('<script defer src="'.asset('print-button.js').'"')
+        ->toContain('<noscript>');
+});
+
+it('IMPRV-030 opts the statement into dark mode, so its print overrides can ever apply', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/2026-08-10');
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    $response->assertOk();
+    expect($crawler->filter('body')->attr('class'))->toContain('supports-dark');
+});
+
+it('IMPRV-030 prints the seller name legibly in dark mode', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings/statements/2026-08-10');
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    $response->assertOk();
+    expect($crawler->filter('h1')->attr('class'))->toContain('print:dark:text-black');
+});

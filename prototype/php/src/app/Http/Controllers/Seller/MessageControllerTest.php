@@ -514,3 +514,38 @@ it('renders the rail again when a reply trips the rate limit', function (): void
 
     $response->assertStatus(429)->assertSee('View customer');
 });
+
+it('IMPRV-030 puts the thread\'s every breakpoint at 2xl, the context rail included', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    $response->assertOk();
+    expect($crawler->filter('[data-thread]')->attr('class'))->toContain('2xl:flex-row')
+        ->and($crawler->filter('[data-thread-rail]')->attr('class'))->toContain('2xl:w-80')
+        ->and(preg_match('/(?<!2)xl:/', $crawler->filter('[data-thread]')->outerHtml()))->toBe(0);
+});
+
+it('IMPRV-030 wraps the thread header row, its action group free to shrink with it', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    $response->assertOk();
+    expect($crawler->filter('[data-thread-header]')->attr('class'))->toContain('flex-wrap')
+        ->and($crawler->filter('[data-thread-actions]')->attr('class'))->not->toContain('shrink-0');
+});

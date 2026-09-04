@@ -24,7 +24,7 @@
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.sellers.show', $seller) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $seller->id }}"
         >
             <x-slot:leading>

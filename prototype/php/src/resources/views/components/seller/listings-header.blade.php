@@ -1,21 +1,33 @@
 {{--
     The listings tool's one header (04-listings.html): title, count, the
     List/Table/Grid view switch, a sort select on Table and Grid, and New
-    listing. Shared by the index route's three views and the detail
-    route's overlay/takeover workspace, so a seller reads the same header
-    wherever they are, and included exactly once per response so the New
-    listing dialog it carries never renders twice. Expects
-    `listingsTotal` and `chrome` ({@see \App\Seller\ListingsChrome}).
+    listing. Shared by the index route's three views and both copies the
+    detail route renders (the `inert` workspace behind the `2xl` dialog,
+    and the takeover below it), so a seller reads the same header
+    wherever they are. Expects `listingsTotal` and `chrome`
+    ({@see \App\Seller\ListingsChrome}). `asHeading` renders "Listings"
+    as the page's `<h1>` on the index route (the default); the detail
+    route passes `false` on both its copies, since the listing's own
+    title is that page's heading. `withNewListingDialog` renders the New
+    listing dialog alongside the button (the default); a caller that
+    includes this header more than once in one response passes `false`
+    on every copy but one, so the dialog's id never repeats.
 --}}
+@props(['listingsTotal', 'chrome', 'asHeading' => true, 'withNewListingDialog' => true])
+
 <div class="flex shrink-0 flex-wrap items-center gap-4 border-b border-gray-200 px-8 py-4 dark:border-white/10">
-    <h1 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</h1>
+    @if ($asHeading)
+        <h1 data-listings-title class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</h1>
+    @else
+        <p data-listings-title class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</p>
+    @endif
     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $listingsTotal }}</span>
 
     <div class="inline-flex isolate rounded-md" role="group" aria-label="View">
         @foreach ($chrome->viewLinks as $link)
             <a
                 href="{{ $link->href }}"
-                @if ($link->active) aria-current="page" @endif
+                @if ($link->active) aria-current="true" @endif
                 class="relative -ml-px inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium first:ml-0 first:rounded-l-md last:rounded-r-md inset-ring inset-ring-gray-300 dark:inset-ring-white/10 {{ $link->active ? 'z-10 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300' : 'bg-white text-gray-600 dark:bg-white/10 dark:text-gray-400' }}"
             >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true"><path d="{{ $link->view->iconPath() }}"></path></svg>
@@ -45,4 +57,6 @@
     <button type="button" data-new-listing-open class="ml-auto rounded-md bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-indigo-500">New listing</button>
 </div>
 
-@include('seller.listings._new-listing-modal')
+@if ($withNewListingDialog)
+    @include('seller.listings._new-listing-modal')
+@endif
