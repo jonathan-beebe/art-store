@@ -1214,6 +1214,15 @@ it('FEAT-056 renders the table view with every column', function (): void {
     $response->assertSee('24 x 36 in');
 });
 
+it('IMPRV-032 marks the view switch\'s active entry aria-current="page"', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/view=table"[^>]*aria-current="page"/');
+});
+
 it('IMPRV-032 renders one cell per header, so an added column cannot drift from its cells', function (): void {
     $seller = $this->seller();
     $this->listing($seller, ['title' => 'The Burrow at Dusk']);

@@ -3,14 +3,16 @@
     the choice in force carrying the accent and `aria-current`. Takes a
     `list<App\Seller\NavLink>` — every href, and every icon path, is built
     by the class that knows the route, so this stays a renderer.
+    `current` is the `aria-current` token the active choice wears: `true`
+    for a filter, `page` for a control that navigates (IMPRV-030).
 --}}
-@props(['links', 'label', 'icons' => null])
+@props(['links', 'label', 'current' => 'true'])
 
 <div role="group" aria-label="{{ $label }}" class="inline-flex isolate rounded-md">
     @foreach ($links as $link)
         <a
             href="{{ $link->href }}"
-            @if ($link->active) aria-current="true" @endif
+            @if ($link->active) aria-current="{{ $current }}" @endif
             @class([
                 'relative inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium -ml-px first:ml-0 first:rounded-l-md last:rounded-r-md inset-ring focus-visible:z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600',
                 'z-10 bg-indigo-50 text-indigo-700 inset-ring-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:inset-ring-indigo-400/30' => $link->active,

@@ -23,7 +23,7 @@
     @endif
     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $listingsTotal }}</span>
 
-    <x-seller.segmented :links="$chrome->viewLinks" label="View" />
+    <x-seller.segmented :links="$chrome->viewLinks" label="View" current="page" />
 
     @if ($chrome->view->showsSort())
         <form method="GET" action="{{ route('seller.listings.index') }}" data-sort-form class="inline-flex items-center gap-2">
