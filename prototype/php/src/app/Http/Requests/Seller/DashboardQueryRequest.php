@@ -33,9 +33,12 @@ final class DashboardQueryRequest extends FormRequest
     /** An emptied value reads as absent, so the rule above sees no value to validate. */
     protected function prepareForValidation(): void
     {
-        if ($this->input('range') === '') {
-            $this->merge(['range' => null]);
-        }
+        $blanked = array_map(
+            fn (mixed $value): mixed => $value === '' ? null : $value,
+            $this->only(array_keys($this->rules())),
+        );
+
+        $this->merge($blanked);
     }
 
     protected function failedValidation(Validator $validator): void

@@ -28,7 +28,7 @@
             @foreach ($activity->totals as $total)
                 <x-stat-tile accent="gray" :label="$total->label">
                     <span class="flex items-baseline gap-2">
-                        <span data-stat="{{ $total->label }}">{{ $total->figure() }}</span>
+                        <span>{{ $total->figure() }}</span>
                         <x-seller.change :text="$total->change->text" :direction="$total->change->direction" />
                     </span>
                 </x-stat-tile>
@@ -63,10 +63,10 @@
                             <td class="px-4 py-2">
                                 <x-admin.analytics.bar-strip :bars="$row->strip" :height="26" class="text-indigo-300 dark:text-indigo-400/60" />
                             </td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ number_format($row->listing->views) }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ number_format($row->listing->favorites) }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ number_format($row->listing->cartAdds) }}</td>
-                            <td class="px-4 py-2 text-right tabular-nums">{{ number_format($row->sold) }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $row->listing->views }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $row->listing->favorites }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $row->listing->cartAdds }}</td>
+                            <td class="px-4 py-2 text-right tabular-nums">{{ $row->sold }}</td>
                         </tr>
                     @empty
                         <tr>
