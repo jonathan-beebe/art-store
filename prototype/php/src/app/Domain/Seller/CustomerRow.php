@@ -46,16 +46,8 @@ final readonly class CustomerRow
         return $this->firstOrderAt >= $from;
     }
 
-    /** The first letter of each of the first two words of the name. */
     public function initials(): string
     {
-        $words = array_filter(preg_split('/\s+/', trim($this->name)) ?: []);
-
-        $initials = array_map(
-            fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)),
-            array_slice($words, 0, 2),
-        );
-
-        return implode('', $initials);
+        return Initials::of($this->name);
     }
 }

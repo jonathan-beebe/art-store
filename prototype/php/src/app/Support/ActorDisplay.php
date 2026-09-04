@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Domain\Seller\Initials;
 use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
@@ -49,13 +50,6 @@ final class ActorDisplay
      */
     public static function initialsFor(string $name): string
     {
-        $words = array_filter(preg_split('/\s+/', trim($name)) ?: []);
-
-        $initials = array_map(
-            fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)),
-            array_slice($words, 0, 2),
-        );
-
-        return implode('', $initials);
+        return Initials::of($name);
     }
 }

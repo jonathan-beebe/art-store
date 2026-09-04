@@ -101,6 +101,28 @@ enum ConversationKind: string
     }
 
     /**
+     * The pill every list of threads wears: what kind of thread this is.
+     */
+    public function tagLabel(): string
+    {
+        return match ($this) {
+            self::AdminSeller, self::AdminCustomer => 'Support',
+            self::Fulfillment => 'Order',
+            self::ListingQuestion => 'Question',
+        };
+    }
+
+    /** The tint that pairs with {@see tagLabel()}. */
+    public function tagTint(): string
+    {
+        return match ($this) {
+            self::AdminSeller, self::AdminCustomer => 'gray',
+            self::Fulfillment => 'green',
+            self::ListingQuestion => 'indigo',
+        };
+    }
+
+    /**
      * What a notification or an inbox row says the thread is about.
      */
     public function topic(?string $orderId, ?string $listingTitle): string
