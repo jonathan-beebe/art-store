@@ -67,7 +67,7 @@ it('hands back the three tiles a seller reads their business by', function (): v
         ->toBe(['Customers', 'Orders', 'Earnings']);
 });
 
-it('counts every buyer, however far back their first order was', function (): void {
+it('counts the new buyers by the rule the customers table counts them by', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     placedOn($this->deliveredFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter'])), '2025-01-05 10:00:00');
     placedOn($this->deliveredFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley'])), '2026-08-25 10:00:00');
@@ -154,11 +154,74 @@ it('leaves another sellers parcels out of every figure', function (): void {
         ->and(overviewTile($tiles, 'Customers')->value)->toBe('0');
 });
 
-it('takes the payout estimate as given rather than reading a clock of its own', function (): void {
+it('reads the payout date off an estimate built against another period', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $estimate = PayoutEstimate::from($seller->escrowBalance(), PayoutPeriod::containing(new DateTimeImmutable('2026-01-07 10:00:00')), 3);
 
     $tiles = SellerOverview::for($seller, AnalyticsRange::of(30, overviewNow()), $estimate)->tiles();
 
     expect(overviewTile($tiles, 'Earnings')->footerNote)->toBe('Next payout Jan 12');
+});
+
+it('reads the orders count against the range before it', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    // A thirty-day range ending Sep 4 opens Aug 6; the range before it
+    // opens Jul 7.
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter'])), '2026-08-25 10:00:00');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley'])), '2026-08-26 10:00:00');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Luna Lovegood'])), '2026-07-20 10:00:00');
+
+    $tile = overviewTile(overviewTiles($seller), 'Orders');
+
+    expect($tile->value)->toBe('2')
+        ->and($tile->changeText)->toBe('+100.0%')
+        ->and($tile->changeDirection)->toBe(ChangeDirection::Up);
+});
+
+it('reads a quieter range as an orders count down on the one before it', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter'])), '2026-08-25 10:00:00');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley'])), '2026-07-20 10:00:00');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Luna Lovegood'])), '2026-07-21 10:00:00');
+
+    $tile = overviewTile(overviewTiles($seller), 'Orders');
+
+    expect($tile->value)->toBe('1')
+        ->and($tile->changeText)->toBe('−50.0%')
+        ->and($tile->changeDirection)->toBe(ChangeDirection::Down);
+});
+
+it('reads a first range with nothing before it as new', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    placedOn($this->paidFulfillmentFor($seller, priceCents: 10000), '2026-08-25 10:00:00');
+
+    $tiles = overviewTiles($seller);
+
+    expect(overviewTile($tiles, 'Orders')->changeText)->toBe('new')
+        ->and(overviewTile($tiles, 'Orders')->changeDirection)->toBe(ChangeDirection::Flat)
+        ->and(overviewTile($tiles, 'Earnings')->changeText)->toBe('new')
+        ->and(overviewTile($tiles, 'Earnings')->changeDirection)->toBe(ChangeDirection::Flat);
+});
+
+it('reads the earnings net against the net of the range before it', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter']), priceCents: 30000), '2026-08-25 10:00:00');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley']), priceCents: 10000), '2026-07-20 10:00:00');
+
+    $tile = overviewTile(overviewTiles($seller), 'Earnings');
+
+    expect($tile->value)->toBe('$270.00')
+        ->and($tile->changeText)->toBe('+200.0%')
+        ->and($tile->changeDirection)->toBe(ChangeDirection::Up);
+});
+
+it('reads a range earning the same as the one before it as level', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter']), priceCents: 10000), '2026-08-25 10:00:00');
+    placedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley']), priceCents: 10000), '2026-07-20 10:00:00');
+
+    $tile = overviewTile(overviewTiles($seller), 'Earnings');
+
+    expect($tile->changeText)->toBe('0.0%')
+        ->and($tile->changeDirection)->toBe(ChangeDirection::Flat);
 });

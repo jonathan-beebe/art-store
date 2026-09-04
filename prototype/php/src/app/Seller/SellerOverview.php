@@ -82,8 +82,12 @@ final readonly class SellerOverview
      */
     private function customersTile(): OverviewTile
     {
-        $arrivals = $this->arrivalsByDay();
-        $newInRange = array_sum($this->over($arrivals, $this->range));
+        // The figure is the customers table's own rule; the day fold below
+        // it is only the shape of the line.
+        $newInRange = count(array_filter(
+            $this->customers,
+            fn (CustomerRow $customer): bool => $customer->isNewSince($this->range->start),
+        ));
 
         return new OverviewTile(
             icon: FeedIcon::Users,
@@ -91,7 +95,7 @@ final readonly class SellerOverview
             value: number_format(count($this->customers)),
             changeText: '+'.number_format($newInRange).' new',
             changeDirection: $newInRange > 0 ? ChangeDirection::Up : ChangeDirection::Flat,
-            sparkline: $this->sparkline($arrivals),
+            sparkline: $this->sparkline($this->arrivalsByDay()),
             footerLabel: 'View customers',
             footerNote: number_format($newInRange).' new in '.$this->range->days.' days',
             href: route('seller.customers.index', ['range' => $this->range->days]),
