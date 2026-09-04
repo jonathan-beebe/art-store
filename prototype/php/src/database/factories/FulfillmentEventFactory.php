@@ -42,8 +42,10 @@ class FulfillmentEventFactory extends Factory
 
     /**
      * The seller of the fulfillment this event belongs to.
+     *
+     * @return string|Factory<Seller>
      */
-    private function sellerOf(mixed $fulfillmentId): mixed
+    private function sellerOf(mixed $fulfillmentId): string|Factory
     {
         $fulfillment = is_string($fulfillmentId) ? Fulfillment::query()->find($fulfillmentId) : null;
 

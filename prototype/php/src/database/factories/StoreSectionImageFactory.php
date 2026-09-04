@@ -32,13 +32,15 @@ class StoreSectionImageFactory extends Factory
 
     /**
      * A picture of the profile this section belongs to.
+     *
+     * @return Factory<StoreImage>
      */
-    private function imageOf(mixed $sectionId): mixed
+    private function imageOf(mixed $sectionId): Factory
     {
         $section = is_string($sectionId) ? StoreSection::query()->find($sectionId) : null;
 
         return $section instanceof StoreSection
-            ? StoreImage::factory()->create(['store_profile_id' => $section->store_profile_id])->id
+            ? StoreImage::factory()->state(['store_profile_id' => $section->store_profile_id])
             : StoreImage::factory();
     }
 }

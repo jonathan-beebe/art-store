@@ -36,8 +36,10 @@ class FulfillmentFlowStepFactory extends Factory
 
     /**
      * The seller of the flow this step belongs to.
+     *
+     * @return string|Factory<Seller>
      */
-    private function sellerOf(mixed $flowId): mixed
+    private function sellerOf(mixed $flowId): string|Factory
     {
         $flow = is_string($flowId) ? FulfillmentFlow::query()->find($flowId) : null;
 

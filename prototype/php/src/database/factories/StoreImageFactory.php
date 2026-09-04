@@ -33,8 +33,10 @@ class StoreImageFactory extends Factory
 
     /**
      * The seller of the profile this picture belongs to.
+     *
+     * @return string|Factory<Seller>
      */
-    private function sellerOf(mixed $profileId): mixed
+    private function sellerOf(mixed $profileId): string|Factory
     {
         $profile = is_string($profileId) ? StoreProfile::query()->find($profileId) : null;
 
