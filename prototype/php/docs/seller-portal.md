@@ -399,3 +399,95 @@ the optional `quote` and `link`. `FeedIcon` carries the heroicon path, so a
 row brings its own picture and `x-seller.feed` stays a renderer — the only
 feed markup in the portal, in the Tailwind Plus feed shape: a 32px round icon
 on a rail, the body, the instant.
+
+## Customers
+
+Question: a seller wants to know who buys from them. Where does that list
+come from, given no table holds it — and what does a seller get to see about
+a person?
+
+A customer is a buyer. Someone holding at least one live fulfillment with
+the seller is on the list; browsing, favoriting, and asking about a piece
+are not what put them there. The list is derived on every request from
+`fulfillments`, never stored.
+
+```mermaid
+flowchart LR
+    F["fulfillments\nseller, status is live"] --> T["totals per buyer\norders · spent · first · last"]
+    T --> R["CustomerRow"]
+    C["customers"] --> R
+    FAV["favorites\njoined to the seller's listings"] --> R
+    CON["conversations\nseller ↔ buyer"] --> R
+    R --> S["CustomerSegment · CustomerTableSort"]
+    R --> TA["CustomerTally"]
+```
+
+A declined or refunded parcel settled its money back, so it makes nobody a
+customer and counts toward nothing here. A buyer whose only parcel was
+declined drops off the list and their page answers 404.
+
+### Privacy
+
+A seller sees a customer's name and email because an order carried them.
+That is the whole permission: `GET /seller/customers/{customer}` answers
+404 for anyone who has never bought from this seller, so a visitor who
+favorited a piece or asked a question has no page a seller can open. The
+name is the account's own where it has one, and the latest order's
+`shipping_name` where it does not — the same fall-back for the email.
+
+### Query vocabulary
+
+`App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
+routes read, the `docs/alignment.md` §5 idiom: an absent or emptied value
+reads as its default, an unrecognised one answers a bare 400.
+
+| Param     | Values                                                                   | Default | Read by         |
+| --------- | ------------------------------------------------------------------------ | ------- | --------------- |
+| `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
+| `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
+| `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` | the index route |
+| `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
+| `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
+
+`range` is what "new this period" means: a buyer is new when their first
+order falls inside the window. The four figures above the table count every
+buyer whatever the segment shows, so switching segments never moves them.
+
+### Layers
+
+```mermaid
+flowchart TB
+    controller["Http\\Controllers\\Seller\\{CustomerController,CustomerMessageController}"] --> customers["Seller\\SellerCustomers"]
+    controller --> chrome["Seller\\{CustomersChrome,FeedFilters}"]
+    controller --> reader["Seller\\ActivityFeedReader"]
+    customers --> domain["Domain\\Seller\\{CustomerRow,CustomerSegment,CustomerSort,CustomerSortColumn,CustomerTableSort,CustomerTally}"]
+    chrome --> domain
+```
+
+`SellerCustomers::forSeller()` reads the seller's live parcels once and
+folds them per buyer, then joins the account rows, the favorites, and the
+thread counts by id in PHP — five queries, whatever the number of buyers.
+`forCustomer()` is the same fold narrowed to one person, and hands back
+null for a stranger; the customer page, the Message button, and the thread
+rail all read it. `conversationCounts()` is the two thread figures the
+tiles carry.
+
+Sorting is a link carrying `aria-sort`, `App\Seller\ColumnHeader` per
+column through `x-seller.sortable-th`; a click on the sorted column flips
+`dir` (`CustomerSort::nextDirectionFor()`). The segment control and the
+timeline's kind filter are the same `x-seller.segmented` over
+`App\Seller\SegmentLink`, built by `CustomersChrome` and `FeedFilters`.
+
+### The customer page
+
+Identity (name, email, customer since, a Repeat buyer badge from two
+orders), four figures, the activity feed under its kind filter
+(`ActivityFeedReader` over `FeedScope::forCustomer()`), every parcel
+between the two of them — a declined or refunded one included, which the
+figures leave out and the seller still has to be able to look back at —
+their favorites of this seller's pieces, and their threads.
+
+Message opens the buyer's newest thread with this seller, and, for a buyer
+they have never written to, opens the thread for the buyer's latest parcel
+through `App\Actions\Messaging\OpenConversation` — the subject the two of
+them already share, so no new kind of conversation exists for it.
