@@ -23,8 +23,6 @@ use Illuminate\Database\Seeder;
  */
 class FulfillmentFlowSeeder extends Seeder
 {
-    private const string CARRIER = 'Owl Post';
-
     public function run(): void
     {
         $saveFlow = app(SaveFulfillmentFlow::class);
@@ -57,8 +55,8 @@ class FulfillmentFlowSeeder extends Seeder
                 actorType: ActorType::Seller,
                 actorId: $seller->id,
                 occurredAt: $shippedAt->modify('-4 hours'),
-                carrier: self::CARRIER,
-                trackingNumber: 'OP '.mb_substr($fulfillment->id, -8),
+                carrier: $fulfillment->carrier ?? 'Owl Post',
+                trackingNumber: $fulfillment->tracking_number ?? mb_substr($fulfillment->id, -8),
             ));
         }
     }
