@@ -85,3 +85,77 @@ passed). Left out: nothing from the ticket's outcome list. Open question for
 a later lane: the "This period" bars use the existing hand-rolled percentage
 idiom rather than `App\Domain\Analytics\BarStrip`, since that helper assumes
 non-negative counts and a period's net can run negative.
+
+### Review pass
+
+The coordinator's review found six money-correctness defects and one
+missing acceptance bullet, fixed on the same branch:
+
+1. **Unpaid orders were counted.** A `Fulfillment` row is written at
+   `awaiting_shipment` the moment `PlaceOrder` runs, before a card is ever
+   charged (`FinalizeOrder` writes the `held` ledger entry, not
+   `PlaceOrder`). `EarningsPeriods`, `PeriodSales`, and `HeldEscrow` all read
+   fulfillments without checking the order behind them had paid — an order
+   stuck at `awaiting_payment` or `payment_failed` showed up as a sale and as
+   held escrow. Fixed with a new `Order::hasBeenPaid` scope (and a
+   `paidStatuses()` list a `whereHas` closure can reach as a plain
+   `whereIn`, since Larastan does not resolve a custom scope called inside
+   one), wired into all three. Tests: an unpaid order asserted absent from
+   `EarningsPeriodsTest`, `PeriodSalesTest`, and `HeldEscrowTest`.
+2. **`PeriodFigures::net()` double-subtracted a same-period refund.** Sales
+   were live-status-filtered (a declined sale contributed nothing) and the
+   refund was then also subtracted, so a sale refunded in its own period
+   read as a net loss the ledger never took. Sales and fees are now gross —
+   every paid order placed that period, whatever its current status — and a
+   refund nets itself back out through `refunds`, dated by when it
+   happened. A same-period refund now reads `net() === 0`, matching the
+   ledger; a later-period refund leaves the sale's own period's sales and
+   fees untouched and lands the refund in the period it happened in
+   instead. This also made `orderCount` and `sales`/`fees` describe the
+   same population, so `SaleFact.isLive` is gone.
+3. **`HeldEscrow`'s list and total could diverge.** The list read every
+   `awaiting_shipment`/`shipped` fulfillment; the total read the ledger
+   fold. An unpaid order's fulfillment appeared in the list (net > 0) but
+   not in the fold's `held` (no `held` entry was ever written), so the two
+   would not reconcile. Fixed by the same paid-order constraint; a new test
+   sums the rows and asserts the sum equals `$total`.
+4. **The acceptance bullet for a sales-change comparison was missing.**
+   `PeriodFigures::salesChange()` reuses `App\Domain\Analytics\RangeChange`
+   against a given previous period; `EarningsPeriods::currentSalesChange()`
+   composes it against the period right before the current one. The
+   earnings page's Sales tile shows it, colored by direction.
+5. **A negative period's bar looked identical to a positive one.** Bar
+   height was `abs(net)`, so a loss period read as tall as a gain. Bars for
+   a negative net now tint red and carry an `sr-only` label naming the
+   period, its net, and "a net loss".
+6. **A Sunday delivery could count toward two payouts.** `NextPayout`
+   compared `delivered_at > $payout->period_end`, and `period_end` is a
+   `date` cast — midnight of the settled period's last day — so a delivery
+   later that same Sunday (still inside the settled period) read as
+   "since the last payout" a second time. Fixed with
+   `$payout->period_end->endOfDay()`; `NextPayoutTest` covers a Sunday
+   delivery through a payout run.
+
+Also fixed, not money-correctness but flagged in the same pass:
+
+- `FulfillmentStatus::sellerBadgeTint()` replaces the same
+  status-to-tint `match` block duplicated in `orders/show.blade.php`,
+  `earnings.blade.php`, and `earnings/statement.blade.php`.
+- `EarningsControllerTest`'s "shows this period's sale" test passed even
+  with the sales table deleted, since the same dollar amounts print
+  elsewhere on the page — rewritten to assert the row's item title and its
+  order link, using a delivered fulfillment so it cannot also be read from
+  the held-in-escrow list. Added a page test for the "Carried balance"
+  badge (a refund after payout, driving `available` negative) and a
+  statement test that reconciles its displayed figures with the seller's
+  own ledger fold.
+- `PeriodPayoutStatus::Pending` was unreachable (`payouts.paid_at` is
+  `NOT NULL`; `RunWeeklyPayout` always sets it at creation) — removed, with
+  its branch in both blade files and its test.
+- `EarningsController`/`StatementController` read
+  `Illuminate\Support\Facades\Date::now()` directly; every other controller
+  reads the shared `Controller::now()` — caught while fixing FEAT-061's
+  `SupportController` and fixed here too.
+
+Gate after the review pass: `make check` green (lint → assets → the
+coverage-gated suite, 4144 tests passed).

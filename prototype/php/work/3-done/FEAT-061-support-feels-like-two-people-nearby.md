@@ -74,3 +74,46 @@ Gate: `make precommit` green (composer lint:all + composer test, 4126
 passed). Left out: nothing from the ticket's outcome list. The "Yes" half
 of an article's "did this answer it?" pair has no tracking behind it (not
 asked for) — it returns to the support hub, same as a completed loop.
+
+### Review pass
+
+Copy and hygiene fixes from the coordinator's review, on the same branch:
+
+- **`getting-paid.md` claimed behavior the app does not have.** Removed
+  "seven days after the carrier marks the parcel delivered" (release is on
+  buyer confirmation only, no timer), "the account on your Earnings page"
+  (there is no payout-account field), and the shipping-charge pass-through
+  sentence (checkout carries no separate shipping charge).
+- **`listings.md`** dropped "within a minute" — publishing puts a listing
+  live; timing it is not a claim this article can back.
+- **`shipping.md`** describes the flow-step label action, the carrier and
+  tracking it records, and the activity feed — FEAT-051/052/053 build these
+  in sibling lanes of the same `php/seller-portal-next` integration branch.
+  Rephrased to name a flow's label step specifically — the current seller
+  order page has no bare "Print label" button.
+  **MAINT-008 should re-read this article once those lanes have merged**,
+  since its exact step names and the activity feed's own wording are set
+  there, not here.
+- **The booking URL rendered as a live, broken link while still a
+  placeholder.** `support/index.blade.php` now renders `[BOOKING URL]` as
+  plain text, the same way the phone number already did, and only wraps it
+  in an `<a href>` once it stops looking like `[...]`. Tested.
+- **`HelpArticles` cached in a `static` property with no reset.** A long-
+  lived process (or a test worker reusing the class across cases) would
+  keep serving the first-read parse forever. Converted to an instance
+  cache, resolved by the two controllers through the container.
+- **`SupportThreads` handed Eloquent `Conversation` models to the view.**
+  The blade called `$thread->status()` and `$thread->latestMessage?->body`
+  directly. `SupportThreads::for()` now returns
+  `list<App\Domain\Seller\SupportThreadRow>` — id, title, preview,
+  `isResolved` — computed in the adapter.
+- **Two tests hardcoded the seeded admins' real names.** `SupportDeskTest`
+  and `SupportControllerTest` now assert against
+  `AdminSeeder::ADMINS[…]['name']` and `config('support.role')`.
+- Removed the new docblocks' "X rather than Y" clauses across
+  `PeriodFigures`, `SaleFact`, `RefundFact`, `ReplyTime`, `DeskPerson`,
+  `HelpArticles`, `EarningsPeriods`, `StatementController`, and
+  `config/support.php` — each restated as what is true, not what it isn't.
+
+Gate after the review pass: `make check` green (lint → assets → the
+coverage-gated suite, 4144 tests passed).

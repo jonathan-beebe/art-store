@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-03:23:21:49 — FEAT-060 — resolved: review pass fixed six money-correctness defects (unpaid orders counted, double-subtracted refunds, held list/total mismatch, missing sales-change bullet, unreadable negative bars, Sunday-delivery double count) plus badge-tint duplication and weak tests
+- 2026-09-03:23:21:49 — FEAT-061 — resolved: review pass fixed help-copy claims the app does not back, a live link to a bracketed placeholder, a static cache, Eloquent models handed to a view, and hardcoded admin names in tests
 - 2026-09-03:22:30:03 — FEAT-061 — resolved: Support feels like two people nearby
 - 2026-09-03:22:12:17 — FEAT-061 — doing: Support feels like two people nearby
 - 2026-09-03:22:03:02 — FEAT-060 — resolved: Earnings focuses on this period and the next payout
