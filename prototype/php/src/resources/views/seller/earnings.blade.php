@@ -2,12 +2,11 @@
     @php
         $current = $periods->current();
         $tallestNetCents = $periods->tallestNet()->cents;
-        $statusTint = fn (\App\Domain\Orders\FulfillmentStatus $status): string => match ($status) {
-            \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
-            \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
-            \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
-            \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
-            \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
+        $salesChange = $periods->currentSalesChange();
+        $salesChangeClass = match ($salesChange->direction) {
+            \App\Domain\Analytics\ChangeDirection::Up => 'text-green-600 dark:text-green-400',
+            \App\Domain\Analytics\ChangeDirection::Down => 'text-red-600 dark:text-red-400',
+            \App\Domain\Analytics\ChangeDirection::Flat => 'text-gray-500 dark:text-gray-400',
         };
     @endphp
 
@@ -75,7 +74,10 @@
 
     <h2 class="mt-8 text-sm/6 font-semibold text-gray-900 dark:text-white">This period</h2>
     <div class="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 sm:grid-cols-4 dark:bg-white/10 dark:ring-white/10">
-        <x-stat-tile accent="gray" label="Sales">{{ $current->sales->format() }}</x-stat-tile>
+        <x-stat-tile accent="gray" label="Sales">
+            {{ $current->sales->format() }}
+            <span class="ml-1 text-sm font-medium {{ $salesChangeClass }}">{{ $salesChange->text }}</span>
+        </x-stat-tile>
         <x-stat-tile accent="gray" label="Platform fees">{{ $current->fees->format() }}</x-stat-tile>
         <x-stat-tile accent="gray" label="Refunds">{{ $current->refunds->format() }}</x-stat-tile>
         <x-stat-tile accent="gray" label="Net to you">{{ $current->net()->format() }}</x-stat-tile>
@@ -87,13 +89,23 @@
             <p class="text-xs text-gray-500 dark:text-gray-400">Last eight periods, this one in progress</p>
             <div class="mt-4 flex h-40 items-end gap-1 border-b border-gray-200 dark:border-white/10">
                 @foreach ($periods->periods as $figures)
-                    @php $isCurrent = $figures === $current; @endphp
+                    @php
+                        $isCurrent = $figures === $current;
+                        $isNegative = ! $figures->net()->isPositive() && ! $figures->net()->isZero();
+                        $barColor = match (true) {
+                            $isNegative => 'bg-red-500 dark:bg-red-500',
+                            $isCurrent => 'bg-indigo-300 dark:bg-indigo-400',
+                            default => 'bg-indigo-600 dark:bg-indigo-500',
+                        };
+                    @endphp
                     <div class="flex h-full flex-1 flex-col items-center justify-end gap-1">
                         <div
                             title="{{ $figures->period->label() }}: {{ $figures->net()->format() }}"
-                            class="w-3/5 max-w-10 rounded-t {{ $isCurrent ? 'bg-indigo-300 dark:bg-indigo-400' : 'bg-indigo-600 dark:bg-indigo-500' }}"
+                            class="w-3/5 max-w-10 rounded-t {{ $barColor }}"
                             style="height: {{ max(6, (int) round(abs($figures->net()->cents) / $tallestNetCents * 100)) }}%"
-                        ></div>
+                        >
+                            <span class="sr-only">{{ $figures->period->label() }}: {{ $figures->net()->format() }}{{ $isNegative ? ', a net loss' : '' }}</span>
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -132,7 +144,7 @@
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->subtotal->format() }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->fee->format() }}</td>
                                     <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $row->net->format() }}</td>
-                                    <td class="px-4 py-2"><x-seller.status-badge :tint="$statusTint($row->status)">{{ $row->status->label() }}</x-seller.status-badge></td>
+                                    <td class="px-4 py-2"><x-seller.status-badge :tint="$row->status->sellerBadgeTint()">{{ $row->status->label() }}</x-seller.status-badge></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -171,8 +183,6 @@
                             <td class="px-4 py-2">
                                 @if ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::Paid)
                                     <x-seller.status-badge tint="green">Paid {{ $settlement->paidAt?->format('M j') }}</x-seller.status-badge>
-                                @elseif ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::Pending)
-                                    <x-seller.status-badge tint="yellow">Pending</x-seller.status-badge>
                                 @else
                                     <x-seller.status-badge tint="gray">No payout</x-seller.status-badge>
                                 @endif

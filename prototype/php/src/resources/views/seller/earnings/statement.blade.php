@@ -1,12 +1,3 @@
-@php
-    $statusTint = fn (\App\Domain\Orders\FulfillmentStatus $status): string => match ($status) {
-        \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
-        \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
-        \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
-        \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
-        \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
-    };
-@endphp
 <!DOCTYPE html>
 <html lang="en" class="h-full">
 <head>
@@ -33,8 +24,6 @@
                 <div class="text-right">
                     @if ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::Paid)
                         <x-seller.status-badge tint="green">Paid {{ $settlement->paidAt?->format('M j, Y') }}</x-seller.status-badge>
-                    @elseif ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::Pending)
-                        <x-seller.status-badge tint="yellow">Pending</x-seller.status-badge>
                     @elseif ($settlement->status === \App\Domain\Seller\PeriodPayoutStatus::InProgress)
                         <x-seller.status-badge tint="gray">Period in progress</x-seller.status-badge>
                     @else
@@ -93,7 +82,7 @@
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->subtotal->format() }}</td>
                                     <td class="px-4 py-2 text-right tabular-nums">{{ $row->fee->format() }}</td>
                                     <td class="px-4 py-2 text-right font-semibold tabular-nums text-gray-900 dark:text-white">{{ $row->net->format() }}</td>
-                                    <td class="px-4 py-2"><x-seller.status-badge :tint="$statusTint($row->status)">{{ $row->status->label() }}</x-seller.status-badge></td>
+                                    <td class="px-4 py-2"><x-seller.status-badge :tint="$row->status->sellerBadgeTint()">{{ $row->status->label() }}</x-seller.status-badge></td>
                                 </tr>
                             @endforeach
                         </tbody>

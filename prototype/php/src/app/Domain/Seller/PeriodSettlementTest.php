@@ -19,13 +19,7 @@ it('reads a completed period with no payout row as settled at zero', function ()
     expect($settlement->status)->toBe(PeriodPayoutStatus::None);
 });
 
-it('reads a payout row with no paid_at yet as pending', function (): void {
-    $settlement = PeriodSettlement::of(isCurrent: false, hasPayoutRow: true, paidAt: null);
-
-    expect($settlement->status)->toBe(PeriodPayoutStatus::Pending);
-});
-
-it('reads a payout row with paid_at as paid, and carries the date', function (): void {
+it('reads a payout row as paid, and carries its date', function (): void {
     $paidAt = new DateTimeImmutable('2026-08-24 06:00:00');
 
     $settlement = PeriodSettlement::of(isCurrent: false, hasPayoutRow: true, paidAt: $paidAt);
