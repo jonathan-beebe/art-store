@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:05:00:00 — FEAT-053 — started: Orders is lanes, a step-aware detail, and the activity feed
 - 2026-09-04:00:40:00 — FEAT-058 — reviewed: review-pass fixes on php/sp-store (hidden-store redirect disclosure, for-sale count, publicUrl, feed-row test, scoped OG tags)
 - 2026-09-04:00:40:00 — FEAT-057 — reviewed: review-pass fixes on php/sp-store (gallery order input, per-section error bags and old(), alt field, sentinel position, upload rollback, url scheme rule)
 - 2026-09-03:23:55:00 — FEAT-058 — resolved: A store has a public page and every listing card leads to it
