@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
-use App\Models\Admin;
-use App\Models\Seller;
 use Illuminate\Support\Facades\Config;
+use Symfony\Component\Finder\Finder;
 
 /**
  * A rendered page carries a `<script>` the production CSP (no
@@ -85,32 +84,29 @@ it('carries HSTS in production', function (): void {
     $this->get('/')->assertHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
 });
 
-it('IMPRV-030 renders the seller layout with no inline script under the production CSP', function (): void {
-    Config::set('app.debug', false);
-    $seller = Seller::factory()->create();
+it('IMPRV-030 has no blade view anywhere with a script tag lacking src', function (): void {
+    $offenders = [];
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller');
+    $finder = (new Finder)->in(resource_path('views'))->name('*.blade.php')->files();
 
-    $response->assertOk();
-    expect(pageCarriesAnInlineScript((string) $response->getContent()))->toBeFalse();
+    foreach ($finder as $file) {
+        if (pageCarriesAnInlineScript($file->getContents())) {
+            $offenders[] = $file->getRelativePathname();
+        }
+    }
+
+    expect($offenders)->toBe([]);
 });
 
-it('IMPRV-030 renders the listings index with no inline script under the production CSP', function (): void {
+it('IMPRV-030 carries no unsafe-inline for scripts in the production CSP', function (): void {
     Config::set('app.debug', false);
-    $seller = Seller::factory()->create();
 
-    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+    $csp = (string) $this->get('/')->headers->get('Content-Security-Policy');
 
-    $response->assertOk();
-    expect(pageCarriesAnInlineScript((string) $response->getContent()))->toBeFalse();
-});
-
-it('IMPRV-030 renders the admin layout with no inline script under the production CSP', function (): void {
-    Config::set('app.debug', false);
-    $admin = Admin::factory()->create();
-
-    $response = $this->actingAs($admin, 'admin')->get('/admin');
-
-    $response->assertOk();
-    expect(pageCarriesAnInlineScript((string) $response->getContent()))->toBeFalse();
+    // style-src's own 'unsafe-inline' (the theme's inline design tokens,
+    // SecurityHeaders' own doc comment) is the only occurrence allowed;
+    // production sets no script-src at all, so a second occurrence would
+    // mean one crept in.
+    expect(substr_count($csp, "'unsafe-inline'"))->toBe(1)
+        ->and($csp)->not->toContain('script-src');
 });
