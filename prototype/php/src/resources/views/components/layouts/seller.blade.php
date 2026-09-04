@@ -140,9 +140,9 @@
         </header>
 
         {{-- Off-canvas drawer (<lg only): a native <dialog>, opened by the
-             header's hamburger and closed by its own button, a click on the
-             backdrop area, or Escape (native <dialog> behavior — no JS
-             needed for that one). --}}
+             header's hamburger, closed natively by Escape, and closed by
+             nav-drawer.js from its own button or the flex-1 filler button
+             below that spans the backdrop area. --}}
         <dialog id="seller-nav-drawer" data-nav-drawer class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-gray-900/80 lg:hidden">
             <div class="flex h-full w-72 max-w-[calc(100%-4rem)] flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 dark:bg-gray-900">
                 <div class="flex h-16 shrink-0 items-center justify-between">

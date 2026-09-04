@@ -1,9 +1,10 @@
 // Opens the off-canvas nav drawer (the seller and admin layouts each carry
-// one, marked `data-nav-drawer`) from the header's hamburger button and
-// closes it from its own button, native Escape, or a click on the
-// backdrop area (native <dialog> behavior — no JS needed for that one).
-// The hamburger button renders regardless, so a browser with this file
-// blocked or absent shows it with no drawer behind it.
+// one, marked `data-nav-drawer`) from the header's hamburger button.
+// Escape closes it natively; its own button and the flex-1 filler button
+// that spans the backdrop area both carry `data-drawer-close`, so this one
+// wiring below closes it from either. The hamburger button renders
+// regardless, so a browser with this file blocked or absent shows it with
+// no drawer behind it.
 (function () {
     var drawer = document.querySelector('[data-nav-drawer]');
     if (drawer === null) return;
