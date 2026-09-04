@@ -7,9 +7,8 @@ namespace App\Seller;
 use App\Analytics\AnalyticsReport;
 use App\Analytics\ListingEventCounts;
 use App\Domain\Analytics\AnalyticsRange;
-use App\Domain\Orders\FulfillmentStatus;
-use App\Domain\Orders\OrderStatus;
 use App\Domain\Seller\ListingTableRow;
+use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
 use App\Models\OrderItem;
@@ -17,7 +16,6 @@ use App\Models\Seller;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 use LogicException;
 
@@ -140,9 +138,9 @@ final class ListingTable
 
     /**
      * How many units of each of `$listingIds` sold, and for how much: order
-     * items on a paid order whose fulfillment is still live — declined and
-     * refunded fulfillments settled their money back, so they no longer
-     * count as a sale.
+     * items riding on a fulfillment {@see Fulfillment::counted()} counts —
+     * a declined or refunded fulfillment settled its money back, so it no
+     * longer counts as a sale.
      *
      * @param  list<string>  $listingIds
      * @return array<string, array{sold: int, revenueCents: int}> listing id => totals
@@ -153,22 +151,15 @@ final class ListingTable
             return [];
         }
 
-        $paidStatuses = array_values(array_filter(
-            OrderStatus::cases(),
-            fn (OrderStatus $status): bool => $status->hasBeenPaid(),
-        ));
-
         $items = OrderItem::query()
             ->where('seller_id', $sellerId)
             ->whereIn('listing_id', $listingIds)
-            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', $paidStatuses))
-            ->whereExists(function (QueryBuilder $query): void {
-                $query->selectRaw('1')
-                    ->from('fulfillments')
+            ->whereExists(
+                Fulfillment::query()
+                    ->counted()
                     ->whereColumn('fulfillments.order_id', 'order_items.order_id')
-                    ->whereColumn('fulfillments.seller_id', 'order_items.seller_id')
-                    ->whereNotIn('fulfillments.status', [FulfillmentStatus::Declined->value, FulfillmentStatus::Refunded->value]);
-            })
+                    ->whereColumn('fulfillments.seller_id', 'order_items.seller_id'),
+            )
             ->get(['listing_id', 'quantity', 'unit_price_cents', 'price_breakdown_json']);
 
         $totals = [];
