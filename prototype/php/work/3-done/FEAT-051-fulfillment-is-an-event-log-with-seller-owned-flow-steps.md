@@ -1,7 +1,7 @@
 ---
 id: FEAT-051
 type: feature
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -38,3 +38,94 @@ Orders are where a seller's day happens. Today the portal can only say "not ship
 - FEAT-004 (seller portal for listings, activity, fulfillment, and earnings)
 - docs/alignment.md §4 (transaction lifecycle) — the status machine stays the contract
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Orders lanes, order detail)
+
+## Working
+
+### Schema
+
+Four migrations (`2026_09_04_000100..000103`): `fulfillment_flows` (`ffl_`),
+`fulfillment_flow_steps` (`ffs_`, unique on `(flow, key)` and
+`(flow, position)`), `fulfillment_events` (`fev_`, unique on
+`(fulfillment_id, fulfillment_flow_step_id)`), and a nullable
+`listings.fulfillment_flow_id`.
+
+Two decisions past the accepted ERD:
+
+- `fulfillment_events.step_label` — the step's words copied onto the row.
+  The alternative was `restrictOnDelete`, which would stop a seller tidying
+  a step they had ever completed. With the copy the foreign key nulls out
+  and the log still reads. It also spares FEAT-052's shipping source a join.
+- `fulfillment_events.actor_type` casts to `App\Domain\Auth\ActorType`
+  (seller | customer | admin). The ERD names `system` as a fourth value; no
+  writer produces one, so the enum was left as it is.
+
+The unique index on `(fulfillment_id, fulfillment_flow_step_id)` is what
+makes "a step cannot be completed twice" a database fact. Transition rows
+name no step, and a unique index counts each null as its own value, so they
+sit outside it.
+
+### Core
+
+`App\Domain\Fulfillment`: `FlowStepAction`, `FulfillmentEventKind`,
+`FlowStep`, `FlowStepDraft`, `DefaultFlow`, `NewFulfillmentEvent`,
+`FulfillmentProgress`, `FulfillmentLane`. `FulfillmentProgress::of()` takes
+the flow as it stands now plus the completed step ids, so an event naming a
+removed step leaves the remaining steps where they were.
+
+`NewFulfillmentEvent` is the pairing guard: a transition names no step, a
+label step carries a carrier and a tracking number, and every other step
+carries neither. Those three rules are unit tested with no database.
+
+### Writers
+
+`AppendFulfillmentEvent` is the one writer of the table. `MarkShipped`,
+`ConfirmDelivered`, `DeclineFulfillment`, and `RefundFulfillment` each call
+it inside the transaction that writes `fulfillments.status`.
+`CompleteFlowStep` takes the fulfillment for update, refuses a status past
+`awaiting_shipment` and a step that is not the one in front, then appends.
+`SaveFulfillmentFlow` rewrites a seller's default flow from their form,
+keeping rows the form names by id and parking surviving positions on
+negatives while it refills from zero — the `ReorderDescriptionSection`
+sentinel idiom, because SQLite judges `(flow, position)` row by row.
+
+### Surface
+
+`GET/PUT /seller/orders/flow` (declared before `orders/{fulfillment}` so the
+path is not read as an id), `POST /seller/orders/{fulfillment}/steps/{step}`,
+`GET /seller/orders/{fulfillment}/label`. The order page grows a flow-steps
+section above Shipment, rendered by `x-seller.flow-steps` so FEAT-053 can
+place the same component in the orders workspace.
+
+Reordering has no JavaScript: each row carries a number, and the request
+sorts the drafts by it. A ticked Remove drops a row; a blank label drops the
+trailing "add a step" row.
+
+### Left out, and why
+
+- No `Story` line for step completion or the flow editor. `docs/alignment.md`
+  §2.3 closes the event vocabulary: "a write with no event above stays
+  silent". `fulfillment.step` and a flow-editor event are candidates for
+  MAINT-008 to add to the contract; until then the appended row is the
+  record.
+- No alignment.md edit. ARCHITECTURE § "Contract changes" gives the prefixes
+  and the §4 additions to MAINT-008.
+- No bare 400. `docs/alignment.md` §5's 400 is for query parameters, and
+  FEAT-051 introduces none; the flow form's `action` select is a closed
+  vocabulary refused by `Rule::enum` with the codebase's form idiom (errors
+  flashed back), and a step or fulfillment that is not the seller's is 404.
+- No listing-level flow picker. `listings.fulfillment_flow_id` exists and
+  `Fulfillment::flowInEffect()` reads it; the editor edits the seller's
+  default flow, which is the route the architecture names.
+- `Fulfillment::lane()` and `progress()` read per fulfillment. A lane count
+  over a list is FEAT-053's, and will want one grouped query.
+
+### Guardrails the change had to teach
+
+- `OwnershipRoutesTest` needed an owned-by-another-seller value for the new
+  `{step}` parameter; without it the route table's new row would have gone
+  unguarded.
+- `DatabaseSeederTest` counts the seeders; the count moved from 11 to 12.
+
+### Gate
+
+`make precommit` green: 4182 passed, 33628 assertions.

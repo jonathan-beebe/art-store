@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-03:22:15:00 — FEAT-051 — resolved: fulfillment flows, steps, and an append-only event log; every transition appends its event; seller flow editor, step completion, and the label page
+- 2026-09-03:21:26:32 — FEAT-051 — started: Fulfillment is an event log with seller-owned flow steps
 - 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
 - 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout
