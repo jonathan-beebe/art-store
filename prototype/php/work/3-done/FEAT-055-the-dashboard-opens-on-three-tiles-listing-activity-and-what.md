@@ -145,7 +145,50 @@ Data.
   `FulfillmentStatus::sellerBadgeTint()` exactly, so both read the enum now
   and its docblock names both portals.
 
+### Review pass
+
+Review came back "merge after fixes". Twelve, in five commits.
+
+Three that changed behavior:
+
+- **The held row opened the wrong list.** It counts every
+  awaiting-shipment and shipped parcel and linked `?lane=progress`, which
+  leaves out the parcels nobody has started. It opens the earnings page's
+  own held section (`#held-heading`) now.
+- **To ship ordered by `fulfillments.created_at`** while the row's age and
+  its urgency read `orders.placed_at`. It joins orders and reads oldest by
+  `placed_at`, then `fulfillments.id`. `Fulfillment::inLane()` now names
+  `fulfillments.status` — `orders` carries a `status` column, so the lane
+  rule was ambiguous under that join. A test places two parcels in the
+  reverse of their insertion order.
+- **The customers tile re-derived "new in the range"** by folding days and
+  summing. It reads `CustomerRow::isNewSince()`, the customers table's own
+  rule, so the docs claim the two agree is true. The day fold stays as the
+  shape of the line.
+
+Nine smaller:
+
+- `HeldEscrow::tallyFor()` answers the ledger fold and one count, so the
+  focus row stops hydrating every held parcel for two scalars. The page
+  drops from 37 queries to 35.
+- `App\Support\RelativeTime` moved to `App\Domain\Support\RelativeTime`
+  — `ParcelState` reads it, so it belongs in the core — and `App\Support`
+  joined the domain-purity ban in `tests/Arch.php`.
+- `x-admin.analytics.bar-strip` became `x-bar-strip`: three surfaces read
+  it. Its sidecar joined the other anonymous-component tests under
+  `app/View/Components`.
+- The Sold column heads "Sold, last N days" like the strip column, since
+  the listings table's Sold is all-time.
+- The top-five row links carry `range`.
+- `AttentionQueue` is `final readonly`.
+- `SellerOverviewTest` pins changeText and changeDirection on the Orders
+  and Earnings tiles with parcels in both windows — up, down, level, and
+  the "new" of a first range.
+- Two test names: one dropped a banned clause, one stopped shadowing its
+  neighbour.
+- Generated buyer and piece names became two fixed Harry Potter lists.
+
 ### The gate
 
-`make check` green: lint (Pint + PHPStan, no errors), assets built, 5,164
-tests, 99.5% coverage against a 95% floor.
+`make check` green after the review pass: lint (Pint + PHPStan, no
+errors), assets built, 5,175 tests, 99.5% coverage against a 95% floor.
