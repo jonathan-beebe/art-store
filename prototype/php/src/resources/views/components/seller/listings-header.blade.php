@@ -13,14 +13,13 @@
     includes this header more than once in one response passes `false`
     on every copy but one, so the dialog's id never repeats.
 --}}
-@php($asHeading ??= true)
-@php($withNewListingDialog ??= true)
+@props(['listingsTotal', 'chrome', 'asHeading' => true, 'withNewListingDialog' => true])
 
 <div class="flex shrink-0 flex-wrap items-center gap-4 border-b border-gray-200 px-8 py-4 dark:border-white/10">
     @if ($asHeading)
-        <h1 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</h1>
+        <h1 data-listings-title class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</h1>
     @else
-        <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</p>
+        <p data-listings-title class="text-sm font-semibold text-gray-900 dark:text-gray-100">Listings</p>
     @endif
     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $listingsTotal }}</span>
 

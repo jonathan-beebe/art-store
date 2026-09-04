@@ -2,7 +2,7 @@
     <x-slot:mobileTitle>{{ $listing->title }}</x-slot:mobileTitle>
 
     <div class="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
-        @include('seller.listings._header')
+        <x-seller.listings-header :listings-total="$listingsTotal" :chrome="$chrome" />
 
         <div class="min-h-0 flex-1 overflow-hidden">
             <x-seller.list-detail mobile="detail">

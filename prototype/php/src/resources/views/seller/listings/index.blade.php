@@ -1,6 +1,6 @@
 <x-layouts.seller title="Listings — Art Store seller" :bleed="true">
     <div class="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
-        @include('seller.listings._header')
+        <x-seller.listings-header :listings-total="$listingsTotal" :chrome="$chrome" />
 
         <div class="min-h-0 flex-1 overflow-hidden">
             @if ($chrome->view === \App\Domain\Seller\ListingView::List)

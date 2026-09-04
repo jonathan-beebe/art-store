@@ -24,6 +24,8 @@
         "pestphp/pest": "^4.7",
         "pestphp/pest-plugin-laravel": "^4.1",
         "phpunit/phpunit": "^12.5.12",
+        "symfony/css-selector": "^7.4",
+        "symfony/dom-crawler": "^7.4",
         "tomasvotruba/cognitive-complexity": "^1.2"
     },
     "autoload": {
