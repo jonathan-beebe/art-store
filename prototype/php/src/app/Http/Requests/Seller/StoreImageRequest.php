@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Actions\Store\StartStore;
 use App\Domain\Store\StorePictureRole;
 use App\Models\Seller;
 use App\Models\StoreProfile;
@@ -74,12 +75,18 @@ final class StoreImageRequest extends FormRequest
         return is_string($alt) && trim($alt) !== '' ? trim($alt) : null;
     }
 
+    /**
+     * The seller's store, minted on first reach the same way
+     * {@see \App\Http\Controllers\Seller\StoreController::show()} mints it —
+     * a POST to this route can be the first one, if a seller uploads a
+     * picture before their first `GET /seller/store`.
+     */
     public function storeProfile(): StoreProfile
     {
         $seller = $this->user('seller');
 
         return $seller instanceof Seller
-            ? $seller->storeProfile()->firstOrFail()
+            ? app(StartStore::class)($seller)
             : throw new RuntimeException('The store image routes run behind the auth.seller middleware.');
     }
 }

@@ -9,6 +9,18 @@ use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use Illuminate\Http\UploadedFile;
 
+it('mints the store on a first POST, before any GET /seller/store', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('portrait.jpg'),
+        'role' => StorePictureRole::Portrait->value,
+    ]);
+
+    $response->assertRedirect(route('seller.store.show'));
+    expect($seller->storeProfile()->exists())->toBeTrue();
+});
+
 it('refuses a file type other than jpeg, png, webp, or gif', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $this->actingAs($seller, 'seller')->get('/seller/store');
