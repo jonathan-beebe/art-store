@@ -1,7 +1,7 @@
 ---
 id: FEAT-060
 type: feature
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -34,3 +34,54 @@ Money is the question a seller asks most and the one the current page answers le
 - FEAT-051 (for the held rows' state line)
 - docs/escrow.md (hold → release → payout)
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Earnings)
+
+## Working
+
+Pure domain (`App\Domain\Seller`): `PayoutEstimate` (amount straight from
+`LedgerBalance::available`, payout date the Monday after the period `$now`
+falls in), `HeldState` (`shipped_at` alone, per the discovery note — FEAT-051
+not depended on), `HeldOrder`, `SaleFact`/`RefundFact`/`PeriodFigures`
+(bucketing sales, live-filtered fees, and refunds into a list of periods),
+`PeriodSettlement`/`PeriodPayoutStatus` (a completed period with no `payouts`
+row reads as settled at zero, matching `RunWeeklyPayout`'s "no row when not
+payable" rule), `PeriodSaleRow`. Added `PayoutPeriod::containing()` and
+`::previous()` to the existing escrow domain class rather than duplicating
+week arithmetic.
+
+Adapters (`App\Seller`): `NextPayout`, `HeldEscrow` (total from the ledger
+fold, not summed from its own rows, so it always reconciles), `EarningsPeriods`
+(an eight-period window ending with the period in progress), `PeriodSales`
+(every order placed in a period, any status — backs both the current
+period's table and the statement).
+
+`EarningsController` rewritten around these; new `StatementController` +
+`resources/views/seller/earnings/statement.blade.php`, a standalone
+print-friendly page (its own `<html>`, not the seller chrome) with a
+`print()` trigger in `public/statement-print.js` rather than an inline
+`onclick` — the CSP locks `script-src` to `'self'` outside debug
+(`SecurityHeaders`), so an inline handler would silently no-op in
+production. Same reasoning replaced an inline-`onclick` row-click table
+idiom with a plain link in the cell.
+
+`routes/seller.php`: `earnings` unchanged; added
+`earnings/statements/{period}`. First cut constrained `{period}` with a
+route-level regex, which broke `GuardedRoutesTest`'s generic sweep (it
+substitutes a bare `1` for every route parameter) — dropped the constraint
+since the controller already 404s on any string matching no period in the
+window, malformed or not.
+
+Two existing tests needed small follow-on fixes, not scope creep: pint's
+`strict_comparison` rule turned an intentional `==` on two `DateTimeImmutable`
+values into `===`, which would have compared instances rather than values —
+resolved by comparing the `PeriodFigures` instances themselves, which are
+never rebuilt from scratch, so identity comparison is exactly right. Removing
+`tracking-tight` from the earnings page's two hero figures kept them out of
+`StatTileTest`'s cross-page scan for the shared stat-tile idiom, since they
+are a different, single hero number rather than a member of the four-tile
+grid.
+
+Gate: `make precommit` green (composer lint:all + composer test, 4086
+passed). Left out: nothing from the ticket's outcome list. Open question for
+a later lane: the "This period" bars use the existing hand-rolled percentage
+idiom rather than `App\Domain\Analytics\BarStrip`, since that helper assumes
+non-negative counts and a period's net can run negative.

@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-03:22:03:02 — FEAT-060 — resolved: Earnings focuses on this period and the next payout
+- 2026-09-03:21:29:56 — FEAT-060 — doing: Earnings focuses on this period and the next payout
 - 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
 - 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout
