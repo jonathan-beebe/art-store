@@ -49,6 +49,17 @@ final readonly class SupportDesk
     }
 
     /**
+     * A configured desk fact, published for a seller to read — null while
+     * it still carries its bracketed placeholder or is blank
+     * (config/support.php's own comment: "a fact not known yet keeps its
+     * bracketed placeholder").
+     */
+    public static function published(?string $value): ?string
+    {
+        return $value === null || $value === '' || str_starts_with($value, '[') ? null : $value;
+    }
+
+    /**
      * The gap between the seller's most recent message to the desk, across
      * every support thread, and the desk's first reply after it — null
      * while that message is still unanswered, or while the seller has never

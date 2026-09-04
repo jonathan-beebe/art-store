@@ -33,21 +33,16 @@
         <section aria-labelledby="other-ways-heading" class="flex flex-col gap-4 rounded-lg border border-gray-200 bg-white p-6 lg:col-span-2 dark:border-white/10 dark:bg-gray-900">
             <h2 id="other-ways-heading" class="text-sm/6 font-semibold text-gray-900 dark:text-white">Other ways to reach us</h2>
             @php
-                // A config value not yet set carries its bracketed
-                // placeholder (config/support.php's own comment); an
-                // operator can also leave the env var blank. Either way
-                // it renders as plain text below, never as a link or a
-                // number that reads as real.
-                $isUnset = fn (?string $value): bool => $value === null || $value === '' || str_starts_with($value, '[');
-                $email = config('support.email');
-                $phone = config('support.phone');
-                $bookingUrl = config('support.booking_url');
+                $email = \App\Seller\SupportDesk::published(config('support.email'));
+                $phone = \App\Seller\SupportDesk::published(config('support.phone'));
+                $phoneHours = \App\Seller\SupportDesk::published(config('support.phone_hours'));
+                $bookingUrl = \App\Seller\SupportDesk::published(config('support.booking_url'));
             @endphp
             <dl class="flex flex-col gap-4">
                 <div>
                     <dt class="font-medium text-gray-900 dark:text-white">Email</dt>
                     <dd data-support-email class="text-gray-500 dark:text-gray-400">
-                        @if ($isUnset($email))
+                        @if ($email === null)
                             Not published yet.
                         @else
                             {{ $email }}
@@ -57,10 +52,10 @@
                 <div>
                     <dt class="font-medium text-gray-900 dark:text-white">Phone</dt>
                     <dd data-support-phone class="text-gray-500 dark:text-gray-400">
-                        @if ($isUnset($phone))
+                        @if ($phone === null)
                             Not published yet.
                         @else
-                            {{ $phone }} &middot; {{ config('support.phone_hours') }}
+                            {{ $phone }}@if ($phoneHours !== null) &middot; {{ $phoneHours }} @endif
                         @endif
                     </dd>
                 </div>
@@ -68,7 +63,7 @@
                     <dt class="font-medium text-gray-900 dark:text-white">A call</dt>
                     <dd class="text-gray-500 dark:text-gray-400">Book fifteen minutes for anything that is easier to talk through.</dd>
                     <dd class="mt-1" data-support-booking>
-                        @if ($isUnset($bookingUrl))
+                        @if ($bookingUrl === null)
                             <span class="text-gray-500 dark:text-gray-400">Not published yet.</span>
                         @else
                             <a href="{{ $bookingUrl }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Pick a time</a>

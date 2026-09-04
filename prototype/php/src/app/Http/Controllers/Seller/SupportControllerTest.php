@@ -31,7 +31,7 @@ it('shows the desk, one entry per seeded admin', function (): void {
     }
 });
 
-it('IMPRV-030 renders a bracketed booking url as plain text, not a link', function (): void {
+it('IMPRV-030 renders a bracketed booking url as plain text', function (): void {
     $seller = $this->seller();
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/support');
@@ -42,7 +42,7 @@ it('IMPRV-030 renders a bracketed booking url as plain text, not a link', functi
     $response->assertSee('Not published yet.');
 });
 
-it('IMPRV-030 renders an empty booking url as plain text, not a link with no href', function (): void {
+it('IMPRV-030 renders an empty booking url as plain text', function (): void {
     Config::set('support.booking_url', '');
     $seller = $this->seller();
 

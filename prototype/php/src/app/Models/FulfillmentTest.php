@@ -13,6 +13,7 @@ use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
 use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Support\PlaceholderImage;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
@@ -259,4 +260,22 @@ it('says a parcel carrying none of the sellers lines has no items', function ():
     $fulfillment->forceFill(['seller_id' => $this->seller('Blue Kiln Studio')->id])->save();
 
     expect(Fulfillment::query()->with('order.items')->findOrFail($fulfillment->id)->itemLabel())->toBe('no items');
+});
+
+it('IMPRV-030 reads the sellers own line\'s picture for the parcel', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'Harbour at Dusk']);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = $order->fulfillments()->with('order.items.listing')->sole();
+
+    expect($fulfillment->itemImageUrl())->toBe($listing->imageUrl());
+});
+
+it('IMPRV-030 falls back to a placeholder titled from the item label when the parcel carries no items', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller('Rye Press'));
+    $fulfillment->forceFill(['seller_id' => $this->seller('Blue Kiln Studio')->id])->save();
+    $reloaded = Fulfillment::query()->with('order.items.listing')->findOrFail($fulfillment->id);
+
+    expect($reloaded->itemImageUrl())->toBe(PlaceholderImage::dataUri('no items'));
 });

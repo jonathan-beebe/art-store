@@ -50,7 +50,7 @@
                     @forelse ($fulfillments as $fulfillment)
                         <li>
                             <a href="{{ route('seller.orders.show', $fulfillment) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-white/5">
-                                <img src="{{ $fulfillment->order->items->first()?->listing?->imageUrl() ?? \App\Support\PlaceholderImage::dataUri($fulfillment->itemLabel()) }}" alt="" class="size-10 flex-none rounded-md object-cover">
+                                <img src="{{ $fulfillment->itemImageUrl() }}" alt="" class="size-10 flex-none rounded-md object-cover">
                                 <span class="min-w-0 flex-1">
                                     <span class="block truncate font-medium text-gray-900 dark:text-gray-100">{{ $fulfillment->itemLabel() }}</span>
                                     <span class="block text-xs/5 text-gray-500 dark:text-gray-400">{{ $fulfillment->order->placed_at?->format('M j, Y') }} &middot; {{ $fulfillment->subtotal()->format() }}</span>
