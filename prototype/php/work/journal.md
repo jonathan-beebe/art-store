@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:11:16:21 — IMPRV-031 — reviewed: review-pass fixes on php/au-data after a rebase onto php/seller-portal-next — latestCompletedStep()'s ofMany() constraint, RangeChange's abs(previous), MoveStoreSection's profile lock, Fulfillment::onPaidOrder(), a seeder duplicate-event bug the strengthened seed-walk test caught, a store-picture filename collision, a factory's eager create(), two tautological test guards replaced, the ticket bullet corrected, seven commit messages reworded; make check green (5202 tests, 99.5% coverage)
 - 2026-09-04:10:02:46 — IMPRV-031 — resolved (worktree au-data, prototype/php): Fulfillment::live()/counted() consolidate the paid/live rule across nine readers; dashboard earnings tile follows the earnings-page model; seeded shipped/delivered parcels carry their events; partial index and step-parking survive Postgres; store pictures always own their file; positions read inside their transaction; Order::items() ordered; StoreImageRequest mints on first POST; factories never mint unrelated parents. make check green (5198 tests, 99.5% coverage).
 - 2026-09-04:08:30:10 — FEAT-063 — defined: A seller's answer to "did this answer it?" is recorded
 - 2026-09-04:08:30:10 — FEAT-062 — defined: A store has an admin analytics page, reached from its events and from the seller
