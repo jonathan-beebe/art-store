@@ -126,7 +126,7 @@ it('ships by its seller default flow when no listing on it names one', function 
         ->and(array_map(fn (FlowStep $step): string => $step->label, $fulfillment->flowSteps()))->toBe(['Packed']);
 });
 
-it('ships by the flow of its first item, read off Order::items() rather than however the row landed', function (): void {
+it('ships by the flow of its first item, in the order Order::items() reads', function (): void {
     $seller = $this->seller('Molly Weasley');
     $earlyFlow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
     $lateFlow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);

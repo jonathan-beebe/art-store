@@ -109,8 +109,8 @@ final readonly class FulfillmentLanes
     }
 
     /**
-     * The one line a row carries beyond its own facts: what the buyer asked
-     * and nobody has answered, else the last step the seller marked done.
+     * The one line a row carries beyond its own facts: the buyer's
+     * unanswered question, or the last step the seller marked done.
      *
      * @param  Collection<int, Fulfillment>  $fulfillments  carrying `latestCompletedStep`
      * @return array<string, string>

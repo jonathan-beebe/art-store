@@ -110,16 +110,22 @@ class Fulfillment extends Model
 
     /**
      * The most recently completed step on this parcel, read as one grouped
-     * subquery rather than the whole log — {@see \App\Seller\FulfillmentLanes}
-     * eager-loads it across a pane's whole page in one query.
+     * subquery over the whole log — {@see \App\Seller\FulfillmentLanes}
+     * eager-loads it across a pane's whole page in one query. The kind
+     * filter has to run inside the MAX(occurred_at) subquery `ofMany()`
+     * builds, or a later `shipped`/`delivered` row on the same parcel wins
+     * the grouping and the step-completed row it should have picked never
+     * surfaces.
      *
      * @return HasOne<FulfillmentEvent, $this>
      */
     public function latestCompletedStep(): HasOne
     {
         return $this->hasOne(FulfillmentEvent::class)
-            ->where('kind', FulfillmentEventKind::StepCompleted)
-            ->latestOfMany('occurred_at');
+            ->ofMany(
+                ['occurred_at' => 'max'],
+                fn (Builder $query): Builder => $query->where('kind', FulfillmentEventKind::StepCompleted),
+            );
     }
 
     /**
@@ -150,8 +156,8 @@ class Fulfillment extends Model
     }
 
     /**
-     * A fulfillment the seller portal still rolls up as ongoing business:
-     * not declined, not refunded — {@see FulfillmentStatus::isLive()}.
+     * A fulfillment the seller portal still rolls up as ongoing business —
+     * awaiting shipment, shipped, or delivered, {@see FulfillmentStatus::isLive()}.
      *
      * @param  Builder<$this>  $query
      */

@@ -123,8 +123,8 @@ class Order extends Model
 
     /**
      * The shipping address as a parcel label prints it, one line per row,
-     * with the lines this order left empty dropped. A blank city leaves the
-     * region and postal code on their own line rather than a leading comma.
+     * with the lines this order left empty dropped. A blank city drops
+     * straight to the region and postal code, with no leading comma.
      *
      * @return list<string>
      */

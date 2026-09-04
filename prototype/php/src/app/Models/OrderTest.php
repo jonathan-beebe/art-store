@@ -150,8 +150,8 @@ it('orders its items by when they were added, breaking a tie by id', function ()
 
     [$first, $second] = $order->items()->get()->all();
 
-    // Forced out of insertion order, to prove the relation orders the read
-    // rather than happening to reflect it.
+    // Forced out of insertion order, so a passing test proves the relation
+    // itself orders the read.
     $first->forceFill(['created_at' => new DateTimeImmutable('2026-08-20 09:00:00')])->save();
     $second->forceFill(['created_at' => new DateTimeImmutable('2026-08-20 08:00:00')])->save();
 
