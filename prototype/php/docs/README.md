@@ -26,6 +26,8 @@
 |                                      | quantity breaks; price/availability resolution; seller and customer flows; what v1 defers.                  |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One       |
 |                                      | concept-level diagram.                                                                                      |
+| [`seller-portal.md`](seller-portal.md) | The seller portal's next evolution, one section per tool: earnings (next payout, held escrow, period   |
+|                                      | figures, statements), and more as later lanes land.                                                         |
 | [`review.md`](review.md)             | Every requirement in the brief, its status, and the route and test that prove it. Known gaps and next       |
 |                                      | steps.                                                                                                      |
 
