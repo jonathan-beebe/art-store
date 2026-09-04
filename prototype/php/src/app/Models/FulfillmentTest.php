@@ -8,7 +8,6 @@ use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\RefundFulfillment;
 use App\Actions\Orders\FinalizeOrder;
-use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
@@ -213,6 +212,7 @@ it('agrees with the lane each fulfillment reads off its own flow', function (): 
     $this->shippedFulfillmentFor($seller);
     $this->deliveredFulfillmentFor($seller);
     app(DeclineFulfillment::class)($this->paidFulfillmentFor($seller), 'The kiln cracked it.', $this->moment('2026-08-22 09:00:00'));
+    app(RefundFulfillment::class)($this->shippedFulfillmentFor($seller), $this->admin(), 'The parcel never arrived.', $this->moment('2026-08-23 09:00:00'));
 
     foreach (Fulfillment::query()->whereBelongsTo($seller)->get() as $fulfillment) {
         $selected = Fulfillment::query()->inLane(LaneFilter::of($fulfillment->lane()))->pluck('id')->all();
@@ -251,46 +251,12 @@ it('names the seller lines on the order as one phrase', function (): void {
     );
     app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
 
-    expect($order->fulfillments()->sole()->itemLabel())->toBe('Harbour at Dusk +1 more');
-});
-
-it('says where the money for a parcel stands', function (): void {
-    $seller = $this->seller();
-
-    expect($this->paidFulfillmentFor($seller)->escrowState())->toBe(LedgerEntryType::Held)
-        ->and($this->deliveredFulfillmentFor($seller)->escrowState())->toBe(LedgerEntryType::Released);
-});
-
-it('reads its state as the sentence the order page carries', function (): void {
-    $seller = $this->seller();
-    $delivered = $this->deliveredFulfillmentFor($seller, priceCents: 10000, deliveredAt: $this->moment('2026-08-28 11:00:00'));
-
-    expect($delivered->state($this->moment('2026-09-04 09:00:00'))->line())
-        ->toBe('Delivered Aug 28 · $90.00 released to your balance');
-});
-
-it('reads a parcel still in the studio as the clock the buyer is watching', function (): void {
-    $fulfillment = $this->paidFulfillmentFor($this->seller());
-
-    expect($fulfillment->state($this->moment('2026-08-22 09:00:00'))->line())
-        ->toBe('Placed 2 days ago · ship by Aug 23');
-});
-
-it('reads the last completed step into the state of a parcel that has started', function (): void {
-    $seller = $this->seller('Arthur Weasley');
-    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
-    $step = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create(['label' => 'Label printed']);
-    $fulfillment = $this->paidFulfillmentFor($seller);
-
-    app(CompleteFlowStep::class)($fulfillment, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
-
-    expect($fulfillment->refresh()->state($this->moment('2026-08-21 12:00:00'))->line())
-        ->toBe('Label printed 3 hours ago · waiting for the parcel to leave');
+    expect($order->fulfillments()->with('order.items')->sole()->itemLabel())->toBe('Harbour at Dusk +1 more');
 });
 
 it('says a parcel carrying none of the sellers lines has no items', function (): void {
     $fulfillment = $this->paidFulfillmentFor($this->seller('Rye Press'));
     $fulfillment->forceFill(['seller_id' => $this->seller('Blue Kiln Studio')->id])->save();
 
-    expect($fulfillment->refresh()->itemLabel())->toBe('no items');
+    expect(Fulfillment::query()->with('order.items')->findOrFail($fulfillment->id)->itemLabel())->toBe('no items');
 });

@@ -1,11 +1,4 @@
 <x-layouts.seller :title="'Order '.$fulfillment->order_id.' — Art Store seller'" :bleed="true">
-    @php
-        $seller = auth('seller')->user();
-        $canShip = $seller->can('ship', $fulfillment);
-        $canDecline = $seller->can('decline', $fulfillment);
-        $payment = $fulfillment->order->latestPayment;
-    @endphp
-
     <div class="h-[calc(100dvh-4rem)] overflow-hidden">
         <x-seller.list-detail mobile="detail">
             <x-slot:listHeader>
@@ -31,7 +24,7 @@
                                 {{ $fulfillment->order->shipping_name }}
                                 <x-seller.status-badge :tint="$fulfillment->status->sellerBadgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
                             </h2>
-                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $stateLine }}</p>
+                            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $facts->state->line() }}</p>
                         </div>
 
                         <div class="hidden shrink-0 items-center gap-3 lg:flex">
@@ -51,6 +44,9 @@
                             <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $customer->name }}</p>
                             <p class="truncate text-xs/5 text-gray-500 dark:text-gray-400">{{ $customer->email ?? '—' }}</p>
                             <p class="mt-3 text-xs/5 text-gray-500 dark:text-gray-400">{{ $customer->line() }}</p>
+                            @if (Route::has('seller.customers.show'))
+                                <a href="{{ route('seller.customers.show', $fulfillment->customer_id) }}" class="mt-1 inline-block text-xs/5 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">View customer</a>
+                            @endif
                         </section>
 
                         <section aria-labelledby="ships-to-heading" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
@@ -66,8 +62,8 @@
                         <section aria-labelledby="payment-heading" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900 sm:col-span-2 xl:col-span-1">
                             <h3 id="payment-heading" class="text-xs/5 font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Payment</h3>
                             <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                                @if ($payment)
-                                    &bull;&bull;&bull;&bull; {{ $payment->card_last_four }} · {{ $payment->status->label() }}
+                                @if ($facts->cardLastFour)
+                                    &bull;&bull;&bull;&bull; {{ $facts->cardLastFour }} · {{ $facts->paymentStatus }}
                                 @else
                                     Not paid
                                 @endif
@@ -87,7 +83,7 @@
                                 </div>
                                 <div class="flex justify-between gap-4">
                                     <dt class="text-gray-500 dark:text-gray-400">Escrow</dt>
-                                    <dd class="text-gray-900 dark:text-gray-100">{{ $escrow?->escrowState() ?? '—' }}</dd>
+                                    <dd class="text-gray-900 dark:text-gray-100">{{ $facts->escrow?->escrowState() ?? '—' }}</dd>
                                 </div>
                             </dl>
                         </section>
@@ -125,10 +121,10 @@
                     @endif
 
                     <div class="mt-7 flex flex-wrap items-baseline justify-between gap-3">
-                        <h3 class="text-sm/6 font-semibold text-gray-900 dark:text-white">{{ $flowName }}</h3>
+                        <h3 class="text-sm/6 font-semibold text-gray-900 dark:text-white">{{ $facts->flowName }}</h3>
                         <a href="{{ route('seller.orders.flow.edit') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Flow settings</a>
                     </div>
-                    <x-seller.flow-steps :fulfillment="$fulfillment" :steps="$flowSteps" :progress="$progress" :can-complete="$canShip" />
+                    <x-seller.flow-steps :fulfillment="$fulfillment" :steps="$facts->steps" :progress="$facts->progress" :completed="$facts->completed" :can-complete="$canCompleteStep" />
 
                     <h3 class="mt-7 text-sm/6 font-semibold text-gray-900 dark:text-white">Shipment</h3>
                     @if ($canShip)
@@ -213,7 +209,7 @@
                     @endif
                 </div>
 
-                <div class="flex shrink-0 gap-3 border-t border-gray-200 dark:border-white/10 p-4 lg:hidden">
+                <div data-action-bar class="flex shrink-0 gap-3 border-t border-gray-200 dark:border-white/10 p-4 lg:hidden">
                     <button type="submit" form="message-buyer-form" class="min-h-11 flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Message</button>
                     @if ($canDecline)
                         <button type="submit" form="decline-form" class="min-h-11 flex-1 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Decline</button>

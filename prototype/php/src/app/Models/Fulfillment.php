@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Escrow\PlatformFees;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
 use App\Domain\Fulfillment\FulfillmentProgress;
 use App\Domain\Fulfillment\LaneFilter;
-use App\Domain\Fulfillment\ParcelState;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\FulfillmentFactory;
-use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,8 +27,8 @@ use Override;
 /**
  * @property-read Order $order
  * @property-read Seller $seller
- * @property-read int $tally  only on a row the `countedByStatus` or `countedByLane` scope selected
- * @property-read bool $started  only on a row the `countedByLane` scope selected
+ * @property-read int $tally  on a row the `countedByStatus` or `countedByLane` scope selected
+ * @property-read bool $started  on a row the `countedByLane` scope selected
  */
 #[Fillable([
     'order_id', 'customer_id', 'seller_id', 'status', 'carrier', 'tracking_number',
@@ -256,43 +253,14 @@ class Fulfillment extends Model
     }
 
     /**
-     * Where this parcel stands, as the order page says it in a sentence.
-     */
-    public function state(DateTimeImmutable $now): ParcelState
-    {
-        $step = $this->latestStepCompletion();
-        $movement = $this->latestLedgerEntry();
-
-        return new ParcelState(
-            status: $this->status,
-            placedAt: $this->loadMissing('order')->order->placed_at->toDateTimeImmutable(),
-            now: $now,
-            lastStepLabel: $step?->stepLabel(),
-            lastStepAt: $step?->occurred_at->toDateTimeImmutable(),
-            carrier: $this->carrier,
-            shippedAt: $this->shipped_at?->toDateTimeImmutable(),
-            settledAt: $this->settledAt(),
-            settledAmount: $movement instanceof LedgerEntry ? Money::fromCents(abs($movement->amount_cents)) : null,
-            escrow: $movement?->type,
-        );
-    }
-
-    /**
-     * Where the money for this parcel stands: the last movement its ledger
-     * entries recorded, and null while the order behind it went unpaid.
-     */
-    public function escrowState(): ?LedgerEntryType
-    {
-        return $this->latestLedgerEntry()?->type;
-    }
-
-    /**
      * The seller's own lines on the order, as one phrase — the scan line
-     * every row and every feed sentence about this parcel reads.
+     * every row and every feed sentence about this parcel reads. Both
+     * callers eager-load `order.items`; a caller that has not is refused by
+     * the lazy-loading guard.
      */
     public function itemLabel(): string
     {
-        $items = $this->loadMissing('order.items')->order->items
+        $items = $this->order->items
             ->where('seller_id', $this->seller_id)
             ->values();
 
@@ -306,17 +274,6 @@ class Fulfillment extends Model
         $rest = $items->count() - 1;
 
         return $rest > 0 ? "{$label} +{$rest} more" : $label;
-    }
-
-    /**
-     * The most recent step the seller marked done, and null on a parcel
-     * nothing has been done to.
-     */
-    public function latestStepCompletion(): ?FulfillmentEvent
-    {
-        return $this->loadMissing('fulfillmentEvents')->fulfillmentEvents
-            ->where('kind', FulfillmentEventKind::StepCompleted)
-            ->last();
     }
 
     /**
@@ -350,7 +307,7 @@ class Fulfillment extends Model
     /**
      * One row per (status, has a completed step) pair, carrying how many
      * hold it — the two facts a lane is read from, counted in one round
-     * trip instead of a flow walked per parcel.
+     * trip.
      *
      * @param  Builder<$this>  $query
      */
@@ -369,24 +326,6 @@ class Fulfillment extends Model
     private static function stepCompletions(Builder $events): void
     {
         $events->where('kind', FulfillmentEventKind::StepCompleted);
-    }
-
-    /**
-     * When this parcel came to rest: the day it was delivered, and the day
-     * the money went back on one that was turned down.
-     */
-    private function settledAt(): ?DateTimeImmutable
-    {
-        return $this->status === FulfillmentStatus::Delivered
-            ? $this->delivered_at?->toDateTimeImmutable()
-            : $this->latestLedgerEntry()?->occurred_at->toDateTimeImmutable();
-    }
-
-    private function latestLedgerEntry(): ?LedgerEntry
-    {
-        return $this->loadMissing('ledgerEntries')->ledgerEntries
-            ->sortBy(['occurred_at', 'id'])
-            ->last();
     }
 
     public function subtotal(): Money

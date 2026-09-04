@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Fulfillment\LaneFilter;
 use App\Http\Requests\Seller\OrdersQueryRequest;
 use App\Models\Fulfillment;
-use App\Models\FulfillmentFlow;
 use App\Seller\ActivityFeedReader;
 use App\Seller\CustomerOnOrder;
 use App\Seller\FeedFilter;
 use App\Seller\FeedScope;
 use App\Seller\FulfillmentLanes;
-use Illuminate\Database\Eloquent\Relations\Relation;
+use App\Seller\OrderDetail;
 use Illuminate\View\View;
 
 /**
@@ -43,35 +41,23 @@ final class OrderController extends SellerController
         OrdersQueryRequest $request,
         Fulfillment $fulfillment,
         FulfillmentLanes $lanes,
+        OrderDetail $detail,
         ActivityFeedReader $feed,
         CustomerOnOrder $customers,
     ): View {
         $this->authorize('view', $fulfillment);
 
         $seller = $this->seller();
-
-        $fulfillment->load([
-            'customer',
-            'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
-            'order.items.listing.fulfillmentFlow',
-            'order.latestPayment',
-            'ledgerEntries',
-            'refund',
-            'fulfillmentEvents',
-            'seller.defaultFulfillmentFlow',
-        ]);
-
+        $facts = $detail->facts($fulfillment, $seller, $this->now());
         $lane = $request->lane(LaneFilter::of($fulfillment->lane()));
-        $flow = $fulfillment->flowInEffect();
 
         return view('seller.orders.show', [
             'fulfillment' => $fulfillment,
-            'stateLine' => $fulfillment->state($this->now())->line(),
+            'facts' => $facts,
             'customer' => $customers->facts($fulfillment),
-            'escrow' => $fulfillment->escrowState(),
-            'flowName' => $flow instanceof FulfillmentFlow ? $flow->name : DefaultFlow::NAME,
-            'flowSteps' => $fulfillment->flowSteps(),
-            'progress' => $fulfillment->progress(),
+            'canShip' => $seller->can('ship', $fulfillment),
+            'canDecline' => $seller->can('decline', $fulfillment),
+            'canCompleteStep' => $seller->can('completeStep', $fulfillment),
             'lane' => $lane,
             'tabs' => $lanes->tabs($seller, $lane),
             'pane' => $lanes->pane($seller, $lane, $fulfillment),

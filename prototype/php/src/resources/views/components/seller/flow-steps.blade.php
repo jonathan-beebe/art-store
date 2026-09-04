@@ -1,4 +1,10 @@
-@props(['fulfillment', 'steps', 'progress', 'canComplete' => false])
+{{--
+    One parcel's flow: the steps behind it with who marked them and when,
+    the one in front as the live button, and the ones after it waiting.
+    `completed` is keyed by step id, so a row reads its own completion
+    without searching for it.
+--}}
+@props(['fulfillment', 'steps', 'progress', 'completed' => [], 'canComplete' => false])
 
 @php
     $next = $progress->next();
@@ -16,6 +22,7 @@
                 @php
                     $isDone = $progress->hasCompleted($step);
                     $isNext = $next !== null && $next->id === $step->id;
+                    $completion = $completed[$step->id] ?? null;
                 @endphp
                 <li class="flex flex-wrap items-center gap-4 p-4">
                     <span @class([
@@ -37,7 +44,7 @@
                             'text-gray-500 dark:text-gray-400' => ! $isDone && ! $isNext,
                         ])>{{ $step->label }}</p>
                         @if ($isDone)
-                            <p class="text-xs/5 text-gray-500 dark:text-gray-400">Done</p>
+                            <p class="text-xs/5 text-gray-500 dark:text-gray-400">{{ $completion?->line() ?? 'Done' }}</p>
                         @elseif ($isNext)
                             <p class="text-xs/5 text-gray-500 dark:text-gray-400">Next</p>
                         @endif

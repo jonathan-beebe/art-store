@@ -63,6 +63,8 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Seller/LaneTab.php' => 'value carrier; exercised through FulfillmentLanesTest',
         'app/Seller/OrderRow.php' => 'value carrier; exercised through FulfillmentLanesTest and OrderPaneTest',
         'app/Seller/FeedKindLink.php' => 'value carrier; exercised through FeedFilterTest',
+        'app/Seller/OrderFacts.php' => 'value carrier; built and asserted through OrderDetailTest',
+        'app/Seller/CompletedStep.php' => 'value carrier; built and asserted through OrderDetailTest',
     ];
 
     $base = dirname(__DIR__);
