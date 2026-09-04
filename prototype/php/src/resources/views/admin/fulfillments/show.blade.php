@@ -1,12 +1,6 @@
 <x-layouts.admin :title="'Fulfillment '.$fulfillment->id.' — Art Store admin'" mode="detail">
     @php
-        $tint = match ($fulfillment->status) {
-            \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
-            \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
-            \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
-            \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
-            \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
-        };
+        $tint = $fulfillment->status->sellerBadgeTint();
     @endphp
 
     <x-slot:cells>
