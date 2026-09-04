@@ -11,6 +11,7 @@ use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Configurator\ConfiguratorPublishValidation;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Messaging\MessageBody;
 use App\Domain\Messaging\ThreadOpening;
@@ -19,7 +20,11 @@ use App\Domain\Seller\ActivityTotal;
 use App\Domain\Seller\AttentionGroup;
 use App\Domain\Seller\AttentionRow;
 use App\Models\Customer;
+use App\Models\Modifier;
+use App\Models\OptionAxis;
+use App\Models\OptionValue;
 use App\Models\Seller;
+use App\Models\Variant;
 use App\Seller\ListingActivity;
 use App\Seller\NavLink;
 use App\Seller\OverviewListingRow;
@@ -382,6 +387,41 @@ it('lists the drafts and sold-out pieces that cannot sell as they stand', functi
     });
 });
 
+it('names a drafts own publish issue in its needs-work row', function (): void {
+    $seller = molly();
+    $draft = $this->listing($seller, ['title' => 'Patchwork Shawl Runner', 'status' => ListingStatus::Draft]);
+    Modifier::factory()->count(ConfiguratorPublishValidation::MAX_MODIFIERS + 1)->create(['listing_id' => $draft->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller');
+
+    $response->assertViewHas('attention', function (array $groups) use ($draft): bool {
+        /** @var list<AttentionGroup> $groups */
+        $rows = groupAt($groups, 3)->rows;
+        $row = array_values(array_filter($rows, fn (AttentionRow $row): bool => $row->href === route('seller.listings.show', ['listing' => $draft->id])))[0] ?? null;
+
+        return $row instanceof AttentionRow && $row->supporting === 'The listing asks more than 5 questions.';
+    });
+});
+
+it('counts a drafts remaining publish issues on its needs-work row', function (): void {
+    $seller = molly();
+    $draft = $this->listing($seller, ['title' => 'Patchwork Shawl Runner', 'status' => ListingStatus::Draft]);
+    $axis = OptionAxis::factory()->create(['listing_id' => $draft->id]);
+    OptionValue::factory()->create(['axis_id' => $axis->id]);
+    Variant::factory()->create(['listing_id' => $draft->id]);
+    Modifier::factory()->count(ConfiguratorPublishValidation::MAX_MODIFIERS + 1)->create(['listing_id' => $draft->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller');
+
+    $response->assertViewHas('attention', function (array $groups) use ($draft): bool {
+        /** @var list<AttentionGroup> $groups */
+        $rows = groupAt($groups, 3)->rows;
+        $row = array_values(array_filter($rows, fn (AttentionRow $row): bool => $row->href === route('seller.listings.show', ['listing' => $draft->id])))[0] ?? null;
+
+        return $row instanceof AttentionRow && str_ends_with($row->supporting, '+1 more');
+    });
+});
+
 it('says each empty focus group in a sentence', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
 
@@ -452,9 +492,12 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
     // page-view roll-up, the next payout, the buyers, the parcels placed
     // across both ranges and the refunds that netted against them, the
     // listings table, the units sold, and the four focus queues read down
-    // and counted whole.
+    // and counted whole — plus DraftPublishIssues's nine grouped reads
+    // across the needs-work panel's drafts, fixed whatever their count (no
+    // draft here carries an axis, so the tenth read — variant option
+    // values, eager-loaded rather than a manual `whereIn` — never fires).
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(36)
+        ->expectsDatabaseQueryCount(45)
         ->get('/seller');
 
     $response->assertOk();

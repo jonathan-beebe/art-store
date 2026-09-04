@@ -91,13 +91,16 @@ into panels, each counted whole and cut to five rows with a "N more" link.
 | Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
 | Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
 | Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::tallyFor()`) | `/seller/earnings` |
-| Listings that need work | drafts and sold-out pieces, most recently edited first | `/seller/listings` |
+| Listings that need work | drafts and sold-out pieces, most recently edited first; a draft's row names its first publish issue and how many more | `/seller/listings` |
 
 The held row opens the earnings page's own held list (`#held-heading`); To
 ship reads oldest by `orders.placed_at`, the fact the row's age and urgency
 both come from. An empty group shows a sentence in place of its rows:
 "Nothing is waiting to ship.", "Every buyer has heard back from you.",
-"Nothing has settled yet.", "Every listing is published and in stock."
+"Nothing has settled yet.", "Every listing is published and in stock." A
+sold-out row keeps the generic "Sold out · restock it or archive it"; a
+draft with no publish issue (the legacy axis-free path) keeps "Draft · not
+on the storefront yet".
 
 ### What the dashboard costs
 
@@ -110,6 +113,18 @@ and once for the focus group's heading. Both are cheap aggregates, and
 threading either through would tie two adapters together for one query.
 Nothing on the page hydrates a row it does not render: the held figures
 are a ledger fold and one count, never the parcels behind them.
+
+The needs-work group's draft rows cost the same way: `App\Seller\DraftPublishIssues`
+reads what `Listing::publishIssues()` reads for one listing — option axes
+with their value counts, variants and their options and units, category
+properties, listing attributes, modifiers, quantity breaks, and description
+sections — in one grouped query per concern across the whole group of
+drafts and sold-out listings the page already loaded, so the group costs a
+fixed number of queries whatever the count of drafts a seller holds. The
+seller's own publish panel (`ListingStatusController`) still calls
+`Listing::publishIssues()` per listing, one click away, and pays its own
+per-listing cost — the dashboard's fixed cost does not change what that
+panel pays.
 
 ## Store profile
 
