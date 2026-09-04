@@ -9,6 +9,7 @@ use App\Actions\Fulfillment\SaveFulfillmentFlow;
 use App\Domain\Auth\ActorType;
 use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Fulfillment\FlowStep;
+use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\NewFulfillmentEvent;
 use App\Models\Fulfillment;
 use App\Models\FulfillmentFlow;
@@ -18,8 +19,9 @@ use Illuminate\Database\Seeder;
 
 /**
  * Every seller gets the default flow, and every parcel that already left the
- * studio gets the label step behind it — so the orders lanes and the activity
- * feed read from the first page load.
+ * studio or reached the buyer gets the events behind it — the label step,
+ * the ship, and the delivery — so the orders lanes and the activity feed
+ * read from the first page load.
  */
 class FulfillmentFlowSeeder extends Seeder
 {
@@ -31,17 +33,13 @@ class FulfillmentFlowSeeder extends Seeder
         foreach (Seller::query()->get() as $seller) {
             $flow = $saveFlow($seller, DefaultFlow::NAME, DefaultFlow::drafts());
 
-            $this->recordLabelsAlreadyPrinted($seller, $flow, $appendEvent);
+            $this->recordDepartureHistory($seller, $flow, $appendEvent);
         }
     }
 
-    private function recordLabelsAlreadyPrinted(Seller $seller, FulfillmentFlow $flow, AppendFulfillmentEvent $appendEvent): void
+    private function recordDepartureHistory(Seller $seller, FulfillmentFlow $flow, AppendFulfillmentEvent $appendEvent): void
     {
         $labelStep = $this->labelStep($flow);
-
-        if (! $labelStep instanceof FlowStep) {
-            return;
-        }
 
         foreach ($this->departedFulfillments($seller) as $fulfillment) {
             $shippedAt = $fulfillment->shipped_at?->toDateTimeImmutable();
@@ -50,13 +48,35 @@ class FulfillmentFlowSeeder extends Seeder
                 continue;
             }
 
-            $appendEvent($fulfillment, NewFulfillmentEvent::stepCompleted(
-                step: $labelStep,
+            if ($labelStep instanceof FlowStep) {
+                $appendEvent($fulfillment, NewFulfillmentEvent::stepCompleted(
+                    step: $labelStep,
+                    actorType: ActorType::Seller,
+                    actorId: $seller->id,
+                    occurredAt: $shippedAt->modify('-4 hours'),
+                    carrier: $fulfillment->carrier ?? 'Owl Post',
+                    trackingNumber: $fulfillment->tracking_number ?? mb_substr($fulfillment->id, -8),
+                ));
+            }
+
+            $appendEvent($fulfillment, NewFulfillmentEvent::transition(
+                kind: FulfillmentEventKind::Shipped,
                 actorType: ActorType::Seller,
                 actorId: $seller->id,
-                occurredAt: $shippedAt->modify('-4 hours'),
-                carrier: $fulfillment->carrier ?? 'Owl Post',
-                trackingNumber: $fulfillment->tracking_number ?? mb_substr($fulfillment->id, -8),
+                occurredAt: $shippedAt,
+            ));
+
+            $deliveredAt = $fulfillment->delivered_at?->toDateTimeImmutable();
+
+            if ($deliveredAt === null) {
+                continue;
+            }
+
+            $appendEvent($fulfillment, NewFulfillmentEvent::transition(
+                kind: FulfillmentEventKind::Delivered,
+                actorType: ActorType::Customer,
+                actorId: $fulfillment->customer_id,
+                occurredAt: $deliveredAt,
             ));
         }
     }
@@ -73,6 +93,10 @@ class FulfillmentFlowSeeder extends Seeder
     }
 
     /**
+     * Every parcel that shipped, whatever it settled into afterward — a
+     * delivered one, and one an admin refunded after it shipped or after it
+     * delivered.
+     *
      * @return Collection<int, Fulfillment>
      */
     private function departedFulfillments(Seller $seller): Collection

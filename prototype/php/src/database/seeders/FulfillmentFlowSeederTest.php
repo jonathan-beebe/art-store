@@ -44,3 +44,27 @@ it('leaves a fulfillment that never shipped with no step event', function (): vo
 
     expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::StepCompleted)->count())->toBe(0);
 });
+
+it('gives every seeded shipped or delivered parcel its shipped and delivered events', function (): void {
+    $shipped = Fulfillment::whereNotNull('shipped_at')->get();
+    expect($shipped)->not->toBeEmpty();
+
+    foreach ($shipped as $fulfillment) {
+        expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::Shipped)->exists())->toBeTrue();
+    }
+
+    $delivered = Fulfillment::whereNotNull('delivered_at')->get();
+    expect($delivered)->not->toBeEmpty();
+
+    foreach ($delivered as $fulfillment) {
+        expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::Delivered)->exists())->toBeTrue();
+    }
+});
+
+it('writes the default-flow index as a bare boolean predicate, which SQLite and Postgres both read as true', function (): void {
+    $path = base_path('database/migrations/2026_09_04_000100_create_fulfillment_flows_table.php');
+    $migration = (string) file_get_contents($path);
+
+    expect($migration)->toContain('where is_default');
+    expect($migration)->not->toContain('is_default = 1');
+});
