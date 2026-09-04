@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:05:25:00 — FEAT-054 — resolved: Customers is a section: derived buyers, segments, sortable columns, and one buyer's timeline
 - 2026-09-04:01:10:00 — FEAT-054 — started: Customers is a section: who bought, and their timeline
 - 2026-09-04:00:40:00 — FEAT-058 — reviewed: review-pass fixes on php/sp-store (hidden-store redirect disclosure, for-sale count, publicUrl, feed-row test, scoped OG tags)
 - 2026-09-04:00:40:00 — FEAT-057 — reviewed: review-pass fixes on php/sp-store (gallery order input, per-section error bags and old(), alt field, sentinel position, upload rollback, url scheme rule)

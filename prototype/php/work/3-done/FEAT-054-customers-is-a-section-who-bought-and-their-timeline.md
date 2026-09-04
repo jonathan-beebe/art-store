@@ -1,7 +1,7 @@
 ---
 id: FEAT-054
 type: feature
-status: open
+status: resolved
 created: 2026-09-03
 ---
 
@@ -52,3 +52,45 @@ Design decided before the first test:
 - A customer with no live fulfillment with the seller answers 404, which is
   also the privacy rule: browsing, favoriting, and asking do not open a
   person's page to a seller.
+
+### What landed
+
+- Nav: Customers between Orders and Messages, same idiom and active state.
+- `GET /seller/customers` — four figures, `?segment=`, every column sorting
+  by link with `aria-sort`, `?range=` deciding what "new this period" means.
+- `GET /seller/customers/{customer}` — identity with a Repeat buyer badge,
+  Message, four figures, the FEAT-052 feed under `?kind=`, orders,
+  favorites, conversations. 404 for a customer who never bought here.
+- `POST /seller/customers/{customer}/messages` — the buyer's newest thread,
+  else the thread for their latest parcel through `OpenConversation`.
+- `docs/seller-portal.md` gains a Customers section.
+
+### Decided along the way
+
+- `ListingSortDirection` became `SortDirection` and `App\Seller\ColumnHeader`
+  took a `SortableColumn`, so the two tables share one direction enum and one
+  header value object instead of the customers table copying both.
+- `FulfillmentStatus::sellerBadgeTint()` and `Fulfillment::itemLabel()` took
+  the two facts `x-seller.fulfillment-cells` spelled out inline, and
+  `x-seller.thread-tag` took the inbox row's kind pill. The customer page
+  reads all three.
+- The orders list on a customer page keeps declined and refunded parcels,
+  which the figures above leave out. A seller has to be able to look back at
+  a parcel they turned down.
+- The Message button opens an existing thread or a fulfillment thread; no new
+  `ConversationKind` for a seller writing to a buyer out of the blue.
+
+### Left alone
+
+- No range control on the screen. `?range=` is honored and round-tripped;
+  the prototype's Customers artboard carries the segment control alone, and
+  the dashboard tile is what arrives carrying a range. The footnote under
+  the table says what window "new" counts.
+- No pagination. The list is every buyer, the way the prototype reads it.
+- `seller/orders/show.blade.php` still spells its own status-tint match out;
+  FEAT-053 rewrites that file, so it was left for that lane rather than
+  edited underneath it.
+
+### Gate
+
+`make precommit` green on every commit; `make check` green before the PR.

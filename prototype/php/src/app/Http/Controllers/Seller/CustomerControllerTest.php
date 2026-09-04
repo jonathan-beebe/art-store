@@ -40,10 +40,36 @@ it('leaves another seller\'s buyer off the list', function (): void {
     $response->assertOk()->assertDontSee('Draco Malfoy');
 });
 
-it('names the seller\'s customers in the left rail', function (): void {
+it('sits between Orders and Messages in the left rail of every seller screen', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
+
+    $response->assertOk()
+        ->assertSee(route('seller.customers.index'))
+        ->assertSeeInOrder(['Orders', 'Customers', 'Messages']);
+});
+
+it('counts customers, repeat buyers, the average order, and open conversations above the table', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $once = Customer::factory()->create(['name' => 'Cho Chang']);
+    $twice = Customer::factory()->create(['name' => 'Ginny Weasley']);
+    $this->paidFulfillmentFor($seller, $once, 10000)->order->update(['placed_at' => now()->subDay()]);
+    $this->paidFulfillmentFor($seller, $twice, 10000)->order->update(['placed_at' => now()->subDays(2)]);
+    $this->paidFulfillmentFor($seller, $twice, 40000)->order->update(['placed_at' => now()->subDay()]);
+    Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $twice->id]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers');
+
+    $response->assertOk()
+        ->assertSeeInOrder(['Customers', '2', '+2 new'])
+        ->assertSeeInOrder(['Repeat buyers', '1', '50%'])
+        ->assertSeeInOrder(['Average order', '$200.00'])
+        ->assertSeeInOrder(['Open conversations', '1', '0 unread']);
+});
+
+it('says what makes someone a customer when the seller has none', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers');
 
-    $response->assertOk()->assertSee(route('seller.customers.index'));
+    $response->assertOk()->assertSee('A live order is what makes someone a customer.');
 });
 
 it('narrows to repeat buyers', function (): void {
