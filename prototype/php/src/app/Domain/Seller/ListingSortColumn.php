@@ -7,7 +7,7 @@ namespace App\Domain\Seller;
 /**
  * The seller listings table's eleven sortable columns.
  */
-enum ListingSortColumn: string
+enum ListingSortColumn: string implements SortableColumn
 {
     case Title = 'title';
     case Status = 'status';

@@ -276,7 +276,7 @@ reads as its default, an unrecognised one answers a bare 400.
 | `view`  | `list` \| `table` \| `grid` (`App\Domain\Seller\ListingView`)          | `list`  | the index route              |
 | `from`  | `table` \| `grid`                                                     | absent  | the detail route             |
 | `sort`  | one of eleven `App\Domain\Seller\ListingSortColumn` cases               | `views` | table/grid, and the header's `<select>` |
-| `dir`   | `asc` \| `desc` (`App\Domain\Seller\ListingSortDirection`)              | `desc`  | table/grid                   |
+| `dir`   | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)              | `desc`  | table/grid                   |
 | `range` | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)      | `30`    | the ranged columns and the detail's view strip |
 
 The detail route carries `from`, not `view` — `ListingController::show()`
@@ -290,7 +290,7 @@ explicitly.
 flowchart TB
     controller["Http\\Controllers\\Seller\\ListingController"] --> table["Seller\\ListingTable"]
     controller --> domain
-    table --> domain["Domain\\Seller\\{ListingTableRow,ListingTableSort,ListingSort,ListingSortColumn,ListingSortDirection,ListingView}"]
+    table --> domain["Domain\\Seller\\{ListingTableRow,ListingTableSort,ListingSort,ListingSortColumn,SortDirection,ListingView}"]
     table -.-> analytics["Analytics\\AnalyticsReport::countsForListingsSince()"]
 ```
 
@@ -802,3 +802,138 @@ Six shapes the migrations hold that the lines above do not:
 - `store_section_images` and `store_links` each carry two unique indexes: one
   on position, so a section's pictures and a store's links hold an order, and
   one on the child (image, link kind), so neither is listed twice.
+## Customers
+
+Question: a seller wants to know who buys from them. Where does that list
+come from, given no table holds it — and what does a seller get to see about
+a person?
+
+A customer is a buyer. Someone holding at least one paid fulfillment with
+the seller that still stands is on the list; browsing, favoriting, and
+asking about a piece join their timeline once they have bought. Every
+request derives the list from `fulfillments`; no table holds it.
+
+```mermaid
+flowchart LR
+    F["fulfillments\nseller, status is live"] --> T["totals per buyer\norders · spent · first · last"]
+    T --> R["CustomerRow"]
+    C["customers"] --> R
+    FAV["favorites\njoined to the seller's listings"] --> R
+    CON["conversations\nseller ↔ buyer"] --> R
+    R --> S["CustomerSegment · CustomerTableSort"]
+    R --> TA["CustomerTally"]
+```
+
+A `fulfillments` row exists from the moment an order is placed, so the
+derivation gates on the order having been paid: an abandoned checkout
+leaves the list alone and leaves Spent alone. A declined or refunded parcel
+settled its money back, so it counts toward nothing here — a buyer whose
+only parcel was declined drops off the list and their page answers 404,
+while the parcel itself stays listed on a page they still hold.
+
+### Privacy
+
+A seller sees a customer's name and email because an order carried them.
+That is the whole permission: `GET /seller/customers/{customer}` answers
+404 for anyone who has never bought from this seller, so a visitor who
+favorited a piece or asked a question has no page a seller can open. The
+name is the account's own where it has one, and the latest order's
+`shipping_name` where it does not — the same fall-back for the email.
+
+### Query vocabulary
+
+`App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
+routes read, the `docs/alignment.md` §5 idiom: an absent or emptied value
+reads as its default, an unrecognised one answers a bare 400.
+
+| Param     | Values                                                                   | Default | Read by         |
+| --------- | ------------------------------------------------------------------------ | ------- | --------------- |
+| `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
+| `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
+| `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` | the index route |
+| `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
+| `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
+
+`range` is what "new this period" means: a buyer is new when their first
+order falls inside the window. The four figures above the table count every
+buyer whatever the segment shows, so switching segments never moves them.
+
+### Layers
+
+```mermaid
+flowchart TB
+    controller["Http\\Controllers\\Seller\\{CustomerController,CustomerMessageController}"] --> customers["Seller\\SellerCustomers"]
+    controller --> chrome["Seller\\{CustomersChrome,FeedFilters}"]
+    controller --> reader["Seller\\ActivityFeedReader"]
+    customers --> domain["Domain\\Seller\\{CustomerRow,CustomerSegment,CustomerSort,CustomerSortColumn,CustomerTableSort,CustomerTally}"]
+    chrome --> domain
+```
+
+`SellerCustomers::forSeller()` folds the figures in one grouped query —
+`count(*)`, `sum(subtotal_cents)`, and `min`/`max(orders.placed_at)` over
+the seller's counted parcels joined to their orders, grouped by customer —
+then joins the account rows, the favorites, and the thread counts by id in
+PHP. A buyer holding no account name or address takes both from their
+latest order, which is one more query, run only when such a buyer is in the
+list. `forCustomer()` is the same fold narrowed to one person and hands
+back null for a stranger; the customer page, the Message button, and the
+thread rail all read it. `conversationCounts()` is the two thread figures
+the tiles carry.
+
+Sorting is a link carrying `aria-sort`, `App\Seller\ColumnHeader` per
+column through `x-seller.sortable-th`; a click on the sorted column flips
+`dir` (`CustomerSort::nextDirectionFor()`). The segment control and the
+timeline's kind filter are the same `x-seller.segmented` over
+`App\Seller\SegmentLink`, built by `CustomersChrome` and `FeedFilters`.
+
+### The customer page
+
+Identity (name, email, customer since, a Repeat buyer badge from two
+orders), four figures, the activity feed under its kind filter
+(`ActivityFeedReader` over `FeedScope::forCustomer()`), every parcel
+between the two of them — a declined or refunded one included, which the
+figures leave out and the seller still has to be able to look back at —
+their favorites of this seller's pieces, and their threads.
+
+Message opens the buyer's newest thread with this seller. For a buyer the
+seller has yet to write to, it opens the thread for the buyer's latest
+parcel — latest by `orders.placed_at`, the recency this section reads
+everywhere — through `App\Actions\Messaging\OpenConversation`. That is a
+subject the two of them already share, so the button needs no new kind of
+conversation.
+
+## Messages
+
+The inbox and the thread are `docs/messaging.md`. What the seller portal adds
+beside the transcript is the context rail: who the seller is talking to, and
+what the thread is about.
+
+```mermaid
+flowchart LR
+    C["Conversation"] --> TC["Seller\\ThreadContext"]
+    S["SellerCustomers::forCustomer()"] --> TC
+    TC --> R["x-seller.context-rail"]
+    R --> CU["the customer page"]
+    R --> L["the listing"]
+    R --> O["the order"]
+    R --> T["their other threads"]
+```
+
+`App\Seller\ThreadContext::forSeller()` is the rail's one read — the
+`FeedScope` idiom, a readonly value object with a named constructor that
+reads. It carries the counterpart's name and initials, the `CustomerRow`
+where the counterpart has bought from this seller, the listing a question
+is about, the parcel a fulfillment thread is about — named by this seller's
+own lines, since a two-seller order carries both — and every other thread
+the two of them hold, newest first.
+
+The same privacy rule the customers section states: a buyer's numbers and
+their email show because an order carried them. A visitor who has only
+asked about a piece shows a name alone — no figures, no email, no View
+customer link, since they have no customer page to open. A support thread
+shows the desk in place of a customer, and no other conversations.
+
+The rail sits beside the transcript at `xl` and under it below that, inside
+the thread component's own pane. Nothing about the transcript, the
+composer, resolve, reopen, or Publish as FAQ changed; the rate-limited
+reply re-renders the same rail with the thread it came back to.

@@ -44,9 +44,7 @@
                             <p class="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $customer->name }}</p>
                             <p class="truncate text-xs/5 text-gray-500 dark:text-gray-400">{{ $customer->email ?? '—' }}</p>
                             <p class="mt-3 text-xs/5 text-gray-500 dark:text-gray-400">{{ $customer->line() }}</p>
-                            @if (Route::has('seller.customers.show'))
-                                <a href="{{ route('seller.customers.show', $fulfillment->customer_id) }}" class="mt-1 inline-block text-xs/5 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">View customer</a>
-                            @endif
+                            <a href="{{ route('seller.customers.show', $fulfillment->customer_id) }}" class="mt-1 inline-block text-xs/5 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">View customer</a>
                         </section>
 
                         <section aria-labelledby="ships-to-heading" class="rounded-lg border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">

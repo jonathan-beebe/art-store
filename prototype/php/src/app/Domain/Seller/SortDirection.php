@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Seller;
 
-enum ListingSortDirection: string
+/**
+ * The direction every sortable seller table reads off `?dir=`.
+ */
+enum SortDirection: string
 {
     case Asc = 'asc';
     case Desc = 'desc';

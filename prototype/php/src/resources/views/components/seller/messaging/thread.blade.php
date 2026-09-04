@@ -6,7 +6,7 @@
     alone, the back link is the only way to the inbox, so it stays out of
     the `lg:hidden` list pane.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'domain', 'replyTo' => null, 'faqPrefill' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'domain', 'context', 'replyTo' => null, 'faqPrefill' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -21,7 +21,12 @@
     $paneRouteParams = ['conversation' => $conversation, 'domain' => $domain];
 @endphp
 
-<div class="px-6 py-4">
+{{--
+    The transcript and the composer, with the context rail beside them at
+    `xl` and under them below it.
+--}}
+<div class="flex flex-col xl:flex-row xl:items-start">
+    <div class="min-w-0 flex-1 px-6 py-4">
     <x-seller.back-link :route="route($indexRoute)" label="Messages" />
 
     <div class="flex items-start justify-between gap-4">
@@ -177,4 +182,9 @@
     @endcan
 
     {{ $slot }}
+    </div>
+
+    <aside aria-label="About this conversation" class="w-full shrink-0 border-t border-gray-200 px-6 py-6 xl:w-80 xl:border-t-0 xl:border-l dark:border-white/10">
+        <x-seller.context-rail :context="$context" />
+    </aside>
 </div>

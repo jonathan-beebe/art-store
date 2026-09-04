@@ -19,6 +19,12 @@
 - 2026-09-04:06:00:00 — FEAT-053 — reviewed: review-pass fixes (steps say who and when, completeStep policy, OrderDetail adapter, generic ListPaneWindow, aggregate customer card, query-count tests)
 - 2026-09-04:05:20:00 — FEAT-053 — resolved: lanes with counts, a step-aware detail with the state line and three cards, and the activity feed under its kind filter
 - 2026-09-04:05:00:00 — FEAT-053 — started: Orders is lanes, a step-aware detail, and the activity feed
+- 2026-09-04:06:25:00 — FEAT-059 — reviewed: review-pass fixes on php/sp-customers (seller-scoped order items, ThreadLink, enum tag vocabulary, shared initials)
+- 2026-09-04:06:25:00 — FEAT-054 — reviewed: review-pass fixes on php/sp-customers (paid gate, one grouped query, tie-break direction, placed_at recency, read tests)
+- 2026-09-04:05:40:00 — FEAT-059 — resolved: A thread shows who the customer is beside the words
+- 2026-09-04:05:30:00 — FEAT-059 — started: A thread shows who the customer is beside the words
+- 2026-09-04:05:25:00 — FEAT-054 — resolved: Customers is a section: derived buyers, segments, sortable columns, and one buyer's timeline
+- 2026-09-04:01:10:00 — FEAT-054 — started: Customers is a section: who bought, and their timeline
 - 2026-09-04:00:40:00 — FEAT-058 — reviewed: review-pass fixes on php/sp-store (hidden-store redirect disclosure, for-sale count, publicUrl, feed-row test, scoped OG tags)
 - 2026-09-04:00:40:00 — FEAT-057 — reviewed: review-pass fixes on php/sp-store (gallery order input, per-section error bags and old(), alt field, sentinel position, upload rollback, url scheme rule)
 - 2026-09-03:23:55:00 — FEAT-058 — resolved: A store has a public page and every listing card leads to it

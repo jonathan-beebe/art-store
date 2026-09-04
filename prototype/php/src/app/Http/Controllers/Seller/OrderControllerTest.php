@@ -25,7 +25,6 @@ use App\Models\FulfillmentFlowStep;
 use App\Models\Message;
 use App\Models\Seller;
 use App\Models\Variant;
-use Illuminate\Support\Facades\Route;
 
 $paidFulfillment = function (Seller $seller, string $title = 'Harbour at Dusk'): Fulfillment {
     $order = test()->orderFor(test()->verifiedCustomer(), test()->listing($seller, ['title' => $title]));
@@ -509,26 +508,14 @@ it('offers the live step only while the parcel is in the studio', function (): v
     $onShipped->assertDontSee(route('seller.orders.steps.complete', [$shipped->id, $flow->steps()->sole()->id]), escape: false);
 });
 
-it('links to the customer once a customers route exists', function () use ($paidFulfillment): void {
-    Route::get('/seller/customers/{customer}', fn (): string => 'customer')->name('seller.customers.show');
-    Route::getRoutes()->refreshNameLookups();
-
+it('links the customer card to the customer page', function () use ($paidFulfillment): void {
     $seller = $this->seller();
     $fulfillment = $paidFulfillment($seller);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
 
     $response->assertSee('View customer');
-    $response->assertSee(route('seller.customers.show', $fulfillment->customer_id), escape: false);
-});
-
-it('leaves the customer link off until that route exists', function () use ($paidFulfillment): void {
-    $seller = $this->seller();
-    $fulfillment = $paidFulfillment($seller);
-
-    $response = $this->actingAs($seller, 'seller')->get("/seller/orders/{$fulfillment->id}");
-
-    $response->assertDontSee('View customer');
+    $response->assertSee("/seller/customers/{$fulfillment->customer_id}", escape: false);
 });
 
 it('closes the page with everything that happened on the order', function (): void {
