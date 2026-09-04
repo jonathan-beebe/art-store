@@ -5,15 +5,108 @@
 - RSRCH: 2
 - DSGN: 11
 - ARCH: 1
-- FEAT: 51
-- IMPRV: 30
-- MAINT: 8
+- FEAT: 65
+- IMPRV: 43
+- MAINT: 9
 - A11Y: 1
 - RFCTR: 14
 - BUG: 16
 
 ## Log
 
+- 2026-09-04:20:40:00 — IMPRV-038 — resolved: the customers table pages at fifty rows through a new `x-seller.pager`; `CustomersQueryRequest::page()` 400s on 0, a non-integer, and a page past the end; `SellerCustomers::pageForSeller()`/`countForSegment()` filter, sort, and page entirely in SQL over the grouped aggregate, no PHP slice; tiles keep counting every buyer off the unpaged `forSeller()`; `make precommit` green
+- 2026-09-04:20:35:00 — IMPRV-038 — started
+- 2026-09-04:20:20:00 — IMPRV-037 — resolved: range dropped from the listings and customers query vocabularies, requests, chrome links, and the dashboard's outbound links to them; a stray `?range=` on either route is now an unvalidated, unlisted key (ignored); listings table headers name the fixed thirty-day window, the customers footnote does too; `make precommit` green
+- 2026-09-04:16:00:00 — IMPRV-037 — started
+- 2026-09-04:16:36:39 — FEAT-064 — review fix: items 2-12 (explicit authorize on update, order-page link tests, strict default-deletion wording, control-based picker assertions, docs naming /seller/workflows, sr-only button names, MakeFulfillmentFlowDefault returns void, #[Override], lockForUpdate on the first-flow read, withCount+first-three-listings-and-N-more, contrast-clause rewrites) plus item 1 (fulfillments.fulfillment_flow_id stamped at placement, FulfillmentFlowReader reads the snapshot first) after rebasing onto php/seller-portal-next; make precommit green, 5327 tests
+- 2026-09-04:20:35:00 — IMPRV-035 — done: App\Seller\DraftPublishIssues batches publishIssues()'s reads across the needs-work panel's drafts in nine or ten grouped queries whatever their count; rows name the first publish issue and how many more
+- 2026-09-04:20:25:00 — IMPRV-035 — started
+- 2026-09-04:20:20:00 — IMPRV-040 — done: platformCountsByStatus/platformFees to App\Admin\PlatformFulfillmentReader, itemLabel/itemImageUrl to App\Support\ParcelLine, flowInEffect/flowSteps/progress to App\Seller\FulfillmentFlowReader, lane() takes a FulfillmentProgress, every loadMissing() gone; 498 to 371 lines
+- 2026-09-04:19:33:36 — IMPRV-040 — started
+- 2026-09-04:16:09:06 — IMPRV-042 — defined: The earnings net-per-period bars don't line up with their date labels
+- 2026-09-04:16:09:06 — IMPRV-041 — defined: The admin listing tint disagrees with ListingStatus's own badge
+- 2026-09-04:16:06:30 — IMPRV-036 — review fix: the workspace/dialog/takeover structural tests run as a dataset over table and grid; the grid route's weak <dialog> string assertion is gone
+- 2026-09-04:16:03:48 — IMPRV-039 — review fix: BarStrip::baseline() clamps each bar to its own side's budget, an sr-only list carries the per-bar tooltips, netStrip() moves to the controller with heightPx on BarStripBaseline
+- 2026-09-04:15:36:10 — IMPRV-039 — resolved: `BarStrip::baseline()` + `BarStripBaseline`, `bar-strip.blade.php` gains a `baseline` prop, earnings net-per-period chart now renders through `x-bar-strip`, `EarningsPeriods::tallestNet()` replaced by `netStrip()`
+- 2026-09-04:15:35:00 — IMPRV-039 — started
+- 2026-09-04:15:30:27 — IMPRV-036 — resolved: overlay/takeover viewport coverage rewritten as DomCrawler structural tests, `docs/seller-portal.md` corrected to `2xl:flex`
+- 2026-09-04:15:30:00 — IMPRV-036 — started
+- 2026-09-04:15:23:48 — IMPRV-034 — resolved: `sellerBadgeTint()` renamed to `badgeTint()`, every seller and admin caller and the test updated
+- 2026-09-04:14:30:06 — IMPRV-034 — started
+- 2026-09-04:15:39:35 — FEAT-064 — resolved — Workflows resource (index/create/edit/make-default/destroy) at /seller/workflows, old route 301-redirects, Basics-page picker for sellers with 2+ flows, docs/seller-portal.md Workflows section; make precommit green
+- 2026-09-04:14:31:10 — FEAT-064 — started — build the Workflows resource (index/create/edit/make-default/destroy), old-route redirect, listing picker, docs section
+- 2026-09-04:17:40:00 — FEAT-063 — resolved: help.answered/help.unanswered recorded on the seller support article page, shown in the admin analytics event list
+- 2026-09-04:17:15:00 — FEAT-063 — started: recording "did this answer it?"
+- 2026-09-04:17:10:00 — FEAT-062 — resolved: admin analytics store page, linked from feed rows, the seller list row, and the seller detail page
+- 2026-09-04:15:52:00 — FEAT-062 — started: admin analytics store page, reached from events and the seller pages
+- 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule
+- 2026-09-04:12:06:48 — FEAT-064 — defined: A seller can keep more than one fulfillment flow and pick one per listing
+- 2026-09-04:15:00:00 — IMPRV-030 — resolved: ten commits — external scripts for the CSP (mobile nav, admin drawer, New listing), the thread rail at 2xl, the listings detail dialog a real modal at 2xl (owner kept it), unpublished support facts as text, dark-mode print fixes plus a no-JS print fallback, bar-strip names and four other accessible-name fixes, six help-article corrections, FeedTest on data- markers, and two owner-walk fixes (store picture Remove overlap, empty vs "new" Sales change); make check green
+- 2026-09-04:12:32:15 — IMPRV-032 — started
+- 2026-09-04:12:00:00 — IMPRV-030 — started: External scripts for the CSP, the thread rail breakpoint, the listings overlay, placeholder text, print controls, and accessibility fixes from the seller-portal audit
+- 2026-09-04:11:16:21 — IMPRV-031 — reviewed: review-pass fixes on php/au-data after a rebase onto php/seller-portal-next — latestCompletedStep()'s ofMany() constraint, RangeChange's abs(previous), MoveStoreSection's profile lock, Fulfillment::onPaidOrder(), a seeder duplicate-event bug the strengthened seed-walk test caught, a store-picture filename collision, a factory's eager create(), two tautological test guards replaced, the ticket bullet corrected, seven commit messages reworded; make check green (5202 tests, 99.5% coverage)
+- 2026-09-04:10:02:46 — IMPRV-031 — resolved (worktree au-data, prototype/php): Fulfillment::live()/counted() consolidate the paid/live rule across nine readers; dashboard earnings tile follows the earnings-page model; seeded shipped/delivered parcels carry their events; partial index and step-parking survive Postgres; store pictures always own their file; positions read inside their transaction; Order::items() ordered; StoreImageRequest mints on first POST; factories never mint unrelated parents. make check green (5198 tests, 99.5% coverage).
+- 2026-09-04:08:30:10 — FEAT-063 — defined: A seller's answer to "did this answer it?" is recorded
+- 2026-09-04:08:30:10 — FEAT-062 — defined: A store has an admin analytics page, reached from its events and from the seller
+- 2026-09-04:08:30:10 — IMPRV-040 — defined: The Fulfillment model keeps its rows and rules; pages read through adapters
+- 2026-09-04:08:30:10 — IMPRV-039 — defined: Bar strips draw a negative period below the baseline
+- 2026-09-04:08:30:10 — IMPRV-038 — defined: The customers table pages at fifty rows
+- 2026-09-04:08:30:10 — IMPRV-037 — defined: Range belongs to the dashboard alone; listings and customers are evergreen
+- 2026-09-04:08:35:00 — IMPRV-033 — resolved: alignment.md §8 names all eleven tickets; orders.md links §4.5 instead of restating it (392 → 368 lines); seller-portal.md reordered to the nav's order, seven stale claims corrected, flow editor and label page named, 1072 → 699 lines; data-model.md's conversations/messages/fulfillments/listings match their migrations and its prefix table lists all 46 idPrefix() tables; ontology.md's analytics-event entry names all nine; IMPRV-034..036 filed for the three §6 rows with a definite outcome, the other seven deferred to DECISIONS.md
+- 2026-09-04:08:10:00 — IMPRV-036 — defined: The listings overlay tests prove the right block shows per viewport
+- 2026-09-04:08:10:00 — IMPRV-035 — defined: The dashboard's "needs work" group names a draft's actual issues
+- 2026-09-04:08:10:00 — IMPRV-034 — defined: The shared status-tint lookup carries a name that fits both portals
+- 2026-09-04:07:32:43 — IMPRV-033 — started
+- 2026-09-04:07:29:33 — IMPRV-031 — started (worktree au-data, prototype/php)
+- 2026-09-04:07:27:28 — IMPRV-033 — defined: The docs say the seller portal once, and the deferrals become tickets
+- 2026-09-04:07:27:28 — IMPRV-032 — defined: One sort stack, one link, one query request, one paid rule, one sidecar rule
+- 2026-09-04:07:27:28 — IMPRV-031 — defined: Every seller figure counts the same parcels and survives Postgres
+- 2026-09-04:07:27:28 — IMPRV-030 — defined: The seller portal renders and reads right for every seller
+- 2026-09-04:11:20:00 — FEAT-055 — reviewed: merge-after-fixes pass — held row opens the earnings held list, To ship orders by orders.placed_at, the customers tile reads isNewSince, HeldEscrow::tallyFor, RelativeTime into App\Domain\Support with App\Support banned there, x-bar-strip shared; make check green
+- 2026-09-04:09:40:00 — FEAT-055 — resolved: range control, three brand-icon tiles with sparklines, listing activity with top-five strips, four focus groups; plus the MAINT-008 doc order and help article, the FEAT-052 refund row, and the FEAT-053 admin tint chores; make check green, 5164 tests, 99.5% coverage
+- 2026-09-04:07:00:00 — FEAT-055 — started: The dashboard opens on three tiles, listing activity, and what needs attention
+- 2026-09-04:02:05:00 — MAINT-008 — resolved: alignment §1/§2.3/§4.1/§4.4/§4.5/§8, both ontologies, seller-portal.md's intro and Data section, data-model.md's nine tables, one docs README row, node FEAT-023 and rails FEAT-022 filed, four help articles verified and three corrected; precommit green, 4758 tests
+- 2026-09-04:01:10:00 — MAINT-008 — started: The contract, the ontology, and the docs learn the seller portal
+- 2026-09-04:06:00:00 — FEAT-053 — reviewed: review-pass fixes (steps say who and when, completeStep policy, OrderDetail adapter, generic ListPaneWindow, aggregate customer card, query-count tests)
+- 2026-09-04:05:20:00 — FEAT-053 — resolved: lanes with counts, a step-aware detail with the state line and three cards, and the activity feed under its kind filter
+- 2026-09-04:05:00:00 — FEAT-053 — started: Orders is lanes, a step-aware detail, and the activity feed
+- 2026-09-04:06:25:00 — FEAT-059 — reviewed: review-pass fixes on php/sp-customers (seller-scoped order items, ThreadLink, enum tag vocabulary, shared initials)
+- 2026-09-04:06:25:00 — FEAT-054 — reviewed: review-pass fixes on php/sp-customers (paid gate, one grouped query, tie-break direction, placed_at recency, read tests)
+- 2026-09-04:05:40:00 — FEAT-059 — resolved: A thread shows who the customer is beside the words
+- 2026-09-04:05:30:00 — FEAT-059 — started: A thread shows who the customer is beside the words
+- 2026-09-04:05:25:00 — FEAT-054 — resolved: Customers is a section: derived buyers, segments, sortable columns, and one buyer's timeline
+- 2026-09-04:01:10:00 — FEAT-054 — started: Customers is a section: who bought, and their timeline
+- 2026-09-04:00:40:00 — FEAT-058 — reviewed: review-pass fixes on php/sp-store (hidden-store redirect disclosure, for-sale count, publicUrl, feed-row test, scoped OG tags)
+- 2026-09-04:00:40:00 — FEAT-057 — reviewed: review-pass fixes on php/sp-store (gallery order input, per-section error bags and old(), alt field, sentinel position, upload rollback, url scheme rule)
+- 2026-09-03:23:55:00 — FEAT-058 — resolved: A store has a public page and every listing card leads to it
+- 2026-09-03:23:15:00 — FEAT-058 — started: A store has a public page and every listing card leads to it
+- 2026-09-03:23:10:00 — FEAT-057 — resolved: A seller builds their store profile from typed sections
+- 2026-09-03:22:00:00 — FEAT-057 — started: A seller builds their store profile from typed sections
+- 2026-09-03:23:22:03 — FEAT-056 — review pass: sort determinism, CSP-safe sort select, unique overlay ids, ListingsChrome refactor, weak-test fixes
+- 2026-09-03:22:38:58 — FEAT-056 — resolved: Listings gets list, table, and grid views over one detail
+- 2026-09-03:21:32:31 — FEAT-056 — started
+- 2026-09-03:22:40:00 — FEAT-052 — resolved: ActivityFeed core, four sources behind ActivityFeedSource, ActivityFeedReader, x-seller.feed, docs/seller-portal.md
+- 2026-09-03:22:16:00 — FEAT-052 — started: One activity feed over analytics, orders, fulfillment, and messages
+- 2026-09-03:22:15:00 — FEAT-051 — resolved: fulfillment flows, steps, and an append-only event log; every transition appends its event; seller flow editor, step completion, and the label page
+- 2026-09-03:21:26:32 — FEAT-051 — started: Fulfillment is an event log with seller-owned flow steps
+- 2026-09-03:23:21:49 — FEAT-060 — resolved: review pass fixed six money-correctness defects (unpaid orders counted, double-subtracted refunds, held list/total mismatch, missing sales-change bullet, unreadable negative bars, Sunday-delivery double count) plus badge-tint duplication and weak tests
+- 2026-09-03:23:21:49 — FEAT-061 — resolved: review pass fixed help-copy claims the app does not back, a live link to a bracketed placeholder, a static cache, Eloquent models handed to a view, and hardcoded admin names in tests
+- 2026-09-03:22:30:03 — FEAT-061 — resolved: Support feels like two people nearby
+- 2026-09-03:22:12:17 — FEAT-061 — doing: Support feels like two people nearby
+- 2026-09-03:22:03:02 — FEAT-060 — resolved: Earnings focuses on this period and the next payout
+- 2026-09-03:21:29:56 — FEAT-060 — doing: Earnings focuses on this period and the next payout
+- 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
+- 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
+- 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout
+- 2026-09-03:21:19:56 — FEAT-059 — defined: A thread shows who the customer is beside the words
+- 2026-09-03:21:19:56 — FEAT-058 — defined: A store has a public page and every listing card leads to it
+- 2026-09-03:21:19:56 — FEAT-057 — defined: A seller builds their store profile from typed sections
+- 2026-09-03:21:19:56 — FEAT-056 — defined: Listings has list, table, and grid views over one detail
+- 2026-09-03:21:19:56 — FEAT-055 — defined: The dashboard opens on three tiles, listing activity, and what needs attention
+- 2026-09-03:21:19:56 — FEAT-054 — defined: Customers is a section: who bought, and their timeline
+- 2026-09-03:21:19:56 — FEAT-053 — defined: Orders is lanes, a step-aware detail, and the activity feed
+- 2026-09-03:21:19:56 — FEAT-052 — defined: One activity feed over analytics, orders, fulfillment, and messages
+- 2026-09-03:21:19:56 — FEAT-051 — defined: Fulfillment is an event log with seller-owned flow steps
 - 2026-09-03:18:40:09 — FEAT-050 — follow-up: filter popover removed; each inbox is the domain tabs over every conversation by last_message_at
 - 2026-09-03:17:38:21 — FEAT-050 — follow-up: rows order by last_message_at alone so reading never moves a row
 - 2026-09-03:17:31:41 — FEAT-050 — follow-up: unread threads list under the default view regardless of status

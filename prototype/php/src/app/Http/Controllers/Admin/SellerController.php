@@ -41,7 +41,7 @@ final class SellerController extends Controller
         $window = ListPaneWindow::of($this->sellersQuery(), $seller);
 
         return view('admin.sellers.show', [
-            'seller' => $seller,
+            'seller' => $seller->loadMissing('storeProfile'),
             'funnel' => Funnel::forSeller(FunnelDefinition::storefront(), $seller, AnalyticsRange::of(self::FUNNEL_RANGE_DAYS, $this->now())),
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
             'listings' => $seller->listings()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),
@@ -59,6 +59,6 @@ final class SellerController extends Controller
      */
     private function sellersQuery(): Builder
     {
-        return Seller::query()->withCount(['listings', 'fulfillments'])->orderByDesc('created_at')->orderByDesc('id');
+        return Seller::query()->withCount(['listings', 'fulfillments'])->with('storeProfile')->orderByDesc('created_at')->orderByDesc('id');
     }
 }

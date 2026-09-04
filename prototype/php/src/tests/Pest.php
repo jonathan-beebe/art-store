@@ -21,6 +21,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Actions',
+    '../app/Admin',
     '../app/Analytics',
     '../app/Console/Commands',
     '../app/Events',
@@ -34,6 +35,7 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Observers',
     '../app/Policies',
     '../app/Providers',
+    '../app/Seller',
     '../app/Support',
     '../app/View/Components',
 );

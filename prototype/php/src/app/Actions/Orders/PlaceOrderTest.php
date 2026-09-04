@@ -23,6 +23,7 @@ use App\Domain\Orders\OrderPlacementRefused;
 use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\UnavailableReason;
 use App\Models\CustomerBlock;
+use App\Models\FulfillmentFlow;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Models\Variant;
@@ -106,6 +107,41 @@ it('splits the order into one fulfillment per seller', function (): void {
         [$first->seller_id, 45000, 4500, 40500],
         [$second->seller_id, 10000, 1000, 9000],
     ]);
+});
+
+it('snapshots the listings own flow onto its fulfillment', function (): void {
+    $customer = $this->verifiedCustomer();
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($order->fulfillments()->sole()->fulfillment_flow_id)->toBe($flow->id);
+});
+
+it('snapshots the sellers default flow when the listing names none', function (): void {
+    $customer = $this->verifiedCustomer();
+    $seller = $this->seller();
+    $default = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $listing = $this->listing($seller);
+    $cart = $this->cartFor($customer);
+    app(AddToCart::class)($cart, $listing, 1, $this->moment('2026-08-20 08:00:00'));
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($order->fulfillments()->sole()->fulfillment_flow_id)->toBe($default->id);
+});
+
+it('leaves the snapshot null for a seller with no flow at all', function (): void {
+    $customer = $this->verifiedCustomer();
+    $cart = $this->cartWithOneListing($customer, 10000);
+
+    $order = app(PlaceOrder::class)($cart, $this->purchaser($customer), $this->shippingAddress(), $this->moment('2026-08-20 09:00:00'));
+
+    expect($order->fulfillments()->sole()->fulfillment_flow_id)->toBeNull();
 });
 
 it('starts every fulfillment awaiting shipment', function (): void {

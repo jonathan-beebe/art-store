@@ -33,18 +33,13 @@
                 $isSelected = $selected !== null && $selected->id === $conversation->id;
                 $isUnread = $conversation->unread_count > 0;
                 $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
-                [$tagLabel, $tagClasses] = match ($conversation->kind) {
-                    \App\Domain\Messaging\ConversationKind::ListingQuestion => ['Question', 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'],
-                    \App\Domain\Messaging\ConversationKind::Fulfillment => ['Order', 'bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400'],
-                    \App\Domain\Messaging\ConversationKind::AdminSeller, \App\Domain\Messaging\ConversationKind::AdminCustomer => ['Support', 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-400'],
-                };
                 // A row's own title: the conversation's (a listing question's
                 // derived summary, or a support thread's typed subject),
                 // falling back to the order for a fulfillment thread, which
                 // carries none.
                 $topic = $conversation->title ?? $conversation->kind->topic($conversation->fulfillment?->order_id, null);
                 $at = $conversation->last_message_at;
-                $relativeTime = $at === null ? '' : \App\Support\RelativeTime::short($at, now());
+                $relativeTime = $at === null ? '' : \App\Domain\Support\RelativeTime::short($at, now());
 
                 // The preview line's own prefix: the listing a question is
                 // about (the row's title above is the question, not the
@@ -65,7 +60,7 @@
                     accent="indigo"
                     :selected="$isSelected"
                     href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
-                    :aria-current="$isSelected ? 'true' : null"
+                    :aria-current="$isSelected ? 'page' : null"
                 >
                     <x-slot:title>
                         <p class="flex items-center gap-x-1.5 text-sm/6">
@@ -85,7 +80,7 @@
                     </x-slot:title>
                     <x-slot:supporting>
                         <div class="mt-1 flex items-center gap-x-2">
-                            <span class="inline-flex shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium tracking-wide uppercase {{ $tagClasses }}">{{ $tagLabel }}</span>
+                            <x-seller.thread-tag :kind="$conversation->kind" />
                             <span class="min-w-0 flex-1 truncate text-xs/5 text-gray-900 dark:text-gray-100">{{ $topic }}</span>
                         </div>
                     </x-slot:supporting>

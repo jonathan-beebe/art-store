@@ -65,10 +65,17 @@ class Order extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    /** @return HasMany<OrderItem, $this> */
+    /**
+     * The order's own lines, in the order they were placed in: `created_at`
+     * places them, `id` — a ULID minted the same moment — breaks a tie
+     * within the same request. {@see Fulfillment::flowNamedByAListing()}
+     * reads the first as the listing a parcel ships by.
+     *
+     * @return HasMany<OrderItem, $this>
+     */
     public function items(): HasMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(OrderItem::class)->orderBy('created_at')->orderBy('id');
     }
 
     /** @return HasMany<Fulfillment, $this> */
@@ -115,6 +122,32 @@ class Order extends Model
     }
 
     /**
+     * The shipping address as a parcel label prints it, one line per row,
+     * with the lines this order left empty dropped. A blank city drops
+     * straight to the region and postal code, with no leading comma.
+     *
+     * @return list<string>
+     */
+    public function shippingAddressLines(): array
+    {
+        $regionAndPostal = trim(implode(' ', array_filter([$this->shipping_region, $this->shipping_postal_code])));
+        $cityLine = implode(', ', array_filter([$this->shipping_city, $regionAndPostal]));
+
+        $lines = [
+            $this->shipping_name,
+            $this->shipping_line1,
+            $this->shipping_line2,
+            $cityLine,
+            $this->shipping_country,
+        ];
+
+        return array_values(array_filter(
+            array_map(fn (?string $line): string => trim($line ?? ''), $lines),
+            fn (string $line): bool => $line !== '',
+        ));
+    }
+
+    /**
      * How placement judges this order's items against the listings behind
      * them, as the rows stand right now. A retry after a decline calls this
      * before it retakes stock — against rows it holds for update — so an item
@@ -153,6 +186,35 @@ class Order extends Model
         if ($customerId !== null) {
             $query->where('customer_id', $customerId);
         }
+    }
+
+    /**
+     * Every order whose card cleared, the fold every money report reads
+     * through: a fulfillment row exists from the moment an order is placed,
+     * before a card is even charged, so a report over fulfillments alone
+     * would count a cart that never paid the same as a sale.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function hasBeenPaid(Builder $query): void
+    {
+        $query->whereIn('status', self::paidStatuses());
+    }
+
+    /**
+     * The statuses {@see hasBeenPaid} filters to — named separately so a
+     * query built inside a `whereHas` closure can reach it as a plain
+     * `whereIn`, where Larastan does not resolve a custom scope call.
+     *
+     * @return list<OrderStatus>
+     */
+    public static function paidStatuses(): array
+    {
+        return array_values(array_filter(
+            OrderStatus::cases(),
+            fn (OrderStatus $status): bool => $status->hasBeenPaid(),
+        ));
     }
 
     /**

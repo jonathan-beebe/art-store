@@ -5,7 +5,7 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 22
+- FEAT: 23
 - IMPRV: 5
 - MAINT: 4
 - A11Y: 1
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:01:30:00 — FEAT-022 — defined: the seller portal grows a store, a fulfillment flow, and a feed (parity with php's seller-portal landing, docs/alignment.md §1/§2.6/§4.4/§4.5)
 - 2026-08-31:18:08:55 — IMPRV-004 — defined: the commit gate pays only for what changed (seeded from php IMPRV-021)
 
 - 2026-08-24:12:30:00 — MAINT-003 — done: docs and README refreshed against the code, route walk with no 5xx, hook demonstrated refusing a failing commit, Node-lane alignment fixes; 1262 runs / 4506 assertions / 100% lines

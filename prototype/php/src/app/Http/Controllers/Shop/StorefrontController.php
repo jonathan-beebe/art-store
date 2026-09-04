@@ -46,7 +46,7 @@ final class StorefrontController extends ShopController
         }
 
         $newest = Listing::query()->forSale()
-            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->orderByDesc('created_at')->orderByDesc('id');
 
         return view('shop.home', [

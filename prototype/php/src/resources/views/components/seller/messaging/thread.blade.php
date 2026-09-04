@@ -6,7 +6,7 @@
     alone, the back link is the only way to the inbox, so it stays out of
     the `lg:hidden` list pane.
 --}}
-@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'domain', 'replyTo' => null, 'faqPrefill' => null])
+@props(['conversation', 'viewer', 'indexRoute', 'storeRoute', 'domain', 'context', 'replyTo' => null, 'faqPrefill' => null])
 
 @php
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
@@ -21,10 +21,15 @@
     $paneRouteParams = ['conversation' => $conversation, 'domain' => $domain];
 @endphp
 
-<div class="px-6 py-4">
+{{--
+    The transcript and the composer, with the context rail beside them at
+    `2xl` and under them below it.
+--}}
+<div data-thread class="flex flex-col 2xl:flex-row 2xl:items-start">
+    <div class="min-w-0 flex-1 px-6 py-4">
     <x-seller.back-link :route="route($indexRoute)" label="Messages" />
 
-    <div class="flex items-start justify-between gap-4">
+    <div data-thread-header class="flex flex-wrap items-start justify-between gap-4">
         <div class="min-w-0 flex-1">
             <div class="flex items-center gap-2">
                 <h1 class="min-w-0 truncate text-base font-semibold text-gray-900 dark:text-white">
@@ -48,7 +53,7 @@
             </p>
         </div>
 
-        <div class="flex shrink-0 items-start gap-2">
+        <div data-thread-actions class="flex items-start gap-2">
             @if ($conversation->listing)
                 <details class="relative">
                     <summary class="inline-flex cursor-pointer list-none items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 marker:content-none dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20 [&::-webkit-details-marker]:hidden">Publish as FAQ</summary>
@@ -177,4 +182,9 @@
     @endcan
 
     {{ $slot }}
+    </div>
+
+    <aside data-thread-rail aria-label="About this conversation" class="w-full shrink-0 border-t border-gray-200 px-6 py-6 2xl:w-80 2xl:border-t-0 2xl:border-l dark:border-white/10">
+        <x-seller.context-rail :context="$context" />
+    </aside>
 </div>

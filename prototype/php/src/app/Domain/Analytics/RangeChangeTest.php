@@ -26,6 +26,13 @@ it('reads a move under half a percent as flat, regardless of its sign', function
         ->and($down->text)->toBe('0.0%')->and($down->direction)->toBe(ChangeDirection::Flat);
 });
 
+it('reads a move toward zero from a negative previous as an improvement', function (): void {
+    $change = RangeChange::between(-100, -300);
+
+    expect($change->text)->toBe('+66.7%')
+        ->and($change->direction)->toBe(ChangeDirection::Up);
+});
+
 it('reads no previous count as new rather than dividing by zero', function (): void {
     $change = RangeChange::between(40, 0);
 
@@ -33,9 +40,9 @@ it('reads no previous count as new rather than dividing by zero', function (): v
         ->and($change->direction)->toBe(ChangeDirection::Flat);
 });
 
-it('reads two zero counts as flat', function (): void {
+it('reads two zero counts as empty', function (): void {
     $change = RangeChange::between(0, 0);
 
-    expect($change->text)->toBe('new')
+    expect($change->text)->toBe('')
         ->and($change->direction)->toBe(ChangeDirection::Flat);
 });

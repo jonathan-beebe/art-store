@@ -307,6 +307,39 @@ it('names an order subject on the actor page\'s feed, linked to the order, with 
     $response->assertSee('Starry Night');
 });
 
+it('names a store subject on the actor page\'s feed, linked to the store', function (): void {
+    $seller = $this->seller('Weasley Studio');
+    $store = $this->storeFor($seller);
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forStore(AnalyticsEventName::StoreView, $store->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    $analytics->flush();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee($store->name);
+    $response->assertSee('href="'.route('admin.analytics.stores.show', $store).'"', escape: false);
+});
+
+it('names a store subject "store no longer exists" on the actor page\'s feed once the store is deleted', function (): void {
+    $store = $this->storeFor($this->seller());
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forStore(AnalyticsEventName::StoreView, $store->id, $customer->id, $this->moment('2026-08-19 09:00:00')));
+    $analytics->flush();
+    $store->delete();
+
+    $this->travelTo($this->moment('2026-08-24 12:00:00'));
+    $response = $this->actingAs($this->admin(), 'admin')->get(route('admin.analytics.actors.show', $customer));
+
+    $response->assertOk();
+    $response->assertSee('store no longer exists');
+});
+
 it('names a cart subject on the actor page\'s feed, unlinked, with its listing titles', function (): void {
     $listing = $this->listing($this->seller(), ['title' => 'Starry Night']);
     $customer = $this->verifiedCustomer();

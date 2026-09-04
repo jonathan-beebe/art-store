@@ -7,22 +7,21 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Messaging\MarkConversationRead;
 use App\Actions\Messaging\PostMessage;
 use App\Domain\Auth\ActorType;
-use App\Domain\Messaging\ConversationKind;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
+use App\Domain\Seller\MessageDomain;
 use App\Http\Requests\Seller\MessagesQueryRequest;
 use App\Http\Requests\Seller\PostMessageRequest;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Seller;
+use App\Seller\ThreadContext;
 use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
@@ -39,7 +38,7 @@ final class MessageController extends SellerController
             'conversations' => $window->items,
             'conversationsTotal' => $window->total,
             'viewer' => ActorType::Seller,
-            'domain' => $domain,
+            'domain' => $domain->value,
         ]);
     }
 
@@ -60,10 +59,10 @@ final class MessageController extends SellerController
         $pane = $this->paneFor($seller, $domain, $conversation);
 
         return view('seller.messages.show', [
-            ...$this->threadView($conversation, $this->replyToId($request)),
+            ...$this->threadView($seller, $conversation, $this->replyToId($request)),
             'cellConversations' => $pane['items'],
             'cellConversationsTotal' => $pane['total'],
-            'domain' => $domain,
+            'domain' => $domain->value,
         ]);
     }
 
@@ -87,16 +86,16 @@ final class MessageController extends SellerController
             $pane = $this->paneFor($seller, $domain, $conversation);
 
             return $this->tooManyRequests($exceeded, 'seller.messages.show', [
-                ...$this->threadView($conversation, $this->replyToId($request)),
+                ...$this->threadView($seller, $conversation, $this->replyToId($queryRequest)),
                 'cellConversations' => $pane['items'],
                 'cellConversationsTotal' => $pane['total'],
-                'domain' => $domain,
+                'domain' => $domain->value,
             ]);
         }
 
         $postMessage($conversation, $seller, $request->body(), $this->now(), $request->replyTo());
 
-        return redirect()->route('seller.messages.show', ['conversation' => $conversation, 'domain' => $domain]);
+        return redirect()->route('seller.messages.show', ['conversation' => $conversation, 'domain' => $domain->value]);
     }
 
     /**
@@ -106,15 +105,11 @@ final class MessageController extends SellerController
      *
      * @return Builder<Conversation>
      */
-    private function conversationsQuery(Seller $seller, string $domain): Builder
+    private function conversationsQuery(Seller $seller, MessageDomain $domain): Builder
     {
         $eloquent = Conversation::query()->withParticipant($seller);
 
-        $kinds = match ($domain) {
-            'buyers' => [ConversationKind::ListingQuestion, ConversationKind::Fulfillment],
-            'support' => [ConversationKind::AdminSeller],
-            default => null, // 'all': every kind the seller participates in.
-        };
+        $kinds = $domain->kinds();
 
         if ($kinds !== null) {
             $eloquent->ofKind(...$kinds);
@@ -133,9 +128,9 @@ final class MessageController extends SellerController
      * the thread outright leaves it out too. This adds one more, unscoped
      * fetch for exactly that case.
      *
-     * @return array{items: Collection<int, Model>, total: int}
+     * @return array{items: Collection<int, Conversation>, total: int}
      */
-    private function paneFor(Seller $seller, string $domain, Conversation $conversation): array
+    private function paneFor(Seller $seller, MessageDomain $domain, Conversation $conversation): array
     {
         $window = ListPaneWindow::of($this->conversationsQuery($seller, $domain), $conversation);
         $items = $window->items;
@@ -159,7 +154,7 @@ final class MessageController extends SellerController
      *
      * @return array<string, mixed>
      */
-    private function threadView(Conversation $conversation, ?string $replyToId): array
+    private function threadView(Seller $seller, Conversation $conversation, ?string $replyToId): array
     {
         $conversation->load([
             'seller', 'customer', 'admin', 'listing', 'fulfillment',
@@ -173,6 +168,7 @@ final class MessageController extends SellerController
             'faqPrefill' => $conversation->faqPrefill(),
             'viewer' => ActorType::Seller,
             'replyTo' => $this->resolveReplyTo($conversation, $replyToId),
+            'context' => ThreadContext::forSeller($seller, $conversation, $this->now()),
         ];
     }
 
@@ -183,7 +179,7 @@ final class MessageController extends SellerController
      * already loaded, rather than a fresh query — which is what makes a
      * stray or cross-thread id resolve to nothing rather than 500.
      */
-    private function replyToId(Request $request): ?string
+    private function replyToId(MessagesQueryRequest $request): ?string
     {
         $old = old('reply_to_message_id');
 
@@ -191,9 +187,7 @@ final class MessageController extends SellerController
             return $old;
         }
 
-        $queried = $request->query('reply_to');
-
-        return is_string($queried) && $queried !== '' ? $queried : null;
+        return $request->replyTo();
     }
 
     private function resolveReplyTo(Conversation $conversation, ?string $replyToId): ?Message

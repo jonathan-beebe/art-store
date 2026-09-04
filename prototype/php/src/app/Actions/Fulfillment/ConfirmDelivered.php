@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\RollUpOrderStatus;
+use App\Domain\Auth\ActorType;
 use App\Domain\Escrow\LedgerMovement;
+use App\Domain\Fulfillment\FulfillmentEventKind;
+use App\Domain\Fulfillment\NewFulfillmentEvent;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Logging\StoryEvent;
 use App\Models\Fulfillment;
@@ -16,7 +19,10 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class ConfirmDelivered
 {
-    public function __construct(private RollUpOrderStatus $rollUpOrderStatus) {}
+    public function __construct(
+        private RollUpOrderStatus $rollUpOrderStatus,
+        private AppendFulfillmentEvent $appendEvent,
+    ) {}
 
     public function __invoke(Fulfillment $fulfillment, DateTimeImmutable $now): Fulfillment
     {
@@ -44,6 +50,13 @@ final readonly class ConfirmDelivered
                     'amount_cents' => $movement->amount->cents,
                     'occurred_at' => $now,
                 ]);
+
+                ($this->appendEvent)($fulfillment, NewFulfillmentEvent::transition(
+                    kind: FulfillmentEventKind::forStatus($status),
+                    actorType: ActorType::Customer,
+                    actorId: $fulfillment->customer_id,
+                    occurredAt: $now,
+                ));
 
                 $fulfillment->load('order.fulfillments');
 

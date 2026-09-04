@@ -41,7 +41,7 @@ final class SearchController extends ShopController
     private function matching(ListingSearch $search): Builder
     {
         return Listing::query()->forSale()
-            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->orderByDesc('created_at')->orderByDesc('id')
             ->ofSearchTerm($search->likePattern());
     }

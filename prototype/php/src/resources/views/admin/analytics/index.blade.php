@@ -139,7 +139,7 @@
                             </td>
                             <td class="relative px-4 py-2">
                                 <div class="w-[180px]">
-                                    <x-admin.analytics.bar-strip :bars="$bars" :height="26" class="text-stone-400 dark:text-stone-500" />
+                                    <x-bar-strip :bars="$bars" :height="26" class="text-stone-400 dark:text-stone-500" />
                                 </div>
                                 <x-admin.analytics.stretched-link :href="$eventHref($event->name)" />
                             </td>
@@ -236,7 +236,7 @@
                                     <x-admin.analytics.stretched-link :href="$actorHref" />
                                 </td>
                                 <td class="relative px-4 py-2 font-mono text-[11px] whitespace-nowrap text-stone-500 dark:text-stone-400">
-                                    {{ \App\Support\RelativeTime::short($actor->lastSeenAt, $now) }}
+                                    {{ \App\Domain\Support\RelativeTime::short($actor->lastSeenAt, $now) }}
                                     <x-admin.analytics.stretched-link :href="$actorHref" />
                                 </td>
                                 <td class="relative px-4 py-2 text-stone-400 dark:text-stone-500">
@@ -262,7 +262,7 @@
                         </div>
                         <div class="flex items-center justify-between text-stone-600 dark:text-stone-400">
                             <span>{{ number_format($actor->events) }} events</span>
-                            <span>{{ \App\Support\RelativeTime::short($actor->lastSeenAt, $now) }}</span>
+                            <span>{{ \App\Domain\Support\RelativeTime::short($actor->lastSeenAt, $now) }}</span>
                         </div>
                     </x-admin.card-row>
                 @endforeach

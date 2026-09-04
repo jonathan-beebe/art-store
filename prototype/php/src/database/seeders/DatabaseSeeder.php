@@ -31,6 +31,8 @@ class DatabaseSeeder extends Seeder
             WizardingSellerSeeder::class,
             ConfiguratorArchetypeSeeder::class,
             ListingImageSeeder::class,
+            StoreProfileSeeder::class,
+            FulfillmentFlowSeeder::class,
         ];
 
         $story = Story::for(StoryEvent::SeedRun)->will('seeding the demo data', [

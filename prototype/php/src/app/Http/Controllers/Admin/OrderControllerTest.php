@@ -215,9 +215,12 @@ it('renders the list pane beside the detail pane, with a sibling order still on 
     $response->assertOk();
     $response->assertSee($viewed->id);
     $response->assertSee('Ada Painter');
+
     // The open order's own cell in the list pane carries the mark, and no
-    // other cell does.
-    expect(substr_count((string) $response->getContent(), 'aria-current="true"'))->toBe(1);
+    // other cell does — scoped to `data-pane-cell` since the nav rail's
+    // own active Orders link also reads `aria-current="page"`.
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+    expect($crawler->filter('[data-pane-cell][aria-current="page"]')->count())->toBe(1);
 });
 
 it('caps the list pane at the window size, however many orders exist', function (): void {

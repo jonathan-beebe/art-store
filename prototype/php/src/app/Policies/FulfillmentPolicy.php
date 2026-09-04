@@ -39,6 +39,20 @@ final class FulfillmentPolicy
     }
 
     /**
+     * A seller marks a step of their own flow done while the parcel is
+     * still in their studio. A parcel that has left has nothing more to
+     * record, and the log is append-only, so a completion after the fact
+     * would say the work happened later than it did.
+     */
+    public function completeStep(Seller $seller, Fulfillment $fulfillment): Response
+    {
+        return $this->whenAllowed(
+            $this->sellerOwnership($seller, $fulfillment),
+            $fulfillment->status === FulfillmentStatus::AwaitingShipment,
+        );
+    }
+
+    /**
      * A seller can turn a parcel down while it is still in their studio and
      * the order behind it has been paid. Another seller's fulfillment is a
      * 404, the same page as one that does not exist.

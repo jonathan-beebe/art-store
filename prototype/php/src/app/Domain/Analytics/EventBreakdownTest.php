@@ -37,11 +37,25 @@ it('offers only an actor breakdown for checkout and order event names', function
     }
 });
 
+it('offers only an article breakdown for help.answered and help.unanswered', function (): void {
+    $helpEvents = [
+        AnalyticsEventName::HelpAnswered,
+        AnalyticsEventName::HelpUnanswered,
+    ];
+
+    foreach ($helpEvents as $case) {
+        expect(EventBreakdown::allowedFor($case->value))->toBe([EventBreakdown::Article])
+            ->and(EventBreakdown::defaultFor($case->value))->toBe(EventBreakdown::Article);
+    }
+});
+
 it('names the event page\'s breakdown heading and table column', function (): void {
     expect(EventBreakdown::Listing->heading())->toBe('By listing')
         ->and(EventBreakdown::Listing->columnLabel())->toBe('Listing')
         ->and(EventBreakdown::Actor->heading())->toBe('By actor')
         ->and(EventBreakdown::Actor->columnLabel())->toBe('Actor')
         ->and(EventBreakdown::Pattern->heading())->toBe('By pattern')
-        ->and(EventBreakdown::Pattern->columnLabel())->toBe('Pattern');
+        ->and(EventBreakdown::Pattern->columnLabel())->toBe('Pattern')
+        ->and(EventBreakdown::Article->heading())->toBe('By article')
+        ->and(EventBreakdown::Article->columnLabel())->toBe('Article');
 });

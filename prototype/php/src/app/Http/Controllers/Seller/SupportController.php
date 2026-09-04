@@ -10,6 +10,9 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\OpenSupportThreadRequest;
 use App\Models\Seller;
+use App\Seller\HelpArticles;
+use App\Seller\SupportDesk;
+use App\Seller\SupportThreads;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -17,12 +20,24 @@ use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
- * The seller's "New conversation with Art Store Support" screen: a titled
- * thread the seller composes rather than an empty one they land on, so the
- * desk sees a subject line before the seller has typed a word.
+ * The support hub, the desk's "New conversation" form, and its submit —
+ * one controller for the seller's whole support surface, since the three
+ * screens share one thing to say: here is the desk, and here is how to
+ * reach it.
  */
 final class SupportController extends SellerController
 {
+    public function index(HelpArticles $helpArticles): View
+    {
+        $seller = $this->seller();
+
+        return view('seller.support.index', [
+            'desk' => SupportDesk::for($seller, $this->now()),
+            'helpGroups' => $helpArticles->grouped(),
+            'threads' => SupportThreads::for($seller),
+        ]);
+    }
+
     public function create(): View
     {
         return view('seller.support.create', [

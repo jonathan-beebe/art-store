@@ -202,7 +202,7 @@ it('carries the current domain from an inbox row into the shows own pane', funct
     $show = $this->actingAs($admin, 'admin')->get($rowHref);
 
     $show->assertOk();
-    $show->assertSee('aria-current="true"', escape: false);
+    $show->assertSee('aria-current="page"', escape: false);
 });
 
 it('shows the list panes empty-detail prompt on the index route', function (): void {
@@ -406,7 +406,7 @@ it('carries a sellers support request to the admin and the answer back', functio
     $admin = $this->admin();
     $seller = $this->seller('Blue Kiln Studio');
 
-    $this->actingAs($seller, 'seller')->post('/seller/support', [
+    $this->actingAs($seller, 'seller')->post('/seller/support/new', [
         'title' => 'Payout timing',
         'body' => 'My payout is late.',
     ])->assertRedirect();

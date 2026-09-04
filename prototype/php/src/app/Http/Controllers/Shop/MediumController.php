@@ -31,7 +31,7 @@ final class MediumController extends ShopController
             'label' => $label,
             'browse' => MediumBrowse::forStorefront(),
             'listings' => Listing::query()->forSale()
-                ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+                ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
                 ->orderByDesc('created_at')->orderByDesc('id')
                 ->ofMediumAttribute($medium)
                 ->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),

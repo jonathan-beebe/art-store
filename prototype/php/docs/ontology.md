@@ -48,8 +48,10 @@ flowchart LR
 
 Smaller catalog and identity concepts (listing event, favorite, cart item,
 order item, magic link, customer merge, notification) sit off this diagram —
-they support the entities shown rather than carrying their own flow. Each
-gets its own section below.
+they support the entities shown rather than carrying their own flow. So do
+the seller's own: the store profile and its sections, the fulfillment flow
+and its steps, the fulfillment event log, and the activity feed. Each gets
+its own section below.
 
 ## Roles
 
@@ -92,6 +94,12 @@ conditions: anonymous (`email` null) → guest with an unverified address
 - may be the source or the target of a Customer merge
 
 **In code.** `App\Models\Customer` (table `customers`).
+
+**From a seller's side.** A seller's *customer* is a buyer: a customer with
+at least one live fulfillment with that seller. Favoriting, viewing, or asking
+about a listing does not make someone a seller's customer; those facts join
+the buyer's timeline once they have bought. The seller portal's Customers
+section lists exactly this set.
 
 ### Anonymous visitor
 
@@ -176,13 +184,15 @@ their page. See "sold" in Vocabulary notes.
 (enum), `ListingAvailability`, `ListingStock`, `ListingSlug`, `ListingDraft`
 (table `listings`).
 
-### Listing event
+### Analytics event
 
-**Who/what.** One recorded interaction with a listing: a view, a favorite,
-an unfavorite, or a cart-add.
+**Who/what.** One recorded interaction, one of nine names: a listing
+viewed, favorited, unfavorited, or cart-added; a checkout opened; an order
+placed, paid, or cancelled; a store's public page viewed.
 
-**Why it exists.** Feeds the seller's per-listing activity numbers (views,
-favorites, cart adds) and the dashboard's daily activity timeline.
+**Why it exists.** Feeds the seller's per-listing activity numbers, the
+dashboard's daily activity timeline, the storefront funnel, and the admin
+analytics drill-in.
 
 **Lifecycle.** None — write-once, timestamped fact. The timestamp is the
 instant the interaction was recorded, not the instant the row was written —
@@ -190,14 +200,17 @@ recording only appends to an in-memory buffer, which a later flush turns
 into rows.
 
 **Relates to.**
-- belongs to one Listing, named by `subject_type`/`subject_id`
+- belongs to one Listing, Order, Cart, or Store, named by
+  `subject_type`/`subject_id` (nullable — a listing view names one, a
+  checkout-open does not)
 - optionally attributed to one Customer (`actor_id` nullable)
 
 **In code.** `App\Analytics\Analytics` (the one writer),
-`App\Analytics\AnalyticsEvent`, `App\Domain\Analytics\AnalyticsEventName` (enum:
-`listing.view` | `listing.favorite` | `listing.unfavorite` |
-`listing.cart_add`), `App\Analytics\AnalyticsReport` (the reader) (table
-`analytics_events`). See [`analytics.md`](analytics.md).
+`App\Analytics\AnalyticsEvent`, `App\Domain\Analytics\AnalyticsEventName`
+(enum: `listing.view` | `listing.favorite` | `listing.unfavorite` |
+`listing.cart_add` | `checkout.open` | `order.place` | `order.pay` |
+`order.cancel` | `store.view`), `App\Analytics\AnalyticsReport` (the
+reader) (table `analytics_events`). See [`analytics.md`](analytics.md).
 
 ### Listing removal
 
@@ -235,6 +248,63 @@ them to the cart.
 
 **In code.** `App\Models\Favorite`, `App\Domain\Favorites\FavoriteChange`
 (enum: `Added` | `Removed`) (table `favorites`).
+
+## Store
+
+### Store profile
+
+**Who/what.** How one seller presents on the site: a name, an address under
+`/s/{slug}`, a tagline, where they work, a portrait, a cover, links, and an
+ordered list of Store sections. One row per Seller.
+
+**Why it exists.** A buyer who likes one piece asks who made it. The profile
+is the page that answers, and the address a seller can hand out.
+
+**Lifecycle.** Minted hidden on the seller's first visit to
+`/seller/store`, published when `published_at` is set, hidden again when it
+is cleared. A hidden store answers 404 to everyone but its own seller.
+
+**Relates to.**
+- belongs to one Seller
+- is built from Store sections, ordered by position
+- owns Store images, two of which it names as its portrait and its cover
+- carries Store links (website, instagram)
+- keeps every address it has ever answered to as a `store_slugs` row, the
+  retired ones stamped `retired_at`; a retired address redirects to the
+  current one for thirty days
+- shows the seller's storefront Listings below its sections
+- records a `store.view` analytics event per (store, customer, UTC hour)
+
+**In code.** `App\Models\StoreProfile`, `App\Models\StoreSlug`,
+`App\Models\StoreImage`, `App\Models\StoreLink`,
+`App\Domain\Store\{StoreSlug,RetiredSlugWindow,StoreViewCollapse}`,
+`App\Actions\Store\{StartStore,RenameStoreSlug,RemoveStoreImage}`,
+`App\Seller\Store\{StoreAddressLookup,StoreFacts,StoreFactsReader}` (tables
+`store_profiles`, `store_slugs`, `store_images`, `store_links`). See
+[`seller-portal.md`](seller-portal.md).
+
+### Store section
+
+**Who/what.** One block of a store page, of a typed kind: a `story` with a
+heading and a body, a `gallery` with a heading and ordered pictures.
+
+**Why it exists.** A store page grows a new kind of content every few
+months. A typed, ordered child row means a new kind is a new enum case and a
+renderer, never a wider profile row and never a JSON blob the database
+cannot index or validate.
+
+**Lifecycle.** None — added, edited, reordered, removed. `position` is
+unique per profile.
+
+**Relates to.**
+- belongs to one Store profile
+- a gallery places Store images through `store_section_images`, ordered by
+  position
+
+**In code.** `App\Models\StoreSection`, `App\Models\StoreSectionImage`,
+`App\Domain\Store\{StoreSectionKind,StoreSectionField}`,
+`App\Http\Requests\Seller\StoreSectionRequest` (tables `store_sections`,
+`store_section_images`).
 
 ## Buying
 
@@ -378,6 +448,110 @@ diagram: `docs/orders.md`.
 **In code.** `App\Models\Fulfillment`,
 `App\Domain\Orders\FulfillmentStatus` (enum) (table `fulfillments`). See
 "Orders" in Vocabulary notes for the seller portal's name for this entity.
+
+### Fulfillment flow
+
+**Who/what.** One seller's ordered list of Flow steps between a parcel being
+paid for and being shipped.
+
+**Why it exists.** A potter cools a kiln, a framer frames, a printer waits on
+ink. The Fulfillment status is the platform's contract and is the same for
+everyone; the flow is where a seller's own method is written down.
+
+**Lifecycle.** A seller's first flow is seeded as their default; `/seller/workflows`
+adds, edits, and removes flows after that (index, create, edit, make-default,
+destroy). One default per seller is a partial unique index, `(seller_id)
+where is_default`; the default flow itself cannot be removed, and neither can
+a flow a listing names — the seller reassigns the default or the listing
+first.
+
+**Relates to.**
+- belongs to one Seller
+- orders many Flow steps
+- may be named by a Listing (`listings.fulfillment_flow_id`); a listing that
+  names none ships by its seller's default (`Fulfillment::flowInEffect()`)
+
+**In code.** `App\Models\FulfillmentFlow`,
+`App\Domain\Fulfillment\DefaultFlow`,
+`App\Actions\Fulfillment\SaveFulfillmentFlow`,
+`Database\Seeders\FulfillmentFlowSeeder` (table `fulfillment_flows`).
+
+### Flow step
+
+**Who/what.** One step of a flow: the words the seller gave it, its place in
+the order, and what completing it does beyond recording it.
+
+**Why it exists.** The unit the seller ticks off on a parcel, and the thing
+the order page's panel and the desk's lanes are read from.
+
+**Lifecycle.** None — added, renamed, reordered, removed, all in one
+transaction from the flow editor. `key` and `position` are each unique
+inside the flow. A step the seller removes leaves the completions that
+named it: the foreign key nulls out and the event keeps the step's words.
+
+**Relates to.**
+- belongs to one Fulfillment flow
+- carries a `FlowStepAction`: `none`, or `print_label` for the step that
+  takes a carrier and a tracking number and answers the printable label page
+- is completed as a Fulfillment event
+
+**In code.** `App\Models\FulfillmentFlowStep`,
+`App\Domain\Fulfillment\{FlowStep,FlowStepAction,FlowStepDraft}`,
+`App\Actions\Fulfillment\CompleteFlowStep` (table
+`fulfillment_flow_steps`).
+
+### Fulfillment event
+
+**Who/what.** One appended row saying something happened to a parcel: a step
+completed, or the parcel shipped, delivered, declined, refunded.
+
+**Why it exists.** `fulfillments.status` says where a parcel is and holds one
+value at a time. The log says what has been done to it and when, which is
+what a seller's lanes, an order's activity feed, and a label reprint all
+read.
+
+**Lifecycle.** Append-only, never edited. A `step_completed` row copies the
+step's label, so the log still reads after the seller renames or removes the
+step.
+
+**Relates to.**
+- belongs to one Fulfillment and one Seller
+- names a Flow step on a `step_completed` row, and none on a transition row
+- names its actor by type (`seller` | `customer` | `admin` | `system`) and id
+- carries the carrier and tracking number a `print_label` step recorded
+- is unique on `(fulfillment_id, fulfillment_flow_step_id)`, so a step is
+  completed once; a unique index counts each null as its own value, which
+  leaves the transition rows outside the constraint
+
+**In code.** `App\Models\FulfillmentEvent`,
+`App\Domain\Fulfillment\{FulfillmentEventKind,NewFulfillmentEvent,FulfillmentProgress,FulfillmentLane}`,
+`App\Actions\Fulfillment\AppendFulfillmentEvent` (the one writer) (table
+`fulfillment_events`). See `docs/orders.md` § "The fulfillment event log and
+the seller's flow".
+
+### Activity feed
+
+**Who/what.** One ordered list of everything between a seller and one buyer,
+or everything on one parcel: what the buyer browsed, the order and its
+money, the parcel's events, the messages between them.
+
+**Why it exists.** The facts live in four stores. A seller reading a
+conversation or an order wants them in one column, newest first, with no
+row told twice.
+
+**Lifecycle.** None — nothing writes a feed row. It is computed per request
+from a scope.
+
+**Relates to.**
+- reads Listing events from the analytics store, Orders / Payments / Ledger
+  entries / Refunds, Fulfillment events, and Messages
+- is scoped to one Fulfillment or to one (seller, customer) pair
+- filters by kind: `browse`, `order`, `shipping`, `messages`
+
+**In code.** `App\Domain\Seller\{ActivityFeed,FeedEvent,ActivityKind,FeedIcon}`,
+`App\Seller\{ActivityFeedReader,ActivityFeedSource,FeedScope,AnalyticsSource,OrderSource,FulfillmentSource,MessagingSource}`,
+`x-seller.feed` (no table). See [`seller-portal.md`](seller-portal.md)
+§ "Activity feed".
 
 ## Money
 

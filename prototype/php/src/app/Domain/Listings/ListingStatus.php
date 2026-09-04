@@ -53,4 +53,31 @@ enum ListingStatus: string
     {
         return ucfirst(str_replace('_', ' ', $this->value));
     }
+
+    /**
+     * The four states a seller's own screens read a listing as: Live,
+     * Draft, Sold out, or Removed. An active admin removal outranks the
+     * status itself; an archived listing reads the same way, since the
+     * seller took it down on their own account.
+     */
+    public function sellerBadgeLabel(bool $hasActiveRemoval): string
+    {
+        return match (true) {
+            $hasActiveRemoval, $this === self::Archived => 'Removed',
+            $this === self::ForSale => 'Live',
+            $this === self::Sold => 'Sold out',
+            default => 'Draft',
+        };
+    }
+
+    /** The badge tint that pairs with {@see sellerBadgeLabel()}. */
+    public function sellerBadgeTint(bool $hasActiveRemoval): string
+    {
+        return match (true) {
+            $hasActiveRemoval, $this === self::Archived => 'red',
+            $this === self::ForSale => 'green',
+            $this === self::Sold => 'red',
+            default => 'gray',
+        };
+    }
 }

@@ -9,10 +9,12 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\MessageBody;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
+use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Message;
 use App\Support\ActorDisplay;
 use Illuminate\Support\Facades\Config;
+use Tests\QueryString;
 
 /**
  * The query string a row's own `href` carries, decoded into an array —
@@ -23,9 +25,7 @@ use Illuminate\Support\Facades\Config;
  */
 function sellerRowQuery(string $url): array
 {
-    parse_str((string) parse_url($url, PHP_URL_QUERY), $params);
-
-    return $params;
+    return QueryString::of($url);
 }
 
 it('lists the sellers threads newest first with who, what, and unread count', function (): void {
@@ -475,4 +475,77 @@ it('trips the message-post limit while replying, keeping the reply-to block from
 
     $response->assertStatus(429);
     $response->assertSee('Replying to', escape: false);
+});
+
+it('renders the context rail beside the thread', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood', 'email' => 'luna@example.test']);
+    $this->paidFulfillmentFor($seller, $customer, 68000);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller, ['title' => 'Nine Owls'])->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+
+    $response->assertOk()
+        ->assertSee('About this conversation')
+        ->assertSee('About this piece')
+        ->assertSee('View customer')
+        ->assertSee(route('seller.customers.show', $customer->id))
+        ->assertSee('$680.00');
+});
+
+it('renders the rail again when a reply trips the rate limit', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);
+    $this->paidFulfillmentFor($seller, $customer);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
+
+    $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'On its way.']);
+    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'And again.']);
+
+    $response->assertStatus(429)->assertSee('View customer');
+});
+
+it('IMPRV-030 puts the thread\'s every breakpoint at 2xl, the context rail included', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    $response->assertOk();
+    expect($crawler->filter('[data-thread]')->attr('class'))->toContain('2xl:flex-row')
+        ->and($crawler->filter('[data-thread-rail]')->attr('class'))->toContain('2xl:w-80')
+        ->and(preg_match('/(?<!2)xl:/', $crawler->filter('[data-thread]')->outerHtml()))->toBe(0);
+});
+
+it('IMPRV-030 wraps the thread header row, its action group free to shrink with it', function (): void {
+    $seller = $this->seller();
+    $customer = $this->verifiedCustomer();
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+
+    $response->assertOk();
+    expect($crawler->filter('[data-thread-header]')->attr('class'))->toContain('flex-wrap')
+        ->and($crawler->filter('[data-thread-actions]')->attr('class'))->not->toContain('shrink-0');
 });

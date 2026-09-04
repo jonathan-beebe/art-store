@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\RollUpOrderStatus;
+use App\Domain\Auth\ActorType;
+use App\Domain\Fulfillment\FulfillmentEventKind;
+use App\Domain\Fulfillment\NewFulfillmentEvent;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Events\FulfillmentShipped;
 use App\Logging\StoryEvent;
@@ -15,7 +18,10 @@ use Illuminate\Support\Facades\DB;
 
 final readonly class MarkShipped
 {
-    public function __construct(private RollUpOrderStatus $rollUpOrderStatus) {}
+    public function __construct(
+        private RollUpOrderStatus $rollUpOrderStatus,
+        private AppendFulfillmentEvent $appendEvent,
+    ) {}
 
     public function __invoke(
         Fulfillment $fulfillment,
@@ -41,6 +47,13 @@ final readonly class MarkShipped
                     'tracking_number' => $trackingNumber,
                     'shipped_at' => $now,
                 ]);
+
+                ($this->appendEvent)($fulfillment, NewFulfillmentEvent::transition(
+                    kind: FulfillmentEventKind::forStatus($status),
+                    actorType: ActorType::Seller,
+                    actorId: $fulfillment->seller_id,
+                    occurredAt: $now,
+                ));
 
                 $fulfillment->load('order.fulfillments');
 

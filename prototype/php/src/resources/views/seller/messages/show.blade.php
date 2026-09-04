@@ -33,6 +33,7 @@
                 :reply-to="$replyTo"
                 :faq-prefill="$faqPrefill"
                 :domain="$domain"
+                :context="$context"
             />
         </x-seller.list-detail>
     </div>

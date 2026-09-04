@@ -9,6 +9,7 @@ use App\Actions\Fulfillment\ConfirmDelivered;
 use App\Actions\Fulfillment\MarkShipped;
 use App\Actions\Orders\FinalizeOrder;
 use App\Actions\Orders\PlaceOrder;
+use App\Actions\Store\StartStore;
 use App\Domain\Configurator\PropertyDataType;
 use App\Domain\Orders\Purchaser;
 use App\Domain\Orders\ShippingAddress;
@@ -16,6 +17,8 @@ use App\Models\Admin;
 use App\Models\Cart;
 use App\Models\Customer;
 use App\Models\Fulfillment;
+use App\Models\FulfillmentFlow;
+use App\Models\FulfillmentFlowStep;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
 use App\Models\ListingImage;
@@ -23,6 +26,7 @@ use App\Models\Order;
 use App\Models\Property;
 use App\Models\PropertyValue;
 use App\Models\Seller;
+use App\Models\StoreProfile;
 use DateTimeImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -168,6 +172,49 @@ abstract class CommerceTestCase extends TestCase
         app(FinalizeOrder::class)($order, '4242424242424242', $paidAt ?? $this->moment('2026-08-20 10:00:00'));
 
         return $order->fulfillments()->sole();
+    }
+
+    /**
+     * A default flow of two steps — a label step, then a plain one — the
+     * shape `CompleteFlowStep`, its request, and the flow-step routes all
+     * exercise.
+     *
+     * @return array{0: FulfillmentFlowStep, 1: FulfillmentFlowStep}
+     */
+    public function flowFor(Seller $seller, ?string $flowName = null, string $labelStepLabel = 'Label printed', string $packStepLabel = 'Packed'): array
+    {
+        $flow = FulfillmentFlow::factory()->isDefault()->create([
+            'seller_id' => $seller->id,
+            ...($flowName === null ? [] : ['name' => $flowName]),
+        ]);
+        $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create(['label' => $labelStepLabel]);
+        $packStep = FulfillmentFlowStep::factory()->of($flow, 1)->create(['label' => $packStepLabel]);
+
+        return [$labelStep, $packStep];
+    }
+
+    /**
+     * Loads what `App\Seller\FulfillmentFlowReader::read()` reads, the way
+     * the page and the action that call it do.
+     */
+    public function loadedForFlow(Fulfillment $fulfillment): Fulfillment
+    {
+        return $fulfillment->load([
+            'order.items.listing.fulfillmentFlow.steps',
+            'seller.defaultFulfillmentFlow.steps',
+            'fulfillmentEvents',
+            'fulfillmentFlow.steps',
+        ]);
+    }
+
+    /**
+     * The seller's store, minted the way the Store screen's first visit
+     * mints it — the fixture every store-write test needs a profile to
+     * write against, without a `GET /seller/store` round trip.
+     */
+    public function storeFor(Seller $seller): StoreProfile
+    {
+        return app(StartStore::class)($seller);
     }
 
     /**

@@ -3,7 +3,9 @@
     mobile drawer so the two never drift apart. Takes `$navLinks`, a list of
     ['route', 'pattern', 'label', 'count', 'path'] (count chip omitted when
     null or zero; pattern drives routeIs() so a link stays current on a
-    tool's sub-pages, not just its index route).
+    tool's sub-pages, not just its index route). The chip carries
+    `data-nav-count` so a test can name it apart from every other number a
+    page renders.
 --}}
 @foreach ($navLinks as $link)
     @php($isCurrent = request()->routeIs($link['pattern']))
@@ -18,7 +20,7 @@
             </svg>
             {{ $link['label'] }}
             @if (! empty($link['count']))
-                <span class="ml-auto min-w-9 rounded-full bg-white px-2.5 py-0.5 text-center text-xs/5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-gray-400 dark:ring-white/10">{{ $link['count'] }}</span>
+                <span data-nav-count="{{ strtolower($link['label']) }}" class="ml-auto min-w-9 rounded-full bg-white px-2.5 py-0.5 text-center text-xs/5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-gray-400 dark:ring-white/10">{{ $link['count'] }}</span>
             @endif
         </a>
     </li>

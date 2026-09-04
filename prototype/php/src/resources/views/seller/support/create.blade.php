@@ -1,5 +1,5 @@
 <x-layouts.seller title="New conversation — Art Store seller">
-    <x-seller.back-link :route="route('seller.messages.index')" label="Messages" />
+    <x-seller.back-link :route="route('seller.support')" label="Support" />
 
     <div class="mt-2 max-w-xl">
         <h1 class="text-xl font-semibold text-gray-900 dark:text-white">New conversation with Art Store Support</h1>
@@ -63,7 +63,7 @@
 
             <div class="flex items-center gap-3">
                 <button type="submit" class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Start conversation</button>
-                <a href="{{ route('seller.messages.index') }}" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Cancel</a>
+                <a href="{{ route('seller.support') }}" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/10 dark:hover:bg-white/20">Cancel</a>
             </div>
         </form>
     </div>

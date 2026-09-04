@@ -24,21 +24,4 @@
     </div>
 </dialog>
 
-<script>
-    (() => {
-        const dialog = document.getElementById('new-listing-dialog');
-        if (! dialog) return;
-
-        document.querySelectorAll('[data-new-listing-open]').forEach((button) => {
-            button.addEventListener('click', () => dialog.showModal());
-        });
-
-        dialog.querySelectorAll('[data-dialog-close]').forEach((button) => {
-            button.addEventListener('click', () => dialog.close());
-        });
-
-        dialog.addEventListener('click', (event) => {
-            if (event.target === dialog) dialog.close();
-        });
-    })();
-</script>
+<script defer src="{{ asset('new-listing-modal.js') }}"></script>

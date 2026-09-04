@@ -57,6 +57,40 @@ it('tallies zero for a listing with no recorded events', function (): void {
         ->and($counts->cartAdds)->toBe(0);
 });
 
+it('tallies several listings since a cutoff, keyed by id, leaving events before it out', function (): void {
+    $analytics = new Analytics;
+    $at = new DateTimeImmutable('2026-08-22T14:00:00+00:00');
+
+    recordListingEvent($analytics, AnalyticsEventName::ListingView, 'lst_ABC', $at);
+    recordListingEvent($analytics, AnalyticsEventName::ListingView, 'lst_ABC', $at->modify('+1 hour'));
+    recordListingEvent($analytics, AnalyticsEventName::ListingFavorite, 'lst_ABC', $at);
+    recordListingEvent($analytics, AnalyticsEventName::ListingCartAdd, 'lst_DEF', $at);
+    recordListingEvent($analytics, AnalyticsEventName::ListingView, 'lst_ABC', $at->modify('-1 day'));
+    recordListingEvent($analytics, AnalyticsEventName::ListingView, 'lst_OTHER', $at);
+    $analytics->flush();
+
+    $counts = AnalyticsReport::countsForListingsSince(['lst_ABC', 'lst_DEF'], $at->modify('-1 hour'));
+
+    expect($counts)->toHaveCount(2)
+        ->and($counts['lst_ABC']->views)->toBe(2)
+        ->and($counts['lst_ABC']->favorites)->toBe(1)
+        ->and($counts['lst_ABC']->cartAdds)->toBe(0)
+        ->and($counts['lst_DEF']->views)->toBe(0)
+        ->and($counts['lst_DEF']->cartAdds)->toBe(1);
+});
+
+it('tallies zero for every listing when none has recorded an event', function (): void {
+    $counts = AnalyticsReport::countsForListingsSince(['lst_ABC', 'lst_DEF'], new DateTimeImmutable('2026-08-01T00:00:00+00:00'));
+
+    expect($counts)->toHaveCount(2)
+        ->and($counts['lst_ABC']->views)->toBe(0)
+        ->and($counts['lst_DEF']->views)->toBe(0);
+});
+
+it('tallies nothing for an empty list of listings', function (): void {
+    expect(AnalyticsReport::countsForListingsSince([], new DateTimeImmutable('2026-08-01T00:00:00+00:00')))->toBe([]);
+});
+
 it('groups a listing\'s events by day and name from a cutoff onward', function (): void {
     $analytics = new Analytics;
 

@@ -19,7 +19,7 @@
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.orders.show', $order) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $order->id }}"
         >
             <x-slot:title>

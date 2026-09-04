@@ -32,3 +32,23 @@ it('labels itself by its first and last day', function (): void {
 
     expect($period->label())->toBe('2026-08-10 to 2026-08-16');
 });
+
+it('resolves the week a moment falls in, not the week before it', function (string $moment, string $start, string $end): void {
+    $period = PayoutPeriod::containing(new DateTimeImmutable($moment));
+
+    expect($period->start->format('Y-m-d H:i:s'))->toBe($start)
+        ->and($period->end->format('Y-m-d H:i:s'))->toBe($end);
+})->with([
+    'mid-week sits inside the week in progress' => ['2026-08-22 09:30:00', '2026-08-17 00:00:00', '2026-08-23 23:59:59'],
+    'the first moment of a monday starts its own week' => ['2026-08-17 00:00:00', '2026-08-17 00:00:00', '2026-08-23 23:59:59'],
+    'the last moment of a sunday still falls in that week' => ['2026-08-23 23:59:59', '2026-08-17 00:00:00', '2026-08-23 23:59:59'],
+]);
+
+it('steps to the week immediately before this one', function (): void {
+    $period = PayoutPeriod::endingBefore(new DateTimeImmutable('2026-08-22 09:30:00'));
+
+    $previous = $period->previous();
+
+    expect($previous->start->format('Y-m-d'))->toBe('2026-08-03')
+        ->and($previous->end->format('Y-m-d'))->toBe('2026-08-09');
+});

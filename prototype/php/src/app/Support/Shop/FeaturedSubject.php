@@ -29,6 +29,18 @@ final readonly class FeaturedSubject
         public string $ctaLabel,
     ) {}
 
+    /**
+     * The slug the band names when it features a listing; null when it
+     * features a category. `SeedActivity` keeps this listing out of every
+     * seeded cart so the band has a piece to show after `make seed-activity`.
+     */
+    public static function listingSlug(): ?string
+    {
+        $config = config('storefront.featured');
+
+        return $config['type'] === 'listing' ? (string) $config['value'] : null;
+    }
+
     public static function resolve(): ?self
     {
         $config = config('storefront.featured');
@@ -44,7 +56,7 @@ final readonly class FeaturedSubject
     private static function resolveListing(string $slug): ?self
     {
         $listing = Listing::query()->forSale()
-            ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
             ->where('slug', $slug)->first();
 
         if ($listing === null) {

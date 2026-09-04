@@ -48,3 +48,12 @@ it('stops at two initials for a name with more words', function (): void {
 it('initials no actor from the deleted-account name it falls back to', function (): void {
     expect(ActorDisplay::initialsOf(null))->toBe('DA');
 });
+
+it('reduces a name a page already holds to two initials', function (string $name, string $expected): void {
+    expect(ActorDisplay::initialsFor($name))->toBe($expected);
+})->with([
+    'the desk' => [ActorDisplay::SUPPORT_DESK, 'AS'],
+    'two words' => ['Luna Lovegood', 'LL'],
+    'one word' => ['Hagrid', 'H'],
+    'padded' => ['  Ginny   Weasley  ', 'GW'],
+]);

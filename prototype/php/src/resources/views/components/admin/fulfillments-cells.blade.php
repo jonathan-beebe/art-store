@@ -1,29 +1,23 @@
 {{-- The fulfillments list pane's cells, in the shared pane-row shape: the
      seller leads — whose work it is — because that is the shop a founder
      is tracking; the muted line is the scan line — who it ships to and the
-     seller's net; the status pill (the same status-to-color mapping the
-     seller portal's own fulfillment-cells uses) and the shipped (or
-     created) date sit in the meta column. --}}
+     seller's net; the status pill (`FulfillmentStatus::badgeTint()`,
+     the one tint both portals read) and the shipped (or created) date sit
+     in the meta column. --}}
 @props(['fulfillments', 'selected' => null])
 
 <div class="flex flex-col divide-y divide-stone-200 dark:divide-white/10">
     @forelse ($fulfillments as $fulfillment)
         @php
             $isSelected = $selected !== null && $selected->id === $fulfillment->id;
-            $tint = match ($fulfillment->status) {
-                \App\Domain\Orders\FulfillmentStatus::AwaitingShipment => 'yellow',
-                \App\Domain\Orders\FulfillmentStatus::Shipped => 'blue',
-                \App\Domain\Orders\FulfillmentStatus::Delivered => 'green',
-                \App\Domain\Orders\FulfillmentStatus::Refunded => 'red',
-                \App\Domain\Orders\FulfillmentStatus::Declined => 'gray',
-            };
+            $tint = $fulfillment->status->badgeTint();
             $when = $fulfillment->shipped_at ?? $fulfillment->created_at;
         @endphp
         <x-pane-row
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.fulfillments.show', $fulfillment) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $fulfillment->id }}"
         >
             <x-slot:title>

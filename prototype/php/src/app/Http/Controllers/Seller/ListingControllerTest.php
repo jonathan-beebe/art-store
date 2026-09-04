@@ -7,11 +7,11 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Orders\FinalizeOrder;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\ListingEventCounts;
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\BarStripBar;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitValue;
-use App\Domain\Reports\DailyActivity;
+use App\Domain\Seller\ListingTableRow;
 use App\Models\Category;
 use App\Models\CategoryProperty;
 use App\Models\DescriptionSection;
@@ -28,11 +28,15 @@ use App\Models\Seller;
 use App\Models\Variant;
 use App\Support\ListPaneWindow;
 use DateTimeImmutable;
+use DOMDocument;
+use DOMNodeList;
+use DOMXPath;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * @param  array<string, mixed>  $overrides
@@ -517,31 +521,31 @@ it('hides another sellers listing from the activity page', function (): void {
     $response->assertNotFound();
 });
 
-it('totals the events of the listing', function () use ($recordedActivity): void {
+it('totals the ranged events of the listing on its row', function () use ($recordedActivity): void {
     $seller = $this->seller();
     $listing = $recordedActivity($seller);
     app(Analytics::class)->flush();
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('eventCounts', function (ListingEventCounts $eventCounts): bool {
-        return $eventCounts->views === 2
-            && $eventCounts->favorites === 1
-            && $eventCounts->cartAdds === 1;
+    $response->assertViewHas('row', function (ListingTableRow $row): bool {
+        return $row->views === 2
+            && $row->favorites === 1
+            && $row->cartAdds === 1;
     });
 });
 
-it('breaks the last fourteen days down by day', function (): void {
+it('builds a thirty-day view strip by default', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', fn (array $days): bool => count($days) === 14);
-    $response->assertViewHas('windowDays', 14);
+    $response->assertViewHas('strip', fn (array $strip): bool => count($strip) === 30);
+    $response->assertViewHas('rangeDays', 30);
 });
 
-it('counts todays events on todays row', function (): void {
+it('counts todays view on the strips last bar', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $analytics = app(Analytics::class);
@@ -550,14 +554,14 @@ it('counts todays events on todays row', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', function (array $days): bool {
-        $today = $days[13];
+    $response->assertViewHas('strip', function (array $strip): bool {
+        $last = end($strip);
 
-        return $today instanceof DailyActivity && $today->views === 1;
+        return $last instanceof BarStripBar && $last->height === 72;
     });
 });
 
-it('leaves events older than the window off the breakdown', function (): void {
+it('leaves an event outside the range off the strip', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $analytics = app(Analytics::class);
@@ -566,9 +570,9 @@ it('leaves events older than the window off the breakdown', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', function (array $days): bool {
-        /** @var list<DailyActivity> $days */
-        return array_sum(array_map(fn (DailyActivity $day): int => $day->total(), $days)) === 0;
+    $response->assertViewHas('strip', function (array $strip): bool {
+        /** @var list<BarStripBar> $strip */
+        return array_sum(array_map(fn (BarStripBar $bar): int => $bar->height, $strip)) === count($strip) * 2;
     });
 });
 
@@ -593,21 +597,23 @@ it('renders the activity page on a fixed number of queries however many events t
     }
 
     $response = $this->actingAs($seller, 'seller')
-        // +1 for the eventCounts read (AnalyticsReport::countsForListing);
-        // +1 for the daily-activity read (AnalyticsReport::dailyCountsForListingSince);
-        // +1 for the page-view roll-up's upsert, and +1 for flushing the 20
-        // buffered view events in one insertOrIgnore — both written when the
-        // response terminates (RollUpPageViews, AnalyticsServiceProvider);
-        // +1 for the active-removal eager load (the category eager load
-        // costs nothing extra here — this fixture's listing carries no
-        // category_id, so Eloquent skips the query); +2 for the seller
-        // layout's awaiting-shipment count and unread-notifications check;
-        // +4 for the list pane's window (DSGN-006: a count and a capped
-        // select, each with its own activeRemoval and images eager load);
-        // +1 for the detail pane's own images load behind the photos
-        // block; +3 unaccounted baseline (session, seller, and route-model
-        // binding lookups).
-        ->expectsDatabaseQueryCount(15)
+        // +1 for the daily-activity read behind the strip (AnalyticsReport::dailyCountsForListingSince);
+        // +3 for the row (App\Seller\ListingTable::forListing): the Medium
+        // attribute lookup, the sold/revenue read over order items, and the
+        // ranged analytics-count read; +1 for the page-view roll-up's
+        // upsert, and +1 for flushing the 20 buffered view events in one
+        // insertOrIgnore — both written when the response terminates
+        // (RollUpPageViews, AnalyticsServiceProvider); +1 for the
+        // active-removal eager load (the category eager load costs nothing
+        // extra here — this fixture's listing carries no category_id, so
+        // Eloquent skips the query); +2 for the seller layout's
+        // awaiting-shipment count and unread-notifications check; +4 for
+        // the list pane's window (DSGN-006: a count and a capped select,
+        // each with its own activeRemoval and images eager load); +1 for
+        // the detail pane's own images load behind the photos block; +3
+        // unaccounted baseline (session, seller, and route-model binding
+        // lookups).
+        ->expectsDatabaseQueryCount(17)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();
@@ -1196,4 +1202,321 @@ it('E2: shows every publish issue at once, each naming its fix and linking to th
         "Say what it's made of — buyers filter by it.",
         route('seller.listings.basics.edit', $listing).'#attribute-'.$property->id,
     ], escape: false);
+});
+
+it('FEAT-056 renders the table view with every column', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'The Burrow at Dusk', 'dimensions' => '24 x 36 in']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertOk();
+    $response->assertSee('The Burrow at Dusk');
+    $response->assertSee('24 x 36 in');
+});
+
+it('IMPRV-032 marks the view switch\'s active entry aria-current="page"', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/view=table"[^>]*aria-current="page"/');
+});
+
+it('IMPRV-032 renders one cell per header, so an added column cannot drift from its cells', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+    $content = $response->getContent();
+
+    $dom = new DOMDocument;
+    @$dom->loadHTML(is_string($content) ? $content : '');
+    $xpath = new DOMXPath($dom);
+
+    $countOf = fn (DOMNodeList|false $nodes): int => $nodes instanceof DOMNodeList ? $nodes->length : 0;
+
+    $headerCount = $countOf($xpath->query('//table/thead//th'));
+    $cellCount = $countOf($xpath->query('//table/tbody/tr[1]/td'));
+
+    expect($headerCount)->toBeGreaterThan(0)
+        ->and($cellCount)->toBe($headerCount);
+});
+
+it('FEAT-056 renders the grid view', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=grid');
+
+    $response->assertOk();
+    $response->assertSee('The Burrow at Dusk');
+    $response->assertSee('0 views');
+});
+
+it('FEAT-056 sorts the table by price, ascending', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Pygmy Puff', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Dear Diadem', 'price_cents' => 50000]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=asc');
+
+    $response->assertSeeInOrder(['Pygmy Puff', 'Dear Diadem']);
+});
+
+it('FEAT-056 sorts the table by price, descending', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Pygmy Puff', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Dear Diadem', 'price_cents' => 50000]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=desc');
+
+    $response->assertSeeInOrder(['Dear Diadem', 'Pygmy Puff']);
+});
+
+it('FEAT-056 flips a sorted columns aria-sort and link direction on the next click', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Pygmy Puff', 'price_cents' => 500]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=asc');
+
+    $response->assertSee('aria-sort="ascending"', escape: false);
+    $response->assertSee('sort=price&amp;dir=desc', escape: false);
+});
+
+it('FEAT-056 counts sold and revenue on the table row from a paid, live fulfillment', function (): void {
+    $seller = $this->seller();
+    $this->paidFulfillmentFor($seller, priceCents: 68000);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertViewHas('rows', function (array $rows): bool {
+        /** @var list<ListingTableRow> $rows */
+        return $rows[0]->sold === 1 && $rows[0]->revenueCents === 68000;
+    });
+});
+
+it('IMPRV-037 reads the tables ranged columns over a fixed thirty days, ignoring a range in the query', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+    $analytics = app(Analytics::class);
+    $recent = new DateTimeImmutable('-1 day');
+    $midRange = new DateTimeImmutable('-20 days');
+    foreach (range(1, 3) as $i) {
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, "cus_recent_{$i}", $recent));
+    }
+    foreach (range(1, 9) as $i) {
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, "cus_mid_{$i}", $midRange));
+    }
+    $analytics->flush();
+
+    $withoutRange = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+    $withStrayRange = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&range=7');
+
+    $withoutRange->assertSee('>12<', escape: false);
+    $withStrayRange->assertSee('>12<', escape: false);
+});
+
+it('IMPRV-037 drops range from a table rows link to its own detail', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertSee(route('seller.listings.show', ['listing' => $listing->id, 'from' => 'table', 'sort' => 'views', 'dir' => 'desc']));
+});
+
+it('FEAT-056 opens a table rows detail as an overlay and a takeover from the same response', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+
+    $response->assertOk();
+    $response->assertSee('The Burrow at Dusk');
+});
+
+it('IMPRV-036 keeps the listings workspace visible at 2xl and up, inert below it', function (string $view): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from={$view}");
+    $crawler = new Crawler((string) $response->getContent());
+
+    $workspace = $crawler->filterXPath('//div[@inert]');
+
+    expect($workspace->count())->toBe(1)
+        ->and($workspace->attr('class'))->toContain('hidden')
+        ->and($workspace->attr('class'))->toContain('2xl:flex');
+})->with(['table', 'grid']);
+
+it('IMPRV-036 shows the detail as a real dialog at 2xl and up', function (string $view): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from={$view}");
+    $crawler = new Crawler((string) $response->getContent());
+
+    $dialog = $crawler->filter('dialog[open]');
+
+    expect($dialog->count())->toBe(1)
+        ->and($dialog->attr('class'))->toContain('hidden')
+        ->and($dialog->attr('class'))->toContain('2xl:flex');
+})->with(['table', 'grid']);
+
+it('IMPRV-036 shows the detail as a takeover below 2xl', function (string $view): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from={$view}");
+    $crawler = new Crawler((string) $response->getContent());
+
+    $takeover = $crawler->filterXPath("//div[contains(concat(' ', normalize-space(@class), ' '), ' 2xl:hidden ')]");
+
+    expect($takeover->count())->toBe(1)
+        ->and($takeover->attr('class'))->not->toContain('2xl:flex')
+        ->and($takeover->attr('inert'))->toBeNull();
+})->with(['table', 'grid']);
+
+it('IMPRV-036 gives the overlays and the takeovers copy of the detail their own heading ids, each inside its own block', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $crawler = new Crawler((string) $response->getContent());
+
+    $dialog = $crawler->filter('dialog[open]');
+    $takeover = $crawler->filterXPath("//div[contains(concat(' ', normalize-space(@class), ' '), ' 2xl:hidden ')]");
+
+    expect($dialog->filter('#overlay-sales-heading')->count())->toBe(1)
+        ->and($dialog->filter('#overlay-views-strip-heading')->count())->toBe(1)
+        ->and($takeover->filter('#takeover-sales-heading')->count())->toBe(1)
+        ->and($takeover->filter('#takeover-views-strip-heading')->count())->toBe(1)
+        ->and($dialog->filter('#takeover-sales-heading')->count())->toBe(0)
+        ->and($takeover->filter('#overlay-sales-heading')->count())->toBe(0);
+});
+
+it('IMPRV-030 renders the listings header as text on the detail route, the listing\'s own title the one heading', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $crawler = new Crawler((string) $response->getContent());
+
+    // One `<h1>` per copy of the listing's own detail (overlay and
+    // takeover, only one ever exposed to assistive technology at a
+    // given width) — the header's own "Listings" renders as a `<p>` on
+    // both copies, never an `<h1>`, so neither adds a second heading.
+    expect($crawler->filter('h1')->count())->toBe(2)
+        ->and($crawler->filter('p[data-listings-title]')->count())->toBe(2)
+        ->and($crawler->filter('h1[data-listings-title]')->count())->toBe(0);
+});
+
+it('IMPRV-030 keeps the workspace header inside the inert region behind the modal', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $crawler = new Crawler((string) $response->getContent());
+
+    // The workspace copy's New listing button sits inside the same
+    // `inert` wrapper as the table/grid, unreachable while the modal is
+    // open, with or without the script.
+    expect($crawler->filter('[inert] [data-new-listing-open]')->count())->toBe(1);
+
+    // The one real New listing dialog never sits behind an inert
+    // ancestor — an inert dialog could never be opened at all.
+    $dialog = $crawler->filter('#new-listing-dialog');
+    expect($dialog->count())->toBe(1)
+        ->and($dialog->closest('[inert]'))->toBeNull();
+});
+
+it('IMPRV-030 puts the new-listing dialog only in the takeover, so it never repeats an id', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    expect(substr_count($content, 'id="new-listing-dialog"'))->toBe(1)
+        ->and(substr_count($content, 'data-new-listing-open'))->toBe(2);
+});
+
+it('IMPRV-030 loads the listing detail dialog script and autofocuses its Close control', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    expect($content)->toContain('<script defer src="'.asset('listing-detail-dialog.js').'"')
+        ->and($content)->toContain('aria-label="Close" autofocus data-dialog-close');
+});
+
+it('IMPRV-030 carries a close href the dialog script navigates to on a genuine close', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $content = (string) $response->getContent();
+
+    // The dialog's own Close link already points at $backHref; the dialog
+    // itself carries the same address, since the script navigates there
+    // on a genuine close, rather than leaving the dialog's box painted
+    // over the inert page behind it.
+    preg_match('#href="([^"]*)" aria-label="Close"#', $content, $closeLinkMatch);
+    $closeHref = $closeLinkMatch[1] ?? null;
+
+    expect($closeHref)->not->toBeNull();
+    expect($content)->toContain('data-close-href="'.$closeHref.'"');
+});
+
+it('FEAT-056 opens a grid rows detail from the same route', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=grid");
+
+    $response->assertOk();
+});
+
+it('FEAT-056 keeps the new-listing dialog on the table and grid views', function (string $view): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings?view={$view}");
+
+    $response->assertSee('data-new-listing-open', escape: false);
+    $response->assertSee('id="new-listing-dialog"', escape: false);
+})->with(['table', 'grid']);
+
+it('FEAT-056 links the view switch to every view', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertSee(route('seller.listings.index', ['view' => 'table']), escape: false);
+    $response->assertSee(route('seller.listings.index', ['view' => 'grid']), escape: false);
+});
+
+it('FEAT-056 submits the sort select through a visible button, carrying no inline handler', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertSee('data-sort-form', escape: false);
+    $response->assertSee('data-sort-select', escape: false);
+    $response->assertSee('data-sort-submit', escape: false);
+    $response->assertDontSee('onchange=', escape: false);
+});
+
+it('IMPRV-030 names the views strip for assistive technology on the listing detail', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
+
+    $response->assertOk();
+    $response->assertSee('role="img"', escape: false);
+    $response->assertSee('aria-labelledby="views-strip-heading"', escape: false);
 });

@@ -199,5 +199,5 @@ it('tells the story of the seed run', function () use ($seedRun): void {
     $log = $seedRun->log ?? throw new RuntimeException('The seed run wrote no log.');
 
     expect($log->outline())->toContain('seed.run will', 'seed.run did')
-        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 11);
+        ->and($log->line('seed.run', 'did')['data'])->toHaveKey('seeder_count', 13);
 });

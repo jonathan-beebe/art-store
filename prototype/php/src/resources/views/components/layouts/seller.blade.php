@@ -12,6 +12,13 @@
             'path' => 'm2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25',
         ],
         [
+            'route' => 'seller.store.show',
+            'pattern' => 'seller.store.*',
+            'label' => 'Store',
+            'count' => null,
+            'path' => 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 0 0 3.75.615m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z',
+        ],
+        [
             'route' => 'seller.listings.index',
             'pattern' => 'seller.listings.*',
             'label' => 'Listings',
@@ -24,6 +31,20 @@
             'label' => 'Orders',
             'count' => $awaitingShipmentCount ?? 0,
             'path' => 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z',
+        ],
+        [
+            'route' => 'seller.workflows.index',
+            'pattern' => 'seller.workflows.*',
+            'label' => 'Workflows',
+            'count' => null,
+            'path' => 'M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z',
+        ],
+        [
+            'route' => 'seller.customers.index',
+            'pattern' => 'seller.customers.*',
+            'label' => 'Customers',
+            'count' => null,
+            'path' => 'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z',
         ],
         [
             'route' => 'seller.messages.index',
@@ -126,10 +147,10 @@
         </header>
 
         {{-- Off-canvas drawer (<lg only): a native <dialog>, opened by the
-             header's hamburger and closed by its own button, a click on the
-             backdrop area, or Escape (native <dialog> behavior — no JS
-             needed for that one). --}}
-        <dialog id="seller-nav-drawer" class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-gray-900/80 lg:hidden">
+             header's hamburger, closed natively by Escape, and closed by
+             nav-drawer.js from its own button or the flex-1 filler button
+             below that spans the backdrop area. --}}
+        <dialog id="seller-nav-drawer" data-nav-drawer class="fixed inset-0 z-50 m-0 h-dvh max-h-none w-full max-w-none bg-transparent p-0 open:flex backdrop:bg-gray-900/80 lg:hidden">
             <div class="flex h-full w-72 max-w-[calc(100%-4rem)] flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 dark:bg-gray-900">
                 <div class="flex h-16 shrink-0 items-center justify-between">
                     <span class="flex items-center gap-x-3 font-semibold text-gray-900 dark:text-white">
@@ -191,20 +212,6 @@
             </main>
         </div>
 
-        <script>
-            (() => {
-                const drawer = document.getElementById('seller-nav-drawer');
-                if (! drawer) return;
-
-                document.querySelectorAll('[data-drawer-open]').forEach((button) => {
-                    button.addEventListener('click', () => drawer.showModal());
-                });
-
-                drawer.querySelectorAll('[data-drawer-close]').forEach((button) => {
-                    button.addEventListener('click', () => drawer.close());
-                });
-            })();
-        </script>
     @else
         <header class="border-b border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
             <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
@@ -233,7 +240,10 @@
         </main>
     @endif
 
+    <script defer src="{{ asset('nav-drawer.js') }}"></script>
+    <script defer src="{{ asset('print-button.js') }}"></script>
     <script defer src="{{ asset('configurator-autosubmit.js') }}"></script>
+    <script defer src="{{ asset('sort-autosubmit.js') }}"></script>
     <script defer src="{{ asset('composer.js') }}"></script>
 </body>
 </html>

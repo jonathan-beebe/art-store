@@ -5,7 +5,8 @@ refund. Code: `app/Actions/Orders/`, `app/Actions/Fulfillment/`,
 `app/Actions/Escrow/IssueRefund.php`,
 `app/Http/Controllers/Shop/CheckoutController.php`,
 `app/Http/Controllers/Shop/OrderPaymentController.php`,
-`app/Domain/Orders/OrderStatus.php`, `app/Domain/Orders/FulfillmentStatus.php`.
+`app/Domain/Orders/OrderStatus.php`, `app/Domain/Orders/FulfillmentStatus.php`,
+`app/Domain/Fulfillment/`.
 
 ## Checkout to a paid, seller-notified order
 
@@ -240,7 +241,113 @@ and dispatches `FulfillmentShipped`, which `NotifyCustomerOfShipment` turns
 into the customer's "Order shipped" notification after the commit; `ConfirmDelivered` releases
 the fulfillment's held escrow (see `docs/escrow.md`) and rolls the order
 status up. Delivery confirmation is the customer clicking a button on the
-order page — a stand-in for carrier tracking in this prototype.
+order page — a stand-in for carrier tracking in this prototype. Every one of
+these transitions also appends its row to the fulfillment's event log, below.
+
+## The fulfillment event log and the seller's flow
+
+Question: `fulfillments.status` says a parcel is awaiting shipment — what
+does the seller know that the column does not, and where is it written?
+
+`docs/alignment.md` §4.5 owns the flow diagram, the lane table, the two
+kinds of writer, and the closed-vocabulary consequence. This section is the
+PHP realization: the classes, the sequence, and the two mechanisms alignment
+leaves to the stack.
+
+A **flow** (`ffl_`) is a seller's ordered list of **steps** (`ffs_`) between
+paid and shipped. A step carries a `key` unique inside the flow, the words
+the seller gave it, a `position` unique inside the flow, and a
+`FlowStepAction` — `none`, or `print_label` for the step that answers the
+printable label page. `FulfillmentFlowSeeder` gives every seller one default
+flow, *Label printed* then *Packed*. A listing may name a flow
+(`listings.fulfillment_flow_id`), set from the Basics screen's Workflow
+picker (`docs/seller-portal.md`'s Workflows section); a listing that names
+none ships by its seller's default.
+
+Which flow a parcel ships by is decided once, at placement, and kept:
+`PlaceOrder` stamps `fulfillments.fulfillment_flow_id` (nullable) from the
+same rule — the flow the first of the seller's own lines names, else the
+seller's default — and every seeder that places an order inherits the same
+stamp. `App\Seller\FulfillmentFlowReader::read()` reads that snapshot first;
+a row placed before the column existed carries no snapshot, and falls back
+to the live rule. A later change to the listing's flow, or to which flow is
+the seller's default, never moves a parcel already placed onto a different
+flow.
+
+`App\Actions\Fulfillment\AppendFulfillmentEvent` is the only writer of the
+table. The transitions (`MarkShipped`, `ConfirmDelivered`,
+`DeclineFulfillment`, `RefundFulfillment`) call it inside the transaction
+that writes `fulfillments.status`; `FulfillmentEventKind::forStatus()` names
+the kind. `CompleteFlowStep` calls it for a step, appending `step_completed`
+with the step id, and with the carrier and tracking number when the step
+prints a label.
+
+One default flow per seller is a partial unique index, `(seller_id) where
+is_default` — the bare column is what SQLite and Postgres both read as
+true; Postgres has no `boolean = integer`, so `= 1` fails there. MySQL has
+no partial index at all and this table is not part of its contract.
+Blueprint has no partial-index builder, so the migration writes it as a
+statement.
+
+`fulfillment_events` is unique on `(fulfillment_id, fulfillment_flow_step_id)`,
+so a step completed twice is refused by the database as well as by the
+action. A unique index counts each null as its own value, so the transition
+rows — which name no step — are outside the constraint. The row also copies
+`step_label`: a seller who later drops the step from their flow leaves the
+log still saying what they did, and the foreign key nulls out rather than
+cascading the history away. The panel on the order page draws the flow as it
+stands now; the log keeps each step's words as they were, so a step renamed
+after the fact reads one way in the panel and another in the feed, which is
+what a record is for. `FulfillmentEvent::stepLabel()` refuses a completion
+that kept no words.
+
+Whether a parcel has started is read from the completions, not from the
+steps: `FulfillmentProgress::hasStarted()` counts every `step_completed` row,
+so removing a step the seller had already done leaves the parcel where it
+was. Which steps are behind it is read against the flow as it stands, so the
+panel never ticks a step that is gone.
+
+```mermaid
+sequenceDiagram
+    actor Seller
+    participant Step as FlowStepController
+    participant Complete as CompleteFlowStep
+    participant Append as AppendFulfillmentEvent
+    participant Label as ShippingLabelController
+
+    Seller->>Step: POST /seller/orders/{f}/steps/{step}
+    Step->>Complete: __invoke(f, step, carrier?, tracking?, now)
+    Complete->>Complete: take the fulfillment for update
+    Complete->>Complete: refuse unless awaiting_shipment
+    Complete->>Complete: refuse unless progress admits this step
+    Complete->>Append: NewFulfillmentEvent::stepCompleted(...)
+    Append-->>Complete: fulfillment_events row
+    alt the step prints a label
+        Step-->>Seller: redirect /seller/orders/{f}/label
+        Seller->>Label: GET the printable page
+    else
+        Step-->>Seller: redirect /seller/orders/{f}
+    end
+```
+
+Reading the log is pure. `FulfillmentProgress::of(steps, completedStepIds)`
+answers which steps are behind the parcel, which is next, and whether the
+flow is done; it reads the flow **as it stands now**, so an event naming a
+step the seller has since removed leaves the rest of the order untouched.
+`FulfillmentLane::of(status, progress)` sorts the parcel onto the desk —
+`docs/alignment.md` §4.5 has the lane table.
+
+Caveats: a step is completed only from `awaiting_shipment`, only when it is
+the one in front, and only by the seller who owns the fulfillment — another
+seller's fulfillment or another seller's step answers 404, and the other two
+are `DomainRuleViolation`s judged inside the transaction that appends, the
+way every fulfillment transition is. `SaveFulfillmentFlow` writes the whole
+flow from the seller's form in one transaction, keeping the rows the form
+names by id (a rename keeps the events pointing at them) and parking
+surviving positions above the range a flow ever holds while it refills the
+range from zero — `position` is an unsigned column, and
+`(fulfillment_flow_id, position)` is unique, which SQLite judges row by
+row.
 
 ## Decline and refund
 

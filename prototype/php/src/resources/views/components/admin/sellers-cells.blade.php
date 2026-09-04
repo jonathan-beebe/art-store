@@ -5,7 +5,11 @@
      Wizard Wheezes" no room. Sellers carry no status enum, so the meta
      column has no pill. A seller with no shop name falls back to their
      email as the title (`displayName()`), so the supporting line — the
-     email too — is dropped rather than repeat it. --}}
+     email too — is dropped rather than repeat it. The store line names the
+     store and its visibility as plain text, unlinked — the row itself is
+     already the link, `x-pane-row`'s own anchor, and an anchor cannot
+     nest inside one; the store's own link lives on the seller's detail
+     page, one click away. --}}
 @props(['sellers', 'balances', 'selected' => null])
 
 <div class="flex flex-col divide-y divide-stone-200 dark:divide-stone-800">
@@ -24,7 +28,7 @@
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.sellers.show', $seller) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $seller->id }}"
         >
             <x-slot:leading>
@@ -33,11 +37,19 @@
             <x-slot:title>
                 <p class="truncate text-sm/6 font-semibold text-stone-900 dark:text-white">{{ $name }}</p>
             </x-slot:title>
-            @if ($seller->email !== $name)
-                <x-slot:supporting>
+            <x-slot:supporting>
+                @if ($seller->email !== $name)
                     <p class="mt-1 truncate text-xs/5 text-stone-500 dark:text-stone-400">{{ $seller->email }}</p>
-                </x-slot:supporting>
-            @endif
+                @endif
+                <p class="mt-1 flex items-center gap-1.5 truncate text-xs/5 text-stone-500 dark:text-stone-400">
+                    @if ($seller->storeProfile)
+                        <span class="truncate">{{ $seller->storeProfile->name }}</span>
+                        <x-admin.status-badge :tint="$seller->storeProfile->isPublished() ? 'ok' : 'neutral'">{{ $seller->storeProfile->visibility()->label() }}</x-admin.status-badge>
+                    @else
+                        No store yet
+                    @endif
+                </p>
+            </x-slot:supporting>
             <x-slot:meta>
                 <p class="text-sm/6 font-mono tabular-nums text-stone-900 dark:text-white">{{ $balance->available->format() }}</p>
             </x-slot:meta>

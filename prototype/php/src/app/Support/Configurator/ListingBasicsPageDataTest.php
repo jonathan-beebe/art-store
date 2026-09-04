@@ -6,6 +6,7 @@ namespace App\Support\Configurator;
 
 use App\Models\Category;
 use App\Models\CategoryProperty;
+use App\Models\FulfillmentFlow;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\Property;
@@ -45,4 +46,22 @@ it('reports that a listing with a choice no longer owns its price and stock', fu
     OptionAxis::factory()->create(['listing_id' => $listing->id]);
 
     expect(ListingBasicsPageData::for($listing)['hasOwnPriceAndStock'])->toBeFalse();
+});
+
+it('carries no workflows for a seller with none or one', function (int $flowCount): void {
+    $listing = Listing::factory()->create();
+    FulfillmentFlow::factory()->count($flowCount)->create(['seller_id' => $listing->seller_id]);
+
+    expect(ListingBasicsPageData::for($listing)['workflows'])->toBeEmpty();
+})->with([0, 1]);
+
+it('carries every workflow, the default first, for a seller who holds more than one', function (): void {
+    $listing = Listing::factory()->create();
+    $second = FulfillmentFlow::factory()->create(['seller_id' => $listing->seller_id, 'name' => 'Framed pieces']);
+    $default = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $listing->seller_id, 'name' => 'How I ship']);
+
+    /** @var \Illuminate\Support\Collection<int, FulfillmentFlow> $workflows */
+    $workflows = ListingBasicsPageData::for($listing)['workflows'];
+
+    expect($workflows->pluck('id')->all())->toBe([$default->id, $second->id]);
 });

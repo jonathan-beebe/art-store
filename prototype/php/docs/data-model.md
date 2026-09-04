@@ -16,21 +16,40 @@ is the public identifier; there is no second column and no separate order
 number. `docs/alignment.md` §1 fixes the format and the prefix table the three
 prototypes share.
 
-| Table            | Prefix | Table            | Prefix |
-| ---------------- | ------ | ---------------- | ------ |
-| admins           | `adm`  | listing_faqs     | `faq`  |
-| sellers          | `sel`  | carts            | `crt`  |
-| customers        | `cus`  | cart_items       | `cti`  |
-| customer_merges  | `cmg`  | favorites        | `fav`  |
-| customer_blocks  | `blk`  | orders           | `ord`  |
-| magic_links      | `mlk`  | order_items      | `oit`  |
-| listings         | `lst`  | payments         | `pay`  |
-| analytics_events | `aev`  | fulfillments     | `ful`  |
-| conversations    | `cnv`  | ledger_entries   | `led`  |
-| messages         | `msg`  | payouts          | `pyt`  |
-| notifications    | `ntf`  | refunds          | `rfd`  |
-| listing_removals | `rmv`  | page_view_counts | `pvc`  |
-| funnels          | `fnl`  |                  |        |
+| Table                  | Prefix | Table                | Prefix |
+| ---------------------- | ------ | -------------------- | ------ |
+| admins                 | `adm`  | listing_faqs         | `faq`  |
+| sellers                | `sel`  | carts                | `crt`  |
+| customers              | `cus`  | cart_items           | `cti`  |
+| customer_merges        | `cmg`  | favorites            | `fav`  |
+| customer_blocks        | `blk`  | orders               | `ord`  |
+| magic_links            | `mlk`  | order_items          | `oit`  |
+| listings               | `lst`  | payments             | `pay`  |
+| analytics_events       | `aev`  | fulfillments         | `ful`  |
+| conversations          | `cnv`  | ledger_entries       | `led`  |
+| messages               | `msg`  | payouts              | `pyt`  |
+| notifications          | `ntf`  | refunds              | `rfd`  |
+| listing_removals       | `rmv`  | page_view_counts     | `pvc`  |
+| funnels                | `fnl`  | store_profiles       | `sto`  |
+| store_slugs            | `ssl`  | store_images         | `sim`  |
+| store_sections         | `sse`  | store_section_images | `ssi`  |
+| store_links            | `slk`  | fulfillment_flows    | `ffl`  |
+| fulfillment_flow_steps | `ffs`  | fulfillment_events   | `fev`  |
+| categories             | `cat`  | properties           | `prp`  |
+| property_values        | `pvl`  | category_properties  | `cpr`  |
+| listing_attributes     | `lat`  | listing_images       | `img`  |
+| option_axes            | `axs`  | option_values        | `ovl`  |
+| variants               | `vrt`  | variant_options       | `vop`  |
+| units                  | `unt`  | modifiers             | `mdf`  |
+| modifier_options       | `mdo`  | modifier_scopes       | `mds`  |
+| quantity_breaks        | `qbk`  | description_sections  | `dsc`  |
+
+The sixteen configurator tables above (`categories` through
+`description_sections`) hold a listing's structured configuration — units,
+option axes and variants, modifiers, quantity breaks, and a listing's own
+description sections and images. [`item-configurator.md`](item-configurator.md)
+is their reference; the diagram below keeps to the tables the seller and
+buyer lifecycle touches directly and omits their columns and relationships.
 
 `App\Domain\Identifiers\PrefixedId` reads and refuses the format;
 `App\Models\Concerns\HasPrefixedUlid` mints an id from the application clock
@@ -107,11 +126,88 @@ erDiagram
     listings {
         text id PK
         text seller_id FK
+        text category_id FK "nullable, see item-configurator.md"
+        text fulfillment_flow_id FK "nullable, null = the seller's default flow"
         string title
         string slug UK
+        text description "nullable"
         unsigned price_cents
-        unsigned quantity "default 1"
+        unsigned quantity "nullable, default 1; null = made to order"
         string status "draft|for_sale|sold|archived"
+        string dimensions "nullable"
+    }
+    store_profiles {
+        text id PK
+        text seller_id FK "UK, one store per seller"
+        string slug UK "the current address"
+        string name
+        string tagline "nullable"
+        string location "nullable"
+        text portrait_image_id "nullable, a sim_ id, no foreign key"
+        text cover_image_id "nullable, a sim_ id, no foreign key"
+        timestamp published_at "nullable, null while the store is hidden"
+    }
+    store_slugs {
+        text id PK
+        text store_profile_id FK
+        string slug UK "unique across every store, retired rows included"
+        timestamp retired_at "nullable, null on the current address"
+    }
+    store_images {
+        text id PK
+        text store_profile_id FK
+        text seller_id FK
+        string path "on the public disk"
+        string alt "nullable"
+    }
+    store_sections {
+        text id PK
+        text store_profile_id FK
+        string kind "story|gallery"
+        unsigned position "unique with store_profile_id"
+        string heading "nullable"
+        text body "nullable"
+    }
+    store_section_images {
+        text id PK
+        text store_section_id FK
+        text store_image_id FK "unique with store_section_id"
+        unsigned position "unique with store_section_id"
+    }
+    store_links {
+        text id PK
+        text store_profile_id FK
+        string kind "website|instagram, unique with store_profile_id"
+        string url
+        unsigned position "unique with store_profile_id"
+    }
+    fulfillment_flows {
+        text id PK
+        text seller_id FK
+        string name
+        boolean is_default "partial unique index, one true per seller"
+    }
+    fulfillment_flow_steps {
+        text id PK
+        text fulfillment_flow_id FK
+        text seller_id FK "the flow's seller, copied down"
+        string key "unique with fulfillment_flow_id"
+        string label "the words the seller gave the step"
+        string action "none|print_label"
+        unsigned position "unique with fulfillment_flow_id"
+    }
+    fulfillment_events {
+        text id PK
+        text fulfillment_id FK
+        text seller_id FK
+        string kind "step_completed|shipped|delivered|declined|refunded"
+        text fulfillment_flow_step_id FK "nullable, UK with fulfillment_id"
+        string step_label "nullable, the step's words at completion"
+        string actor_type "seller|customer|admin|system"
+        text actor_id "nullable"
+        string carrier "nullable, from a print_label step"
+        string tracking_number "nullable, from a print_label step"
+        timestamp occurred_at
     }
     analytics_events {
         text id PK
@@ -176,10 +272,13 @@ erDiagram
     fulfillments {
         text id PK
         text order_id FK "UK with seller_id"
+        text customer_id FK
         text seller_id FK
         string status "awaiting_shipment|shipped|delivered|declined|refunded"
         string carrier "nullable"
         string tracking_number "nullable"
+        timestamp shipped_at "nullable"
+        timestamp delivered_at "nullable"
         unsigned subtotal_cents
         unsigned fee_cents
         unsigned net_cents
@@ -222,12 +321,17 @@ erDiagram
     conversations {
         text id PK
         string kind "admin_seller|admin_customer|fulfillment|listing_question"
-        string subject_key UK "kind + participant ids, e.g. listing_question:ssel_01J…:ccus_01J…:llst_01J…"
+        string title "nullable; every kind but fulfillment carries one"
+        string subject_key UK "nullable; the fulfillment kind alone, e.g. fulfillment:sSEL…:cCUS…:fFUL…"
         text seller_id FK "nullable, indexed with last_message_at"
         text customer_id FK "nullable, indexed with last_message_at"
-        text admin_id FK "nullable, indexed with last_message_at"
+        text admin_id FK "nullable, indexed with last_message_at; who first answered a desk thread"
         text listing_id FK "nullable, the listing_question subject"
         text fulfillment_id FK "nullable, the fulfillment subject"
+        text order_id FK "nullable"
+        timestamp resolved_at "nullable"
+        string resolved_by_type "nullable, seller|customer|admin morph alias"
+        text resolved_by_id "nullable"
         timestamp last_message_at "nullable, the inbox sort"
     }
     messages {
@@ -235,6 +339,7 @@ erDiagram
         text conversation_id FK "cascade on delete"
         string sender_type "seller|customer|admin morph alias"
         text sender_id "the id within the table sender_type names"
+        text reply_to_message_id FK "nullable, -> messages, nullOnDelete"
         text body "<= 2000 characters"
         timestamp sent_at
         timestamp read_at "nullable, indexed with conversation_id"
@@ -260,6 +365,7 @@ erDiagram
     sellers ||--o{ listings : owns
     sellers ||--o{ order_items : sold_via
     sellers ||--o{ fulfillments : ships
+    customers ||--o{ fulfillments : receives
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
     customers ||..o{ analytics_events : acts_as
@@ -274,7 +380,9 @@ erDiagram
     admins ||--o{ conversations : participates_in
     listings ||--o{ conversations : asked_about
     fulfillments ||--o{ conversations : asked_about
+    orders ||--o{ conversations : raised_over
     conversations ||--o{ messages : holds
+    messages ||--o{ messages : "replied to by"
     listings ||--o{ listing_faqs : publishes
     messages ||--o{ listing_faqs : lifted_from
     listings ||..o{ analytics_events : subject_of
@@ -291,6 +399,18 @@ erDiagram
     payments ||--o{ refunds : reversed_by
     fulfillments ||--o{ ledger_entries : produces
     payouts ||--o{ ledger_entries : settles
+    sellers ||--o| store_profiles : presents_as
+    store_profiles ||--o{ store_slugs : has_answered_to
+    store_profiles ||--o{ store_images : owns
+    store_profiles ||--o{ store_sections : is_built_from
+    store_profiles ||--o{ store_links : links_out_through
+    store_sections ||--o{ store_section_images : places
+    store_images ||--o{ store_section_images : placed_as
+    sellers ||--o{ fulfillment_flows : owns
+    fulfillment_flows ||--o{ fulfillment_flow_steps : orders
+    listings }o--o| fulfillment_flows : ships_by
+    fulfillments ||--o{ fulfillment_events : is_the_record_of
+    fulfillment_flow_steps ||--o{ fulfillment_events : completed_as
 ```
 
 Caveats:
@@ -315,13 +435,20 @@ Caveats:
   names its sender the way a notification names its recipient and is drawn
   without a relationship line above.
 - `conversations.subject_key` is the uniqueness spine of "one thread per
-  subject": SQL treats null as distinct from null, so a composite unique
-  index over the five nullable id columns would let a duplicate row through.
-  The key folds the kind and those ids into one non-null string
-  (`listing_question:ssel_01J…:ccus_01J…:llst_01J…`). It names the
-  participants, so an
-  anonymous-customer merge moves `customer_id` and `subject_key` together —
-  see `docs/messaging.md` § "The merge".
+  fulfillment" — `App\Domain\Messaging\ConversationSubject::subjectKey()`
+  folds the seller, customer, and fulfillment ids into one non-null string
+  (`fulfillment:s…:c…:f…`) so a composite unique index need not lean on
+  three nullable columns, where SQL treats null as distinct from null. It is
+  the one kind whose thread is found again on a second ask; `AdminSeller`,
+  `AdminCustomer`, and `ListingQuestion` open a fresh row every time and
+  carry a `title`, with no `subject_key`. An anonymous-customer merge moves
+  `customer_id` and `subject_key` together — see `docs/messaging.md` §
+  "The merge".
+- `conversations.resolved_at` / `resolved_by_type` / `resolved_by_id` record
+  who closed a thread and when; `resolved_by` is a morph pair the way
+  `notifications.notifiable` is. `admin_id` on the two desk kinds
+  (`AdminSeller`, `AdminCustomer`) records who first answered, not a gate —
+  the desk is every admin, collectively.
 - `listing_faqs` rows exist only while published: `published_at` is not null,
   and unpublishing deletes the row rather than clearing it.
   `source_message_id` records which answer an entry was lifted from and is
@@ -352,3 +479,40 @@ Caveats:
   through `Refund::issuer()`. See `docs/orders.md`.
 - `carts.customer_id` is not unique — `MergeAnonymousCustomer` can re-point
   a second cart onto a customer that already has one.
+- `store_profiles.portrait_image_id` and `cover_image_id` hold a `sim_` id
+  with no foreign key, so they are drawn without a relationship line above.
+  `store_images` carries `store_profile_id`, so a key back the other way is a
+  cycle SQLite cannot create in either order; `RemoveStoreImage` clears both
+  columns before it deletes the row.
+- `store_slugs.slug` is unique across the whole table, retired rows included.
+  The current address also sits on `store_profiles.slug` for the lookup; a
+  rename retires one row, brings in another, and updates the profile in one
+  transaction. See `docs/seller-portal.md` § "Addresses are history".
+- `store_sections`, `store_section_images`, and `store_links` each hold their
+  order in a `position` unique with their parent. `store_section_images` and
+  `store_links` carry a second unique index — on the image and on the link
+  kind — so neither is listed twice under one parent.
+- `fulfillment_flows` holds one default per seller as a partial unique index,
+  `(seller_id) where is_default`. Blueprint writes no partial index, so
+  the migration writes the statement; SQLite and Postgres both take the
+  clause.
+- `fulfillment_events` is append-only and unique on
+  `(fulfillment_id, fulfillment_flow_step_id)`, so a step is completed once.
+  A unique index counts each null as its own value, which leaves the
+  transition rows — none of which names a step — outside the constraint.
+  `step_label` copies the step's words at completion and
+  `fulfillment_flow_step_id` is `nullOnDelete`, so removing a step from a
+  flow leaves the log reading as it did. It names its actor with
+  `actor_type` / `actor_id` rather than a foreign key, the way `refunds`
+  does. See `docs/orders.md` § "The fulfillment event log and the seller's
+  flow".
+- `listings.fulfillment_flow_id` is nullable and `nullOnDelete`: a listing
+  that names no flow ships by its seller's default
+  (`Fulfillment::flowInEffect()`).
+- `listings.category_id` is nullable and `nullOnDelete`, drawn without a
+  relationship line above since `categories` sits outside this diagram —
+  [`item-configurator.md`](item-configurator.md) has the full
+  configuration model.
+- `messages.reply_to_message_id` is nullable and `nullOnDelete`: the
+  message a reply answers, so removing the quoted message leaves the reply
+  itself intact.

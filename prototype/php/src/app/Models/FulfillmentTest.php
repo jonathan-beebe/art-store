@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\RefundFulfillment;
+use App\Domain\Fulfillment\FulfillmentLane;
+use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Seller\FulfillmentFlowReader;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +28,16 @@ it('adds the fee and the net back up to the subtotal', function (): void {
     $fulfillment = $order->fulfillments()->sole();
 
     expect($fulfillment->fee()->add($fulfillment->net())->equals($fulfillment->subtotal()))->toBeTrue();
+});
+
+it('resolves the flow it snapshot at placement', function (): void {
+    $seller = $this->seller();
+    $flow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id]);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $flow->id]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    $fulfillment = $order->fulfillments()->sole();
+
+    expect($fulfillment->fulfillmentFlow?->id)->toBe($flow->id);
 });
 
 it('reads the ledger entries it produced', function (): void {
@@ -59,31 +73,6 @@ it('counts every status the table holds, in one row each', function (): void {
     ]);
 });
 
-it('counts every status across the whole platform', function (): void {
-    $this->paidFulfillmentFor($this->seller());
-
-    expect(Fulfillment::platformCountsByStatus())->toBe([FulfillmentStatus::AwaitingShipment->value => 1]);
-});
-
-it('earns the platform fee on a fulfillment still live and forgoes it on one refunded', function (): void {
-    $admin = Admin::factory()->create();
-    $this->deliveredFulfillmentFor($this->seller(), priceCents: 10000);
-    $refunded = $this->deliveredFulfillmentFor($this->seller(), priceCents: 5000);
-    app(RefundFulfillment::class)($refunded, $admin, 'Arrived damaged.', $this->moment('2026-08-23 09:00:00'));
-
-    $fees = Fulfillment::platformFees();
-
-    expect($fees->earned->cents)->toBe(1000)
-        ->and($fees->refunded->cents)->toBe(500);
-});
-
-it('forgoes the fee on a fulfillment a seller declined', function (): void {
-    $fulfillment = $this->paidFulfillmentFor($this->seller(), priceCents: 10000);
-    app(DeclineFulfillment::class)($fulfillment, 'Out of stock.', $this->moment('2026-08-20 11:00:00'));
-
-    expect(Fulfillment::platformFees()->refunded->cents)->toBe(1000);
-});
-
 it('takes the row a transition is judged against for update', function (): void {
     // SQLite has no row lock and its grammar compiles the clause away, so the
     // query is compiled here with the grammar of a database that does have
@@ -99,4 +88,89 @@ it('re-reads the locked row rather than trusting the instance it was handed', fu
 
     expect($fulfillment->status)->toBe(FulfillmentStatus::AwaitingShipment)
         ->and($fulfillment->takeForTransition()->status)->toBe(FulfillmentStatus::Shipped);
+});
+
+it('keeps the words of a step the seller removed on the row that recorded it', function (): void {
+    $seller = $this->seller('Luna Lovegood');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create(['label' => 'Label printed']);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+    $labelStep->delete();
+
+    $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->sole();
+
+    expect($event->fulfillment_flow_step_id)->toBeNull()
+        ->and($event->stepLabel())->toBe('Label printed');
+});
+
+it('selects each lane the way the loaded flow reads it', function (): void {
+    $seller = $this->seller('Molly Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $toShip = $this->paidFulfillmentFor($seller);
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $shipped = $this->shippedFulfillmentFor($seller);
+    $delivered = $this->deliveredFulfillmentFor($seller);
+
+    $inLane = fn (LaneFilter $filter): array => Fulfillment::query()
+        ->whereBelongsTo($seller)
+        ->inLane($filter)
+        ->pluck('id')
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($inLane(LaneFilter::ToShip))->toBe([$toShip->id])
+        ->and($inLane(LaneFilter::InProgress))->toEqualCanonicalizing([$started->id, $shipped->id])
+        ->and($inLane(LaneFilter::Done))->toBe([$delivered->id])
+        ->and($inLane(LaneFilter::All))->toHaveCount(4);
+});
+
+it('agrees with the lane each fulfillment reads off its own flow', function (): void {
+    $seller = $this->seller('Luna Lovegood');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->shippedFulfillmentFor($seller);
+    $this->deliveredFulfillmentFor($seller);
+    app(DeclineFulfillment::class)($this->paidFulfillmentFor($seller), 'The kiln cracked it.', $this->moment('2026-08-22 09:00:00'));
+    app(RefundFulfillment::class)($this->shippedFulfillmentFor($seller), $this->admin(), 'The parcel never arrived.', $this->moment('2026-08-23 09:00:00'));
+
+    $reader = app(FulfillmentFlowReader::class);
+
+    foreach (Fulfillment::query()->whereBelongsTo($seller)->get() as $fulfillment) {
+        $fulfillment = $this->loadedForFlow($fulfillment);
+
+        $selected = Fulfillment::query()->inLane(LaneFilter::of($fulfillment->lane($reader->read($fulfillment)->progress)))->pluck('id')->all();
+
+        expect($selected)->toContain($fulfillment->id);
+    }
+});
+
+it('counts the two facts a lane is read from, one row per pair', function (): void {
+    $seller = $this->seller('Ginny Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->paidFulfillmentFor($seller);
+
+    $counted = [];
+    foreach (Fulfillment::query()->whereBelongsTo($seller)->countedByLane()->get() as $row) {
+        $counted[FulfillmentLane::forStarted($row->status, $row->started)->value] = $row->tally;
+    }
+
+    expect($counted)->toEqualCanonicalizing([
+        FulfillmentLane::ToShip->value => 2,
+        FulfillmentLane::InProgress->value => 1,
+    ]);
 });

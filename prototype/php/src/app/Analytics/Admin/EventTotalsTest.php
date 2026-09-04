@@ -28,7 +28,8 @@ it('carries every event name plus a page.view roll-up, in that order', function 
 
     expect($names)->toBe([
         'listing.view', 'listing.favorite', 'listing.unfavorite', 'listing.cart_add',
-        'checkout.open', 'order.place', 'order.pay', 'order.cancel', 'page.view',
+        'checkout.open', 'order.place', 'order.pay', 'order.cancel', 'store.view',
+        'help.answered', 'help.unanswered', 'page.view',
     ]);
 });
 
@@ -135,6 +136,6 @@ it('reads a name with nothing recorded as all zeroes rather than an absent row',
 
     expect($cartAdds->current)->toBe(0)
         ->and($cartAdds->previous)->toBe(0)
-        ->and($cartAdds->change->text)->toBe('new')
+        ->and($cartAdds->change->text)->toBe('')
         ->and($cartAdds->daily)->toBe([0, 0, 0, 0, 0, 0, 0]);
 });

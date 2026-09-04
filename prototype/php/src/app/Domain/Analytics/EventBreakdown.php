@@ -6,17 +6,18 @@ namespace App\Domain\Analytics;
 
 /**
  * How the event page slices one event name's range: by the listing it
- * happened to, by the actor who caused it, or — for the `page.view`
- * roll-up, which carries neither — by the route pattern it hit.
- * {@see allowedFor()} and {@see defaultFor()} both key on the event name
- * string {@see \App\Analytics\Admin\EventDetail::forRange()} takes, since
- * `page.view` is not an {@see AnalyticsEventName} case.
+ * happened to, by the actor who caused it, by the help article it named,
+ * or — for the `page.view` roll-up, which carries none of those — by the
+ * route pattern it hit. {@see allowedFor()} and {@see defaultFor()} both
+ * key on the event name string {@see \App\Analytics\Admin\EventDetail::forRange()}
+ * takes, since `page.view` is not an {@see AnalyticsEventName} case.
  */
 enum EventBreakdown: string
 {
     case Listing = 'listing';
     case Actor = 'actor';
     case Pattern = 'pattern';
+    case Article = 'article';
 
     /** The event name the `page.view` roll-up is recorded under. */
     public const string PAGE_VIEW_EVENT_NAME = 'page.view';
@@ -34,6 +35,16 @@ enum EventBreakdown: string
         'order.cancel',
     ];
 
+    /** Event names whose subject is a help article, so the only breakdown
+     * they offer is by article.
+     *
+     * @var list<string>
+     */
+    private const array ARTICLE_ONLY_EVENT_NAMES = [
+        'help.answered',
+        'help.unanswered',
+    ];
+
     /** The `page.view` roll-up's label everywhere the drill-in shows it —
      * it carries no {@see AnalyticsEventName} case of its own to hold one. */
     public const string PAGE_VIEW_LABEL = 'Page views';
@@ -46,7 +57,9 @@ enum EventBreakdown: string
      * `page.view` carries no subject or actor of its own, so a pattern is
      * the only breakdown it offers; a cart or order event ({@see
      * ACTOR_ONLY_EVENT_NAMES}) offers only actor, since its row names no
-     * listing; every other event name offers both listing and actor.
+     * listing; a help-article event ({@see ARTICLE_ONLY_EVENT_NAMES})
+     * offers only article, since its row names no listing or actor;
+     * every other event name offers both listing and actor.
      *
      * @return list<self>
      */
@@ -54,6 +67,7 @@ enum EventBreakdown: string
     {
         return match (true) {
             $eventName === self::PAGE_VIEW_EVENT_NAME => [self::Pattern],
+            in_array($eventName, self::ARTICLE_ONLY_EVENT_NAMES, true) => [self::Article],
             in_array($eventName, self::ACTOR_ONLY_EVENT_NAMES, true) => [self::Actor],
             default => [self::Listing, self::Actor],
         };
@@ -63,6 +77,7 @@ enum EventBreakdown: string
     {
         return match (true) {
             $eventName === self::PAGE_VIEW_EVENT_NAME => self::Pattern,
+            in_array($eventName, self::ARTICLE_ONLY_EVENT_NAMES, true) => self::Article,
             in_array($eventName, self::ACTOR_ONLY_EVENT_NAMES, true) => self::Actor,
             default => self::Listing,
         };
@@ -75,6 +90,7 @@ enum EventBreakdown: string
             self::Listing => 'By listing',
             self::Actor => 'By actor',
             self::Pattern => 'By pattern',
+            self::Article => 'By article',
         };
     }
 
@@ -85,6 +101,7 @@ enum EventBreakdown: string
             self::Listing => 'Listing',
             self::Actor => 'Actor',
             self::Pattern => 'Pattern',
+            self::Article => 'Article',
         };
     }
 }

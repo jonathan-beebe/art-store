@@ -72,12 +72,12 @@ final class SellerMessageController extends AdminController
         // `SellerController::show` windows it (`ListPaneWindow`, DSGN-006
         // follow-up).
         $window = ListPaneWindow::of(
-            Seller::query()->withCount(['listings', 'fulfillments'])->orderByDesc('created_at')->orderByDesc('id'),
+            Seller::query()->withCount(['listings', 'fulfillments'])->with('storeProfile')->orderByDesc('created_at')->orderByDesc('id'),
             $seller,
         );
 
         return [
-            'seller' => $seller,
+            'seller' => $seller->loadMissing('storeProfile'),
             'funnel' => Funnel::forSeller(FunnelDefinition::storefront(), $seller, AnalyticsRange::of(self::FUNNEL_RANGE_DAYS, $this->now())),
             'tally' => ListingStatusTally::from($seller->listingCountsByStatus()),
             'listings' => $seller->listings()->with('activeRemoval')->orderByDesc('created_at')->orderByDesc('id')->get(),

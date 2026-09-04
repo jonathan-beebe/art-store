@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\Money\Money;
+use App\Models\Customer;
 use App\Models\DescriptionSection;
+use App\Models\FulfillmentFlow;
+use App\Models\FulfillmentFlowStep;
 use App\Models\ListingFaq;
 use App\Models\ListingImage;
 use App\Models\Modifier;
@@ -13,6 +16,9 @@ use App\Models\ModifierOption;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\QuantityBreak;
+use App\Models\StoreImage;
+use App\Models\StoreProfile;
+use App\Models\StoreSection;
 use App\Models\Unit;
 use App\Models\Variant;
 use App\Notifications\ItemSold;
@@ -22,12 +28,16 @@ use LogicException;
 
 /**
  * The ownership analog of {@see GuardedRoutesTest}: every seller-guarded
- * route naming a {listing}, {fulfillment}, or {notification} — including
- * every route nested under one, like {option_axis} or {unit} — answers 404
- * for a signed-in seller who does not own that resource. Derived from the
- * route table rather than one test per controller, so a route a future
- * controller forgets to guard fails this test rather than shipping
- * unnoticed.
+ * route naming a {listing}, {fulfillment}, {notification}, {customer}, or
+ * {section} — including every route nested under one, like {option_axis}
+ * or {unit} — answers 404 for a signed-in seller who does not own that
+ * resource. Derived from the route table rather than one test per
+ * controller, so a route a future controller forgets to guard fails this
+ * test rather than shipping unnoticed.
+ *
+ * `{image}` names two models on two routes — a `ListingImage` nested under
+ * `{listing}`, and a bare `StoreImage` — so `$overridesByRouteName` answers
+ * the one route the parameter-name map alone would get wrong.
  *
  * One full configurator graph belonging to "Other Studio" supplies a real,
  * resolvable id for every parameter a guarded route can name. A write
@@ -49,8 +59,15 @@ it('answers 404 for every seller-guarded route naming a resource the signed-in s
     $faq = ListingFaq::factory()->create(['listing_id' => $listing->id]);
     $image = ListingImage::factory()->create(['listing_id' => $listing->id]);
     $fulfillment = $this->paidFulfillmentFor($other);
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $other->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create();
     $other->notify(new ItemSold('ord_00000000000000000000000099', Money::fromCents(9000)));
     $notification = $other->notifications()->firstOrFail();
+    $customer = Customer::factory()->create();
+    $this->paidFulfillmentFor($other, $customer);
+    $profile = StoreProfile::factory()->create(['seller_id' => $other->id]);
+    $section = StoreSection::factory()->create(['store_profile_id' => $profile->id]);
+    $storeImage = StoreImage::factory()->create(['store_profile_id' => $profile->id]);
 
     /** @var array<string, string> $ownedByOther */
     $ownedByOther = [
@@ -66,12 +83,20 @@ it('answers 404 for every seller-guarded route naming a resource the signed-in s
         'faq' => $faq->id,
         'image' => $image->id,
         'fulfillment' => $fulfillment->id,
+        'step' => $step->id,
         'notification' => $notification->id,
+        'customer' => $customer->id,
+        'section' => $section->id,
+    ];
+
+    /** @var array<string, array<string, string>> $overridesByRouteName */
+    $overridesByRouteName = [
+        'seller.store.images.destroy' => ['image' => $storeImage->id],
     ];
 
     $routes = collect(RouteFacade::getRoutes()->getRoutes())
         ->filter(fn (Route $route): bool => in_array('auth.seller', $route->gatherMiddleware(), true))
-        ->filter(fn (Route $route): bool => collect($route->parameterNames())->intersect(['listing', 'fulfillment', 'notification'])->isNotEmpty());
+        ->filter(fn (Route $route): bool => collect($route->parameterNames())->intersect(array_keys($ownedByOther))->isNotEmpty());
 
     expect($routes)->not->toBeEmpty();
 
@@ -84,9 +109,12 @@ it('answers 404 for every seller-guarded route naming a resource the signed-in s
         /** @var list<string> $methods */
         $methods = $route->methods();
 
+        $overrides = $overridesByRouteName[$route->getName() ?? ''] ?? [];
+
         $uri = $route->uri();
         foreach ($parameterNames as $parameter) {
-            $value = $ownedByOther[$parameter]
+            $value = $overrides[$parameter]
+                ?? $ownedByOther[$parameter]
                 ?? throw new LogicException("OwnershipRoutesTest has no owned-by-another-seller value for route parameter \"{$parameter}\" on \"{$route->uri()}\". Add one to the resource graph above.");
             $uri = (string) preg_replace('/\{'.preg_quote($parameter, '/').'\??\}/', $value, $uri);
         }

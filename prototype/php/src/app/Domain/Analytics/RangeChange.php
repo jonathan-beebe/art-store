@@ -8,8 +8,8 @@ namespace App\Domain\Analytics;
  * How a range's count compares with the range before it: a signed
  * percentage a reader scans at a glance, and the {@see ChangeDirection}
  * that picks the up/down/flat color it renders in. A move under 0.5%
- * reads as flat — a percentage that small is noise on any count worth
- * comparing, not a trend.
+ * reads as flat: a percentage that small is noise on any count worth
+ * comparing.
  */
 final readonly class RangeChange
 {
@@ -21,17 +21,23 @@ final readonly class RangeChange
     ) {}
 
     /**
-     * `$previous` of zero has no percentage to compute against — "new"
-     * reads as neither up nor down, so it takes the flat color the way a
-     * genuinely unchanged count does.
+     * `$previous` of zero has no percentage to compute against.
+     * `$current` also zero reads as empty — nothing happened in either
+     * range. A nonzero `$current` reads "new": it takes the flat color,
+     * since a fresh count is neither up nor down.
      */
     public static function between(int $current, int $previous): self
     {
         if ($previous === 0) {
-            return new self('new', ChangeDirection::Flat);
+            return $current === 0
+                ? new self('', ChangeDirection::Flat)
+                : new self('new', ChangeDirection::Flat);
         }
 
-        $percent = (($current - $previous) / $previous) * 100;
+        // Divides by the previous range's size, not its sign — a negative
+        // previous (a period net of a refund) still reads the change
+        // toward zero as an improvement.
+        $percent = (($current - $previous) / abs($previous)) * 100;
 
         if (abs($percent) < self::FLAT_THRESHOLD_PERCENT) {
             return new self('0.0%', ChangeDirection::Flat);

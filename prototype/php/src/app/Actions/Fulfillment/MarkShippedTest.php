@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
+use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Events\FulfillmentShipped;
 use App\Logging\StoryEvent;
 use App\Models\Customer;
 use App\Models\Fulfillment;
+use App\Models\FulfillmentEvent;
 use App\Models\Order;
 use App\Notifications\OrderShipped;
 use App\Support\Story;
@@ -132,4 +135,30 @@ it('judges the transition against the row it locks, not the instance it was hand
         ->toThrow(DomainRuleViolation::class, 'declined to shipped');
 
     expect($fulfillment->fresh()?->status)->toBe(FulfillmentStatus::Declined);
+});
+
+it('appends the shipped event in the seller\'s name', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
+    $fulfillment = $order->fulfillments()->sole();
+
+    app(MarkShipped::class)($fulfillment, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 11:00:00'));
+
+    $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->sole();
+
+    expect($event->kind)->toBe(FulfillmentEventKind::Shipped)
+        ->and($event->actor_type)->toBe(ActorType::Seller)
+        ->and($event->actor_id)->toBe($fulfillment->seller_id)
+        ->and($event->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-21 11:00:00')
+        ->and($event->fulfillment_flow_step_id)->toBeNull();
+});
+
+it('appends nothing when the shipment is refused', function () use ($paidOrder): void {
+    $order = $paidOrder($this->verifiedCustomer());
+    $fulfillment = $order->fulfillments()->sole();
+    app(MarkShipped::class)($fulfillment, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 11:00:00'));
+
+    expect(fn () => app(MarkShipped::class)($fulfillment, 'Floo Freight', 'FF 90', $this->moment('2026-08-22 11:00:00')))
+        ->toThrow(DomainRuleViolation::class);
+
+    expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->count())->toBe(1);
 });

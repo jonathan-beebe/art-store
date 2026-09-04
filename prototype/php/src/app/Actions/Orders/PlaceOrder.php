@@ -20,6 +20,7 @@ use App\Logging\StoryEvent;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Fulfillment;
+use App\Models\FulfillmentFlow;
 use App\Models\Listing;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -78,7 +79,7 @@ final readonly class PlaceOrder
                 ]);
 
                 $this->snapshotItems($order, $cart);
-                $this->splitBySeller($order, $totals);
+                $this->splitBySeller($order, $cart, $totals);
 
                 foreach ($cart->items as $item) {
                     StockMovement::claim($item);
@@ -203,17 +204,37 @@ final readonly class PlaceOrder
         );
     }
 
-    private function splitBySeller(Order $order, CartTotals $totals): void
+    private function splitBySeller(Order $order, Cart $cart, CartTotals $totals): void
     {
         foreach ($totals->subtotalsBySeller() as $sellerId => $subtotal) {
             Fulfillment::create([
                 'order_id' => $order->id,
                 'customer_id' => $order->customer_id,
                 'seller_id' => $sellerId,
+                'fulfillment_flow_id' => $this->flowIdFor($sellerId, $cart),
                 'subtotal_cents' => $subtotal->cents,
                 'fee_cents' => Fee::platform($subtotal)->cents,
                 'net_cents' => Fee::net($subtotal)->cents,
             ]);
         }
+    }
+
+    /**
+     * The flow this seller's parcel snapshots at placement: the one the
+     * first of their own cart lines names, and their default flow when none
+     * does — the same rule {@see \App\Seller\FulfillmentFlowReader} falls
+     * back to for a row with no snapshot.
+     */
+    private function flowIdFor(string $sellerId, Cart $cart): ?string
+    {
+        foreach ($cart->items as $item) {
+            if ($item->listing->seller_id === $sellerId && $item->listing->fulfillment_flow_id !== null) {
+                return $item->listing->fulfillment_flow_id;
+            }
+        }
+
+        $flowId = FulfillmentFlow::query()->where('seller_id', $sellerId)->defaults()->value('id');
+
+        return is_string($flowId) ? $flowId : null;
     }
 }

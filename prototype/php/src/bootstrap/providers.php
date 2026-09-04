@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Providers\ActivityFeedServiceProvider;
 use App\Providers\AnalyticsServiceProvider;
 use App\Providers\AppServiceProvider;
 use App\Providers\LoggingServiceProvider;
@@ -12,4 +13,5 @@ return [
     LoggingServiceProvider::class,
     LogStoreServiceProvider::class,
     AnalyticsServiceProvider::class,
+    ActivityFeedServiceProvider::class,
 ];

@@ -99,3 +99,13 @@ it('names the listing for a listing question', function (): void {
 it('falls back to a plain word when a listing question carries no title', function (): void {
     expect(ConversationKind::ListingQuestion->topic(null, null))->toBe('a listing');
 });
+
+it('names the pill every list of threads wears, and its tint', function (ConversationKind $kind, string $label, string $tint): void {
+    expect($kind->tagLabel())->toBe($label)
+        ->and($kind->tagTint())->toBe($tint);
+})->with([
+    'a question' => [ConversationKind::ListingQuestion, 'Question', 'indigo'],
+    'an order' => [ConversationKind::Fulfillment, 'Order', 'green'],
+    'the seller desk' => [ConversationKind::AdminSeller, 'Support', 'gray'],
+    'the customer desk' => [ConversationKind::AdminCustomer, 'Support', 'gray'],
+]);

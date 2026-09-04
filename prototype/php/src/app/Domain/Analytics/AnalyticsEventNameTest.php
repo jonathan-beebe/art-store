@@ -9,6 +9,7 @@ it('names the storefront interactions the analytics store accepts', function ():
         ->toBe([
             'listing.view', 'listing.favorite', 'listing.unfavorite', 'listing.cart_add',
             'checkout.open', 'order.place', 'order.pay', 'order.cancel',
+            'store.view', 'help.answered', 'help.unanswered',
         ]);
 });
 
@@ -23,6 +24,9 @@ it('labels every case', function (AnalyticsEventName $name, string $expected): v
     'order_place' => [AnalyticsEventName::OrderPlace, 'Order placed'],
     'order_pay' => [AnalyticsEventName::OrderPay, 'Order paid'],
     'order_cancel' => [AnalyticsEventName::OrderCancel, 'Order cancelled'],
+    'store_view' => [AnalyticsEventName::StoreView, 'Store view'],
+    'help_answered' => [AnalyticsEventName::HelpAnswered, 'Marked helpful'],
+    'help_unanswered' => [AnalyticsEventName::HelpUnanswered, 'Marked not helpful'],
 ]);
 
 it('gives every case a feed-row verb', function (AnalyticsEventName $name, string $expected): void {
@@ -36,6 +40,9 @@ it('gives every case a feed-row verb', function (AnalyticsEventName $name, strin
     'order_place' => [AnalyticsEventName::OrderPlace, 'placed an order'],
     'order_pay' => [AnalyticsEventName::OrderPay, 'paid an order'],
     'order_cancel' => [AnalyticsEventName::OrderCancel, 'cancelled an order'],
+    'store_view' => [AnalyticsEventName::StoreView, 'opened'],
+    'help_answered' => [AnalyticsEventName::HelpAnswered, 'marked an article helpful'],
+    'help_unanswered' => [AnalyticsEventName::HelpUnanswered, 'marked an article not helpful'],
 ]);
 
 it('gives every case a plural label', function (AnalyticsEventName $name, string $expected): void {
@@ -49,8 +56,25 @@ it('gives every case a plural label', function (AnalyticsEventName $name, string
     'order_place' => [AnalyticsEventName::OrderPlace, 'Orders placed'],
     'order_pay' => [AnalyticsEventName::OrderPay, 'Orders paid'],
     'order_cancel' => [AnalyticsEventName::OrderCancel, 'Orders cancelled'],
+    'store_view' => [AnalyticsEventName::StoreView, 'Store views'],
+    'help_answered' => [AnalyticsEventName::HelpAnswered, 'Marked helpful'],
+    'help_unanswered' => [AnalyticsEventName::HelpUnanswered, 'Marked not helpful'],
 ]);
 
 it('gives every case a non-empty icon path', function (AnalyticsEventName $name): void {
     expect($name->iconPath())->not->toBe('');
 })->with(AnalyticsEventName::cases());
+
+it('narrows to the names a listing\'s or a store\'s own feed can hold', function (): void {
+    expect(AnalyticsEventName::forSubject('listing'))->toBe([
+        AnalyticsEventName::ListingView,
+        AnalyticsEventName::ListingFavorite,
+        AnalyticsEventName::ListingUnfavorite,
+        AnalyticsEventName::ListingCartAdd,
+    ])
+        ->and(AnalyticsEventName::forSubject('store'))->toBe([AnalyticsEventName::StoreView]);
+});
+
+it('falls back to every case for a subject type it does not narrow', function (): void {
+    expect(AnalyticsEventName::forSubject('actor'))->toBe(AnalyticsEventName::cases());
+});

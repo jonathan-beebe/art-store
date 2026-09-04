@@ -16,9 +16,11 @@
         };
     };
 
-    $entityHref = fn (string $id): string => $detail->breakdown === \App\Domain\Analytics\EventBreakdown::Actor
-        ? route('admin.analytics.actors.show', $id)
-        : route('admin.analytics.listings.show', $id);
+    $entityHref = fn (string $id): ?string => match ($detail->breakdown) {
+        \App\Domain\Analytics\EventBreakdown::Actor => route('admin.analytics.actors.show', $id),
+        \App\Domain\Analytics\EventBreakdown::Listing => route('admin.analytics.listings.show', $id),
+        \App\Domain\Analytics\EventBreakdown::Article, \App\Domain\Analytics\EventBreakdown::Pattern => null,
+    };
 
     $bars = \App\Domain\Analytics\BarStrip::bars($detail->daily, $dayLabels, 112);
 @endphp
@@ -57,7 +59,7 @@
     <section class="mt-6">
         <h2 class="font-semibold text-stone-700 dark:text-stone-300">By day</h2>
         <div class="mt-2 rounded-md border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 p-4">
-            <x-admin.analytics.bar-strip :bars="$bars" :height="112" class="text-stone-500 dark:text-stone-400" />
+            <x-bar-strip :bars="$bars" :height="112" class="text-stone-500 dark:text-stone-400" />
             <div class="mt-1.5 flex justify-between text-[11px] text-stone-500 dark:text-stone-400">
                 <span>{{ $detail->firstDay }}</span>
                 <span>{{ $detail->lastDay }}</span>

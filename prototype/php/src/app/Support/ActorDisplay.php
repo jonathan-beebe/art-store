@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Domain\Seller\Initials;
 use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
@@ -40,13 +41,15 @@ final class ActorDisplay
      */
     public static function initialsOf(Seller|Customer|Admin|null $actor): string
     {
-        $words = array_filter(preg_split('/\s+/', trim(self::nameOf($actor))) ?: []);
+        return self::initialsFor(self::nameOf($actor));
+    }
 
-        $initials = array_map(
-            fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)),
-            array_slice($words, 0, 2),
-        );
-
-        return implode('', $initials);
+    /**
+     * The same reduction over a name a page already holds — the support
+     * desk's, or a buyer's read off the order that carried it.
+     */
+    public static function initialsFor(string $name): string
+    {
+        return Initials::of($name);
     }
 }

@@ -15,8 +15,9 @@ use App\Notifications\ItemSold;
 
 // The composer sets its data on the seller layout component's own view, not
 // the page view the controller returns, so assertViewHas() can't see it —
-// these read the rendered chip/dot markup instead, the way the tests they
-// replace already did.
+// these read the rendered chip/dot markup instead. The chip is named by its
+// `data-nav-count` hook, so a figure a page happens to render elsewhere is
+// never read as a nav count.
 
 it('counts the messages across every thread the seller has not read', function (): void {
     $seller = $this->seller();
@@ -32,7 +33,7 @@ it('counts the messages across every thread the seller has not read', function (
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertSee('>1</span>', escape: false);
+    $response->assertSeeInOrder(['data-nav-count="messages"', '>1</span>'], escape: false);
 });
 
 it('drops the count once the thread is marked read', function (): void {
@@ -44,7 +45,7 @@ it('drops the count once the thread is marked read', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertDontSee('>1</span>', escape: false);
+    $response->assertDontSee('data-nav-count="messages"', escape: false);
 });
 
 it('carries the count onto every seller page without the controller passing it', function (): void {
@@ -53,8 +54,8 @@ it('carries the count onto every seller page without the controller passing it',
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id, 'customer_id' => $customer->id]);
     Message::factory()->from($customer)->unread()->create(['conversation_id' => $conversation->id]);
 
-    $this->actingAs($seller, 'seller')->get('/seller/listings')->assertSee('>1</span>', escape: false);
-    $this->actingAs($seller, 'seller')->get('/seller/orders')->assertSee('>1</span>', escape: false);
+    $this->actingAs($seller, 'seller')->get('/seller/listings')->assertSeeInOrder(['data-nav-count="messages"', '>1</span>'], escape: false);
+    $this->actingAs($seller, 'seller')->get('/seller/orders')->assertSeeInOrder(['data-nav-count="messages"', '>1</span>'], escape: false);
 });
 
 it('counts the fulfillments awaiting shipment', function (): void {
@@ -64,7 +65,7 @@ it('counts the fulfillments awaiting shipment', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertSee('>1</span>', escape: false);
+    $response->assertSeeInOrder(['data-nav-count="orders"', '>1</span>'], escape: false);
 });
 
 it('drops a fulfillment from the count once it ships', function (): void {
@@ -76,7 +77,7 @@ it('drops a fulfillment from the count once it ships', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
 
-    $response->assertDontSee('>1</span>', escape: false);
+    $response->assertDontSee('data-nav-count="orders"', escape: false);
 });
 
 it('flags unread notifications for the bell', function (): void {
