@@ -9,7 +9,7 @@ use App\Models\Seller;
 use App\Models\StoreProfile;
 use DateTimeImmutable;
 
-it('counts only the sellers storefront listings', function (): void {
+it('counts only what a buyer can still buy from this seller', function (): void {
     $seller = $this->seller();
     $profile = StoreProfile::factory()->create(['seller_id' => $seller->id]);
     $this->listing($seller, ['status' => ListingStatus::ForSale]);
@@ -18,7 +18,16 @@ it('counts only the sellers storefront listings', function (): void {
     $this->listing($seller, ['status' => ListingStatus::Archived]);
     $this->listing($this->seller('Other Studio'), ['status' => ListingStatus::ForSale]);
 
-    expect(StoreFacts::of($profile)->pieceCount)->toBe(2);
+    expect(StoreFacts::of($profile)->pieceCount)->toBe(1);
+});
+
+it('leaves a sold piece out of the count the sentence reads', function (): void {
+    $seller = $this->seller();
+    $profile = StoreProfile::factory()->create(['seller_id' => $seller->id]);
+    $this->listing($seller, ['status' => ListingStatus::ForSale]);
+    $this->listing($seller, ['status' => ListingStatus::Sold]);
+
+    expect(StoreFacts::of($profile)->sentence())->toStartWith('1 piece for sale');
 });
 
 it('says one piece for sale in the singular', function (): void {

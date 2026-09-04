@@ -31,6 +31,7 @@ final class StorefrontStorePageData
     public static function build(StoreProfile $profile, bool $isOwnStore): array
     {
         $profile->load([
+            'seller',
             'portraitImage',
             'coverImage',
             'links',

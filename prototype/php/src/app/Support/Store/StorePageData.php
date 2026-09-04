@@ -24,6 +24,7 @@ final class StorePageData
     public static function build(StoreProfile $profile): array
     {
         $profile->load([
+            'seller',
             'portraitImage',
             'coverImage',
             'links',

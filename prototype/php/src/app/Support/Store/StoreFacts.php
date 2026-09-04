@@ -22,12 +22,15 @@ final readonly class StoreFacts
 
     public static function of(StoreProfile $profile): self
     {
-        $seller = $profile->seller;
+        $seller = $profile->loadMissing('seller')->seller;
 
         return new self(
+            // The sentence says "for sale", so the count is what a buyer
+            // can still buy — a sold piece stays on the store page and is
+            // left out of this number.
             pieceCount: Listing::query()
                 ->where('seller_id', $profile->seller_id)
-                ->onStorefront()
+                ->forSale()
                 ->count(),
             sellingSince: $seller?->email_verified_at?->toDateTimeImmutable()
                 ?? $seller?->created_at?->toDateTimeImmutable(),
