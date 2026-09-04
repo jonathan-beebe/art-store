@@ -6,7 +6,7 @@
 - DSGN: 11
 - ARCH: 1
 - FEAT: 62
-- IMPRV: 30
+- IMPRV: 34
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-09-04:07:27:28 — IMPRV-033 — defined: The docs say the seller portal once, and the deferrals become tickets
+- 2026-09-04:07:27:28 — IMPRV-032 — defined: One sort stack, one link, one query request, one paid rule, one sidecar rule
+- 2026-09-04:07:27:28 — IMPRV-031 — defined: Every seller figure counts the same parcels and survives Postgres
+- 2026-09-04:07:27:28 — IMPRV-030 — defined: The seller portal renders and reads right for every seller
 - 2026-09-04:11:20:00 — FEAT-055 — reviewed: merge-after-fixes pass — held row opens the earnings held list, To ship orders by orders.placed_at, the customers tile reads isNewSince, HeldEscrow::tallyFor, RelativeTime into App\Domain\Support with App\Support banned there, x-bar-strip shared; make check green
 - 2026-09-04:09:40:00 — FEAT-055 — resolved: range control, three brand-icon tiles with sparklines, listing activity with top-five strips, four focus groups; plus the MAINT-008 doc order and help article, the FEAT-052 refund row, and the FEAT-053 admin tint chores; make check green, 5164 tests, 99.5% coverage
 - 2026-09-04:07:00:00 — FEAT-055 — started: The dashboard opens on three tiles, listing activity, and what needs attention
