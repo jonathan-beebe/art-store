@@ -8,6 +8,8 @@ use App\Http\Controllers\Seller\DeclineController;
 use App\Http\Controllers\Seller\DescriptionSectionController;
 use App\Http\Controllers\Seller\DescriptionSectionReorderController;
 use App\Http\Controllers\Seller\EarningsController;
+use App\Http\Controllers\Seller\FlowStepController;
+use App\Http\Controllers\Seller\FulfillmentFlowController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingBasicsController;
@@ -29,6 +31,7 @@ use App\Http\Controllers\Seller\QuantityBreakController;
 use App\Http\Controllers\Seller\ReopenConversationController;
 use App\Http\Controllers\Seller\ResolveConversationController;
 use App\Http\Controllers\Seller\ShipmentController;
+use App\Http\Controllers\Seller\ShippingLabelController;
 use App\Http\Controllers\Seller\SupportController;
 use App\Http\Controllers\Seller\UnitController;
 use App\Http\Controllers\Seller\VariantController;
@@ -90,7 +93,13 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
         ->scopeBindings();
 
     Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
+    // Declared before `orders/{fulfillment}` so the flow editor's own path is
+    // not read as a fulfillment id.
+    Route::get('orders/flow', [FulfillmentFlowController::class, 'edit'])->name('orders.flow.edit');
+    Route::put('orders/flow', [FulfillmentFlowController::class, 'update'])->name('orders.flow.update');
     Route::get('orders/{fulfillment}', [OrderController::class, 'show'])->name('orders.show');
+    Route::get('orders/{fulfillment}/label', ShippingLabelController::class)->name('orders.label');
+    Route::post('orders/{fulfillment}/steps/{step}', FlowStepController::class)->name('orders.steps.complete');
     Route::post('orders/{fulfillment}/shipment', ShipmentController::class)->name('orders.ship');
     Route::post('orders/{fulfillment}/decline', DeclineController::class)->name('orders.decline');
     Route::post('orders/{fulfillment}/messages', OrderMessageController::class)->name('orders.messages');

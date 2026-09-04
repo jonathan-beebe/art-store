@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Domain\Fulfillment\DefaultFlow;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Fulfillment;
+use App\Models\FulfillmentFlow;
 use App\Models\Seller;
 use App\Support\ListPaneWindow;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,12 +41,22 @@ final class OrderController extends SellerController
         $seller = $this->seller();
         $window = ListPaneWindow::of($this->fulfillmentsQuery($seller), $fulfillment);
 
+        $fulfillment->load([
+            'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
+            'order.items.listing.fulfillmentFlow',
+            'order.latestPayment',
+            'refund',
+            'fulfillmentEvents',
+            'seller.defaultFulfillmentFlow',
+        ]);
+
+        $flow = $fulfillment->flowInEffect();
+
         return view('seller.orders.show', [
-            'fulfillment' => $fulfillment->load([
-                'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
-                'order.latestPayment',
-                'refund',
-            ]),
+            'fulfillment' => $fulfillment,
+            'flowName' => $flow instanceof FulfillmentFlow ? $flow->name : DefaultFlow::NAME,
+            'flowSteps' => $fulfillment->flowSteps(),
+            'progress' => $fulfillment->progress(),
             'cellFulfillments' => $window->items,
             'cellFulfillmentsTotal' => $window->total,
             'needsActionCount' => $this->needsActionCount($seller),

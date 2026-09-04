@@ -120,6 +120,12 @@
                         </section>
                     @endif
 
+                    <div class="mt-7 flex flex-wrap items-baseline justify-between gap-3">
+                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ $flowName }}</h3>
+                        <a href="{{ route('seller.orders.flow.edit') }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">Flow settings</a>
+                    </div>
+                    <x-seller.flow-steps :fulfillment="$fulfillment" :steps="$flowSteps" :progress="$progress" :can-complete="$canShip" />
+
                     <h3 class="mt-7 text-sm font-semibold text-gray-900 dark:text-gray-100">Shipment</h3>
                     @if ($canShip)
                         <form id="mark-shipped-form" method="POST" action="{{ route('seller.orders.ship', $fulfillment->id) }}" class="mt-2 flex flex-col gap-4 rounded-lg border border-gray-200 dark:border-white/10 p-4 sm:flex-row sm:items-end">
