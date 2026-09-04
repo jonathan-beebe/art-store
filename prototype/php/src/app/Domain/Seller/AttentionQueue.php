@@ -15,7 +15,7 @@ use DateTimeImmutable;
  * shows when it holds nothing, and the age at which a parcel reads
  * urgent.
  */
-final class AttentionQueue
+final readonly class AttentionQueue
 {
     /** A parcel unshipped past this many days reads in red. */
     public const int SHIP_OVERDUE_DAYS = 2;

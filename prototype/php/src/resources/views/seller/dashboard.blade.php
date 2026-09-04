@@ -37,7 +37,7 @@
 
         <div class="mt-3 overflow-x-auto rounded border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
             <table class="w-full text-left">
-                <caption class="sr-only">The five listings drawing the most views, with their daily views, favorites, cart adds, and units sold</caption>
+                <caption class="sr-only">The five listings drawing the most views, with their daily views, favorites, cart adds, and the units they sold inside the range</caption>
                 <thead class="border-b border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                     <tr>
                         <th scope="col" class="px-4 py-2 font-semibold">Listing</th>
@@ -45,7 +45,7 @@
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Views</th>
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Favorites</th>
                         <th scope="col" class="px-4 py-2 text-right font-semibold">Cart adds</th>
-                        <th scope="col" class="px-4 py-2 text-right font-semibold">Sold</th>
+                        <th scope="col" class="px-4 py-2 text-right font-semibold">Sold, last {{ $range->days }} days</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-800">

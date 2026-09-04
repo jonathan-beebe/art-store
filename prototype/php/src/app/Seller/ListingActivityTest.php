@@ -134,7 +134,7 @@ it('gives each row the listings own table row, its ranged units sold, and its pa
     expect($row->listing->id)->toBe($listingId)
         ->and($row->listing->views)->toBe(4)
         ->and($row->sold)->toBe(1)
-        ->and($row->href)->toBe(route('seller.listings.show', ['listing' => $listingId]));
+        ->and($row->href)->toBe(route('seller.listings.show', ['listing' => $listingId, 'range' => 30]));
 });
 
 it('draws one bar per day of the strip, capped at thirty', function (int $days, int $stripDays): void {
@@ -180,4 +180,13 @@ it('leaves another sellers listings out', function (): void {
 
     expect($activity->rows)->toBe([])
         ->and(activityTotal($activity->totals, 'Views')->count)->toBe(0);
+});
+
+it('carries the range onto each rows link, so the listing opens on the same window', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $listing = $this->listing($seller, ['title' => 'Nine Owls']);
+    recordListingEvent(AnalyticsEventName::ListingView, $listing->id, '2026-09-01 10:00:00');
+
+    expect(activityFor($seller, 7)->rows[0]->href)
+        ->toBe(route('seller.listings.show', ['listing' => $listing->id, 'range' => 7]));
 });

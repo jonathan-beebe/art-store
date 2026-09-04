@@ -69,6 +69,11 @@ function molly(): Seller
     return test()->seller('The Burrow Craftworks');
 }
 
+/** The buyers and the pieces a test needs several of, in a fixed order. */
+const BUYERS = ['Harry Potter', 'Ginny Weasley', 'Luna Lovegood', 'Neville Longbottom', 'Hermione Granger', 'Ron Weasley', 'Cho Chang'];
+
+const PIECES = ['Nine Owls', 'Tea Bowl', 'Ochre Runner', 'Copper Cauldron', 'Garden Gnome', 'Tea Leaf Study', 'Orchard At First Light'];
+
 it('renders the seller dashboard', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
 
@@ -246,7 +251,7 @@ it('gives each listing row a daily strip and a link to the listing', function ()
     $response->assertViewHas('activity', function (ListingActivity $activity) use ($listing): bool {
         return $activity->stripDays === 30
             && count($activity->rows[0]->strip) === 30
-            && $activity->rows[0]->href === route('seller.listings.show', ['listing' => $listing->id]);
+            && $activity->rows[0]->href === route('seller.listings.show', ['listing' => $listing->id, 'range' => 30]);
     });
 });
 
@@ -263,6 +268,13 @@ it('says so in a sentence when a seller has no listings to draw anyone', functio
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller');
 
     $response->assertSee('You have no listings yet, so there is nothing for buyers to look at.');
+});
+
+it('names the window the sold column counts over, the way the strip column does', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller?range=7');
+
+    $response->assertSee('Sold, last 7 days');
+    $response->assertSee('Views, last 7 days');
 });
 
 it('leads the focus row with the parcels waiting to ship, oldest first', function (): void {
@@ -381,8 +393,8 @@ it('says each empty focus group in a sentence', function (): void {
 it('counts the whole queue in a heading and links to the rest', function (): void {
     $seller = molly();
 
-    foreach (range(1, 7) as $number) {
-        $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => "Buyer {$number}"]));
+    foreach (BUYERS as $name) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => $name]));
     }
 
     $response = $this->actingAs($seller, 'seller')->get('/seller');
@@ -414,16 +426,16 @@ it('leaves another sellers work off the page', function (): void {
 it('renders on a fixed number of queries however many rows the seller holds', function (int $rows): void {
     $seller = molly();
 
-    foreach (range(1, $rows) as $number) {
-        $listing = $this->listing($seller, ['status' => ListingStatus::ForSale, 'title' => "Print {$number}"]);
-        viewAt($listing->id, '2026-08-25 10:00:00', times: $number);
-        $this->listing($seller, ['status' => ListingStatus::Draft, 'title' => "Draft {$number}"]);
+    foreach (array_slice(PIECES, 0, $rows) as $index => $piece) {
+        $listing = $this->listing($seller, ['status' => ListingStatus::ForSale, 'title' => $piece]);
+        viewAt($listing->id, '2026-08-25 10:00:00', times: $index + 1);
+        $this->listing($seller, ['status' => ListingStatus::Draft, 'title' => $piece.' (draft)']);
 
-        $buyer = Customer::factory()->create(['name' => "Buyer {$number}"]);
+        $buyer = Customer::factory()->create(['name' => BUYERS[$index]]);
         $this->paidFulfillmentFor($seller, $buyer, priceCents: 20000);
 
         $thread = app(OpenConversation::class)(
-            ThreadOpening::listingQuestion($seller->id, $buyer->id, $listing->id, ThreadTitle::of("Question {$number}")),
+            ThreadOpening::listingQuestion($seller->id, $buyer->id, $listing->id, ThreadTitle::of('Does '.$piece.' hold hot tea?')),
             $this->moment('2026-09-03 09:00:00'),
         );
         app(PostMessage::class)($thread, $buyer, MessageBody::of('Does it hold hot tea?'), $this->moment('2026-09-03 09:00:00'));

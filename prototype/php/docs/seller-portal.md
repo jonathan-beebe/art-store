@@ -893,7 +893,10 @@ figures on the dashboard and in the listings table are the same figures.
 Each row carries the units it sold inside the range and a daily view strip
 from `AnalyticsReport::dailyViewsForListings()` — five listings in one
 query. The strip covers the range capped at thirty days, so ninety bars
-never squeeze into one table cell; the header says which window it draws.
+never squeeze into one table cell; the header says which window it draws,
+and the Sold column heads the same way, since the listings table's own
+Sold is all-time. Every row opens the listing at the range the dashboard
+was read over.
 
 ### Needs your attention
 
