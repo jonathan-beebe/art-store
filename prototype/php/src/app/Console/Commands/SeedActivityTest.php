@@ -6,7 +6,12 @@ namespace App\Console\Commands;
 
 use App\Domain\Analytics\ActorVelocity;
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Seeding\ActivityPlan;
+use App\Domain\Seeding\Session;
+use App\Domain\Seeding\StepKind;
+use App\Domain\Seeding\VisitStep;
 use App\Logging\LogStore;
+use App\Models\CartItem;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
@@ -14,7 +19,10 @@ use App\Models\Favorite;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Payout;
+use App\Models\Seller;
+use App\Support\Shop\FeaturedSubject;
 use Database\Seeders\DatabaseSeeder;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Artisan;
@@ -73,6 +81,26 @@ it('drives real shipments, deliveries, cancellations, and favorites, not just pl
         ->and(Fulfillment::query()->where('status', 'delivered')->exists())->toBeTrue()
         ->and(Order::query()->where('status', 'cancelled')->exists())->toBeTrue()
         ->and(Favorite::query()->exists())->toBeTrue();
+});
+
+it('keeps the home page\'s featured listing out of every cart, so the band survives the run', function (): void {
+    $this->seed(DatabaseSeeder::class);
+    $pool = Listing::query()->forSale()->orderBy('id')->get()->values();
+    $plan = ActivityPlan::generate(2026, now()->toDateTimeImmutable()->modify('-6 days')->setTime(0, 0, 0), 7, $pool->count(), Seller::query()->count());
+    $firstCartStep = collect($plan->sessions)
+        ->flatMap(fn (Session $session): array => $session->steps)
+        ->first(fn (VisitStep $step): bool => $step->kind === StepKind::CartAdd);
+    assert($firstCartStep instanceof VisitStep);
+    $featured = $pool[$firstCartStep->listingSlot ?? 0];
+    assert($featured instanceof Listing);
+    config(['storefront.featured' => ['type' => 'listing', 'value' => $featured->slug]]);
+
+    Artisan::call('seed:activity', ['--days' => 7]);
+
+    expect(Order::query()->count())->toBeGreaterThan(0)
+        ->and(CartItem::query()->where('listing_id', $featured->id)->exists())->toBeFalse()
+        ->and(OrderItem::query()->where('listing_id', $featured->id)->exists())->toBeFalse()
+        ->and(FeaturedSubject::resolve()?->title)->toBe($featured->title);
 });
 
 it('merges a returning anonymous visitor\'s history into the person they verify as', function (): void {

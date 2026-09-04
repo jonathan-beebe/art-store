@@ -52,6 +52,7 @@ use App\Models\Order;
 use App\Models\Property;
 use App\Models\Seller;
 use App\Support\IdMint;
+use App\Support\Shop\FeaturedSubject;
 use App\Support\Story;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -737,6 +738,26 @@ final class SeedActivity extends Command
     }
 
     /**
+     * The listing a cart step buys. The home page features one listing by
+     * slug, and a one-of-a-kind piece sells out on its first order, so a cart
+     * step whose slot lands on the featured piece takes the next slot in the
+     * pool instead; views and favorites still reach it through `listingFor()`.
+     *
+     * @param  list<Listing>  $listings
+     */
+    private function cartListingFor(VisitStep $step, array $listings): Listing
+    {
+        $slot = $step->listingSlot ?? 0;
+        $listing = $listings[$slot];
+
+        if ($listing->slug !== FeaturedSubject::listingSlug() || count($listings) === 1) {
+            return $listing;
+        }
+
+        return $listings[($slot + 1) % count($listings)];
+    }
+
+    /**
      * @param  list<Listing>  $listings
      */
     private function recordListingView(VisitStep $step, Customer $customer, array $listings, Analytics $analytics): void
@@ -765,7 +786,7 @@ final class SeedActivity extends Command
      */
     private function addToCart(VisitStep $step, Customer $customer, array $listings): void
     {
-        app(AddToCart::class)($this->cartFor($customer), $this->listingFor($step, $listings), 1, $step->at);
+        app(AddToCart::class)($this->cartFor($customer), $this->cartListingFor($step, $listings), 1, $step->at);
     }
 
     private function openCheckout(VisitStep $step, Customer $customer, Analytics $analytics): void

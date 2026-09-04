@@ -96,3 +96,11 @@ it('answers null when the configured value is missing rather than a slug or a pa
 
     expect(FeaturedSubject::resolve())->toBeNull();
 });
+
+it('names the featured listing slug, and nothing when a category is featured', function (): void {
+    config(['storefront.featured' => ['type' => 'listing', 'value' => 'harbour-at-dawn']]);
+    expect(FeaturedSubject::listingSlug())->toBe('harbour-at-dawn');
+
+    config(['storefront.featured' => ['type' => 'category', 'value' => 'paintings']]);
+    expect(FeaturedSubject::listingSlug())->toBeNull();
+});
