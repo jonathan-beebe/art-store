@@ -1,7 +1,7 @@
 ---
 id: IMPRV-030
 type: improvement
-status: open
+status: resolved
 created: 2026-09-04
 ---
 
@@ -43,13 +43,26 @@ Two of these defects mean a seller in production cannot create a listing or navi
   two id-bound copies. The New listing dialog gets its own
   `public/new-listing-modal.js`, same shape as the existing autosubmit
   scripts.
-- Item 5 (listings overlay): the `<dialog>` cannot be made genuinely modal
-  and still satisfy a static-markup test that the header sits in an inert
-  region, without duplicating the header (breaking the "one New listing
-  dialog per response" invariant `_header.blade.php` documents) or making
-  the header unreachable below `2xl` (breaking the "reachable at any
-  viewport" the same file promises). Falling back to the takeover at every
-  width per the ticket's own escape hatch; the two-`<h1>` defect (the
-  header's "Listings" plus the listing's own title) is fixed by giving
-  `_header.blade.php` an `asHeading` prop so the detail route renders it as
-  a `<p>`.
+- Item 5 (listings overlay): the owner's answer in `DECISIONS.md` ("Stick
+  with the modal") settles §2.5 — the dialog stays. `_header.blade.php`
+  gets an `asHeading` prop (the detail route renders "Listings" as a `<p>`,
+  since the listing's own title is the page's one heading) and a
+  `withNewListingDialog` prop, so the header can render twice — once inside
+  the `inert` workspace behind the modal, once in the takeover, which
+  carries the one real New listing dialog — without a duplicate id.
+  `public/listing-detail-dialog.js` upgrades the dialog to `showModal()` at
+  `2xl` (matchMedia-synced, so a resize crossing the breakpoint opens or
+  closes it), with `autofocus` on Close; without the script the dialog
+  stays exactly as CSS-visible-but-non-modal as it already was.
+- Two items from the owner's walk (§6), both cosmetic: the store
+  Pictures row's Remove button moves from an absolute overlay on the
+  thumbnail's corner to a stacked cell under it, so it never overlaps
+  the picture beside it at the row's narrower widths. The earnings
+  Sales tile read "new" when neither this period nor the last one sold
+  anything; `RangeChange::between()` is unchanged (an admin analytics
+  "new" cart-add count still reads the same), and
+  `PeriodFigures::salesChange()` — its one caller — takes the new
+  `RangeChange::empty()` instead when both sides are zero.
+- All eight audit-item fixes plus the two owner-walk fixes landed as
+  ten small commits; `git log --oneline` on the branch lists them.
+  `make check` (lint, assets, coverage-gated suite) is green.
