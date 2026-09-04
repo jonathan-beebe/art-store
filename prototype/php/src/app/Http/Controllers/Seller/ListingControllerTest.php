@@ -7,11 +7,11 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Orders\FinalizeOrder;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
-use App\Analytics\ListingEventCounts;
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Analytics\BarStripBar;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\RateLimiting\RateLimitValue;
-use App\Domain\Reports\DailyActivity;
+use App\Domain\Seller\ListingTableRow;
 use App\Models\Category;
 use App\Models\CategoryProperty;
 use App\Models\DescriptionSection;
@@ -517,31 +517,31 @@ it('hides another sellers listing from the activity page', function (): void {
     $response->assertNotFound();
 });
 
-it('totals the events of the listing', function () use ($recordedActivity): void {
+it('totals the ranged events of the listing on its row', function () use ($recordedActivity): void {
     $seller = $this->seller();
     $listing = $recordedActivity($seller);
     app(Analytics::class)->flush();
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('eventCounts', function (ListingEventCounts $eventCounts): bool {
-        return $eventCounts->views === 2
-            && $eventCounts->favorites === 1
-            && $eventCounts->cartAdds === 1;
+    $response->assertViewHas('row', function (ListingTableRow $row): bool {
+        return $row->views === 2
+            && $row->favorites === 1
+            && $row->cartAdds === 1;
     });
 });
 
-it('breaks the last fourteen days down by day', function (): void {
+it('builds a thirty-day view strip by default', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', fn (array $days): bool => count($days) === 14);
-    $response->assertViewHas('windowDays', 14);
+    $response->assertViewHas('strip', fn (array $strip): bool => count($strip) === 30);
+    $response->assertViewHas('rangeDays', 30);
 });
 
-it('counts todays events on todays row', function (): void {
+it('counts todays view on the strips last bar', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $analytics = app(Analytics::class);
@@ -550,14 +550,14 @@ it('counts todays events on todays row', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', function (array $days): bool {
-        $today = $days[13];
+    $response->assertViewHas('strip', function (array $strip): bool {
+        $last = end($strip);
 
-        return $today instanceof DailyActivity && $today->views === 1;
+        return $last instanceof BarStripBar && $last->height === 72;
     });
 });
 
-it('leaves events older than the window off the breakdown', function (): void {
+it('leaves an event outside the range off the strip', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $analytics = app(Analytics::class);
@@ -566,9 +566,9 @@ it('leaves events older than the window off the breakdown', function (): void {
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}");
 
-    $response->assertViewHas('days', function (array $days): bool {
-        /** @var list<DailyActivity> $days */
-        return array_sum(array_map(fn (DailyActivity $day): int => $day->total(), $days)) === 0;
+    $response->assertViewHas('strip', function (array $strip): bool {
+        /** @var list<BarStripBar> $strip */
+        return array_sum(array_map(fn (BarStripBar $bar): int => $bar->height, $strip)) === count($strip) * 2;
     });
 });
 
@@ -593,21 +593,23 @@ it('renders the activity page on a fixed number of queries however many events t
     }
 
     $response = $this->actingAs($seller, 'seller')
-        // +1 for the eventCounts read (AnalyticsReport::countsForListing);
-        // +1 for the daily-activity read (AnalyticsReport::dailyCountsForListingSince);
-        // +1 for the page-view roll-up's upsert, and +1 for flushing the 20
-        // buffered view events in one insertOrIgnore — both written when the
-        // response terminates (RollUpPageViews, AnalyticsServiceProvider);
-        // +1 for the active-removal eager load (the category eager load
-        // costs nothing extra here — this fixture's listing carries no
-        // category_id, so Eloquent skips the query); +2 for the seller
-        // layout's awaiting-shipment count and unread-notifications check;
-        // +4 for the list pane's window (DSGN-006: a count and a capped
-        // select, each with its own activeRemoval and images eager load);
-        // +1 for the detail pane's own images load behind the photos
-        // block; +3 unaccounted baseline (session, seller, and route-model
-        // binding lookups).
-        ->expectsDatabaseQueryCount(15)
+        // +1 for the daily-activity read behind the strip (AnalyticsReport::dailyCountsForListingSince);
+        // +3 for the row (App\Seller\ListingTable::forListing): the Medium
+        // attribute lookup, the sold/revenue read over order items, and the
+        // ranged analytics-count read; +1 for the page-view roll-up's
+        // upsert, and +1 for flushing the 20 buffered view events in one
+        // insertOrIgnore — both written when the response terminates
+        // (RollUpPageViews, AnalyticsServiceProvider); +1 for the
+        // active-removal eager load (the category eager load costs nothing
+        // extra here — this fixture's listing carries no category_id, so
+        // Eloquent skips the query); +2 for the seller layout's
+        // awaiting-shipment count and unread-notifications check; +4 for
+        // the list pane's window (DSGN-006: a count and a capped select,
+        // each with its own activeRemoval and images eager load); +1 for
+        // the detail pane's own images load behind the photos block; +3
+        // unaccounted baseline (session, seller, and route-model binding
+        // lookups).
+        ->expectsDatabaseQueryCount(17)
         ->get("/seller/listings/{$listing->id}");
 
     $response->assertOk();
@@ -1196,4 +1198,135 @@ it('E2: shows every publish issue at once, each naming its fix and linking to th
         "Say what it's made of — buyers filter by it.",
         route('seller.listings.basics.edit', $listing).'#attribute-'.$property->id,
     ], escape: false);
+});
+
+it('FEAT-056 renders the table view with every column', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'The Burrow at Dusk', 'dimensions' => '24 x 36 in']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertOk();
+    $response->assertSee('The Burrow at Dusk');
+    $response->assertSee('24 x 36 in');
+});
+
+it('FEAT-056 renders the grid view', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=grid');
+
+    $response->assertOk();
+    $response->assertSee('The Burrow at Dusk');
+    $response->assertSee('views', escape: false);
+});
+
+it('FEAT-056 sorts the table by price, ascending', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Cheap Charm', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Dear Diadem', 'price_cents' => 50000]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=asc');
+
+    $response->assertSeeInOrder(['Cheap Charm', 'Dear Diadem']);
+});
+
+it('FEAT-056 sorts the table by price, descending', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Cheap Charm', 'price_cents' => 500]);
+    $this->listing($seller, ['title' => 'Dear Diadem', 'price_cents' => 50000]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=desc');
+
+    $response->assertSeeInOrder(['Dear Diadem', 'Cheap Charm']);
+});
+
+it('FEAT-056 flips a sorted columns aria-sort and link direction on the next click', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'Cheap Charm', 'price_cents' => 500]);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&sort=price&dir=asc');
+
+    $response->assertSee('aria-sort="ascending"', escape: false);
+    $response->assertSee('sort=price&amp;dir=desc', escape: false);
+});
+
+it('FEAT-056 counts sold and revenue on the table row from a paid, live fulfillment', function (): void {
+    $seller = $this->seller();
+    $this->paidFulfillmentFor($seller, priceCents: 68000);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertSee('$680.00', escape: false);
+});
+
+it('FEAT-056 narrows the tables ranged columns to the given range', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+    $analytics = app(Analytics::class);
+    $recent = new DateTimeImmutable('-1 day');
+    $midRange = new DateTimeImmutable('-20 days');
+    foreach (range(1, 3) as $i) {
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, "cus_recent_{$i}", $recent));
+    }
+    foreach (range(1, 9) as $i) {
+        $analytics->recordEvent(AnalyticsEvent::forListing(AnalyticsEventName::ListingView, $listing->id, "cus_mid_{$i}", $midRange));
+    }
+    $analytics->flush();
+
+    $sevenDays = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&range=7');
+    $thirtyDays = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table&range=30');
+
+    $sevenDays->assertSee('>3<', escape: false);
+    $thirtyDays->assertSee('>12<', escape: false);
+});
+
+it('FEAT-056 opens a table rows detail as an overlay and a takeover from the same response', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+
+    $response->assertOk();
+    $response->assertSee('<dialog', escape: false);
+    $response->assertSee('2xl:hidden', escape: false);
+    $response->assertSee('The Burrow at Dusk');
+});
+
+it('FEAT-056 opens a grid rows detail from the same route', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=grid");
+
+    $response->assertOk();
+    $response->assertSee('<dialog', escape: false);
+});
+
+it('FEAT-056 keeps the new-listing dialog on the table and grid views', function (string $view): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings?view={$view}");
+
+    $response->assertSee('data-new-listing-open', escape: false);
+    $response->assertSee('id="new-listing-dialog"', escape: false);
+})->with(['table', 'grid']);
+
+it('FEAT-056 keeps the new-listing dialog on the detail overlay', function (): void {
+    $seller = $this->seller();
+    $listing = $this->listing($seller);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+
+    $response->assertSee('id="new-listing-dialog"', escape: false);
+});
+
+it('FEAT-056 links the view switch to every view', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings');
+
+    $response->assertSee(route('seller.listings.index', ['view' => 'table']), escape: false);
+    $response->assertSee(route('seller.listings.index', ['view' => 'grid']), escape: false);
 });
