@@ -5,8 +5,8 @@
 - RSRCH: 2
 - DSGN: 11
 - ARCH: 1
-- FEAT: 62
-- IMPRV: 37
+- FEAT: 64
+- IMPRV: 41
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,12 @@
 
 ## Log
 
+- 2026-09-04:08:30:10 — FEAT-063 — defined: A seller's answer to "did this answer it?" is recorded
+- 2026-09-04:08:30:10 — FEAT-062 — defined: A store has an admin analytics page, reached from its events and from the seller
+- 2026-09-04:08:30:10 — IMPRV-040 — defined: The Fulfillment model keeps its rows and rules; pages read through adapters
+- 2026-09-04:08:30:10 — IMPRV-039 — defined: Bar strips draw a negative period below the baseline
+- 2026-09-04:08:30:10 — IMPRV-038 — defined: The customers table pages at fifty rows
+- 2026-09-04:08:30:10 — IMPRV-037 — defined: Range belongs to the dashboard alone; listings and customers are evergreen
 - 2026-09-04:08:35:00 — IMPRV-033 — resolved: alignment.md §8 names all eleven tickets; orders.md links §4.5 instead of restating it (392 → 368 lines); seller-portal.md reordered to the nav's order, seven stale claims corrected, flow editor and label page named, 1072 → 699 lines; data-model.md's conversations/messages/fulfillments/listings match their migrations and its prefix table lists all 46 idPrefix() tables; ontology.md's analytics-event entry names all nine; IMPRV-034..036 filed for the three §6 rows with a definite outcome, the other seven deferred to DECISIONS.md
 - 2026-09-04:08:10:00 — IMPRV-036 — defined: The listings overlay tests prove the right block shows per viewport
 - 2026-09-04:08:10:00 — IMPRV-035 — defined: The dashboard's "needs work" group names a draft's actual issues
