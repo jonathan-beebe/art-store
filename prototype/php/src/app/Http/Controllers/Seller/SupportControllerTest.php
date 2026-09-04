@@ -31,14 +31,59 @@ it('shows the desk, one entry per seeded admin', function (): void {
     }
 });
 
-it('renders the booking url as plain text while it is still a bracketed placeholder', function (): void {
+it('IMPRV-030 renders a bracketed booking url as plain text, not a link', function (): void {
     $seller = $this->seller();
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/support');
 
     $response->assertOk();
     $response->assertDontSee('<a href="[', escape: false);
-    $response->assertSee((string) config('support.booking_url'));
+    $response->assertDontSee((string) config('support.booking_url'));
+    $response->assertSee('Not published yet.');
+});
+
+it('IMPRV-030 renders an empty booking url as plain text, not a link with no href', function (): void {
+    Config::set('support.booking_url', '');
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response->assertOk();
+    $response->assertDontSee('href=""', escape: false);
+    $response->assertSee('Not published yet.');
+});
+
+it('IMPRV-030 renders a bracketed phone number as plain text', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response->assertOk();
+    $response->assertDontSee((string) config('support.phone'));
+    $response->assertSee('Not published yet.');
+});
+
+it('IMPRV-030 renders an empty phone number as plain text', function (): void {
+    Config::set('support.phone', '');
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response->assertOk();
+    $response->assertSee('Not published yet.');
+});
+
+it('IMPRV-030 renders a configured phone number and booking url as themselves', function (): void {
+    Config::set('support.phone', '+44 20 7946 0958');
+    Config::set('support.booking_url', 'https://example.com/book');
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/support');
+
+    $response->assertOk();
+    $response->assertSee('+44 20 7946 0958');
+    $response->assertSee('<a href="https://example.com/book"', escape: false);
+    $response->assertDontSee('Not published yet.');
 });
 
 it('lists the help articles by their group', function (): void {
