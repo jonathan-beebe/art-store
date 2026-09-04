@@ -11,6 +11,15 @@ against the bound or route-parameter model) and `$this->authorize()` in the
 controller otherwise. No controller hand-rolls an ownership check with
 `abort_if`.
 
+Four suffixes carry one meaning each: `*Row` is one rendered row, the
+output of an adapter that reads many; `*Facts` is a handful of plain
+values about one thing, an adapter's output but never itself a query
+(`StoreFacts` holds the values, `StoreFactsReader` runs the count that
+fills them); `*Tally` is a pure fold with no I/O, always under
+`App\Domain`; `NavLink` is the one `{label, href, active, ?count}` a
+seller nav control renders, replacing every `*Link` value object a lane
+built its own version of.
+
 | Section                             | Read it for                                                                                             |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | [Dashboard](#dashboard)             | The range, the three tiles and their lines, listing activity, and the four focus groups                    |

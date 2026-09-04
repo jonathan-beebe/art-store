@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Seller\Store;
 
-use App\Models\Listing;
-use App\Models\StoreProfile;
 use DateTimeImmutable;
 
 /**
@@ -15,27 +13,10 @@ use DateTimeImmutable;
  */
 final readonly class StoreFacts
 {
-    private function __construct(
+    public function __construct(
         public int $pieceCount,
         public ?DateTimeImmutable $sellingSince,
     ) {}
-
-    public static function of(StoreProfile $profile): self
-    {
-        $seller = $profile->loadMissing('seller')->seller;
-
-        return new self(
-            // The sentence says "for sale", so the count is what a buyer
-            // can still buy — a sold piece stays on the store page and is
-            // left out of this number.
-            pieceCount: Listing::query()
-                ->where('seller_id', $profile->seller_id)
-                ->forSale()
-                ->count(),
-            sellingSince: $seller?->email_verified_at?->toDateTimeImmutable()
-                ?? $seller?->created_at?->toDateTimeImmutable(),
-        );
-    }
 
     /** "8 pieces for sale · Selling since June 2026", with either half dropped when it has nothing to say. */
     public function sentence(): string

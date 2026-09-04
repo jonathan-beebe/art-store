@@ -28,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 final readonly class ThreadContext
 {
     /**
-     * @param  list<ThreadLink>  $others
+     * @param  list<ThreadRow>  $others
      */
     private function __construct(
         public string $name,
@@ -97,7 +97,7 @@ final readonly class ThreadContext
      * Every other thread the seller holds with this buyer, newest first.
      * A desk thread has no buyer, so it has none.
      *
-     * @return list<ThreadLink>
+     * @return list<ThreadRow>
      */
     private static function otherThreads(Seller $seller, Conversation $conversation, DateTimeImmutable $now): array
     {
@@ -113,7 +113,7 @@ final readonly class ThreadContext
             ->orderByDesc('id')
             ->get();
 
-        return array_values($others->map(fn (Conversation $other): ThreadLink => new ThreadLink(
+        return array_values($others->map(fn (Conversation $other): ThreadRow => new ThreadRow(
             title: $other->title ?? $other->kind->topic($other->fulfillment?->order_id, $other->listing?->title),
             href: route('seller.messages.show', $other),
             when: $other->last_message_at === null ? null : RelativeTime::short($other->last_message_at, $now),

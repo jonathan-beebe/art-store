@@ -11,7 +11,7 @@ use App\Domain\Money\Money;
  * it. {@see HeldEscrow::tallyFor()} answers this for a page that needs the
  * numbers and none of the rows.
  */
-final readonly class HeldTally
+final readonly class HeldFacts
 {
     public function __construct(
         public Money $total,

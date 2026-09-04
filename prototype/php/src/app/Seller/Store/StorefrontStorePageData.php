@@ -46,7 +46,7 @@ final class StorefrontStorePageData
 
         return new StorefrontStorePage(
             profile: $profile,
-            facts: StoreFacts::of($profile),
+            facts: StoreFactsReader::for($profile),
             isOwnStore: $isOwnStore,
             listings: $listings,
             description: self::description($profile),

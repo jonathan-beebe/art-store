@@ -39,7 +39,7 @@ final class StorePageData
             maxSections: StoreSection::MAX_PER_PROFILE,
             maxGalleryImages: StoreSection::MAX_GALLERY_IMAGES,
             maxBodyLength: StoreSection::MAX_BODY_LENGTH,
-            facts: StoreFacts::of($profile),
+            facts: StoreFactsReader::for($profile),
         );
     }
 }
