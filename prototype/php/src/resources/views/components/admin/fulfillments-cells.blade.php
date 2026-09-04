@@ -17,7 +17,7 @@
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.fulfillments.show', $fulfillment) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $fulfillment->id }}"
         >
             <x-slot:title>

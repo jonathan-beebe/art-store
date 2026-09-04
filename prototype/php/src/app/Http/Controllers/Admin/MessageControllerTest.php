@@ -202,7 +202,7 @@ it('carries the current domain from an inbox row into the shows own pane', funct
     $show = $this->actingAs($admin, 'admin')->get($rowHref);
 
     $show->assertOk();
-    $show->assertSee('aria-current="true"', escape: false);
+    $show->assertSee('aria-current="page"', escape: false);
 });
 
 it('shows the list panes empty-detail prompt on the index route', function (): void {

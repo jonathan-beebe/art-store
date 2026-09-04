@@ -60,7 +60,7 @@
                     accent="indigo"
                     :selected="$isSelected"
                     href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
-                    :aria-current="$isSelected ? 'true' : null"
+                    :aria-current="$isSelected ? 'page' : null"
                 >
                     <x-slot:title>
                         <p class="flex items-center gap-x-1.5 text-sm/6">

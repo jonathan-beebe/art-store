@@ -22,7 +22,7 @@
             accent="stone"
             :selected="$isSelected"
             href="{{ route('admin.listings.show', $listing) }}"
-            :aria-current="$isSelected ? 'true' : null"
+            :aria-current="$isSelected ? 'page' : null"
             data-pane-cell="{{ $listing->id }}"
         >
             <x-slot:leading>

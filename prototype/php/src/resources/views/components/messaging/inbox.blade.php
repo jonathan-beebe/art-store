@@ -64,7 +64,7 @@
                     accent="stone"
                     :selected="$isSelected"
                     href="{{ route($showRoute, $rowRouteParams($conversation)) }}"
-                    :aria-current="$isSelected ? 'true' : null"
+                    :aria-current="$isSelected ? 'page' : null"
                 >
                     <x-slot:title>
                         <p class="flex min-w-0 items-center gap-x-1.5 text-sm/6 {{ $isUnread ? 'font-semibold text-stone-900 dark:text-white' : 'font-medium text-stone-700 dark:text-stone-300' }}">
