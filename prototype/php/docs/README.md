@@ -16,6 +16,8 @@
 | [`funnel.md`](funnel.md)             | The funnel's query/component boundary: the `FunnelStep` contract, the       |
 |                                      | session-unit decision, the accepted design's drawing rules, and what an     |
 |                                      | admin-defined funnel needs.                                                                                  |
+| [`seller-portal.md`](seller-portal.md) | The seller's own site. Today: the activity feed — which source owns which row, and why merging and        |
+|                                      | filtering are pure.                                                                                         |
 | [`messaging.md`](messaging.md)       | The one `conversations`/`messages` table serving four kinds of thread, who may read and post, the           |
 |                                      | listing-question-to-FAQ path, the live SSE badge, and the admin site's block.                               |
 | [`backups.md`](backups.md)           | **Design, not yet built.** The hourly SQLite snapshot and the nightly archive to Cloudflare R2, why they    |

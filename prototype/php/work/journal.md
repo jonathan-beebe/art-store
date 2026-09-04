@@ -23,6 +23,10 @@
 - 2026-09-03:23:22:03 — FEAT-056 — review pass: sort determinism, CSP-safe sort select, unique overlay ids, ListingsChrome refactor, weak-test fixes
 - 2026-09-03:22:38:58 — FEAT-056 — resolved: Listings gets list, table, and grid views over one detail
 - 2026-09-03:21:32:31 — FEAT-056 — started
+- 2026-09-03:22:40:00 — FEAT-052 — resolved: ActivityFeed core, four sources behind ActivityFeedSource, ActivityFeedReader, x-seller.feed, docs/seller-portal.md
+- 2026-09-03:22:16:00 — FEAT-052 — started: One activity feed over analytics, orders, fulfillment, and messages
+- 2026-09-03:22:15:00 — FEAT-051 — resolved: fulfillment flows, steps, and an append-only event log; every transition appends its event; seller flow editor, step completion, and the label page
+- 2026-09-03:21:26:32 — FEAT-051 — started: Fulfillment is an event log with seller-owned flow steps
 - 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
 - 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout

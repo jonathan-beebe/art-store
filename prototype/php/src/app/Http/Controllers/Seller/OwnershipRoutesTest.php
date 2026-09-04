@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Seller;
 
 use App\Domain\Money\Money;
 use App\Models\DescriptionSection;
+use App\Models\FulfillmentFlow;
+use App\Models\FulfillmentFlowStep;
 use App\Models\ListingFaq;
 use App\Models\ListingImage;
 use App\Models\Modifier;
@@ -49,6 +51,8 @@ it('answers 404 for every seller-guarded route naming a resource the signed-in s
     $faq = ListingFaq::factory()->create(['listing_id' => $listing->id]);
     $image = ListingImage::factory()->create(['listing_id' => $listing->id]);
     $fulfillment = $this->paidFulfillmentFor($other);
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $other->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create();
     $other->notify(new ItemSold('ord_00000000000000000000000099', Money::fromCents(9000)));
     $notification = $other->notifications()->firstOrFail();
 
@@ -66,6 +70,7 @@ it('answers 404 for every seller-guarded route naming a resource the signed-in s
         'faq' => $faq->id,
         'image' => $image->id,
         'fulfillment' => $fulfillment->id,
+        'step' => $step->id,
         'notification' => $notification->id,
     ];
 

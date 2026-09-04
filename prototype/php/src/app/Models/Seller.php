@@ -82,6 +82,22 @@ class Seller extends Authenticatable
         return $this->hasMany(Conversation::class);
     }
 
+    /** @return HasMany<FulfillmentFlow, $this> */
+    public function fulfillmentFlows(): HasMany
+    {
+        return $this->hasMany(FulfillmentFlow::class);
+    }
+
+    /**
+     * The flow every listing that names none ships by.
+     *
+     * @return HasOne<FulfillmentFlow, $this>
+     */
+    public function defaultFulfillmentFlow(): HasOne
+    {
+        return $this->hasOne(FulfillmentFlow::class)->defaults();
+    }
+
     /** @return MorphMany<Message, $this> */
     public function sentMessages(): MorphMany
     {

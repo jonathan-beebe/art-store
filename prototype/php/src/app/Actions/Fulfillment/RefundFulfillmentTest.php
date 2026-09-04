@@ -8,9 +8,11 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
+use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\FulfillmentEvent;
 use App\Models\LedgerEntry;
 use App\Models\Refund;
 use Tests\CapturedStory;
@@ -119,4 +121,30 @@ it('tells the story of the refund', function (): void {
             'status_to' => 'refunded',
             'reason' => 'Dispute.',
         ]);
+});
+
+it('appends the refunded event in the admin\'s name', function (): void {
+    $admin = $this->admin();
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller());
+
+    app(RefundFulfillment::class)($fulfillment, $admin, 'The frame arrived broken.', $this->moment('2026-08-23 09:00:00'));
+
+    $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+        ->where('kind', FulfillmentEventKind::Refunded)
+        ->sole();
+
+    expect($event->actor_type)->toBe(ActorType::Admin)
+        ->and($event->actor_id)->toBe($admin->id)
+        ->and($event->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 09:00:00')
+        ->and($event->fulfillment_flow_step_id)->toBeNull();
+});
+
+it('appends nothing when the refund is refused', function (): void {
+    $fulfillment = $this->deliveredFulfillmentFor($this->seller());
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'The frame arrived broken.', $this->moment('2026-08-23 09:00:00'));
+
+    expect(fn () => app(RefundFulfillment::class)($fulfillment->refresh(), $this->admin(), 'Again.', $this->moment('2026-08-24 09:00:00')))
+        ->toThrow(DomainRuleViolation::class);
+
+    expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::Refunded)->count())->toBe(1);
 });

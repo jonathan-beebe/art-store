@@ -33,8 +33,8 @@ use Override;
  * @property-read int $tally  only on a row the `countedByStatus` scope selected
  */
 #[Fillable([
-    'seller_id', 'category_id', 'title', 'slug', 'description', 'price_cents',
-    'quantity', 'status', 'dimensions',
+    'seller_id', 'category_id', 'fulfillment_flow_id', 'title', 'slug', 'description',
+    'price_cents', 'quantity', 'status', 'dimensions',
 ])]
 class Listing extends Model
 {
@@ -71,6 +71,17 @@ class Listing extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * The flow this piece ships by. Null hands the parcel to the seller's
+     * default flow.
+     *
+     * @return BelongsTo<FulfillmentFlow, $this>
+     */
+    public function fulfillmentFlow(): BelongsTo
+    {
+        return $this->belongsTo(FulfillmentFlow::class);
     }
 
     /** @return HasMany<ListingAttribute, $this> */

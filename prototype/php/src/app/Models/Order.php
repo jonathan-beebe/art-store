@@ -121,6 +121,28 @@ class Order extends Model
      * that went stale while the card sat declined is refused rather than sold
      * a second time out from under someone else.
      */
+    /**
+     * The shipping address as a parcel label prints it, one line per row,
+     * with the lines this order left empty dropped.
+     *
+     * @return list<string>
+     */
+    public function shippingAddressLines(): array
+    {
+        $lines = [
+            $this->shipping_name,
+            $this->shipping_line1,
+            $this->shipping_line2,
+            trim($this->shipping_city.', '.$this->shipping_region.' '.$this->shipping_postal_code),
+            $this->shipping_country,
+        ];
+
+        return array_values(array_filter(
+            array_map(fn (?string $line): string => trim($line ?? ''), $lines),
+            fn (string $line): bool => $line !== '' && $line !== ',',
+        ));
+    }
+
     public function placementPlan(): OrderPlacementPlan
     {
         return OrderPlacementPlan::for(array_values($this->items->map(

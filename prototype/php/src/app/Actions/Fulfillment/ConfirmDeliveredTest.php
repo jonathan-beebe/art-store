@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Actions\Fulfillment;
 
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
+use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
 use App\Models\Fulfillment;
+use App\Models\FulfillmentEvent;
 use App\Models\LedgerEntry;
 use DomainException;
 
@@ -73,4 +76,28 @@ it('judges the transition against the row it locks, not the instance it was hand
         ->toThrow(DomainRuleViolation::class, 'delivered to delivered');
 
     expect(LedgerEntry::query()->where('type', LedgerEntryType::Released)->count())->toBe(1);
+});
+
+it('appends the delivered event in the customer\'s name', function (): void {
+    $fulfillment = $this->shippedFulfillmentFor($this->seller());
+
+    app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-23 14:00:00'));
+
+    $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)
+        ->where('kind', FulfillmentEventKind::Delivered)
+        ->sole();
+
+    expect($event->actor_type)->toBe(ActorType::Customer)
+        ->and($event->actor_id)->toBe($fulfillment->customer_id)
+        ->and($event->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-23 14:00:00')
+        ->and($event->fulfillment_flow_step_id)->toBeNull();
+});
+
+it('appends nothing when the delivery is refused', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller());
+
+    expect(fn () => app(ConfirmDelivered::class)($fulfillment, $this->moment('2026-08-23 14:00:00')))
+        ->toThrow(DomainRuleViolation::class);
+
+    expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->count())->toBe(0);
 });
