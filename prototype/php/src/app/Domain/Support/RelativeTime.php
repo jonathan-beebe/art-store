@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Support;
+namespace App\Domain\Support;
 
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -15,7 +15,8 @@ use DateTimeInterface;
  * anything useful. {@see long()} is the same span spelled out ("2 days
  * ago"), which a sentence reads better than an abbreviation. Pure — every
  * case a caller sees is decided by the two instants passed in, nothing
- * else.
+ * else — which is why it sits in the core beside the objects that read
+ * it, rather than in the shell.
  */
 final class RelativeTime
 {

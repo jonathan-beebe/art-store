@@ -7,7 +7,7 @@ namespace App\Domain\Fulfillment;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
-use App\Support\RelativeTime;
+use App\Domain\Support\RelativeTime;
 use DateTimeImmutable;
 
 /**

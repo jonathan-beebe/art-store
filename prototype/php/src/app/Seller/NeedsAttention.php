@@ -14,12 +14,12 @@ use App\Domain\Seller\AttentionRow;
 use App\Domain\Seller\AttentionRows;
 use App\Domain\Seller\Initials;
 use App\Domain\Seller\PayoutEstimate;
+use App\Domain\Support\RelativeTime;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Seller;
-use App\Support\RelativeTime;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
