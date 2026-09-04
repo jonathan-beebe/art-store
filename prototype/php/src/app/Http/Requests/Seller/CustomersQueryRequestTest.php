@@ -60,6 +60,44 @@ it('reads emptied query values as absent', function (): void {
     $response->assertOk();
 });
 
+it('IMPRV-038 opens page one with nothing to show', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?page=1');
+
+    $response->assertOk();
+});
+
+it('IMPRV-038 answers 400 on page zero', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?page=0');
+
+    $response->assertStatus(400);
+});
+
+it('IMPRV-038 answers 400 on a non-integer page', function (string $page): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/customers?page={$page}");
+
+    $response->assertStatus(400);
+})->with(['abc', '1.5', '-1']);
+
+it('IMPRV-038 answers 400 on a page past the end', function (): void {
+    $seller = $this->seller();
+    $this->paidFulfillmentFor($seller, Customer::factory()->create());
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
+
+    $response->assertStatus(400);
+});
+
+it('IMPRV-038 accepts the last page exactly', function (): void {
+    $seller = $this->seller();
+    foreach (range(1, 51) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create());
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
+
+    $response->assertOk();
+});
+
 it('accepts every documented feed kind on the customer page', function (string $kind): void {
     $seller = $this->seller();
     $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);

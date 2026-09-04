@@ -573,6 +573,7 @@ reads as its default, an unrecognised one answers a bare 400.
 | `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` (`CustomerSortColumn::defaultSort()`) | the index route |
 | `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
 | `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
+| `page`    | a positive integer, fifty rows a page                                    | `1`     | the index route |
 
 Customers are evergreen, so `range` is not part of this vocabulary: a
 buyer is new when their first order falls inside a fixed thirty days,
@@ -581,14 +582,30 @@ stray `?range=` validates nothing and changes nothing. The four figures
 above the table count every buyer whatever the segment shows, so
 switching segments never moves them.
 
+`page` answers 400 three ways `App\Support\Page::of()`'s own admin
+callers do not: `0` and a non-integer fail `rules()` the way every other
+value in this table does, and `CustomersQueryRequest::page()` refuses a
+page past the end rather than clamping to the last one — a table has no
+"showing the last page instead" fallback the way a filtered report does.
+
 ### Layers
 
-`Seller\SellerCustomers::forSeller()` folds the figures in one grouped
-query, then joins the account rows, favorites, and thread counts by id in
-PHP. A buyer holding no account name or address takes both from their
-latest order, one more query, run only when such a buyer is in the list.
-`forCustomer()` is the same fold narrowed to one person; the customer
-page, the Message button, and the thread rail all read it.
+`Seller\SellerCustomers::forSeller()` folds every buyer's figures in one
+grouped, unpaged query, then joins the account rows, favorites, and
+thread counts by id in PHP — the tiles above the table read this, so
+they count the same people whatever the segment or page shows. The
+table itself reads `pageForSeller()`: the same grouped query, narrowed
+to the segment in a `HAVING` clause, sorted and paged with
+`ORDER BY`/`LIMIT`/`OFFSET` in the query, favorites and conversations
+folded in by a correlated subquery each — a page of rows costs one
+query, whatever page it is. Name and email carry both the account's own
+columns and, alongside them, the latest counted parcel's shipped
+name/email (another correlated subquery); the row builder picks
+whichever the account left null, the fallback `forSeller()`'s own PHP
+fold applies for its unpaged callers. `countForSegment()` is the same
+`HAVING` wrapped in a `count(*)`, what the pager's page count is built
+from. `forCustomer()` is the unpaged fold narrowed to one person; the
+customer page, the Message button, and the thread rail all read it.
 
 ### The customer page
 

@@ -9,6 +9,7 @@ use App\Actions\Fulfillment\RefundFulfillment;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
+use App\Domain\Seller\CustomerRow;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
@@ -362,4 +363,82 @@ it('IMPRV-030 shows a placeholder image for an order row with no item to read on
 
     $response->assertOk();
     $response->assertDontSee('src=""', escape: false);
+});
+
+it('IMPRV-038 pages the table at fifty rows', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    foreach (range(1, 60) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => "Buyer {$i}"]), $i * 100);
+    }
+
+    $firstPage = $this->actingAs($seller, 'seller')->get('/seller/customers?sort=spent&dir=desc');
+    $secondPage = $this->actingAs($seller, 'seller')->get('/seller/customers?sort=spent&dir=desc&page=2');
+
+    $firstPage->assertViewHas('rows', fn (array $rows): bool => count($rows) === 50);
+    $secondPage->assertViewHas('rows', fn (array $rows): bool => count($rows) === 10);
+});
+
+it('IMPRV-038 keeps a sort in force across pages', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    foreach (range(1, 55) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => "Buyer {$i}"]), $i * 100);
+    }
+
+    $secondPage = $this->actingAs($seller, 'seller')->get('/seller/customers?sort=spent&dir=desc&page=2');
+
+    $secondPage->assertViewHas('rows', function (array $rows): bool {
+        /** @var list<CustomerRow> $rows */
+        return $rows[0]->spentCents === 500;
+    });
+});
+
+it('IMPRV-038 counts every buyer on the tiles, whatever page is open', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    foreach (range(1, 60) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create());
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
+
+    expect($response->getContent())->toMatch('/data-stat="customers">60</');
+});
+
+it('IMPRV-038 shows a pager past fifty buyers, and none under it', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    foreach (range(1, 60) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create());
+    }
+
+    $withPager = $this->actingAs($seller, 'seller')->get('/seller/customers');
+    $withoutPager = $this->actingAs($this->seller('Lovegood Curiosities'), 'seller')->get('/seller/customers');
+
+    $withPager->assertSee('Page 1 of 2 (60 total)');
+    $withoutPager->assertDontSee('Page 1 of', escape: false);
+});
+
+it('IMPRV-038 carries the segment and sort through the pagers next link', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    foreach (range(1, 60) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create());
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?segment=all&sort=orders&dir=asc');
+
+    preg_match('#rel="next" href="([^"]*)"#', (string) $response->getContent(), $match);
+
+    expect(QueryString::of(html_entity_decode($match[1] ?? '')))->toBe([
+        'segment' => 'all',
+        'sort' => 'orders',
+        'dir' => 'asc',
+        'page' => '2',
+    ]);
+});
+
+it('IMPRV-038 answers 400 for a page past the end', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->paidFulfillmentFor($seller, Customer::factory()->create());
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
+
+    $response->assertStatus(400);
 });

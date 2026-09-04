@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-04:20:40:00 — IMPRV-038 — resolved: the customers table pages at fifty rows through a new `x-seller.pager`; `CustomersQueryRequest::page()` 400s on 0, a non-integer, and a page past the end; `SellerCustomers::pageForSeller()`/`countForSegment()` filter, sort, and page entirely in SQL over the grouped aggregate, no PHP slice; tiles keep counting every buyer off the unpaged `forSeller()`; `make precommit` green
+- 2026-09-04:20:35:00 — IMPRV-038 — started
 - 2026-09-04:20:20:00 — IMPRV-037 — resolved: range dropped from the listings and customers query vocabularies, requests, chrome links, and the dashboard's outbound links to them; a stray `?range=` on either route is now an unvalidated, unlisted key (ignored); listings table headers name the fixed thirty-day window, the customers footnote does too; `make precommit` green
 - 2026-09-04:16:00:00 — IMPRV-037 — started
 - 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule

@@ -5,17 +5,26 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Messaging\ConversationStatus;
+use App\Domain\Orders\FulfillmentStatus;
+use App\Domain\Orders\OrderStatus;
 use App\Domain\Seller\CustomerRow;
+use App\Domain\Seller\CustomerSegment;
+use App\Domain\Seller\CustomerSortColumn;
+use App\Domain\Seller\SortDirection;
+use App\Domain\Seller\TableSort;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\Fulfillment;
+use App\Models\Order;
 use App\Models\Seller;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
+use Illuminate\Support\Facades\DB;
+use LogicException;
 
 /**
  * Who has bought from a seller, and what each of them is worth. Every read
@@ -30,6 +39,12 @@ use Illuminate\Database\Query\JoinClause;
  *
  * The aggregates are one grouped query; favorites, conversations, and the
  * names join by id in PHP.
+ *
+ * {@see forSeller()} reads every buyer unfiltered, unsorted, and
+ * unpaged — the tiles above the customers table read it, so they count
+ * the same people whatever the table's segment shows. {@see pageForSeller()}
+ * is the table's own source: one segment, sorted and paged, entirely in
+ * the query.
  */
 final class SellerCustomers
 {
@@ -54,6 +69,42 @@ final class SellerCustomers
     public static function forCustomer(Seller $seller, Customer $customer): ?CustomerRow
     {
         return self::rows($seller, $customer)[$customer->id] ?? null;
+    }
+
+    /**
+     * How many of this seller's buyers `$segment` keeps — a pager's page
+     * count is built from this, over the same `HAVING` a page of rows
+     * reads.
+     */
+    public static function countForSegment(Seller $seller, CustomerSegment $segment, DateTimeImmutable $newSince): int
+    {
+        return DB::query()
+            ->fromSub(self::segmentedQuery($seller, $segment, $newSince)->select('fulfillments.customer_id'), 'buyers')
+            ->count();
+    }
+
+    /**
+     * One page of this seller's buyers narrowed to `$segment`: the
+     * grouped aggregate query itself sorts by `$sort` and takes `$limit`
+     * rows from `$offset`, so a page never costs reading the rows either
+     * side of it.
+     *
+     * @param  TableSort<CustomerRow>  $sort
+     * @return list<CustomerRow>
+     */
+    public static function pageForSeller(Seller $seller, CustomerSegment $segment, DateTimeImmutable $newSince, TableSort $sort, int $limit, int $offset): array
+    {
+        $column = $sort->column instanceof CustomerSortColumn
+            ? $sort->column
+            : throw new LogicException('The customers table sorts only by CustomerSortColumn.');
+
+        $query = self::segmentedQuery($seller, $segment, $newSince);
+        self::addIdentityAndActivity($query, $seller);
+        self::orderBy($query, $column, $sort->direction);
+
+        $rows = $query->limit($limit)->offset($offset)->get();
+
+        return array_values(array_map(self::toRowFromQuery(...), $rows->all()));
     }
 
     /**
@@ -157,6 +208,136 @@ final class SellerCustomers
         }
 
         return $query->toBase();
+    }
+
+    /**
+     * Every buyer's parcels folded into their figures, narrowed to
+     * `$segment` in the `HAVING` clause — the aggregate a page of rows
+     * and a page count both read.
+     */
+    private static function segmentedQuery(Seller $seller, CustomerSegment $segment, DateTimeImmutable $newSince): QueryBuilder
+    {
+        $query = self::countedParcels($seller, null)
+            ->groupBy('fulfillments.customer_id')
+            ->selectRaw('fulfillments.customer_id as customer_id, count(*) as orders, sum(fulfillments.subtotal_cents) as spent_cents, min(orders.placed_at) as first_order_at, max(orders.placed_at) as last_order_at');
+
+        match ($segment) {
+            CustomerSegment::All => null,
+            CustomerSegment::Repeat => $query->havingRaw('count(*) >= ?', [CustomerRow::REPEAT_ORDERS]),
+            CustomerSegment::New => $query->havingRaw('min(orders.placed_at) >= ?', [$newSince->format('Y-m-d H:i:s')]),
+        };
+
+        return $query;
+    }
+
+    /**
+     * The name, email, favorites, and conversations a page of rows needs
+     * beyond the aggregate — added to `$query`'s select list, each
+     * correlated on the grouped `fulfillments.customer_id`, so the page
+     * still costs one query. Name and email each carry the account's own
+     * column and, alongside it, the latest counted parcel's shipped
+     * name/email — {@see self::toRowFromQuery()} picks whichever the
+     * account left null, the same fallback {@see self::shippedIdentities()}
+     * applies in PHP for {@see self::rows()}'s unpaged callers.
+     */
+    private static function addIdentityAndActivity(QueryBuilder $query, Seller $seller): void
+    {
+        $query
+            ->leftJoin('customers', 'customers.id', '=', 'fulfillments.customer_id')
+            ->addSelect(['customers.name as account_name', 'customers.email as account_email'])
+            ->selectSub(
+                fn (QueryBuilder $shipped): QueryBuilder => self::latestShippedOrder($shipped, $seller)->select('shipped_o.shipping_name'),
+                'shipped_name',
+            )
+            ->selectSub(
+                fn (QueryBuilder $shipped): QueryBuilder => self::latestShippedOrder($shipped, $seller)->select('shipped_o.email'),
+                'shipped_email',
+            )
+            ->selectSub(
+                fn (QueryBuilder $favorites): QueryBuilder => $favorites->from('favorites')
+                    ->join('listings', 'listings.id', '=', 'favorites.listing_id')
+                    ->whereColumn('favorites.customer_id', 'fulfillments.customer_id')
+                    ->where('listings.seller_id', $seller->id)
+                    ->selectRaw('count(*)'),
+                'favorites',
+            )
+            ->selectSub(
+                fn (QueryBuilder $conversations): QueryBuilder => $conversations->from('conversations')
+                    ->whereColumn('conversations.customer_id', 'fulfillments.customer_id')
+                    ->where('conversations.seller_id', $seller->id)
+                    ->selectRaw('count(*)'),
+                'conversations',
+            );
+    }
+
+    /**
+     * The order behind a buyer's most recent counted parcel with this
+     * seller, correlated on the grouped `fulfillments.customer_id` — the
+     * same live-and-paid pair {@see countedParcels()} filters by, so a
+     * shipped name or email never comes from a parcel that settled back.
+     */
+    private static function latestShippedOrder(QueryBuilder $query, Seller $seller): QueryBuilder
+    {
+        $liveStatuses = array_map(fn (FulfillmentStatus $status): string => $status->value, Fulfillment::liveStatuses());
+        $paidStatuses = array_map(fn (OrderStatus $status): string => $status->value, Order::paidStatuses());
+
+        return $query
+            ->from('fulfillments as shipped_f')
+            ->join('orders as shipped_o', 'shipped_o.id', '=', 'shipped_f.order_id')
+            ->whereColumn('shipped_f.customer_id', 'fulfillments.customer_id')
+            ->where('shipped_f.seller_id', $seller->id)
+            ->whereIn('shipped_f.status', $liveStatuses)
+            ->whereIn('shipped_o.status', $paidStatuses)
+            ->orderByDesc('shipped_o.placed_at')
+            ->orderByDesc('shipped_f.id')
+            ->limit(1);
+    }
+
+    /** The column a page of rows orders by, the id ascending underneath it whichever way that column runs. */
+    private static function orderBy(QueryBuilder $query, CustomerSortColumn $column, SortDirection $direction): void
+    {
+        $expression = match ($column) {
+            CustomerSortColumn::Name => 'name',
+            CustomerSortColumn::Orders => 'orders',
+            CustomerSortColumn::Spent => 'spent_cents',
+            CustomerSortColumn::Favorites => 'favorites',
+            CustomerSortColumn::LastOrder => 'last_order_at',
+            CustomerSortColumn::Conversations => 'conversations',
+            CustomerSortColumn::Since => 'first_order_at',
+        };
+
+        if ($column === CustomerSortColumn::Name) {
+            $expression = "lower({$expression})";
+        }
+
+        $query
+            ->orderByRaw("{$expression} {$direction->value}")
+            ->orderBy('fulfillments.customer_id', 'asc');
+    }
+
+    /**
+     * The account's own name/email wins over the shipped fallback,
+     * {@see self::addIdentityAndActivity()}'s pair of columns for each —
+     * the same precedence {@see self::rows()} applies in PHP.
+     */
+    private static function toRowFromQuery(object $row): CustomerRow
+    {
+        $data = (array) $row;
+
+        $accountName = $data['account_name'] ?? null;
+        $accountEmail = $data['account_email'] ?? null;
+
+        return new CustomerRow(
+            customerId: self::text($data['customer_id'] ?? null),
+            name: is_string($accountName) ? $accountName : self::text($data['shipped_name'] ?? null),
+            email: is_string($accountEmail) ? $accountEmail : (is_string($data['shipped_email'] ?? null) ? $data['shipped_email'] : null),
+            orders: self::number($data['orders'] ?? null),
+            spentCents: self::number($data['spent_cents'] ?? null),
+            favorites: self::number($data['favorites'] ?? null),
+            conversations: self::number($data['conversations'] ?? null),
+            firstOrderAt: self::moment($data['first_order_at'] ?? null),
+            lastOrderAt: self::moment($data['last_order_at'] ?? null),
+        );
     }
 
     /**

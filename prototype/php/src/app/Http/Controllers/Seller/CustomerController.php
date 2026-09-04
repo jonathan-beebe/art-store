@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\Analytics\AnalyticsRange;
-use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerTally;
-use App\Domain\Seller\RowSort;
 use App\Http\Requests\Seller\CustomersQueryRequest;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -40,15 +38,21 @@ final class CustomerController extends SellerController
         $newSince = AnalyticsRange::of(self::NEW_BUYER_WINDOW_DAYS, $this->now())->start;
         $segment = $request->customerSegment();
         $sort = $request->sort();
+        $roundTripped = $request->roundTripped();
 
-        $rows = SellerCustomers::forSeller($seller);
+        $tallyRows = SellerCustomers::forSeller($seller);
         $counts = SellerCustomers::conversationCounts($seller);
 
+        $total = SellerCustomers::countForSegment($seller, $segment, $newSince);
+        $page = $request->page($total);
+
         return view('seller.customers.index', [
-            'rows' => RowSort::apply($sort, $segment->apply($rows, $newSince), fn (CustomerRow $row): string => $row->customerId),
-            'tally' => CustomerTally::of($rows, $newSince, $counts->open, $counts->unread),
-            'chrome' => CustomersChrome::build($request->roundTripped(), $segment, $sort),
+            'rows' => SellerCustomers::pageForSeller($seller, $segment, $newSince, $sort, $page->limit, $page->offset),
+            'tally' => CustomerTally::of($tallyRows, $newSince, $counts->open, $counts->unread),
+            'chrome' => CustomersChrome::build($roundTripped, $segment, $sort),
             'rangeDays' => self::NEW_BUYER_WINDOW_DAYS,
+            'page' => $page,
+            'pagerQuery' => $roundTripped,
         ]);
     }
 
