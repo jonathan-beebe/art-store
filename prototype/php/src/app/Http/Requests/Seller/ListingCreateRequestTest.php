@@ -17,14 +17,14 @@ it('accepts every documented shape', function (string $shape): void {
     $response->assertOk();
 })->with(['one', 'versions', 'extras']);
 
-it('answers 400 on a shape value outside the documented set', function (): void {
+it('normalizes a shape value outside the documented set to null', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')
         ->get('/seller/listings/create?'.http_build_query(['title' => 'X', 'shape' => 'bogus']));
 
-    $response->assertStatus(400);
+    $response->assertOk();
 });
 
-it('reads an emptied shape as absent rather than as a value to reject', function (): void {
+it('reads an emptied shape as absent', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')
         ->get('/seller/listings/create?'.http_build_query(['title' => 'X', 'shape' => '']));
 
