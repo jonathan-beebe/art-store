@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Domain\Escrow\PlatformFees;
-use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
 use App\Domain\Fulfillment\FulfillmentProgress;
@@ -13,7 +11,6 @@ use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Support\PlaceholderImage;
 use Database\Factories\FulfillmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -263,111 +260,12 @@ class Fulfillment extends Model
     }
 
     /**
-     * The same tally, for `/admin`'s fulfillment count.
-     *
-     * @return array<string, int> status value => count
+     * Which pile of the seller's desk this parcel sits on, from progress a
+     * caller already read — {@see \App\Seller\FulfillmentFlowReader}.
      */
-    public static function platformCountsByStatus(): array
+    public function lane(FulfillmentProgress $progress): FulfillmentLane
     {
-        $counts = [];
-
-        foreach (self::query()->countedByStatus()->get() as $row) {
-            $counts[$row->status->value] = $row->tally;
-        }
-
-        return $counts;
-    }
-
-    /**
-     * What the platform earned and gave back in fees, across every
-     * fulfillment there is — one read, folded by the pure
-     * {@see PlatformFees}.
-     */
-    public static function platformFees(): PlatformFees
-    {
-        return PlatformFees::from(array_values(
-            self::query()
-                ->select('status', 'fee_cents')
-                ->get()
-                ->map(fn (self $fulfillment): array => [
-                    'status' => $fulfillment->status,
-                    'feeCents' => $fulfillment->fee_cents,
-                ])
-                ->all(),
-        ));
-    }
-
-    /**
-     * The flow this parcel ships by: the one the first of the seller's own
-     * lines names, and the seller's default flow when none does.
-     */
-    public function flowInEffect(): ?FulfillmentFlow
-    {
-        $this->loadMissing(['order.items.listing.fulfillmentFlow', 'seller.defaultFulfillmentFlow']);
-
-        return $this->flowNamedByAListing() ?? $this->seller->defaultFulfillmentFlow;
-    }
-
-    /**
-     * The steps of that flow, as the pure core reads them.
-     *
-     * @return list<FlowStep>
-     */
-    public function flowSteps(): array
-    {
-        $flow = $this->flowInEffect();
-
-        return $flow instanceof FulfillmentFlow ? $flow->loadMissing('steps')->flowSteps() : [];
-    }
-
-    public function progress(): FulfillmentProgress
-    {
-        return FulfillmentProgress::of($this->flowSteps(), $this->completedStepIds());
-    }
-
-    public function lane(): FulfillmentLane
-    {
-        return FulfillmentLane::of($this->status, $this->progress());
-    }
-
-    /**
-     * The seller's own lines on the order, as one phrase — the scan line
-     * every row and every feed sentence about this parcel reads. Both
-     * callers eager-load `order.items`; a caller that has not is refused by
-     * the lazy-loading guard.
-     */
-    public function itemLabel(): string
-    {
-        $items = $this->order->items
-            ->where('seller_id', $this->seller_id)
-            ->values();
-
-        $first = $items->first();
-
-        if (! $first instanceof OrderItem) {
-            return 'no items';
-        }
-
-        $label = $first->quantity > 1 ? "{$first->title} ×{$first->quantity}" : $first->title;
-        $rest = $items->count() - 1;
-
-        return $rest > 0 ? "{$label} +{$rest} more" : $label;
-    }
-
-    /**
-     * A picture for this parcel's first line, scoped to the seller the
-     * same way {@see self::itemLabel()} is — the listing's own cover, or
-     * a placeholder titled from the item label when the line's listing is
-     * gone.
-     */
-    public function itemImageUrl(): string
-    {
-        $listing = $this->order->items
-            ->where('seller_id', $this->seller_id)
-            ->first()
-            ?->listing;
-
-        return $listing?->imageUrl() ?? PlaceholderImage::dataUri($this->itemLabel());
+        return FulfillmentLane::of($this->status, $progress);
     }
 
     /**
@@ -462,37 +360,12 @@ class Fulfillment extends Model
     }
 
     /**
-     * Reads the order through `loadMissing` so a policy or a view asking
-     * about a route-bound fulfillment does not trip the lazy-load guard.
+     * A route-bound fulfillment carries no relation until a controller or a
+     * policy asks for one, so every caller of {@see self::isDeclinable()}
+     * and {@see self::isRefundable()} loads `order` first.
      */
     private function orderHasBeenPaid(): bool
     {
-        return $this->loadMissing('order')->order->status->hasBeenPaid();
-    }
-
-    private function flowNamedByAListing(): ?FulfillmentFlow
-    {
-        foreach ($this->order->items as $item) {
-            if ($item->seller_id === $this->seller_id && $item->listing->fulfillmentFlow instanceof FulfillmentFlow) {
-                return $item->listing->fulfillmentFlow;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * One entry per completion the log holds, carrying the step it named. A
-     * step the seller has since removed leaves a null: the row survives with
-     * its `step_label`, so the parcel still counts as started.
-     *
-     * @return list<string|null>
-     */
-    private function completedStepIds(): array
-    {
-        return array_values($this->loadMissing('fulfillmentEvents')->fulfillmentEvents
-            ->where('kind', FulfillmentEventKind::StepCompleted)
-            ->map(fn (FulfillmentEvent $event): ?string => $event->fulfillment_flow_step_id)
-            ->all());
+        return $this->order->status->hasBeenPaid();
     }
 }

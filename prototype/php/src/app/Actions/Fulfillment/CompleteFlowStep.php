@@ -11,6 +11,7 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Fulfillment;
 use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlowStep;
+use App\Seller\FulfillmentFlowReader;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,10 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class CompleteFlowStep
 {
-    public function __construct(private AppendFulfillmentEvent $appendEvent) {}
+    public function __construct(
+        private AppendFulfillmentEvent $appendEvent,
+        private FulfillmentFlowReader $flow,
+    ) {}
 
     /**
      * @throws DomainRuleViolation when the parcel has left the studio, or the
@@ -59,7 +63,16 @@ final readonly class CompleteFlowStep
 
     private function assertInFront(Fulfillment $fulfillment, FulfillmentFlowStep $step): void
     {
-        $progress = $fulfillment->load('fulfillmentEvents')->progress();
+        // Read after takeForTransition() has locked the row, so a step
+        // submitted between this read and the lock cannot slip past the
+        // same-step-twice guard.
+        $fulfillment->load([
+            'order.items.listing.fulfillmentFlow.steps',
+            'seller.defaultFulfillmentFlow.steps',
+            'fulfillmentEvents',
+        ]);
+
+        $progress = $this->flow->read($fulfillment)->progress;
 
         if (! $progress->admits($step->id)) {
             throw new DomainRuleViolation("The step \"{$step->label}\" is not the next step on this fulfillment.");

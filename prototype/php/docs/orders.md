@@ -261,7 +261,7 @@ the seller gave it, a `position` unique inside the flow, and a
 printable label page. `FulfillmentFlowSeeder` gives every seller one default
 flow, *Label printed* then *Packed*. A listing may name a flow
 (`listings.fulfillment_flow_id`); a listing that names none ships by its
-seller's default, which is what `Fulfillment::flowInEffect()` reads.
+seller's default, which is what `App\Seller\FulfillmentFlowReader::flowInEffect()` reads.
 
 `App\Actions\Fulfillment\AppendFulfillmentEvent` is the only writer of the
 table. The transitions (`MarkShipped`, `ConfirmDelivered`,

@@ -38,14 +38,17 @@ final class OrderController extends Controller
         // carries no query string to filter it by.
         $window = ListPaneWindow::of($this->ordersQuery(null, null), $order);
 
+        $order->load(['customer', 'items.seller', 'payments', 'fulfillments.seller', 'refunds.fulfillment.seller']);
+
+        // isRefundable(), which the refund form below reads per fulfillment,
+        // reads the order back off it — the same row already in hand, set
+        // here with no second query.
+        foreach ($order->fulfillments as $fulfillment) {
+            $fulfillment->setRelation('order', $order);
+        }
+
         return view('admin.orders.show', [
-            'order' => $order->load([
-                'customer',
-                'items.seller',
-                'payments',
-                'fulfillments.seller',
-                'refunds.fulfillment.seller',
-            ]),
+            'order' => $order,
             'cellOrders' => $window->items,
             'cellOrdersTotal' => $window->total,
         ]);

@@ -44,7 +44,7 @@ flowchart TD
     entry["Entry: routes/*.php, app/Providers"] --> coord
     coord["Coordination: app/Http/Controllers, app/Actions, app/Console"] --> core
     coord --> adapters
-    adapters["Adapters: app/Models (Eloquent), app/Notifications, resources/views"] --> core
+    adapters["Adapters: app/Models (Eloquent), app/Seller, app/Admin, app/Support, app/Notifications, resources/views"] --> core
     core["Core: app/Domain/** — pure PHP, no I/O, no clock, no random"]
 ```
 
@@ -59,16 +59,19 @@ flowchart TD
 |              |                                                                  | `OrderStatus::awaitsPayment()`, `label()`) rather than being     |
 |              |                                                                  | read from outside. Receives time/ids as parameters. Unit tested  |
 |              |                                                                  | without doubles.                                                 |
-| Adapters     | `app/Models/`, `app/Notifications/`, `app/Support/`,             | Eloquent models own their relations, casts, scopes, and the      |
-|              | `app/View/Composers/`, `resources/views/`                        | writes that keep their own invariants — a model method applies a |
+| Adapters     | `app/Models/`, `app/Seller/`, `app/Admin/`, `app/Notifications/`, | Eloquent models own their relations, casts, scopes, and the      |
+|              | `app/Support/`, `app/View/Composers/`, `resources/views/`         | writes that keep their own invariants — a model method applies a |
 |              |                                                                  | decision the core made and writes the row (`Listing::sell()`,    |
 |              |                                                                  | `Listing::changeStatusTo()`). Counts and sums a page shows are   |
 |              |                                                                  | grouped in SQL by a scope or a model method                      |
 |              |                                                                  | (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`,  |
 |              |                                                                  | `Seller::escrowBalance()`), and the domain folds the rows that   |
-|              |                                                                  | come back. Notifications and their channels carry a message out  |
-|              |                                                                  | of the app; Blade views and the composers that fill a layout     |
-|              |                                                                  | render it in.                                                    |
+|              |                                                                  | come back. `app/Seller` and `app/Admin` hold the page-shaped     |
+|              |                                                                  | readers each portal's controllers call — one class, one eager    |
+|              |                                                                  | load, plain values out (`OrderDetail`, `FulfillmentLanes`,       |
+|              |                                                                  | `PlatformFulfillmentReader`). Notifications and their channels   |
+|              |                                                                  | carry a message out of the app; Blade views and the composers    |
+|              |                                                                  | that fill a layout render it in.                                 |
 | Coordination | `app/Actions/<Feature>/`, `app/Http/Controllers/<Site>/`,        | Sequence core + adapters. An action that finishes a business     |
 |              | `app/Http/Requests/<Site>/`, `app/Policies/`,                    | moment dispatches a past-tense event and a listener decides who  |
 |              | `app/Console/Commands/`, `app/Events/`, `app/Listeners/`         | hears about it. Form requests are the typed entry for input:     |

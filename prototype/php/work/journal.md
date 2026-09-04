@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-09-04:20:35:00 — IMPRV-035 — done: App\Seller\DraftPublishIssues batches publishIssues()'s reads across the needs-work panel's drafts in nine or ten grouped queries whatever their count; rows name the first publish issue and how many more
+- 2026-09-04:20:25:00 — IMPRV-035 — started
+- 2026-09-04:20:20:00 — IMPRV-040 — done: platformCountsByStatus/platformFees to App\Admin\PlatformFulfillmentReader, itemLabel/itemImageUrl to App\Support\ParcelLine, flowInEffect/flowSteps/progress to App\Seller\FulfillmentFlowReader, lane() takes a FulfillmentProgress, every loadMissing() gone; 498 to 371 lines
+- 2026-09-04:19:33:36 — IMPRV-040 — started
 - 2026-09-04:16:09:06 — IMPRV-042 — defined: The earnings net-per-period bars don't line up with their date labels
 - 2026-09-04:16:09:06 — IMPRV-041 — defined: The admin listing tint disagrees with ListingStatus's own badge
 - 2026-09-04:16:06:30 — IMPRV-036 — review fix: the workspace/dialog/takeover structural tests run as a dataset over table and grid; the grid route's weak <dialog> string assertion is gone

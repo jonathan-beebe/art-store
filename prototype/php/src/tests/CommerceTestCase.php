@@ -194,6 +194,19 @@ abstract class CommerceTestCase extends TestCase
     }
 
     /**
+     * Loads what `App\Seller\FulfillmentFlowReader::read()` reads, the way
+     * the page and the action that call it do.
+     */
+    public function loadedForFlow(Fulfillment $fulfillment): Fulfillment
+    {
+        return $fulfillment->load([
+            'order.items.listing.fulfillmentFlow.steps',
+            'seller.defaultFulfillmentFlow.steps',
+            'fulfillmentEvents',
+        ]);
+    }
+
+    /**
      * The seller's store, minted the way the Store screen's first visit
      * mints it — the fixture every store-write test needs a profile to
      * write against, without a `GET /seller/store` round trip.

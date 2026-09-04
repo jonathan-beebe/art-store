@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Auth\ActorType;
+use App\Domain\Configurator\PublishIssue;
 use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Seller\AttentionGroup;
@@ -20,6 +21,8 @@ use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Seller;
+use App\Support\Configurator\PublishIssuePresenter;
+use App\Support\ParcelLine;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
@@ -84,7 +87,7 @@ final readonly class NeedsAttention
 
             return new AttentionRow(
                 initials: Initials::of($parcel->order->shipping_name),
-                title: $parcel->order->shipping_name.' · '.$parcel->itemLabel(),
+                title: $parcel->order->shipping_name.' · '.ParcelLine::label($parcel),
                 supporting: $parcel->subtotal()->format(),
                 meta: RelativeTime::long($placedAt, $now),
                 href: route('seller.orders.show', ['fulfillment' => $parcel->id, 'lane' => LaneFilter::ToShip->value]),
@@ -170,8 +173,9 @@ final readonly class NeedsAttention
 
     /**
      * Drafts and sold-out pieces, most recently edited first — the two
-     * states a listing sells nothing in. The publish panel on the
-     * listing's own page says what a draft still needs.
+     * states a listing sells nothing in. A draft's row names its own first
+     * publish issue; a seller reads the rest one click away, on the
+     * listing's own publish panel.
      */
     private static function listings(Seller $seller, DateTimeImmutable $now): AttentionRows
     {
@@ -185,17 +189,40 @@ final readonly class NeedsAttention
             ->limit(self::MAX_ROWS)
             ->get();
 
+        $issuesByListing = DraftPublishIssues::forListings($listings);
+
         $rows = $listings->map(fn (Listing $listing): AttentionRow => new AttentionRow(
             initials: Initials::of($listing->title),
             title: $listing->title,
-            supporting: $listing->status === ListingStatus::Draft
-                ? 'Draft · not on the storefront yet'
-                : 'Sold out · restock it or archive it',
+            supporting: self::listingSupporting($listing, $issuesByListing[$listing->id] ?? []),
             meta: $listing->updated_at === null ? '' : 'Edited '.RelativeTime::long($listing->updated_at, $now),
             href: route('seller.listings.show', ['listing' => $listing->id]),
         ))->all();
 
         return new AttentionRows(array_values($rows), $query->count());
+    }
+
+    /**
+     * A sold-out piece always reads the same; a draft names its first
+     * publish issue and how many more, or the generic sentence when the
+     * legacy axis-free path has nothing to check.
+     *
+     * @param  list<PublishIssue>  $issues
+     */
+    private static function listingSupporting(Listing $listing, array $issues): string
+    {
+        if ($listing->status !== ListingStatus::Draft) {
+            return 'Sold out · restock it or archive it';
+        }
+
+        if ($issues === []) {
+            return 'Draft · not on the storefront yet';
+        }
+
+        $first = PublishIssuePresenter::genericMessage($issues[0]);
+        $rest = count($issues) - 1;
+
+        return $rest > 0 ? "{$first} +{$rest} more" : $first;
     }
 
     private static function plural(int $count, string $unit): string

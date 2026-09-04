@@ -131,7 +131,7 @@ it('names the parcel by this seller\'s own lines on a two-seller order', functio
 
     $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
-    expect($context->order?->itemLabel())->toBe('The Burrow at Dusk');
+    expect($context->orderLabel)->toBe('The Burrow at Dusk');
 });
 
 it('carries the pictures the rail renders, so no page queries for them', function (): void {
