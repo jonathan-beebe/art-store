@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Domain\Seller;
 
+use LogicException;
+
 /**
- * Orders a seller table's rows by one {@see TableSort} — the key the
- * sort's column reads off each row, `$idOf` breaking a tie ascending
- * whichever way the column runs, so two rows never read as equal and the
- * order never depends on the rows' input order.
+ * Orders a seller table's rows by one {@see TableSort} over a
+ * {@see KeyedColumn} — the key the sort's column reads off each row,
+ * `$idOf` breaking a tie ascending whichever way the column runs, so two
+ * rows never read as equal and the order never depends on the rows'
+ * input order.
  */
 final class RowSort
 {
@@ -24,9 +27,13 @@ final class RowSort
      */
     public static function apply(TableSort $sort, array $rows, callable $idOf): array
     {
+        $column = $sort->column instanceof KeyedColumn
+            ? $sort->column
+            : throw new LogicException('RowSort::apply() sorts only by a KeyedColumn.');
+
         /** @var list<array{0: int|float|string, 1: int|string, 2: TRow}> $decorated */
         $decorated = array_map(
-            fn (object $row): array => [$sort->column->keyOf($row), $idOf($row), $row],
+            fn (object $row): array => [$column->keyOf($row), $idOf($row), $row],
             $rows,
         );
 

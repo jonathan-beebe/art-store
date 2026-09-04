@@ -44,3 +44,21 @@ Sort maps each `CustomerSortColumn` case to its SQL column/alias (`lower(name)` 
 Tests: `SellerCustomersTest` gets seven new cases (sort+page in SQL, tie-break both directions, segment count matches segment page, the New window, identity/favorites/conversations resolved correctly on a page, and a fixed-query-count guard mirroring the existing unpaged one — six pass through the query builder, one guards the query count). `CustomersQueryRequestTest` covers page 1 with nothing to show, `0`, three non-integer shapes, past-the-end, and the exact last page. `CustomerControllerTest` covers the fifty-row page split, a sort surviving onto page two, the tiles still counting every buyer on page two, the pager appearing past fifty and not under it, the pager's Next link carrying segment/sort/dir, and the 400.
 
 `make precommit`: green, 5262 tests (see the handover report for the tail).
+
+### Review pass
+
+The name sort bug: `orderBy()` referenced a bare `name` alias that did not exist in the select list (the identity columns are `account_name`/`shipped_name`), which SQLite resolved against the joined `customers` table directly — an order-named buyer (no account row) sorted as NULL, parked at one end whichever direction ran. Fixed by wrapping the aggregate in `fromSub()` before sorting — the sort now runs over the aggregate's own column list, ordering by `lower(coalesce(account_name, shipped_name))` for Name — which also removes the `orders`-alias-vs-joined-table shadowing the same bare-reference problem could hit on any column. A dataset over all seven `CustomerSortColumn` cases and a dedicated account-named/order-named case (both directions) now guard this.
+
+`pageForSeller()` takes `CustomerSortColumn`/`SortDirection` directly instead of a `TableSort`, so the unreachable "sorts only by CustomerSortColumn" throw is gone; `CustomersQueryRequest::sortColumn()`/`sortDirection()` feed it, and `sort()` (for the chrome) composes them.
+
+`CustomerSortColumn::keyOf()` was dead (customers sort in SQL, not PHP) — deleted. `SortableColumn`/`KeyedColumn` split: the base interface (`label()`, `alignsRight()`) stays generic over the row type for `TableSort`'s own inference; `KeyedColumn<TRow> extends SortableColumn<TRow>` adds `keyOf()` for `RowSort`, which now narrows to it explicitly. `ListingSortColumn implements KeyedColumn`; `CustomerSortColumn implements SortableColumn` alone.
+
+Added `SellerCustomers::tallyFor()`: the five tile figures (count, new-since, repeat, orders, spent) in one query over the grouped aggregate, replacing the five-query `forSeller()` read the tiles used to fold in PHP. `CustomerTally::of()` now takes a `CustomerTallyFacts` value instead of folding a row list itself.
+
+`EvergreenWindow::DAYS` is the one thirty-day constant `ListingSortColumn`'s labels and both controllers read, replacing the two private per-controller constants. The listings table's ranged-column footnote sentence is gone (redundant with the column headers, which already name the window); the all-time Sold/Revenue sentence stays.
+
+Contrast clauses and DECISIONS.md pointers dropped from `CustomersQueryRequest`'s docblocks and `pager.blade.php`'s comment; `docs/seller-portal.md`'s two query-vocabulary intros now state the 400-vs-ignored idiom directly. `page`'s rule is documented as shared across both customer routes (not scoped to the index route) since `kind` already works the same way; `PAGE_SIZE` is private. `CustomerRow`'s `REPEAT_ORDERS` comment no longer names the class that reads it. `IMPRV-037`'s Outcome bullet corrected: the dashboard's own links carry `range` back to itself alone (the earnings link never carried it).
+
+Dropped the duplicate past-the-end-400 test from `CustomerControllerTest` (kept in `CustomersQueryRequestTest`, where the other boundary cases live).
+
+`make precommit`: green.

@@ -10,8 +10,8 @@ use App\Domain\Orders\OrderStatus;
 use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerSegment;
 use App\Domain\Seller\CustomerSortColumn;
+use App\Domain\Seller\CustomerTallyFacts;
 use App\Domain\Seller\SortDirection;
-use App\Domain\Seller\TableSort;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Favorite;
@@ -24,7 +24,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
-use LogicException;
 
 /**
  * Who has bought from a seller, and what each of them is worth. Every read
@@ -41,10 +40,12 @@ use LogicException;
  * names join by id in PHP.
  *
  * {@see forSeller()} reads every buyer unfiltered, unsorted, and
- * unpaged — the tiles above the customers table read it, so they count
- * the same people whatever the table's segment shows. {@see pageForSeller()}
- * is the table's own source: one segment, sorted and paged, entirely in
- * the query.
+ * unpaged, for the callers that need a row per buyer.
+ * {@see tallyFor()} is what the tiles above the customers table read
+ * instead: the same buyers folded to five figures in one query, so
+ * counting them costs one round trip rather than five.
+ * {@see pageForSeller()} is the table's own source: one segment, sorted
+ * and paged, entirely in the query.
  */
 final class SellerCustomers
 {
@@ -84,23 +85,54 @@ final class SellerCustomers
     }
 
     /**
-     * One page of this seller's buyers narrowed to `$segment`: the
-     * grouped aggregate query itself sorts by `$sort` and takes `$limit`
-     * rows from `$offset`, so a page never costs reading the rows either
-     * side of it.
+     * Every buyer folded to five figures in one query: how many there
+     * are, how many are new since `$newSince`, how many are repeat
+     * buyers, and what they have ordered and spent — the tiles above the
+     * customers table read this, so they count every buyer whatever the
+     * table's segment or page shows.
+     */
+    public static function tallyFor(Seller $seller, DateTimeImmutable $newSince): CustomerTallyFacts
+    {
+        $inner = self::segmentedQuery($seller, CustomerSegment::All, $newSince);
+
+        $row = (array) (DB::query()
+            ->fromSub($inner, 'buyers')
+            ->selectRaw(
+                'count(*) as customers, sum(orders) as orders, sum(spent_cents) as spent_cents, '
+                .'sum(case when orders >= ? then 1 else 0 end) as repeat_buyers, '
+                .'sum(case when first_order_at >= ? then 1 else 0 end) as new_this_period',
+                [CustomerRow::REPEAT_ORDERS, $newSince->format('Y-m-d H:i:s')],
+            )
+            ->first() ?? []);
+
+        return new CustomerTallyFacts(
+            customers: self::number($row['customers'] ?? null),
+            newThisPeriod: self::number($row['new_this_period'] ?? null),
+            repeatBuyers: self::number($row['repeat_buyers'] ?? null),
+            orders: self::number($row['orders'] ?? null),
+            spentCents: self::number($row['spent_cents'] ?? null),
+        );
+    }
+
+    /**
+     * One page of this seller's buyers narrowed to `$segment`, sorted by
+     * `$column`/`$direction`, `$limit` rows from `$offset` — a page
+     * never costs reading the rows either side of it. The aggregate
+     * wraps in `fromSub()` before it sorts: the inner query joins
+     * `fulfillments`, `orders`, and `customers`, so a bare column name
+     * in `ORDER BY` (`orders`, `name`) would resolve against those
+     * joined tables instead of the aggregate's own columns; wrapping
+     * makes the aggregate's column list the only thing in scope.
      *
-     * @param  TableSort<CustomerRow>  $sort
      * @return list<CustomerRow>
      */
-    public static function pageForSeller(Seller $seller, CustomerSegment $segment, DateTimeImmutable $newSince, TableSort $sort, int $limit, int $offset): array
+    public static function pageForSeller(Seller $seller, CustomerSegment $segment, DateTimeImmutable $newSince, CustomerSortColumn $column, SortDirection $direction, int $limit, int $offset): array
     {
-        $column = $sort->column instanceof CustomerSortColumn
-            ? $sort->column
-            : throw new LogicException('The customers table sorts only by CustomerSortColumn.');
+        $inner = self::segmentedQuery($seller, $segment, $newSince);
+        self::addIdentityAndActivity($inner, $seller);
 
-        $query = self::segmentedQuery($seller, $segment, $newSince);
-        self::addIdentityAndActivity($query, $seller);
-        self::orderBy($query, $column, $sort->direction);
+        $query = DB::query()->fromSub($inner, 'buyers');
+        self::orderBy($query, $column, $direction);
 
         $rows = $query->limit($limit)->offset($offset)->get();
 
@@ -297,7 +329,7 @@ final class SellerCustomers
     private static function orderBy(QueryBuilder $query, CustomerSortColumn $column, SortDirection $direction): void
     {
         $expression = match ($column) {
-            CustomerSortColumn::Name => 'name',
+            CustomerSortColumn::Name => 'lower(coalesce(account_name, shipped_name))',
             CustomerSortColumn::Orders => 'orders',
             CustomerSortColumn::Spent => 'spent_cents',
             CustomerSortColumn::Favorites => 'favorites',
@@ -306,13 +338,9 @@ final class SellerCustomers
             CustomerSortColumn::Since => 'first_order_at',
         };
 
-        if ($column === CustomerSortColumn::Name) {
-            $expression = "lower({$expression})";
-        }
-
         $query
             ->orderByRaw("{$expression} {$direction->value}")
-            ->orderBy('fulfillments.customer_id', 'asc');
+            ->orderBy('customer_id', 'asc');
     }
 
     /**

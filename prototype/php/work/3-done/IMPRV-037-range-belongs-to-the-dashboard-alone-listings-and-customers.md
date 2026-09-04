@@ -16,7 +16,7 @@ The range is a reporting control that lives on the dashboard and nowhere else.
 ## Outcome
 - `range` is gone from the listings and customers query vocabularies, their requests, their chrome links, and the dashboard's outbound links to them; an explicit `?range=` on those routes is ignored like any unknown parameter the app does not validate (document the choice), or answers 400 if the request already treats unknown keys that way — pick the idiom the requests use today and say so.
 - The listings table's analytics columns read a fixed window named in their headers ("last 30 days"); the customers "New this period" segment reads the same fixed window and its footnote says so.
-- The dashboard keeps its 7/30/90 control and its own links carry `range` only to the earnings page and back to itself.
+- The dashboard keeps its 7/30/90 control and its own links carry `range` back to itself alone.
 - `make precommit` green; `make check` green before the PR.
 
 ## Why it matters
@@ -33,7 +33,7 @@ A parameter with no control is a trap for the next reader and a silent way for t
 
 Listings: `ListingSortColumn::label()`'s Views/Favorites/Cart adds now read "… (last 30 days)"; the detail page's own "Views, last N days" wording needed no change, already parameterized by the (now fixed) `rangeDays` the controller passes. Every link that carried `range` (the table/grid row links to their own detail, the dashboard's "All listings" link, `ListingActivity`'s dashboard-row link to a listing) drops it.
 
-Customers: `CustomerSegment::apply()` and `CustomerTally::of()` keep their existing `DateTimeImmutable $rangeStart` parameter unchanged — only the caller changes what it passes (a fixed thirty days, not the request's range), so neither class needed touching. The footnote ("New counts a first order inside the last N days") already read a variable, so only its value changed. The dashboard's Customers tile link drops `range` entirely, per the brief: the dashboard's own links carry `range` only to earnings and itself, not to listings or customers.
+Customers: `CustomerSegment::apply()` and `CustomerTally::of()` keep their existing `DateTimeImmutable $rangeStart` parameter unchanged — only the caller changes what it passes (a fixed thirty days, not the request's range), so neither class needed touching. The footnote ("New counts a first order inside the last N days") already read a variable, so only its value changed. The dashboard's Customers tile link drops `range` entirely, per the brief: the dashboard's own links carry `range` back to itself alone, not to earnings, listings, or customers.
 
 `ListingsChromeTest`'s two cases that stood `range` in as a generic round-tripped key now use `sort`/`view`, real vocabulary, so the test reads true after the change.
 

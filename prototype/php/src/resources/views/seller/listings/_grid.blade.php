@@ -3,7 +3,7 @@
     the seller sees it — square cover, title and price, medium and stock,
     a stats line, the status badge over the image. Rows lead to the
     listing's detail as an overlay or takeover (?from=grid). Expects
-    `rows`, `chrome`, `rangeDays`.
+    `rows`, `chrome`.
 --}}
 <div class="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
     @forelse ($rows as $row)

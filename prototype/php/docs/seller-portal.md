@@ -286,7 +286,8 @@ detail, unchanged when `from` is absent.
 
 `App\Http\Requests\Seller\ListingsQueryRequest` owns every parameter both
 routes share, the `docs/alignment.md` §5 idiom: an absent or emptied value
-reads as its default, an unrecognised one answers a bare 400.
+reads as its default; an unrecognised value for a named parameter answers
+400, and a key the table does not name is ignored.
 
 | Param   | Values                                                                | Default | Read by                     |
 | ------- | ---------------------------------------------------------------------- | ------- | ---------------------------- |
@@ -565,7 +566,8 @@ name is the account's own where it has one, and the latest order's
 
 `App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
 routes read, the `docs/alignment.md` §5 idiom: an absent or emptied value
-reads as its default, an unrecognised one answers a bare 400.
+reads as its default; an unrecognised value for a named parameter answers
+400, and a key the table does not name is ignored.
 
 | Param     | Values                                                                   | Default | Read by         |
 | --------- | ------------------------------------------------------------------------ | ------- | --------------- |
@@ -582,30 +584,34 @@ stray `?range=` validates nothing and changes nothing. The four figures
 above the table count every buyer whatever the segment shows, so
 switching segments never moves them.
 
-`page` answers 400 three ways `App\Support\Page::of()`'s own admin
-callers do not: `0` and a non-integer fail `rules()` the way every other
-value in this table does, and `CustomersQueryRequest::page()` refuses a
-page past the end rather than clamping to the last one — a table has no
-"showing the last page instead" fallback the way a filtered report does.
+`0` and a non-integer `page` fail `rules()` the way every other value in
+this table does. `CustomersQueryRequest::page()` refuses a page past
+the end itself — the table has nothing sane to fall back to when the
+page asked for holds no rows.
 
 ### Layers
 
-`Seller\SellerCustomers::forSeller()` folds every buyer's figures in one
-grouped, unpaged query, then joins the account rows, favorites, and
-thread counts by id in PHP — the tiles above the table read this, so
-they count the same people whatever the segment or page shows. The
-table itself reads `pageForSeller()`: the same grouped query, narrowed
-to the segment in a `HAVING` clause, sorted and paged with
-`ORDER BY`/`LIMIT`/`OFFSET` in the query, favorites and conversations
-folded in by a correlated subquery each — a page of rows costs one
-query, whatever page it is. Name and email carry both the account's own
-columns and, alongside them, the latest counted parcel's shipped
-name/email (another correlated subquery); the row builder picks
-whichever the account left null, the fallback `forSeller()`'s own PHP
-fold applies for its unpaged callers. `countForSegment()` is the same
+`Seller\SellerCustomers::tallyFor()` folds every buyer to five figures
+— count, new-since count, repeat count, orders, spent — in one query
+over the grouped aggregate; the tiles above the table read this, so
+they count every buyer whatever the segment or page shows.
+`pageForSeller()` reads the same grouped aggregate narrowed to a
+segment in a `HAVING` clause, wraps it in `fromSub()`, and sorts and
+pages the wrapped query with `ORDER BY`/`LIMIT`/`OFFSET` — wrapping
+first means the sort reads the aggregate's own columns (`orders`,
+`account_name`, …) rather than a bare name resolving against the joined
+`fulfillments`/`orders`/`customers` tables underneath it. Favorites,
+conversations, and a shipped name/email fallback join in as correlated
+subqueries, so a page of rows costs one query, whatever page it is —
+name and email carry the account's own column and, alongside it, the
+latest counted parcel's shipped name/email, and the row builder picks
+whichever the account left null. `countForSegment()` is the same
 `HAVING` wrapped in a `count(*)`, what the pager's page count is built
-from. `forCustomer()` is the unpaged fold narrowed to one person; the
-customer page, the Message button, and the thread rail all read it.
+from. `forSeller()`/`forCustomer()` stay as the unpaged, row-per-buyer
+fold — `forCustomer()` narrowed to one person for the customer page,
+the Message button, and the thread rail; `forSeller()` for the
+dashboard's customer tile, which needs each buyer's own arrival day for
+its sparkline.
 
 ### The customer page
 

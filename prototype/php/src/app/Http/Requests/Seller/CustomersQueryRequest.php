@@ -18,24 +18,23 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
- * The customers tool's query vocabulary, shared by `GET /seller/customers`
- * (`segment`, `sort`, `dir`, `page`) and `GET /seller/customers/{customer}`
- * (`kind`). Customers are evergreen — there is no `range`; the "New this
- * period" segment reads a fixed thirty days
- * ({@see \App\Http\Controllers\Seller\CustomerController}), and a stray
- * `?range=` is a key `rules()` never names, so it validates nothing and
- * changes nothing.
+ * The customers tool's query vocabulary: `segment`, `sort`, `dir`, and
+ * `page` for `GET /seller/customers`; `kind` for
+ * `GET /seller/customers/{customer}`. `rules()` validates the whole set
+ * for both routes, and each route reads what it needs. Customers are
+ * evergreen — there is no `range`; the "New this period" segment reads a
+ * fixed thirty days ({@see \App\Http\Controllers\Seller\CustomerController}),
+ * and a stray `?range=` is a key `rules()` never names, so it validates
+ * nothing and changes nothing.
  *
- * `page` answers 400 three ways a report filter's admin idiom
- * ({@see Page::of()}) does not: `0` and a non-integer fail
- * `rules()`, and {@see self::page()} refuses a page past the end rather
- * than clamping to the last one — the table has no "showing the last
- * page instead" fallback the way a filtered report does.
+ * `0`, a non-integer `page`, and a page past the end all answer 400:
+ * the first two fail `rules()`, and {@see self::page()} refuses the
+ * third itself.
  */
 final class CustomersQueryRequest extends SellerQueryRequest
 {
-    /** DECISIONS.md decision 4: fifty rows a page. */
-    public const int PAGE_SIZE = 50;
+    /** Fifty rows a page. */
+    private const int PAGE_SIZE = 50;
 
     /**
      * The index route binds no customer; the show route's own customer
@@ -71,18 +70,26 @@ final class CustomersQueryRequest extends SellerQueryRequest
         return $this->enum('segment', CustomerSegment::class) ?? CustomerSegment::default();
     }
 
+    /** The column the table sorts by. */
+    public function sortColumn(): CustomerSortColumn
+    {
+        return $this->enum('sort', CustomerSortColumn::class) ?? CustomerSortColumn::default();
+    }
+
+    /** The direction the table sorts in. */
+    public function sortDirection(): SortDirection
+    {
+        return $this->enum('dir', SortDirection::class) ?? SortDirection::Desc;
+    }
+
     /**
-     * Any `sort` or `dir` in the query sets the sort; neither present keeps the default.
+     * The column and direction together, for the chrome's column headers.
      *
      * @return TableSort<CustomerRow>
      */
     public function sort(): TableSort
     {
-        $column = $this->enum('sort', CustomerSortColumn::class);
-        $direction = $this->enum('dir', SortDirection::class);
-        $default = CustomerSortColumn::defaultSort();
-
-        return TableSort::of($column ?? $default->column, $direction ?? $default->direction);
+        return TableSort::of($this->sortColumn(), $this->sortDirection());
     }
 
     /** The timeline's filter. Absent is the whole feed. */
@@ -92,11 +99,11 @@ final class CustomersQueryRequest extends SellerQueryRequest
     }
 
     /**
-     * The page of {@see PAGE_SIZE} the seller asked for, off `$totalCount`
-     * matching buyers. `rules()` already refused `0` and a non-integer;
-     * a page past the end is this method's own refusal — unlike
-     * `Page::of()`'s own clamp, the table has nothing sane to fall back
-     * to when the page asked for holds no rows.
+     * The page of fifty the seller asked for, off `$totalCount` matching
+     * buyers. A page past the end refuses rather than clamping to the
+     * last one, the way `Page::of()`'s own admin callers do — the table
+     * has nothing sane to fall back to when the page asked for holds no
+     * rows.
      */
     public function page(int $totalCount): Page
     {

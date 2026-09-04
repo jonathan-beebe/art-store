@@ -39,8 +39,8 @@ it('carries the flipped direction on the sorted column and descending on every o
 it('drops sort and dir from the round-tripped filters a header link carries', function (): void {
     $sort = ListingSortColumn::defaultSort();
 
-    $headers = ColumnHeaders::for('seller.listings.index', ['sort' => 'price', 'dir' => 'asc', 'range' => '7'], $sort, [ListingSortColumn::Views]);
+    $headers = ColumnHeaders::for('seller.listings.index', ['sort' => 'price', 'dir' => 'asc', 'view' => 'table'], $sort, [ListingSortColumn::Views]);
 
-    expect($headers[0]->href)->toContain('range=7')
+    expect($headers[0]->href)->toContain('view=table')
         ->and($headers[0]->href)->toContain('sort=views');
 });

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Domain\Seller;
 
 use App\Domain\Money\Money;
-use DateTimeImmutable;
 
 /**
  * The four figures above the customers table. They count every buyer the
@@ -24,17 +23,14 @@ final readonly class CustomerTally
         public int $unreadConversations,
     ) {}
 
-    /**
-     * @param  list<CustomerRow>  $rows  every buyer, unfiltered
-     */
-    public static function of(array $rows, DateTimeImmutable $rangeStart, int $openConversations, int $unreadConversations): self
+    public static function of(CustomerTallyFacts $facts, int $openConversations, int $unreadConversations): self
     {
         return new self(
-            customers: count($rows),
-            newThisPeriod: count(array_filter($rows, fn (CustomerRow $row): bool => $row->isNewSince($rangeStart))),
-            repeatBuyers: count(array_filter($rows, fn (CustomerRow $row): bool => $row->isRepeatBuyer())),
-            orders: array_sum(array_map(fn (CustomerRow $row): int => $row->orders, $rows)),
-            spentCents: array_sum(array_map(fn (CustomerRow $row): int => $row->spentCents, $rows)),
+            customers: $facts->customers,
+            newThisPeriod: $facts->newThisPeriod,
+            repeatBuyers: $facts->repeatBuyers,
+            orders: $facts->orders,
+            spentCents: $facts->spentCents,
             openConversations: $openConversations,
             unreadConversations: $unreadConversations,
         );

@@ -32,7 +32,7 @@
 
     <div class="mt-5 overflow-x-auto rounded border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
         <table class="w-full text-left">
-            <caption class="sr-only">Every buyer, with their orders, spend, favorites, last order, conversations, and first order</caption>
+            <caption class="sr-only">Buyers, with their orders, spend, favorites, last order, conversations, and first order</caption>
             <thead class="border-b border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                 <tr>
                     @foreach ($chrome->columnHeaders as $header)

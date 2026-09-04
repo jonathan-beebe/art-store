@@ -18,6 +18,7 @@ use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingCreationShape;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
+use App\Domain\Seller\EvergreenWindow;
 use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingView;
 use App\Domain\Seller\RowSort;
@@ -44,9 +45,6 @@ final class ListingController extends SellerController
 {
     private const int ACTIVITY_STRIP_HEIGHT_PX = 72;
 
-    /** Listings are evergreen; every ranged figure on the tool reads this fixed window. */
-    private const int ANALYTICS_WINDOW_DAYS = 30;
-
     public function index(ListingsQueryRequest $request): View
     {
         $view = $request->view();
@@ -64,7 +62,7 @@ final class ListingController extends SellerController
             ]);
         }
 
-        $range = AnalyticsRange::of(self::ANALYTICS_WINDOW_DAYS, $this->now());
+        $range = AnalyticsRange::of(EvergreenWindow::DAYS, $this->now());
         $rows = RowSort::apply($sort, ListingTable::forSeller($this->seller(), $range), fn (ListingTableRow $row): string => $row->id);
 
         return view('seller.listings.index', [
@@ -129,7 +127,7 @@ final class ListingController extends SellerController
         $from = $request->from();
         $view = $from ?? ListingView::List;
         $sort = $request->sort();
-        $range = AnalyticsRange::of(self::ANALYTICS_WINDOW_DAYS, $this->now());
+        $range = AnalyticsRange::of(EvergreenWindow::DAYS, $this->now());
 
         if ($from === null) {
             $chrome = ListingsChrome::build($request->roundTripped(), $view, $sort);

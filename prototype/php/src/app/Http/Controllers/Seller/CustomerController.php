@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Seller;
 
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Seller\CustomerTally;
+use App\Domain\Seller\EvergreenWindow;
 use App\Http\Requests\Seller\CustomersQueryRequest;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -29,28 +30,25 @@ use Illuminate\View\View;
  */
 final class CustomerController extends SellerController
 {
-    /** Customers are evergreen; "New this period" reads this fixed window. */
-    private const int NEW_BUYER_WINDOW_DAYS = 30;
-
     public function index(CustomersQueryRequest $request): View
     {
         $seller = $this->seller();
-        $newSince = AnalyticsRange::of(self::NEW_BUYER_WINDOW_DAYS, $this->now())->start;
+        $newSince = AnalyticsRange::of(EvergreenWindow::DAYS, $this->now())->start;
         $segment = $request->customerSegment();
         $sort = $request->sort();
         $roundTripped = $request->roundTripped();
 
-        $tallyRows = SellerCustomers::forSeller($seller);
+        $facts = SellerCustomers::tallyFor($seller, $newSince);
         $counts = SellerCustomers::conversationCounts($seller);
 
         $total = SellerCustomers::countForSegment($seller, $segment, $newSince);
         $page = $request->page($total);
 
         return view('seller.customers.index', [
-            'rows' => SellerCustomers::pageForSeller($seller, $segment, $newSince, $sort, $page->limit, $page->offset),
-            'tally' => CustomerTally::of($tallyRows, $newSince, $counts->open, $counts->unread),
+            'rows' => SellerCustomers::pageForSeller($seller, $segment, $newSince, $request->sortColumn(), $request->sortDirection(), $page->limit, $page->offset),
+            'tally' => CustomerTally::of($facts, $counts->open, $counts->unread),
             'chrome' => CustomersChrome::build($roundTripped, $segment, $sort),
-            'rangeDays' => self::NEW_BUYER_WINDOW_DAYS,
+            'rangeDays' => EvergreenWindow::DAYS,
             'page' => $page,
             'pagerQuery' => $roundTripped,
         ]);

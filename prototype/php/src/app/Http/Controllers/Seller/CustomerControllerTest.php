@@ -433,12 +433,3 @@ it('IMPRV-038 carries the segment and sort through the pagers next link', functi
         'page' => '2',
     ]);
 });
-
-it('IMPRV-038 answers 400 for a page past the end', function (): void {
-    $seller = $this->seller('The Burrow Craftworks');
-    $this->paidFulfillmentFor($seller, Customer::factory()->create());
-
-    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
-
-    $response->assertStatus(400);
-});
