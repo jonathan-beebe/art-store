@@ -46,6 +46,32 @@ it('closes the gap between bars once the series passes thirty-one days', functio
         ->and($html)->not->toContain('width="2"');
 });
 
+it('IMPRV-039 draws every bar from the strip\'s bottom edge with no baseline line when baseline is omitted', function (): void {
+    $bars = [new BarStripBar(10, 'day')];
+
+    $html = (string) $this->blade('<x-bar-strip :bars="$bars" :height="26" />', ['bars' => $bars]);
+
+    expect($html)->not->toContain('<line')
+        ->and($html)->toContain('y="16"');
+});
+
+it('IMPRV-039 rises a positive bar from the given baseline and drops a negative one below it', function (): void {
+    $bars = [
+        new BarStripBar(height: 30, tip: 'up', negative: false),
+        new BarStripBar(height: 20, tip: 'down', negative: true),
+    ];
+
+    $html = (string) $this->blade('<x-bar-strip :bars="$bars" :height="100" :baseline="60" />', ['bars' => $bars]);
+
+    preg_match_all('/y="(-?\d+)"/', $html, $matches);
+
+    expect(array_map('intval', $matches[1]))->toBe([30, 60])
+        ->and(substr_count($html, '<line'))->toBe(1)
+        ->and($html)->toContain('y1="60"')
+        ->and($html)->toContain('y2="60"')
+        ->and(substr_count($html, 'text-red-600 dark:text-red-500'))->toBe(1);
+});
+
 it('IMPRV-030 carries role=img and aria-labelledby when the caller names a heading', function (): void {
     $bars = [new BarStripBar(10, 'Aug 1: 0')];
 

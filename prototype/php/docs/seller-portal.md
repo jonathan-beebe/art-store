@@ -334,7 +334,7 @@ what a visitor with the script blocked uses.
 A table or grid row links to `/seller/listings/{id}?from=table` (or
 `grid`). `ListingController::show()` renders one view,
 `seller/listings/detail-overlay.blade.php`, carrying three blocks: the
-listings workspace (`hidden … 2xl:block`), a native `<dialog>` over it
+listings workspace (`hidden … 2xl:flex`), a native `<dialog>` over it
 (`hidden … 2xl:flex`), and a takeover of the content area (`2xl:hidden`)
 with a back link. Tailwind's `2xl:` variants pick which shows.
 
@@ -673,6 +673,13 @@ first, whatever its status — the rows behind both the current period's
 sales table and `StatementController`'s printable statement
 (`/seller/earnings/statements/{period}`). A period outside the window, or
 a string matching none in it, answers 404.
+
+`EarningsPeriods::netStrip()` charts the window's `net()` figures through
+`BarStrip::baseline()`, one bar per period against a zero baseline; a loss
+period's bar drops below the line, tinted the same red `bar-strip` gives a
+flagged actor's hourly bar elsewhere. An `sr-only` list beside the strip
+carries every bar's tooltip for assistive technology, since `role="img"`
+(from the strip's `labelledby`) hides the SVG's own `<title>`s.
 
 ## Support
 

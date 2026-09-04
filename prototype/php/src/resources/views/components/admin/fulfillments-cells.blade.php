@@ -1,7 +1,7 @@
 {{-- The fulfillments list pane's cells, in the shared pane-row shape: the
      seller leads — whose work it is — because that is the shop a founder
      is tracking; the muted line is the scan line — who it ships to and the
-     seller's net; the status pill (`FulfillmentStatus::sellerBadgeTint()`,
+     seller's net; the status pill (`FulfillmentStatus::badgeTint()`,
      the one tint both portals read) and the shipped (or created) date sit
      in the meta column. --}}
 @props(['fulfillments', 'selected' => null])
@@ -10,7 +10,7 @@
     @forelse ($fulfillments as $fulfillment)
         @php
             $isSelected = $selected !== null && $selected->id === $fulfillment->id;
-            $tint = $fulfillment->status->sellerBadgeTint();
+            $tint = $fulfillment->status->badgeTint();
             $when = $fulfillment->shipped_at ?? $fulfillment->created_at;
         @endphp
         <x-pane-row

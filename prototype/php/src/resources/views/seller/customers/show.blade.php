@@ -55,7 +55,7 @@
                                     <span class="block truncate font-medium text-gray-900 dark:text-gray-100">{{ $fulfillment->itemLabel() }}</span>
                                     <span class="block text-xs/5 text-gray-500 dark:text-gray-400">{{ $fulfillment->order->placed_at?->format('M j, Y') }} &middot; {{ $fulfillment->subtotal()->format() }}</span>
                                 </span>
-                                <x-seller.status-badge :tint="$fulfillment->status->sellerBadgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
+                                <x-seller.status-badge :tint="$fulfillment->status->badgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
                             </a>
                         </li>
                     @empty

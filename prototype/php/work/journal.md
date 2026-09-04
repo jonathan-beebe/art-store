@@ -6,7 +6,7 @@
 - DSGN: 11
 - ARCH: 1
 - FEAT: 65
-- IMPRV: 41
+- IMPRV: 43
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,16 @@
 
 ## Log
 
+- 2026-09-04:16:09:06 — IMPRV-042 — defined: The earnings net-per-period bars don't line up with their date labels
+- 2026-09-04:16:09:06 — IMPRV-041 — defined: The admin listing tint disagrees with ListingStatus's own badge
+- 2026-09-04:16:06:30 — IMPRV-036 — review fix: the workspace/dialog/takeover structural tests run as a dataset over table and grid; the grid route's weak <dialog> string assertion is gone
+- 2026-09-04:16:03:48 — IMPRV-039 — review fix: BarStrip::baseline() clamps each bar to its own side's budget, an sr-only list carries the per-bar tooltips, netStrip() moves to the controller with heightPx on BarStripBaseline
+- 2026-09-04:15:36:10 — IMPRV-039 — resolved: `BarStrip::baseline()` + `BarStripBaseline`, `bar-strip.blade.php` gains a `baseline` prop, earnings net-per-period chart now renders through `x-bar-strip`, `EarningsPeriods::tallestNet()` replaced by `netStrip()`
+- 2026-09-04:15:35:00 — IMPRV-039 — started
+- 2026-09-04:15:30:27 — IMPRV-036 — resolved: overlay/takeover viewport coverage rewritten as DomCrawler structural tests, `docs/seller-portal.md` corrected to `2xl:flex`
+- 2026-09-04:15:30:00 — IMPRV-036 — started
+- 2026-09-04:15:23:48 — IMPRV-034 — resolved: `sellerBadgeTint()` renamed to `badgeTint()`, every seller and admin caller and the test updated
+- 2026-09-04:14:30:06 — IMPRV-034 — started
 - 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:12:06:48 — FEAT-064 — defined: A seller can keep more than one fulfillment flow and pick one per listing
 - 2026-09-04:15:00:00 — IMPRV-030 — resolved: ten commits — external scripts for the CSP (mobile nav, admin drawer, New listing), the thread rail at 2xl, the listings detail dialog a real modal at 2xl (owner kept it), unpublished support facts as text, dark-mode print fixes plus a no-JS print fallback, bar-strip names and four other accessible-name fixes, six help-article corrections, FeedTest on data- markers, and two owner-walk fixes (store picture Remove overlap, empty vs "new" Sales change); make check green

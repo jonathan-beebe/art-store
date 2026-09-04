@@ -89,6 +89,32 @@ it('shows the carried-balance badge once a refund after payout leaves the balanc
     expect($seller->refresh()->escrowBalance()->available->isPositive())->toBeFalse();
 });
 
+it('IMPRV-039 charts the net-per-period window through x-bar-strip, a loss period tinted and named by its sign', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->deliveredFulfillmentFor(
+        $seller,
+        priceCents: 10_000,
+        orderedAt: $this->moment('2026-08-11 09:00:00'),
+        shippedAt: $this->moment('2026-08-11 12:00:00'),
+        deliveredAt: $this->moment('2026-08-12 10:00:00'),
+    );
+    // The sale belongs to the period it was placed in; only backdating it
+    // there leaves the refunded period with nothing of its own to net it
+    // against.
+    $fulfillment->order()->update(['placed_at' => $this->moment('2026-08-11 09:00:00')]);
+    app(RunWeeklyPayout::class)($this->moment('2026-08-17 09:00:00'));
+    app(RefundFulfillment::class)($fulfillment->refresh(), $this->admin(), 'Dispute resolved for the buyer.', $this->moment('2026-08-18 10:00:00'));
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/earnings');
+    $content = (string) $response->getContent();
+
+    $response->assertOk();
+    expect($content)->toContain('<svg')
+        ->and($content)->toContain('text-red-600 dark:text-red-500')
+        ->and($content)->toMatch('/-\$[\d,]+\.\d\d, a net loss/')
+        ->and($content)->not->toContain('bg-red-500');
+});
+
 it('links a past period to its statement page', function (): void {
     $seller = $this->seller();
 

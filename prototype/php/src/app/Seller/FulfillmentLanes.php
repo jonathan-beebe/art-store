@@ -66,7 +66,7 @@ final readonly class FulfillmentLanes
             itemLabel: $fulfillment->itemLabel(),
             subtotal: $fulfillment->subtotal()->format(),
             statusLabel: $fulfillment->status->label(),
-            tint: $fulfillment->status->sellerBadgeTint(),
+            tint: $fulfillment->status->badgeTint(),
             placed: $fulfillment->order->placed_at->format('M j'),
             note: $notes[$fulfillment->id] ?? null,
         ), $fulfillments->all());

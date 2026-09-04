@@ -120,10 +120,28 @@ it('reads a completed period with no payout row as settled at zero', function ()
     expect($periods->settlementOf($periods->past()[0])->status)->toBe(PeriodPayoutStatus::None);
 });
 
-it('never returns a zero tallest net, even over an empty window', function (): void {
+it('charts the window as one bar per period, even when every period is empty', function (): void {
     $seller = $this->seller();
 
     $periods = EarningsPeriods::for($seller, $this->moment('2026-08-19 09:00:00'));
+    $strip = $periods->netStrip(160);
 
-    expect($periods->tallestNet()->cents)->toBeGreaterThanOrEqual(1);
+    expect($strip->bars)->toHaveCount(8)
+        ->and($strip->baselinePx)->toBe(160);
+});
+
+it('names a loss period\'s bar with the minus sign Money::format() already carries, plus "a net loss"', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->paidFulfillmentFor($seller, priceCents: 10_000, paidAt: $this->moment('2026-08-11 10:00:00'));
+    $fulfillment->order()->update(['placed_at' => $this->moment('2026-08-11 10:00:00')]);
+    // Refunded the following period: that period has the refund and no sale of its own, so its net is negative.
+    app(DeclineFulfillment::class)($fulfillment->refresh(), 'Buyer changed their mind.', $this->moment('2026-08-18 10:00:00'));
+
+    $periods = EarningsPeriods::for($seller, $this->moment('2026-08-19 09:00:00'));
+    $lossBar = $periods->netStrip(160)->bars[count($periods->periods) - 1];
+
+    expect($periods->current()->net()->cents)->toBeLessThan(0)
+        ->and($lossBar->tip)->toContain('-$90.00')
+        ->and($lossBar->tip)->toContain('a net loss')
+        ->and($lossBar->negative)->toBeTrue();
 });

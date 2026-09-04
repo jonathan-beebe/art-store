@@ -1,7 +1,7 @@
 ---
 id: IMPRV-034
 type: improvement
-status: open
+status: resolved
 created: 2026-09-04
 ---
 
@@ -27,3 +27,12 @@ A name that claims one owner when there are two invites a second, disagreeing co
 ## Related work
 - FEAT-053 (converged the admin views onto this method)
 - FEAT-055 (found and left the naming behind)
+
+## Working
+`FulfillmentStatus::sellerBadgeTint()` renamed to `badgeTint()`; docblock kept
+as-is (already named both portals). Every caller updated: `FulfillmentLanes`,
+the six seller/admin views, and the test (name and dataset description
+dropped "seller-portal"). `App\Domain\Listings\ListingStatus::sellerBadgeTint()`
+left untouched — a different method on a different enum, seller-only, outside
+this ticket. Scoped `FulfillmentStatusTest.php` + `FulfillmentLanesTest.php`:
+44 passed. `make precommit` green (pre-commit hook, this commit).
