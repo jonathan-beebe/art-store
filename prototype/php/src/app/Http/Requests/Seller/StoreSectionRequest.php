@@ -27,6 +27,23 @@ use Stringable;
  */
 final class StoreSectionRequest extends FormRequest
 {
+    /**
+     * Every section on the Store screen posts its own form under the same
+     * field names, so the errors from one save go into a bag named for the
+     * section that failed. The page reads that bag beside that section and
+     * leaves the others untouched.
+     */
+    protected function prepareForValidation(): void
+    {
+        $this->errorBag = self::errorBagFor($this->section());
+    }
+
+    /** The bag a section's own errors land in. */
+    public static function errorBagFor(?StoreSection $section): string
+    {
+        return $section instanceof StoreSection ? 'section-'.$section->id : 'section-new';
+    }
+
     public function authorize(): Response
     {
         return Gate::inspect('update', $this->storeProfile());
@@ -58,14 +75,16 @@ final class StoreSectionRequest extends FormRequest
                 'distinct',
                 Rule::exists('store_images', 'id')->where('store_profile_id', $this->storeProfile()->id),
             ];
+            $rules['order'] = ['array'];
+            $rules['order.*'] = ['integer', 'min:0', 'max:'.StoreSection::MAX_GALLERY_IMAGES];
         }
 
         return $rules;
     }
 
     /**
-     * The fields a kind does not use are refused rather than ignored, so a
-     * form that sends a body to a gallery hears about it.
+     * A field the kind does not use is an error, so a form that sends a
+     * body to a gallery hears about it.
      */
     public function withValidator(Validator $validator): void
     {
@@ -112,8 +131,9 @@ final class StoreSectionRequest extends FormRequest
     }
 
     /**
-     * The store's pictures this gallery places, in the order the form sent
-     * them.
+     * The store's pictures this gallery places, in the order the seller
+     * numbered them. A picture the form sent no number for sorts last,
+     * keeping the order the checkboxes arrived in.
      *
      * @return list<string>
      */
@@ -125,7 +145,37 @@ final class StoreSectionRequest extends FormRequest
             return [];
         }
 
-        return array_values(array_filter($ids, is_string(...)));
+        /** @var list<string> $chosen */
+        $chosen = array_values(array_filter($ids, is_string(...)));
+        $order = $this->order();
+
+        usort($chosen, fn (string $a, string $b): int => ($order[$a] ?? PHP_INT_MAX) <=> ($order[$b] ?? PHP_INT_MAX));
+
+        return $chosen;
+    }
+
+    /**
+     * The place the seller typed against each picture, keyed by picture id.
+     *
+     * @return array<string, int>
+     */
+    private function order(): array
+    {
+        $order = $this->input('order');
+
+        if (! is_array($order)) {
+            return [];
+        }
+
+        $places = [];
+
+        foreach ($order as $imageId => $place) {
+            if (is_string($imageId) && is_numeric($place)) {
+                $places[$imageId] = (int) $place;
+            }
+        }
+
+        return $places;
     }
 
     public function storeProfile(): StoreProfile

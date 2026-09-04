@@ -15,7 +15,7 @@ it('requires a valid kind for a new section', function (array $overrides): void 
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', $overrides);
 
-    $response->assertSessionHasErrors('kind');
+    $response->assertSessionHasErrors('kind', errorBag: StoreSectionRequest::errorBagFor(null));
 })->with([
     'no kind at all' => [[]],
     'an unrecognized kind' => [['kind' => 'faq']],
@@ -46,7 +46,7 @@ it('refuses images on a story section', function (): void {
         'images' => [$image->id],
     ]);
 
-    $response->assertSessionHasErrors('images');
+    $response->assertSessionHasErrors('images', errorBag: StoreSectionRequest::errorBagFor(null));
 });
 
 it('accepts a gallery section with a heading and images', function (): void {
@@ -74,7 +74,7 @@ it('refuses a body on a gallery section', function (): void {
         'body' => 'Not allowed here.',
     ]);
 
-    $response->assertSessionHasErrors('body');
+    $response->assertSessionHasErrors('body', errorBag: StoreSectionRequest::errorBagFor(null));
 });
 
 it('refuses a body past the length ceiling', function (): void {
@@ -86,7 +86,7 @@ it('refuses a body past the length ceiling', function (): void {
         'body' => str_repeat('a', StoreSection::MAX_BODY_LENGTH + 1),
     ]);
 
-    $response->assertSessionHasErrors('body');
+    $response->assertSessionHasErrors('body', errorBag: StoreSectionRequest::errorBagFor(null));
 });
 
 it('refuses more images than a gallery holds', function (): void {
@@ -102,7 +102,7 @@ it('refuses more images than a gallery holds', function (): void {
         'images' => $images->pluck('id')->all(),
     ]);
 
-    $response->assertSessionHasErrors('images');
+    $response->assertSessionHasErrors('images', errorBag: StoreSectionRequest::errorBagFor(null));
 });
 
 it('refuses an image id belonging to another stores profile', function (): void {
@@ -115,7 +115,7 @@ it('refuses an image id belonging to another stores profile', function (): void 
         'images' => [$foreignImage->id],
     ]);
 
-    $response->assertSessionHasErrors('images.0');
+    $response->assertSessionHasErrors('images.0', errorBag: StoreSectionRequest::errorBagFor(null));
 });
 
 it('refuses a thirteenth section with its cap message', function (): void {
@@ -130,9 +130,10 @@ it('refuses a thirteenth section with its cap message', function (): void {
         'kind' => StoreSectionKind::Story->value,
     ]);
 
-    $response->assertSessionHasErrors([
-        'kind' => 'This store page already holds '.StoreSection::MAX_PER_PROFILE.' sections, the most allowed.',
-    ]);
+    $response->assertSessionHasErrors(
+        ['kind' => 'This store page already holds '.StoreSection::MAX_PER_PROFILE.' sections, the most allowed.'],
+        errorBag: StoreSectionRequest::errorBagFor(null),
+    );
     expect(StoreSection::where('store_profile_id', $profile->id)->count())->toBe(StoreSection::MAX_PER_PROFILE);
 });
 

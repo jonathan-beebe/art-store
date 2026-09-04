@@ -2,6 +2,7 @@
     use App\Domain\Store\StorePictureRole;
     use App\Domain\Store\StoreSectionField;
     use App\Domain\Store\StoreVisibility;
+    use App\Http\Requests\Seller\StoreSectionRequest;
 
     $panel = 'rounded-lg border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900';
     $sectionRow = 'grid gap-8 p-6 lg:grid-cols-[220px_minmax(0,1fr)]';
@@ -162,14 +163,22 @@
                                     @endforeach
                                 </select>
                             </div>
+                            <div class="min-w-56 flex-1">
+                                <label for="alt" class="{{ $label }}">Describe it</label>
+                                <input id="alt" name="alt" type="text" maxlength="255" value="{{ old('alt') }}"
+                                       placeholder="The wheel by the window" class="{{ $input }}">
+                            </div>
                             <button type="submit" class="{{ $secondary }}">Add</button>
                         </form>
+                        <p class="{{ $hint }}">The description is what a screen reader reads in place of the picture.</p>
                         <p class="{{ $hint }}">JPEG, PNG, WebP, or GIF up to 5 MB. Up to {{ $maxImages }} pictures.</p>
                     @else
                         <p class="{{ $hint }}">This store already holds {{ $maxImages }} pictures, the most allowed.</p>
                     @endif
 
                     @error('image')<p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                    @error('alt')<p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                    @error('role')<p class="text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                 </div>
             </section>
 
@@ -180,6 +189,16 @@
                 </div>
                 <div class="flex flex-col gap-5">
                     @forelse ($profile->sections as $section)
+                        @php
+                            // A save that failed flashed its input and put
+                            // its errors in this section's own bag. The
+                            // section that failed shows what the seller
+                            // typed; every other one shows what is stored.
+                            $bag = $errors->getBag(StoreSectionRequest::errorBagFor($section));
+                            $failed = $bag->any();
+                            $typed = fn (string $field, ?string $stored): ?string => $failed ? old($field, $stored) : $stored;
+                        @endphp
+
                         <form method="POST" action="{{ route('seller.store.sections.update', $section) }}"
                               class="rounded-md border border-gray-200 p-4 dark:border-white/10">
                             @csrf
@@ -196,33 +215,64 @@
                                 <div class="mt-3">
                                     <label for="heading-{{ $section->id }}" class="{{ $label }}">Heading</label>
                                     <input id="heading-{{ $section->id }}" name="heading" type="text" maxlength="255"
-                                           value="{{ $section->heading }}" class="{{ $input }}">
+                                           value="{{ $typed('heading', $section->heading) }}" class="{{ $input }}">
+                                    @if ($bag->has('heading'))
+                                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag->first('heading') }}</p>
+                                    @endif
                                 </div>
                             @endif
 
                             @if ($section->kind->allows(StoreSectionField::Body))
                                 <div class="mt-3">
                                     <label for="body-{{ $section->id }}" class="{{ $label }}">Your story</label>
-                                    <textarea id="body-{{ $section->id }}" name="body" rows="8" maxlength="{{ $maxBodyLength }}"
-                                              class="{{ $input }} resize-y">{{ $section->body }}</textarea>
+                                    {{-- No `maxlength`: the browser would truncate silently, and the
+                                         request has the ceiling and a message for going past it. --}}
+                                    <textarea id="body-{{ $section->id }}" name="body" rows="8"
+                                              class="{{ $input }} resize-y">{{ $typed('body', $section->body) }}</textarea>
                                     <p class="{{ $hint }}">Who you are, how you work, why you make what you make. Up to {{ number_format($maxBodyLength) }} characters.</p>
+                                    @if ($bag->has('body'))
+                                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag->first('body') }}</p>
+                                    @endif
                                 </div>
                             @endif
 
                             @if ($section->kind->allows(StoreSectionField::Images))
-                                @php($placed = $section->sectionImages->pluck('store_image_id')->all())
+                                @php
+                                    // The place each picture already holds in
+                                    // this gallery, so the number beside a
+                                    // checked picture is the one the page
+                                    // renders it at.
+                                    $placedAt = $section->sectionImages
+                                        ->pluck('position', 'store_image_id')
+                                        ->all();
+                                @endphp
                                 <fieldset class="mt-3">
                                     <legend class="{{ $label }}">Pictures in this gallery</legend>
                                     <div class="mt-2 grid grid-cols-4 gap-3 sm:grid-cols-6">
                                         @foreach ($images as $image)
-                                            <label class="relative cursor-pointer">
-                                                <img src="{{ $image->url() }}" alt="{{ $image->alt ?? '' }}" class="aspect-square w-full rounded-md object-cover">
-                                                <input type="checkbox" name="images[]" value="{{ $image->id }}"
-                                                       class="absolute top-1 left-1 accent-indigo-600" @checked(in_array($image->id, $placed, true))>
-                                            </label>
+                                            @php($place = $placedAt[$image->id] ?? null)
+                                            <div class="relative">
+                                                <label class="block cursor-pointer">
+                                                    <img src="{{ $image->url() }}" alt="{{ $image->alt ?? '' }}" class="aspect-square w-full rounded-md object-cover">
+                                                    <input type="checkbox" name="images[]" value="{{ $image->id }}"
+                                                           class="absolute top-1 left-1 accent-indigo-600" @checked($place !== null)>
+                                                    <span class="sr-only">Show {{ $image->alt ?? 'this picture' }} in this gallery</span>
+                                                </label>
+                                                <label class="mt-1 block">
+                                                    <span class="sr-only">Its place in the gallery</span>
+                                                    <input type="number" name="order[{{ $image->id }}]" min="0" max="{{ $maxGalleryImages }}"
+                                                           value="{{ $failed ? old('order.'.$image->id, $place) : $place }}"
+                                                           class="{{ $input }} mt-0 px-1.5 py-0.5 text-center text-xs">
+                                                </label>
+                                            </div>
                                         @endforeach
                                     </div>
-                                    <p class="{{ $hint }}">Up to {{ $maxGalleryImages }}.</p>
+                                    <p class="{{ $hint }}">Tick the pictures to show and number them from 0. Up to {{ $maxGalleryImages }}.</p>
+                                    @foreach (['images', 'images.*', 'order.*'] as $key)
+                                        @if ($bag->has($key))
+                                            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $bag->first($key) }}</p>
+                                        @endif
+                                    @endforeach
                                 </fieldset>
                             @endif
                         </form>
