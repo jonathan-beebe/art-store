@@ -42,4 +42,14 @@ final readonly class RangeChange
 
         return new self($sign.number_format(abs($percent), 1).'%', $direction);
     }
+
+    /**
+     * Nothing to compare: a caller that already knows both ranges are
+     * zero renders this instead of `between()`'s "new", which reads as a
+     * count that showed up rather than one that never did.
+     */
+    public static function empty(): self
+    {
+        return new self('', ChangeDirection::Flat);
+    }
 }

@@ -39,3 +39,10 @@ it('reads two zero counts as flat', function (): void {
     expect($change->text)->toBe('new')
         ->and($change->direction)->toBe(ChangeDirection::Flat);
 });
+
+it('IMPRV-030 renders empty for a caller that already knows there is nothing to compare', function (): void {
+    $change = RangeChange::empty();
+
+    expect($change->text)->toBe('')
+        ->and($change->direction)->toBe(ChangeDirection::Flat);
+});
