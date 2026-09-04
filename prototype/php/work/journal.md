@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:07:00:00 — FEAT-055 — started: The dashboard opens on three tiles, listing activity, and what needs attention
 - 2026-09-04:02:05:00 — MAINT-008 — resolved: alignment §1/§2.3/§4.1/§4.4/§4.5/§8, both ontologies, seller-portal.md's intro and Data section, data-model.md's nine tables, one docs README row, node FEAT-023 and rails FEAT-022 filed, four help articles verified and three corrected; precommit green, 4758 tests
 - 2026-09-04:01:10:00 — MAINT-008 — started: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-04:06:00:00 — FEAT-053 — reviewed: review-pass fixes (steps say who and when, completeStep policy, OrderDetail adapter, generic ListPaneWindow, aggregate customer card, query-count tests)
