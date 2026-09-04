@@ -93,7 +93,7 @@ both come from. An empty group shows a sentence in place of its rows:
 ### What the dashboard costs
 
 The page reads six queues across two connections and renders on a fixed
-number of queries however many rows a seller holds, which one test pins.
+number of queries at any row count, which one test pins.
 Two reads are duplicated by design: `Seller::escrowBalance()` is folded
 once for the payout estimate and once for `HeldEscrow::tallyFor()`, and
 the parcels waiting to ship are counted once for the orders tile's footer
@@ -632,14 +632,14 @@ seller's own flow steps are a separate lane, not read here. The total is
 the period `$now` falls in. Sales and fees fold from live fulfillments
 (`FulfillmentStatus::isLive()`) grouped by `orders.placed_at`; refunds fold
 from `ledger_entries` of type `refunded` grouped by `occurred_at`, so a
-refund lands in the period it happened rather than its sale's period. A
-declined or refunded order still counts toward `orderCount` for the period
-placed; it earns no sales or fees.
+refund lands in the period it happened. A declined or refunded order
+still counts toward `orderCount` for the period placed; it earns no
+sales or fees.
 
 `PeriodSettlement` reads a period's payout status from whether it is the
 period in progress and whether a `payouts` row exists for it — a completed
-period with no row reads as settled at zero (`RunWeeklyPayout` never
-writes one for a balance that was not payable) rather than a run still owed.
+period with no row reads as settled at zero, `RunWeeklyPayout`'s answer
+for a balance that was never payable.
 
 `PeriodSales::for()` lists every order placed inside one period, newest
 first, whatever its status — the rows behind both the current period's

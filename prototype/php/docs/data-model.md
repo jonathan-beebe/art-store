@@ -439,9 +439,9 @@ Caveats:
   folds the seller, customer, and fulfillment ids into one non-null string
   (`fulfillment:s…:c…:f…`) so a composite unique index need not lean on
   three nullable columns, where SQL treats null as distinct from null. It is
-  the one kind that finds rather than opens: `AdminSeller`, `AdminCustomer`,
-  and `ListingQuestion` open a fresh row every time and carry a `title`
-  instead, with no `subject_key`. An anonymous-customer merge moves
+  the one kind whose thread is found again on a second ask; `AdminSeller`,
+  `AdminCustomer`, and `ListingQuestion` open a fresh row every time and
+  carry a `title`, with no `subject_key`. An anonymous-customer merge moves
   `customer_id` and `subject_key` together — see `docs/messaging.md` §
   "The merge".
 - `conversations.resolved_at` / `resolved_by_type` / `resolved_by_id` record

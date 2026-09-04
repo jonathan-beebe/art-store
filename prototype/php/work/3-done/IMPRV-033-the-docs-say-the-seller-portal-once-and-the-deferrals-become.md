@@ -103,18 +103,17 @@ Named the flow editor (`GET/PUT /seller/orders/flow`) and the label page
 — the doc previously omitted both, per audit §5.
 
 Every class name and route left in the doc was grep-verified against
-`prototype/php/src`. Four names are forward-looking, disclosed in one
-note under the title rather than scattered per mention: `SellerQueryRequest`
-(IMPRV-032's shared base for the five `*QueryRequest` classes the doc
-names individually today), `NavLink` (IMPRV-032's replacement for
+`prototype/php/src`. Four names are forward-looking, disclosed once in
+one note under the title: `SellerQueryRequest` (IMPRV-032's shared base
+for the five `*QueryRequest` classes the doc names individually today),
+`NavLink` (IMPRV-032's replacement for
 `ViewLink`/`SegmentLink`/`FeedKindLink`/`LaneTab`, which the doc still
 names where they appear), `Fulfillment::live()`/`counted()` (IMPRV-031's
 consolidation of the paid/live rule the doc states inline in three places
 — Listings' "Sold and revenue are all-time", Customers' derivation
-paragraph, Dashboard's "Orders and earnings" paragraph — left as prose
-rather than renamed, since neither method exists yet), and
-`App\Seller\Store` (IMPRV-032's rename of `App\Support\Store`, which the
-doc still uses since that is the code's current namespace). None of the
+paragraph, Dashboard's "Orders and earnings" paragraph — left as prose,
+since neither method exists yet), and `App\Seller\Store` (IMPRV-032's
+rename of `App\Support\Store`, the doc's current namespace). None of the
 four is asserted to exist; the note says they don't yet.
 
 1072 → 699 lines.
