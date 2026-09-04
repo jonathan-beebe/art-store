@@ -1368,3 +1368,14 @@ it('FEAT-056 links the view switch to every view', function (): void {
     $response->assertSee(route('seller.listings.index', ['view' => 'table']), escape: false);
     $response->assertSee(route('seller.listings.index', ['view' => 'grid']), escape: false);
 });
+
+it('FEAT-056 submits the sort select through a visible button, carrying no inline handler', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertSee('data-sort-form', escape: false);
+    $response->assertSee('data-sort-select', escape: false);
+    $response->assertSee('data-sort-submit', escape: false);
+    $response->assertDontSee('onchange=', escape: false);
+});
