@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-03:22:00:00 — FEAT-057 — started: A seller builds their store profile from typed sections
 - 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
 - 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
 - 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout
