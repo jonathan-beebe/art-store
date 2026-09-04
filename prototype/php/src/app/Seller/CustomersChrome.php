@@ -11,8 +11,8 @@ use App\Domain\Seller\CustomerSortColumn;
 /**
  * The customers table's header: the segment control and the sortable
  * column headers, built once per request from the round-tripped filters
- * and the segment and sort in force, so the controller and the view read
- * one object instead of rebuilding enums out of parallel arrays.
+ * and the segment and sort in force. The controller and the view read one
+ * object, and the enums stay in one place.
  */
 final readonly class CustomersChrome
 {

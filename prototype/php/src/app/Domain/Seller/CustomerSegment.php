@@ -8,7 +8,7 @@ use DateTimeImmutable;
 
 /**
  * Which buyers the customers table lists. The range decides what "new"
- * means, so the segment reads the window's start rather than a clock.
+ * means, so the segment reads the window's start it is handed.
  */
 enum CustomerSegment: string
 {

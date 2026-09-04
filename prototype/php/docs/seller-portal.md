@@ -406,10 +406,10 @@ Question: a seller wants to know who buys from them. Where does that list
 come from, given no table holds it — and what does a seller get to see about
 a person?
 
-A customer is a buyer. Someone holding at least one live fulfillment with
-the seller is on the list; browsing, favoriting, and asking about a piece
-are not what put them there. The list is derived on every request from
-`fulfillments`, never stored.
+A customer is a buyer. Someone holding at least one paid fulfillment with
+the seller that still stands is on the list; browsing, favoriting, and
+asking about a piece join their timeline once they have bought. Every
+request derives the list from `fulfillments`; no table holds it.
 
 ```mermaid
 flowchart LR
@@ -422,9 +422,12 @@ flowchart LR
     R --> TA["CustomerTally"]
 ```
 
-A declined or refunded parcel settled its money back, so it makes nobody a
-customer and counts toward nothing here. A buyer whose only parcel was
-declined drops off the list and their page answers 404.
+A `fulfillments` row exists from the moment an order is placed, so the
+derivation gates on the order having been paid: an abandoned checkout
+leaves the list alone and leaves Spent alone. A declined or refunded parcel
+settled its money back, so it counts toward nothing here — a buyer whose
+only parcel was declined drops off the list and their page answers 404,
+while the parcel itself stays listed on a page they still hold.
 
 ### Privacy
 
@@ -464,13 +467,16 @@ flowchart TB
     chrome --> domain
 ```
 
-`SellerCustomers::forSeller()` reads the seller's live parcels once and
-folds them per buyer, then joins the account rows, the favorites, and the
-thread counts by id in PHP — five queries, whatever the number of buyers.
-`forCustomer()` is the same fold narrowed to one person, and hands back
-null for a stranger; the customer page, the Message button, and the thread
-rail all read it. `conversationCounts()` is the two thread figures the
-tiles carry.
+`SellerCustomers::forSeller()` folds the figures in one grouped query —
+`count(*)`, `sum(subtotal_cents)`, and `min`/`max(orders.placed_at)` over
+the seller's counted parcels joined to their orders, grouped by customer —
+then joins the account rows, the favorites, and the thread counts by id in
+PHP. A buyer holding no account name or address takes both from their
+latest order, which is one more query, run only when such a buyer is in the
+list. `forCustomer()` is the same fold narrowed to one person and hands
+back null for a stranger; the customer page, the Message button, and the
+thread rail all read it. `conversationCounts()` is the two thread figures
+the tiles carry.
 
 Sorting is a link carrying `aria-sort`, `App\Seller\ColumnHeader` per
 column through `x-seller.sortable-th`; a click on the sorted column flips
@@ -487,10 +493,12 @@ between the two of them — a declined or refunded one included, which the
 figures leave out and the seller still has to be able to look back at —
 their favorites of this seller's pieces, and their threads.
 
-Message opens the buyer's newest thread with this seller, and, for a buyer
-they have never written to, opens the thread for the buyer's latest parcel
-through `App\Actions\Messaging\OpenConversation` — the subject the two of
-them already share, so no new kind of conversation exists for it.
+Message opens the buyer's newest thread with this seller. For a buyer the
+seller has yet to write to, it opens the thread for the buyer's latest
+parcel — latest by `orders.placed_at`, the recency this section reads
+everywhere — through `App\Actions\Messaging\OpenConversation`. That is a
+subject the two of them already share, so the button needs no new kind of
+conversation.
 
 ## Messages
 
@@ -513,14 +521,15 @@ flowchart LR
 `FeedScope` idiom, a readonly value object with a named constructor that
 reads. It carries the counterpart's name and initials, the `CustomerRow`
 where the counterpart has bought from this seller, the listing a question
-is about, the parcel a fulfillment thread is about, and every other thread
+is about, the parcel a fulfillment thread is about — named by this seller's
+own lines, since a two-seller order carries both — and every other thread
 the two of them hold, newest first.
 
 The same privacy rule the customers section states: a buyer's numbers and
 their email show because an order carried them. A visitor who has only
-asked about a piece shows a name and nothing else — no figures, no email,
-no View customer link, since they have no customer page to open. A support
-thread shows the desk in place of a customer, and no other conversations.
+asked about a piece shows a name alone — no figures, no email, no View
+customer link, since they have no customer page to open. A support thread
+shows the desk in place of a customer, and no other conversations.
 
 The rail sits beside the transcript at `xl` and under it below that, inside
 the thread component's own pane. Nothing about the transcript, the

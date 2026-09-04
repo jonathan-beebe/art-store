@@ -12,7 +12,8 @@ use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Seller;
 use App\Support\ActorDisplay;
-use Illuminate\Database\Eloquent\Collection;
+use App\Support\RelativeTime;
+use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
@@ -27,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 final readonly class ThreadContext
 {
     /**
-     * @param  Collection<int, Conversation>  $others
+     * @param  list<ThreadLink>  $others
      */
     private function __construct(
         public string $name,
@@ -37,10 +38,10 @@ final readonly class ThreadContext
         public ?CustomerRow $customer,
         public ?Listing $listing,
         public ?Fulfillment $order,
-        public Collection $others,
+        public array $others,
     ) {}
 
-    public static function forSeller(Seller $seller, Conversation $conversation): self
+    public static function forSeller(Seller $seller, Conversation $conversation, DateTimeImmutable $now): self
     {
         $conversation->loadMissing([
             'customer',
@@ -66,7 +67,7 @@ final readonly class ThreadContext
             customer: $row,
             listing: $conversation->listing,
             order: self::orderOf($seller, $conversation),
-            others: self::otherThreads($seller, $conversation),
+            others: self::otherThreads($seller, $conversation, $now),
         );
     }
 
@@ -94,22 +95,28 @@ final readonly class ThreadContext
 
     /**
      * Every other thread the seller holds with this buyer, newest first.
+     * A desk thread has no buyer, so it has none.
      *
-     * @return Collection<int, Conversation>
+     * @return list<ThreadLink>
      */
-    private static function otherThreads(Seller $seller, Conversation $conversation): Collection
+    private static function otherThreads(Seller $seller, Conversation $conversation, DateTimeImmutable $now): array
     {
         if ($conversation->customer_id === null) {
-            /** @var Collection<int, Conversation> */
-            return new Collection;
+            return [];
         }
 
-        return $seller->conversations()
+        $others = $seller->conversations()
             ->where('customer_id', $conversation->customer_id)
             ->whereKeyNot($conversation->id)
             ->with(['listing', 'fulfillment'])
             ->orderByDesc('last_message_at')
             ->orderByDesc('id')
             ->get();
+
+        return array_values($others->map(fn (Conversation $other): ThreadLink => new ThreadLink(
+            title: $other->title ?? $other->kind->topic($other->fulfillment?->order_id, $other->listing?->title),
+            href: route('seller.messages.show', $other),
+            when: $other->last_message_at === null ? null : RelativeTime::short($other->last_message_at, $now),
+        ))->all());
     }
 }

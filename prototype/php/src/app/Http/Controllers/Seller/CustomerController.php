@@ -24,11 +24,10 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\View\View;
 
 /**
- * A seller's customer is a buyer: someone holding at least one live
- * fulfillment with them. The list is derived on every request rather than
- * stored, and a customer who has never bought here answers 404 — browsing,
- * favoriting, and asking about a piece do not open a person's page to a
- * seller.
+ * A seller's customer is a buyer: someone holding at least one paid parcel
+ * with them that still stands. Every request derives the list. A customer
+ * who has never bought here answers 404, which is the privacy rule: a
+ * seller opens a person's page on the strength of an order.
  */
 final class CustomerController extends SellerController
 {
@@ -67,6 +66,7 @@ final class CustomerController extends SellerController
             'fulfillments' => $this->fulfillmentsFor($seller, $customer),
             'favorites' => $this->favoritesFor($seller, $customer),
             'conversations' => $this->conversationsFor($seller, $customer),
+            'now' => $this->now(),
         ]);
     }
 

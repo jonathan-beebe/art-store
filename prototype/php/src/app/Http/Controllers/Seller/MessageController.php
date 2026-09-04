@@ -174,7 +174,7 @@ final class MessageController extends SellerController
             'faqPrefill' => $conversation->faqPrefill(),
             'viewer' => ActorType::Seller,
             'replyTo' => $this->resolveReplyTo($conversation, $replyToId),
-            'context' => ThreadContext::forSeller($seller, $conversation),
+            'context' => ThreadContext::forSeller($seller, $conversation, $this->now()),
         ];
     }
 

@@ -10,13 +10,14 @@ use App\Models\Customer;
 use App\Models\Favorite;
 use App\Models\Seller;
 use App\Seller\ThreadContext;
+use DateTimeImmutable;
 use Illuminate\Support\Facades\Blade;
 
 function contextRailHtml(Seller $seller, Conversation $conversation): string
 {
     return Blade::render(
         '<x-seller.context-rail :context="$context" />',
-        ['context' => ThreadContext::forSeller($seller, $conversation)],
+        ['context' => ThreadContext::forSeller($seller, $conversation, new DateTimeImmutable('2026-08-26 09:00:00'))],
     );
 }
 

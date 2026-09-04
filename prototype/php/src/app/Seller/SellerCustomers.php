@@ -19,11 +19,11 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 
 /**
- * Who has bought from a seller, and what each of them is worth. A customer
- * is derived from `fulfillments` rather than stored: a paid parcel that
- * still stands is what makes someone a seller's buyer. Browsing,
- * favoriting, and asking about a listing join a buyer's timeline once they
- * have bought.
+ * Who has bought from a seller, and what each of them is worth. Every read
+ * derives the list from `fulfillments`; no table holds a seller's customer.
+ * A paid parcel that still stands is what makes someone a buyer, and
+ * browsing, favoriting, and asking about a listing join their timeline once
+ * they have bought.
  *
  * A fulfillment row exists from the moment an order is placed, so the paid
  * gate is what keeps an abandoned checkout out of the list and out of the

@@ -89,7 +89,7 @@
                             <a href="{{ route('seller.messages.show', $conversation) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-white/5">
                                 <x-seller.thread-tag :kind="$conversation->kind" />
                                 <span class="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-gray-100">{{ $conversation->title ?? $conversation->kind->topic($conversation->fulfillment?->order_id, $conversation->listing?->title) }}</span>
-                                <span class="shrink-0 text-xs/5 text-gray-500 dark:text-gray-400">{{ $conversation->last_message_at === null ? '' : \App\Support\RelativeTime::short($conversation->last_message_at, now()) }}</span>
+                                <span class="shrink-0 text-xs/5 text-gray-500 dark:text-gray-400">{{ $conversation->last_message_at === null ? '' : \App\Support\RelativeTime::short($conversation->last_message_at, $now) }}</span>
                             </a>
                         </li>
                     @empty

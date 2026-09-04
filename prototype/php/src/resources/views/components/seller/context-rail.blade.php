@@ -58,13 +58,15 @@
     </a>
 @endif
 
-@if ($context->others->isNotEmpty())
+@if ($context->others !== [])
     <p class="mt-6 text-xs font-medium tracking-wide text-gray-500 uppercase dark:text-gray-400">Other conversations</p>
     <ul role="list" class="mt-2 flex flex-col gap-2">
         @foreach ($context->others as $other)
             <li class="text-xs/5">
-                <a href="{{ route('seller.messages.show', $other) }}" class="rounded font-medium text-gray-900 hover:text-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400">{{ $other->title ?? $other->kind->topic($other->fulfillment?->order_id, $other->listing?->title) }}</a>
-                <span class="text-gray-500 dark:text-gray-400">@if ($other->last_message_at) &middot; {{ \App\Support\RelativeTime::short($other->last_message_at, now()) }} @endif</span>
+                <a href="{{ $other->href }}" class="rounded font-medium text-gray-900 hover:text-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 dark:text-gray-100 dark:hover:text-indigo-400">{{ $other->title }}</a>
+                @if ($other->when)
+                    <span class="text-gray-500 dark:text-gray-400">&middot; {{ $other->when }}</span>
+                @endif
             </li>
         @endforeach
     </ul>

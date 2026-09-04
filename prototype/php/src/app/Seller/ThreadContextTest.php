@@ -21,7 +21,7 @@ it('carries a buyer\'s identity and their numbers with this seller', function ()
         'listing_id' => $this->listing($seller, ['title' => 'Nine Owls'])->id,
     ]);
 
-    $context = ThreadContext::forSeller($seller, $conversation);
+    $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
     expect($context->name)->toBe('Luna Lovegood')
         ->and($context->email)->toBe('luna@example.test')
@@ -43,7 +43,7 @@ it('names a visitor who has never bought and hands out no numbers and no email',
         'listing_id' => $this->listing($seller)->id,
     ]);
 
-    $context = ThreadContext::forSeller($seller, $conversation);
+    $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
     expect($context->name)->toBe('Draco Malfoy')
         ->and($context->customer)->toBeNull()
@@ -59,7 +59,7 @@ it('carries the parcel a fulfillment thread is about', function (): void {
         ->forSubject(ConversationSubject::fulfillment($seller->id, $customer->id, $fulfillment->id))
         ->create();
 
-    $context = ThreadContext::forSeller($seller, $conversation);
+    $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
     expect($context->order?->id)->toBe($fulfillment->id)
         ->and($context->listing)->toBeNull();
@@ -69,7 +69,7 @@ it('shows the desk instead of a customer on a support thread', function (): void
     $seller = $this->seller('The Burrow Craftworks');
     $conversation = Conversation::factory()->adminSeller()->create(['seller_id' => $seller->id]);
 
-    $context = ThreadContext::forSeller($seller, $conversation);
+    $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
     expect($context->isDesk)->toBeTrue()
         ->and($context->name)->toBe('Art Store Support')
@@ -105,9 +105,11 @@ it('lists the buyer\'s other threads with this seller, newest first', function (
         'title' => 'Another seller\'s thread',
     ]);
 
-    $context = ThreadContext::forSeller($seller, $open);
+    $context = ThreadContext::forSeller($seller, $open, $this->moment('2026-08-26 09:00:00'));
 
-    expect($context->others->pluck('id')->all())->toBe([$newer->id, $older->id]);
+    expect(array_map(fn (ThreadLink $link): string => $link->title, $context->others))->toBe(['A newer question', 'An older question'])
+        ->and($context->others[0]->href)->toBe(route('seller.messages.show', $newer))
+        ->and($context->others[0]->when)->toBe('Yesterday');
 });
 
 it('names the parcel by this seller\'s own lines on a two-seller order', function (): void {
@@ -127,7 +129,7 @@ it('names the parcel by this seller\'s own lines on a two-seller order', functio
         ->forSubject(ConversationSubject::fulfillment($seller->id, $customer->id, $fulfillment->id))
         ->create();
 
-    $context = ThreadContext::forSeller($seller, $conversation);
+    $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
     expect($context->order?->itemLabel())->toBe('The Burrow at Dusk');
 });
@@ -143,7 +145,7 @@ it('carries the pictures the rail renders, so no page queries for them', functio
         'listing_id' => $listing->id,
     ]);
 
-    $context = ThreadContext::forSeller($seller, $conversation);
+    $context = ThreadContext::forSeller($seller, $conversation, $this->moment('2026-08-26 09:00:00'));
 
     expect($context->listing?->relationLoaded('images'))->toBeTrue()
         ->and($context->listing?->imageUrl())->not->toBeEmpty();
