@@ -369,7 +369,9 @@ The pure values these assemble from live in `App\Domain\Analytics\`:
 labels, and the caption comparing the two), `RangeChange` (a signed
 percentage and its `ChangeDirection`, "new" for a zero previous count, flat
 under 0.5%), `BarStrip` (scales a daily or hourly series onto bar heights,
-never shorter than 2px), `EventBreakdown` (which breakdowns an event name
+never shorter than 2px; `baseline()` scales a signed series around a zero
+line, returning a `BarStripBaseline` — bars, the pixel row zero falls on,
+and the strip's own height), `EventBreakdown` (which breakdowns an event name
 allows and its default), `ActorKindFilter` and `ActorSort` (the actor
 segmented controls), `JumpKind` (which route a `Jump` links to), and
 `ActorVelocity`/`FlaggedActorSummary` below.

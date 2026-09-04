@@ -674,6 +674,13 @@ sales table and `StatementController`'s printable statement
 (`/seller/earnings/statements/{period}`). A period outside the window, or
 a string matching none in it, answers 404.
 
+`EarningsPeriods::netStrip()` charts the window's `net()` figures through
+`BarStrip::baseline()`, one bar per period against a zero baseline; a loss
+period's bar drops below the line, tinted the same red `bar-strip` gives a
+flagged actor's hourly bar elsewhere. An `sr-only` list beside the strip
+carries every bar's tooltip for assistive technology, since `role="img"`
+(from the strip's `labelledby`) hides the SVG's own `<title>`s.
+
 ## Support
 
 `/seller/support` is the desk hub: the two admins who answer, their
