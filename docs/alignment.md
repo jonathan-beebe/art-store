@@ -85,6 +85,12 @@ simply unused there):
 | notifications                             | `ntf`  |
 | outbox_messages                           | `obx`  |
 | funnels                                   | `fnl`  |
+| store_profiles                            | `sto`  |
+| store_slugs                               | `ssl`  |
+| store_images                              | `sim`  |
+| store_sections                            | `sse`  |
+| store_section_images                      | `ssi`  |
+| store_links                               | `slk`  |
 | page_view_counts                          | `pvc`  |
 | rate_limit_windows                        | `rlw`  |
 | sessions (the `sid` cookie value, §2)     | `ses`  |
@@ -923,3 +929,20 @@ on the step with the lowest rate, and the footer/side/note lines —
 `prototype/php/docs/funnel.md` is the reference. Node and rails owe the
 whole feature — each still ships only its own fixed, hard-coded funnel,
 the deviation this entry queues.
+
+2026-09-03, store profile: §1's prefix table gains `sto` (store_profiles),
+`ssl` (store_slugs), `sim` (store_images), `sse` (store_sections), `ssi`
+(store_section_images), and `slk` (store_links). A seller presents on the
+site as a store: a small profile row carrying identity, address, pictures,
+and visibility, with everything the page says held as typed, ordered
+section rows — a new kind of store content is a `StoreSectionKind` case, a
+renderer, and where it needs them, columns on a child table keyed by
+section, never a wider profile row and never a JSON blob. Addresses are
+history: the current one sits on the profile for the unique index, every
+address the store has ever answered to is a `store_slugs` row, and the
+column is unique across the whole table so a redirect can never be
+ambiguous. PHP ships the tables, the seller form, and the seeded stores on
+FEAT-057 — `prototype/php/docs/seller-portal.md` § "Store profile" is the
+reference. §2.3's event vocabulary and §3's limiter names gain nothing:
+store writes stay silent under §2.3's closed-vocabulary rule. Node and
+rails owe the whole feature.

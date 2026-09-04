@@ -29,6 +29,10 @@ use App\Http\Controllers\Seller\QuantityBreakController;
 use App\Http\Controllers\Seller\ReopenConversationController;
 use App\Http\Controllers\Seller\ResolveConversationController;
 use App\Http\Controllers\Seller\ShipmentController;
+use App\Http\Controllers\Seller\StoreController;
+use App\Http\Controllers\Seller\StoreImageController;
+use App\Http\Controllers\Seller\StoreSectionController;
+use App\Http\Controllers\Seller\StoreSectionReorderController;
 use App\Http\Controllers\Seller\SupportController;
 use App\Http\Controllers\Seller\UnitController;
 use App\Http\Controllers\Seller\VariantController;
@@ -36,6 +40,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(function (): void {
     Route::get('/', DashboardController::class)->name('dashboard');
+
+    Route::singleton('store', StoreController::class)->only(['show', 'update']);
+    Route::post('store/images', [StoreImageController::class, 'store'])->name('store.images.store');
+    Route::delete('store/images/{image}', [StoreImageController::class, 'destroy'])->name('store.images.destroy');
+    Route::post('store/sections', [StoreSectionController::class, 'store'])->name('store.sections.store');
+    Route::put('store/sections/{section}', [StoreSectionController::class, 'update'])->name('store.sections.update');
+    Route::delete('store/sections/{section}', [StoreSectionController::class, 'destroy'])->name('store.sections.destroy');
+    Route::post('store/sections/{section}/reorder', StoreSectionReorderController::class)->name('store.sections.reorder');
 
     Route::resource('listings', ListingController::class)->except('destroy');
     Route::get('listings/{listing}/basics', [ListingBasicsController::class, 'edit'])->name('listings.basics.edit');
