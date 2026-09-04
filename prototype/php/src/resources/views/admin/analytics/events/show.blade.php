@@ -16,9 +16,11 @@
         };
     };
 
-    $entityHref = fn (string $id): string => $detail->breakdown === \App\Domain\Analytics\EventBreakdown::Actor
-        ? route('admin.analytics.actors.show', $id)
-        : route('admin.analytics.listings.show', $id);
+    $entityHref = fn (string $id): ?string => match ($detail->breakdown) {
+        \App\Domain\Analytics\EventBreakdown::Actor => route('admin.analytics.actors.show', $id),
+        \App\Domain\Analytics\EventBreakdown::Listing => route('admin.analytics.listings.show', $id),
+        \App\Domain\Analytics\EventBreakdown::Article, \App\Domain\Analytics\EventBreakdown::Pattern => null,
+    };
 
     $bars = \App\Domain\Analytics\BarStrip::bars($detail->daily, $dayLabels, 112);
 @endphp

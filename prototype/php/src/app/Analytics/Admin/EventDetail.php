@@ -17,11 +17,11 @@ use stdClass;
 
 /**
  * The admin analytics event page's read: one event name's range tiles,
- * daily series, and breakdown. Every {@see AnalyticsEventName}
- * case reads `analytics_events`, grouped by listing or by actor per `$by`;
- * `page.view` reads the `page_view_counts` roll-up instead, which carries no
- * subject or actor of its own, so its breakdown is always by route pattern
- * and its "Distinct actors" tile reads "—".
+ * daily series, and breakdown. Every {@see AnalyticsEventName} case reads
+ * `analytics_events`, grouped by listing, by actor, or by article per
+ * `$by`; `page.view` reads the `page_view_counts` roll-up instead, which
+ * carries no subject or actor of its own, so its breakdown is always by
+ * route pattern and its "Distinct actors" tile reads "—".
  */
 final class EventDetail
 {
@@ -38,9 +38,11 @@ final class EventDetail
         $daily = self::dailyCounts($name, $range);
         $actors = self::distinctActors($name, $range);
 
-        $rows = $by === EventBreakdown::Actor
-            ? self::actorRows($name, $range, $totals['current'])
-            : self::listingRows($name, $range, $totals['current']);
+        $rows = match ($by) {
+            EventBreakdown::Actor => self::actorRows($name, $range, $totals['current']),
+            EventBreakdown::Article => self::articleRows($name, $range, $totals['current']),
+            default => self::listingRows($name, $range, $totals['current']),
+        };
 
         return new EventDetailView(
             $name,
@@ -194,14 +196,14 @@ final class EventDetail
     /**
      * @return array<string, array{current: int, previous: int}>
      */
-    private static function listingTotals(string $name, AnalyticsRange $range): array
+    private static function subjectTotals(string $name, AnalyticsRange $range, string $subjectType): array
     {
         $previous = $range->previous();
         $currentStart = SqlInstant::format($range->start);
 
         $rows = DB::connection('analytics')->table('analytics_events')
             ->where('name', $name)
-            ->where('subject_type', 'listing')
+            ->where('subject_type', $subjectType)
             ->whereNotNull('subject_id')
             ->whereBetween('occurred_at', [SqlInstant::format($previous->start), SqlInstant::format($range->end)])
             ->select('subject_id')
@@ -263,7 +265,7 @@ final class EventDetail
      */
     private static function listingRows(string $name, AnalyticsRange $range, int $eventTotal): array
     {
-        $totals = self::listingTotals($name, $range);
+        $totals = self::subjectTotals($name, $range, 'listing');
 
         if ($totals === []) {
             return [];
@@ -279,6 +281,28 @@ final class EventDetail
                 : 'listing no longer exists';
 
             $rows[] = self::row($listingId, $title, null, null, $counts, $eventTotal);
+        }
+
+        return self::sortedByCurrentDesc($rows);
+    }
+
+    /**
+     * The article breakdown's rows: one per article slug the event's rows
+     * name, labelled by the slug itself.
+     *
+     * @return list<EventBreakdownRow>
+     */
+    private static function articleRows(string $name, AnalyticsRange $range, int $eventTotal): array
+    {
+        $totals = self::subjectTotals($name, $range, 'help_article');
+
+        if ($totals === []) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($totals as $slug => $counts) {
+            $rows[] = self::row($slug, $slug, null, null, $counts, $eventTotal);
         }
 
         return self::sortedByCurrentDesc($rows);

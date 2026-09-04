@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Analytics\AnalyticsEventName;
 use App\Http\Controllers\Seller\BulkVariantsController;
 use App\Http\Controllers\Seller\CustomerController;
 use App\Http\Controllers\Seller\CustomerMessageController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\Seller\FlowStepController;
 use App\Http\Controllers\Seller\FulfillmentFlowController;
 use App\Http\Controllers\Seller\GenerateVariantsController;
 use App\Http\Controllers\Seller\HelpArticleController;
+use App\Http\Controllers\Seller\HelpArticleFeedbackController;
 use App\Http\Controllers\Seller\LegacyFlowRedirectController;
 use App\Http\Controllers\Seller\ListingAttributeController;
 use App\Http\Controllers\Seller\ListingBasicsController;
@@ -144,4 +146,10 @@ Route::prefix('seller')->name('seller.')->middleware('auth.seller')->group(funct
     Route::get('support/new', [SupportController::class, 'create'])->name('support.create');
     Route::post('support/new', [SupportController::class, 'store'])->name('support.store');
     Route::get('support/articles/{article}', [HelpArticleController::class, 'show'])->name('support.articles.show');
+    Route::post('support/articles/{article}/answered', HelpArticleFeedbackController::class)
+        ->defaults('outcome', AnalyticsEventName::HelpAnswered->value)
+        ->name('support.articles.answered');
+    Route::post('support/articles/{article}/unanswered', HelpArticleFeedbackController::class)
+        ->defaults('outcome', AnalyticsEventName::HelpUnanswered->value)
+        ->name('support.articles.unanswered');
 });

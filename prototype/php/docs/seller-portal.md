@@ -804,6 +804,23 @@ articles need, no library behind it. `HelpArticles` reads every
 `resources/help/seller/*.md` file, cached per request, grouped by topic in
 a fixed order; `HelpArticleController@show` 404s for an unrecognised slug.
 
+Every article ends with "Did this answer it?" — Yes and No each post to
+their own route, both handled by `HelpArticleFeedbackController`, the
+route's own `outcome` default naming which `AnalyticsEventName` case a
+submission records. `AnalyticsEvent::forHelpArticle()` shapes the row
+like `store.view`'s: `subject_type = 'help_article'`, `subject_id` the
+article's slug, `data.seller_id` the seller who clicked, `actor_id` left
+null since a seller is never a customer and every actor reader assumes
+one. Yes records `help.answered` and redirects back to the same article
+with a flash thanking the seller; No records `help.unanswered` and
+redirects to the create-conversation form, so the desk still gets asked.
+Both dedupe on `App\Domain\Seller\HelpArticleFeedbackCollapse`, a UTC-day
+window per event name, article, and seller: a feedback click is a
+deliberate answer, and the event name folds into the key so a Yes and a
+later No the same day each get their own row. The route is not an
+Eloquent resource — an unrecognised slug 404s the same way the article
+page itself does.
+
 ### Own threads and the create form
 
 `SupportThreads::for()` lists the seller's own `admin_seller` conversations,

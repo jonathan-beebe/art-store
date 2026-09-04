@@ -164,7 +164,9 @@
                                         @else
                                             <span class="font-medium text-stone-900 dark:text-stone-100">{{ $row->otherLabel }}</span>
                                         @endif
-                                        <x-admin.log-id-chip :id="$row->otherId" />
+                                        @unless ($row->otherKind === 'help_article')
+                                            <x-admin.log-id-chip :id="$row->otherId" />
+                                        @endunless
                                         @if ($row->listingTitles !== [])
                                             <span class="text-stone-500 dark:text-stone-400">— {{ implode(', ', $row->listingTitles) }}</span>
                                         @endif

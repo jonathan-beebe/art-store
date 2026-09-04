@@ -427,6 +427,38 @@ it('names a deleted store "store no longer exists" on an actor\'s feed', functio
         ->and($view->feed[0]->otherExists)->toBeFalse();
 });
 
+it('names a help article subject "article {slug}" on an actor\'s feed, unlinked, with no listing titles', function (): void {
+    $customer = $this->verifiedCustomer();
+    $analytics = app(Analytics::class);
+
+    // A help.answered/unanswered row's actor_id is always null in
+    // production (App\Analytics\AnalyticsEvent::forHelpArticle()) — built
+    // by hand here to prove the feed row still names the article
+    // correctly on the rare row an actor_id migration or a future writer
+    // might produce.
+    $analytics->recordEvent(new AnalyticsEvent(
+        AnalyticsEventName::HelpAnswered,
+        $this->moment('2026-08-19 09:00:00'),
+        'help_article',
+        'printing-a-label-from-an-order',
+        $customer->id,
+        'dedupe-key',
+    ));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed)->toHaveCount(1)
+        ->and($view->feed[0]->name)->toBe('help.answered')
+        ->and($view->feed[0]->verb)->toBe('marked an article helpful')
+        ->and($view->feed[0]->otherLabel)->toBe('article printing-a-label-from-an-order')
+        ->and($view->feed[0]->otherKind)->toBe('help_article')
+        ->and($view->feed[0]->otherId)->toBe('printing-a-label-from-an-order')
+        ->and($view->feed[0]->otherExists)->toBeFalse()
+        ->and($view->feed[0]->listingTitles)->toBe([]);
+});
+
 it('reads no listing titles for a listing subject, only for an order or cart subject', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Starry Night']);

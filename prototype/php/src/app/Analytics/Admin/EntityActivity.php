@@ -57,6 +57,8 @@ final class EntityActivity
 
     private const string OTHER_STORE = 'store';
 
+    private const string OTHER_HELP_ARTICLE = 'help_article';
+
     public static function forListing(Listing $listing, AnalyticsRange $range, ?AnalyticsEventName $filter): EntityActivityView
     {
         $scope = fn (Builder $query): Builder => $query->where('subject_type', 'listing')->where('subject_id', $listing->id);
@@ -686,6 +688,7 @@ final class EntityActivity
                 'order' => self::feedRowForOrder($row, $name, $listings),
                 'cart' => self::feedRowForCart($row, $name, $listings),
                 'store' => self::feedRowForStore($row, $name, $stores),
+                'help_article' => self::feedRowForHelpArticle($row, $name),
                 default => self::feedRowForListing($row, $name, $listings),
             };
         })->all();
@@ -794,6 +797,18 @@ final class EntityActivity
     }
 
     /**
+     * A help article carries no admin page of its own to link to, the same
+     * as a cart — its row names the article by slug, unlinked.
+     */
+    private static function feedRowForHelpArticle(stdClass $row, AnalyticsEventName $name): EntityFeedRow
+    {
+        /** @var string $slug */
+        $slug = $row->subject_id ?? '';
+
+        return self::feedRow($row, $name, "article {$slug}", $slug, self::OTHER_HELP_ARTICLE, false, []);
+    }
+
+    /**
      * The listing ids one feed row needs {@see feedRowsForActorPage()} to
      * have already fetched: a listing subject's own id, or an order or
      * cart subject's `data.listing_ids`.
@@ -809,7 +824,7 @@ final class EntityActivity
             return self::dataListingIds($row);
         }
 
-        if ($subjectType === 'store') {
+        if ($subjectType === 'store' || $subjectType === 'help_article') {
             return [];
         }
 

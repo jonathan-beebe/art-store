@@ -224,6 +224,19 @@ inside the commerce transaction and adds no write to the commerce database.
 customer- or admin-initiated cancellation does, with no ip or session since
 the sweep runs from the console.
 
+A seller's "Did this answer it?" click on a help article records
+`help.answered` (Yes) or `help.unanswered` (No): `subject_type =
+'help_article'`, `subject_id` the article's slug, `actor_id` null,
+`data.seller_id` the seller. Every `App\Analytics\Admin` actor reader
+resolves `actor_id` against `customers`, and a seller is never a customer,
+so the seller identity travels in `data` instead — docs/seller-portal.md's
+Support section has the routes and the redirect shape. The dedupe key is
+a UTC day and folds in the event name, so a Yes and a later No the same
+day each get their own row (`App\Domain\Seller\HelpArticleFeedbackCollapse`).
+The event page's own breakdown for these two names is `App\Domain\Analytics\EventBreakdown::Article`
+— one row per article slug, the vocabulary's only subject-shaped
+breakdown that names neither a listing nor an actor.
+
 ## Readers
 
 `App\Analytics\AnalyticsReport` is the query layer over `analytics_events`:
@@ -341,8 +354,8 @@ Every class in it is a static, stateless reader — no writer lives here.
   one listing or actor: a `lst_`/`cus_` id prefix, or an ip every event in
   the store agrees belongs to one actor; the entry page's jump row.
 - `EventDetail::forRange()` — one event name's range tiles, daily series, and
-  breakdown by listing, actor, or (`page.view`) route pattern; the event
-  page.
+  breakdown by listing, actor, article (`help.answered`/`help.unanswered`),
+  or (`page.view`) route pattern; the event page.
 - `EntityActivity::forListing()` / `forStore()` / `forActor()` — one
   listing's, one store's, or one actor's identity facts, range tiles,
   strip, and event feed, sharing every query and formatting helper across
