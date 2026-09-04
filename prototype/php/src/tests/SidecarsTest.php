@@ -62,6 +62,7 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Domain/Seller/SaleFact.php' => 'value carrier; exercised through PeriodFiguresTest and EarningsPeriodsTest',
         'app/Domain/Seller/RefundFact.php' => 'value carrier; exercised through PeriodFiguresTest and EarningsPeriodsTest',
         'app/Domain/Seller/PeriodSaleRow.php' => 'value carrier; exercised through PeriodSalesTest',
+        'app/Seller/DeskPerson.php' => 'value carrier; exercised through SupportDeskTest',
     ];
 
     $base = dirname(__DIR__);
