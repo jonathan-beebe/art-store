@@ -1,7 +1,7 @@
 <x-layouts.seller title="Earnings — Art Store seller">
     @php
         $current = $periods->current();
-        $tallestNetCents = $periods->tallestNet()->cents;
+        $netStrip = $periods->netStrip(160);
         $salesChange = $periods->currentSalesChange();
         $salesChangeClass = match ($salesChange->direction) {
             \App\Domain\Analytics\ChangeDirection::Up => 'text-green-600 dark:text-green-400',
@@ -87,27 +87,8 @@
         <section aria-labelledby="net-per-period-heading" class="rounded-lg border border-gray-200 px-6 pt-5 pb-3 lg:col-span-2 dark:border-white/10">
             <h3 id="net-per-period-heading" class="text-sm/6 font-semibold text-gray-900 dark:text-white">Net per period</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400">Last eight periods, this one in progress</p>
-            <div class="mt-4 flex h-40 items-end gap-1 border-b border-gray-200 dark:border-white/10">
-                @foreach ($periods->periods as $figures)
-                    @php
-                        $isCurrent = $figures === $current;
-                        $isNegative = ! $figures->net()->isPositive() && ! $figures->net()->isZero();
-                        $barColor = match (true) {
-                            $isNegative => 'bg-red-500 dark:bg-red-500',
-                            $isCurrent => 'bg-indigo-300 dark:bg-indigo-400',
-                            default => 'bg-indigo-600 dark:bg-indigo-500',
-                        };
-                    @endphp
-                    <div class="flex h-full flex-1 flex-col items-center justify-end gap-1">
-                        <div
-                            title="{{ $figures->period->label() }}: {{ $figures->net()->format() }}"
-                            class="w-3/5 max-w-10 rounded-t {{ $barColor }}"
-                            style="height: {{ max(6, (int) round(abs($figures->net()->cents) / $tallestNetCents * 100)) }}%"
-                        >
-                            <span class="sr-only">{{ $figures->period->label() }}: {{ $figures->net()->format() }}{{ $isNegative ? ', a net loss' : '' }}</span>
-                        </div>
-                    </div>
-                @endforeach
+            <div class="mt-4">
+                <x-bar-strip :bars="$netStrip->bars" :baseline="$netStrip->baselinePx" :height="160" labelledby="net-per-period-heading" class="text-indigo-600 dark:text-indigo-500" />
             </div>
             <div class="flex gap-1 pt-1.5">
                 @foreach ($periods->periods as $figures)

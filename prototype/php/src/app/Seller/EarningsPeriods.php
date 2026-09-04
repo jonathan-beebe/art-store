@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
+use App\Domain\Analytics\BarStrip;
+use App\Domain\Analytics\BarStripBaseline;
 use App\Domain\Analytics\RangeChange;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Escrow\PayoutPeriod;
@@ -93,14 +95,21 @@ final readonly class EarningsPeriods
     }
 
     /**
-     * The tallest net in the window, or one cent so a chart over an empty
-     * window never divides by zero.
+     * The window's net-per-period chart: each period's net scaled around a
+     * zero baseline, ready for `x-bar-strip`. A loss period's own
+     * accessible name says so, past the sign {@see Money::format()}
+     * already carries.
      */
-    public function tallestNet(): Money
+    public function netStrip(int $maxPx): BarStripBaseline
     {
-        $cents = array_map(fn (PeriodFigures $figures): int => abs($figures->net()->cents), $this->periods);
+        $cents = array_map(fn (PeriodFigures $figures): int => $figures->net()->cents, $this->periods);
+        $tips = array_map(
+            fn (PeriodFigures $figures): string => $figures->period->label().': '.$figures->net()->format()
+                .($figures->net()->isPositive() || $figures->net()->isZero() ? '' : ', a net loss'),
+            $this->periods,
+        );
 
-        return Money::fromCents(max([1, ...$cents]));
+        return BarStrip::baseline($cents, $tips, $maxPx);
     }
 
     /**

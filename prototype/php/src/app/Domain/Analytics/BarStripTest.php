@@ -30,3 +30,39 @@ it('pairs each scaled height with a tooltip naming its day', function (): void {
         ->and($bars[1]->height)->toBe(100)
         ->and($bars[1]->tip)->toBe('Aug 20: 20');
 });
+
+it('scales a signed series around a zero baseline', function (array $values, array $expectedHeights, array $expectedNegative, int $expectedBaseline): void {
+    /** @var list<int> $values */
+    $tips = array_map(fn ($value): string => "value {$value}", $values);
+
+    $result = BarStrip::baseline($values, $tips, 100);
+
+    expect(array_map(fn (BarStripBar $bar): int => $bar->height, $result->bars))->toBe($expectedHeights)
+        ->and(array_map(fn (BarStripBar $bar): bool => $bar->negative, $result->bars))->toBe($expectedNegative)
+        ->and($result->baselinePx)->toBe($expectedBaseline);
+})->with([
+    'all positive puts the baseline on the bottom edge, same as bars()' => [
+        [10, 20, 5], [50, 100, 25], [false, false, false], 100,
+    ],
+    'all negative mirrors it from the top edge' => [
+        [-10, -20, -5], [50, 100, 25], [true, true, true], 0,
+    ],
+    'mixed splits the strip at the proportional zero line' => [
+        [50, -30, 10, -5, 0], [63, 38, 13, 6, 2], [false, true, false, true, false], 63,
+    ],
+]);
+
+it('carries each bar\'s own tip through unchanged', function (): void {
+    $bars = BarStrip::baseline([10, -5], ['+$0.10', '-$0.05'], 100)->bars;
+
+    expect($bars[0]->tip)->toBe('+$0.10')
+        ->and($bars[1]->tip)->toBe('-$0.05');
+});
+
+it('never divides by zero when a signed series is empty or every value is zero', function (): void {
+    $zeroes = BarStrip::baseline([0, 0], ['a', 'b'], 100);
+
+    expect(BarStrip::baseline([], [], 100)->bars)->toBe([])
+        ->and(array_map(fn (BarStripBar $bar): int => $bar->height, $zeroes->bars))->toBe([2, 2])
+        ->and($zeroes->baselinePx)->toBe(100);
+});

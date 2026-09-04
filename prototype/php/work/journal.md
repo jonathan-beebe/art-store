@@ -14,6 +14,8 @@
 
 ## Log
 
+- 2026-09-04:15:36:10 — IMPRV-039 — resolved: `BarStrip::baseline()` + `BarStripBaseline`, `bar-strip.blade.php` gains a `baseline` prop, earnings net-per-period chart now renders through `x-bar-strip`, `EarningsPeriods::tallestNet()` replaced by `netStrip()`
+- 2026-09-04:15:35:00 — IMPRV-039 — started
 - 2026-09-04:15:30:27 — IMPRV-036 — resolved: overlay/takeover viewport coverage rewritten as DomCrawler structural tests, `docs/seller-portal.md` corrected to `2xl:flex`
 - 2026-09-04:15:30:00 — IMPRV-036 — started
 - 2026-09-04:15:23:48 — IMPRV-034 — resolved: `sellerBadgeTint()` renamed to `badgeTint()`, every seller and admin caller and the test updated

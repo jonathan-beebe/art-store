@@ -52,4 +52,46 @@ final class BarStrip
             array_keys($heights),
         );
     }
+
+    /**
+     * A signed series scaled around a zero baseline instead of the strip's
+     * bottom edge: the tallest positive value and the tallest negative
+     * magnitude each set the scale for their own side, so a swing of the
+     * same size reads the same height whichever side of zero it falls on.
+     * A value of zero, or too small a magnitude to clear
+     * {@see self::MIN_HEIGHT_PX}, still draws that minimum, on the
+     * non-negative side. A series with nothing negative in it puts the
+     * baseline on the strip's bottom edge, the same picture
+     * {@see self::bars()} draws.
+     *
+     * @param  list<int>  $values  signed
+     * @param  list<string>  $tips  same length as `$values`, each bar's own accessible name
+     */
+    public static function baseline(array $values, array $tips, int $maxPx): BarStripBaseline
+    {
+        $tallestPositive = max([0, ...array_map(fn (int $value): int => max(0, $value), $values)]);
+        $tallestNegative = max([0, ...array_map(fn (int $value): int => max(0, -$value), $values)]);
+        $scale = $maxPx / max(1, $tallestPositive + $tallestNegative);
+
+        if ($tallestNegative === 0) {
+            $baselinePx = $maxPx;
+        } else {
+            $baselinePx = (int) round($tallestPositive * $scale);
+            $hasNonNegative = array_filter($values, fn (int $value): bool => $value >= 0) !== [];
+            $baselinePx = $hasNonNegative ? max($baselinePx, self::MIN_HEIGHT_PX) : $baselinePx;
+            $baselinePx = min($baselinePx, $maxPx - self::MIN_HEIGHT_PX);
+        }
+
+        $bars = array_map(
+            fn (int $value, int $index): BarStripBar => new BarStripBar(
+                height: max(self::MIN_HEIGHT_PX, (int) round(abs($value) * $scale)),
+                tip: $tips[$index],
+                negative: $value < 0,
+            ),
+            $values,
+            array_keys($values),
+        );
+
+        return new BarStripBaseline($bars, $baselinePx);
+    }
 }
