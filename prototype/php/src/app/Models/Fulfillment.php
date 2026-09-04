@@ -305,18 +305,17 @@ class Fulfillment extends Model
     }
 
     /**
-     * The steps the log says are behind this parcel.
+     * One entry per completion the log holds, carrying the step it named. A
+     * step the seller has since removed leaves a null: the row survives with
+     * its `step_label`, so the parcel still counts as started.
      *
-     * @return list<string>
+     * @return list<string|null>
      */
     private function completedStepIds(): array
     {
-        return array_values(array_filter(
-            $this->loadMissing('fulfillmentEvents')->fulfillmentEvents
-                ->where('kind', FulfillmentEventKind::StepCompleted)
-                ->map(fn (FulfillmentEvent $event): ?string => $event->fulfillment_flow_step_id)
-                ->all(),
-            is_string(...),
-        ));
+        return array_values($this->loadMissing('fulfillmentEvents')->fulfillmentEvents
+            ->where('kind', FulfillmentEventKind::StepCompleted)
+            ->map(fn (FulfillmentEvent $event): ?string => $event->fulfillment_flow_step_id)
+            ->all());
     }
 }

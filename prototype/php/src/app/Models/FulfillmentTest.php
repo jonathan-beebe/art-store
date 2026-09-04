@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\RefundFulfillment;
 use App\Domain\Fulfillment\FlowStep;
@@ -136,4 +137,39 @@ it('reads only step completions as progress, leaving the transition events out',
     FulfillmentEvent::factory()->on($fulfillment)->completing($step)->create();
 
     expect($fulfillment->load('fulfillmentEvents')->progress()->hasStarted())->toBeTrue();
+});
+
+it('keeps a parcel in progress after the seller removes the step they had completed', function (): void {
+    $seller = $this->seller('Molly Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create();
+    FulfillmentFlowStep::factory()->of($flow, 1)->create(['label' => 'Packed', 'key' => 'packed']);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+
+    expect($fulfillment->refresh()->lane())->toBe(FulfillmentLane::InProgress);
+
+    $labelStep->delete();
+    $fulfillment->refresh();
+
+    expect($fulfillment->progress()->hasStarted())->toBeTrue()
+        ->and($fulfillment->lane())->toBe(FulfillmentLane::InProgress)
+        ->and($fulfillment->progress()->completed)->toBe([])
+        ->and($fulfillment->progress()->next()?->label)->toBe('Packed');
+});
+
+it('keeps the words of a step the seller removed on the row that recorded it', function (): void {
+    $seller = $this->seller('Luna Lovegood');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create(['label' => 'Label printed']);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+    $labelStep->delete();
+
+    $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->sole();
+
+    expect($event->fulfillment_flow_step_id)->toBeNull()
+        ->and($event->stepLabel())->toBe('Label printed');
 });

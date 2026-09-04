@@ -61,12 +61,36 @@ it('is done and unstarted on a flow with no steps', function (): void {
         ->and($progress->next())->toBeNull();
 });
 
-it('reads the flow as it stands now, ignoring an event naming a step that is gone', function (): void {
-    $progress = FulfillmentProgress::of(flowOf(['packed']), ['ffs_label', 'ffs_packed']);
+it('reads the flow as it stands now, leaving out a completion whose step is gone', function (): void {
+    $progress = FulfillmentProgress::of(flowOf(['packed']), [null, 'ffs_packed']);
 
     expect($progress->isDone())->toBeTrue()
         ->and($progress->completedCount())->toBe(1)
         ->and($progress->completed[0]->key)->toBe('packed');
+});
+
+it('stays started when the only step it completed has since been removed', function (): void {
+    $progress = FulfillmentProgress::of(flowOf(['packed']), [null]);
+
+    expect($progress->hasStarted())->toBeTrue()
+        ->and($progress->completionCount)->toBe(1)
+        ->and($progress->completed)->toBe([])
+        ->and($progress->next()?->key)->toBe('packed');
+});
+
+it('counts every completion, the ones whose step is gone included', function (): void {
+    $progress = FulfillmentProgress::of(flowOf(['label', 'packed']), [null, 'ffs_label']);
+
+    expect($progress->completionCount)->toBe(2)
+        ->and($progress->completedCount())->toBe(1);
+});
+
+it('says which steps of the flow it has behind it', function (): void {
+    $steps = flowOf(['label', 'packed']);
+    $progress = FulfillmentProgress::of($steps, ['ffs_label']);
+
+    expect($progress->hasCompleted($steps[0]))->toBeTrue()
+        ->and($progress->hasCompleted($steps[1]))->toBeFalse();
 });
 
 it('admits only the step in front', function (): void {
