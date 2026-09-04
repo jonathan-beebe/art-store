@@ -9,6 +9,7 @@ use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Messaging\MessageBody;
 use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Conversation;
+use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Message;
 use App\Support\ActorDisplay;
@@ -475,4 +476,42 @@ it('trips the message-post limit while replying, keeping the reply-to block from
 
     $response->assertStatus(429);
     $response->assertSee('Replying to', escape: false);
+});
+
+it('renders the context rail beside the thread', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood', 'email' => 'luna@example.test']);
+    $this->paidFulfillmentFor($seller, $customer, 68000);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller, ['title' => 'Nine Owls'])->id,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
+
+    $response->assertOk()
+        ->assertSee('About this conversation')
+        ->assertSee('About this piece')
+        ->assertSee('View customer')
+        ->assertSee(route('seller.customers.show', $customer->id))
+        ->assertSee('$680.00');
+});
+
+it('renders the rail again when a reply trips the rate limit', function (): void {
+    Config::set('rate_limits.message_post', RateLimitValue::parse('1/1h', 'RATE_LIMIT_MESSAGE_POST'));
+
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);
+    $this->paidFulfillmentFor($seller, $customer);
+    $conversation = Conversation::factory()->listingQuestion()->create([
+        'seller_id' => $seller->id,
+        'customer_id' => $customer->id,
+        'listing_id' => $this->listing($seller)->id,
+    ]);
+
+    $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'On its way.']);
+    $response = $this->actingAs($seller, 'seller')->post("/seller/messages/{$conversation->id}", ['body' => 'And again.']);
+
+    $response->assertStatus(429)->assertSee('View customer');
 });

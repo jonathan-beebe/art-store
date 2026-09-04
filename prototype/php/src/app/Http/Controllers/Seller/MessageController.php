@@ -15,6 +15,7 @@ use App\Http\Requests\Seller\PostMessageRequest;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Seller;
+use App\Seller\ThreadContext;
 use App\Support\ListPaneWindow;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
@@ -60,7 +61,7 @@ final class MessageController extends SellerController
         $pane = $this->paneFor($seller, $domain, $conversation);
 
         return view('seller.messages.show', [
-            ...$this->threadView($conversation, $this->replyToId($request)),
+            ...$this->threadView($seller, $conversation, $this->replyToId($request)),
             'cellConversations' => $pane['items'],
             'cellConversationsTotal' => $pane['total'],
             'domain' => $domain,
@@ -87,7 +88,7 @@ final class MessageController extends SellerController
             $pane = $this->paneFor($seller, $domain, $conversation);
 
             return $this->tooManyRequests($exceeded, 'seller.messages.show', [
-                ...$this->threadView($conversation, $this->replyToId($request)),
+                ...$this->threadView($seller, $conversation, $this->replyToId($request)),
                 'cellConversations' => $pane['items'],
                 'cellConversationsTotal' => $pane['total'],
                 'domain' => $domain,
@@ -159,7 +160,7 @@ final class MessageController extends SellerController
      *
      * @return array<string, mixed>
      */
-    private function threadView(Conversation $conversation, ?string $replyToId): array
+    private function threadView(Seller $seller, Conversation $conversation, ?string $replyToId): array
     {
         $conversation->load([
             'seller', 'customer', 'admin', 'listing', 'fulfillment',
@@ -173,6 +174,7 @@ final class MessageController extends SellerController
             'faqPrefill' => $conversation->faqPrefill(),
             'viewer' => ActorType::Seller,
             'replyTo' => $this->resolveReplyTo($conversation, $replyToId),
+            'context' => ThreadContext::forSeller($seller, $conversation),
         ];
     }
 
