@@ -13,6 +13,12 @@ it('mints a prefixed id', function (): void {
     expect(FulfillmentEvent::factory()->create()->id)->toStartWith('fev_');
 });
 
+it('gives a default event the same seller as the fulfillment it belongs to', function (): void {
+    $event = FulfillmentEvent::factory()->create();
+
+    expect($event->seller_id)->toBe($event->fulfillment->seller_id);
+});
+
 it('casts its kind, actor type, and occurred_at', function (): void {
     $event = FulfillmentEvent::factory()->create([
         'kind' => FulfillmentEventKind::Shipped,

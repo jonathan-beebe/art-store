@@ -11,6 +11,12 @@ it('mints a sim_ id', function (): void {
     expect(StoreImage::factory()->create()->id)->toStartWith('sim_');
 });
 
+it('gives a default picture the same seller as the store it belongs to', function (): void {
+    $image = StoreImage::factory()->create();
+
+    expect($image->seller_id)->toBe($image->storeProfile?->seller_id);
+});
+
 it('belongs to a store and to the seller behind it', function (): void {
     $seller = Seller::factory()->create();
     $profile = StoreProfile::factory()->create(['seller_id' => $seller->id]);

@@ -10,6 +10,12 @@ it('mints an ssi_ id', function (): void {
     expect(StoreSectionImage::factory()->create()->id)->toStartWith('ssi_');
 });
 
+it('gives a default placement a picture belonging to its own section\'s store', function (): void {
+    $placement = StoreSectionImage::factory()->create();
+
+    expect($placement->storeImage?->store_profile_id)->toBe($placement->storeSection?->store_profile_id);
+});
+
 it('names the section it places a picture in and the picture it places', function (): void {
     $section = StoreSection::factory()->gallery()->create();
     $image = StoreImage::factory()->create();
