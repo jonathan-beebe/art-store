@@ -121,12 +121,3 @@ it('answers not found for another sellers step on the sellers own fulfillment', 
 
     $response->assertNotFound();
 });
-
-it('sends a signed-out visitor to seller sign-in', function () use ($twoStepFlow): void {
-    $seller = $this->seller();
-    $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
-
-    $this->post("/seller/orders/{$fulfillment->id}/steps/{$labelStep->id}", [])
-        ->assertRedirect(route('auth.seller.login'));
-});

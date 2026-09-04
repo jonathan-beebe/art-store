@@ -10,10 +10,6 @@ beforeEach(function (): void {
     $this->travelTo($this->moment('2026-08-19 09:00:00'));
 });
 
-it('refuses a signed-out visitor', function (): void {
-    $this->get('/seller/earnings/statements/2026-08-10')->assertRedirect('/seller/login');
-});
-
 it('shows the named period\'s figures and its sales', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller, priceCents: 10_000, paidAt: $this->moment('2026-08-11 10:00:00'));

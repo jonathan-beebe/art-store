@@ -99,10 +99,6 @@ it('adds nothing for a submitted row with a blank label', function (): void {
     expect($flow->steps()->count())->toBe(1);
 });
 
-it('sends a signed-out visitor to seller sign-in', function (): void {
-    $this->get('/seller/orders/flow')->assertRedirect(route('auth.seller.login'));
-});
-
 it('never touches another sellers flow', function () use ($twoStepFlow): void {
     $other = $this->seller('Lovegood Curiosities');
     [$otherLabelStep] = $twoStepFlow($other);

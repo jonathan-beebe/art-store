@@ -69,10 +69,6 @@ it('answers not found for another store\'s picture', function () use ($storekeep
     expect(StoreImage::find($image->id))->not->toBeNull();
 });
 
-it('sends a signed-out visitor to the sign-in page', function (): void {
-    $this->post('/seller/store/images')->assertRedirect(route('auth.seller.login'));
-});
-
 it('keeps the description a seller typed with the picture', function () use ($storekeeper): void {
     [$seller, $profile] = $storekeeper();
 

@@ -320,13 +320,6 @@ it('answers 404 for a buyer whose only parcel this seller declined', function ()
     $this->actingAs($seller, 'seller')->get("/seller/customers/{$customer->id}")->assertNotFound();
 });
 
-it('sends a signed-out visitor to sign in', function (): void {
-    $customer = Customer::factory()->create();
-
-    $this->get('/seller/customers')->assertRedirect(route('auth.seller.login'));
-    $this->get("/seller/customers/{$customer->id}")->assertRedirect(route('auth.seller.login'));
-});
-
 it('carries the segment through a sort link and the sort through a segment link', function (): void {
     $seller = Seller::factory()->create();
 

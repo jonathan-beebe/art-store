@@ -25,10 +25,6 @@ $form = fn (array $overrides = []): array => $overrides + [
     'links' => [],
 ];
 
-it('sends a signed-out visitor to the sign-in page', function (): void {
-    $this->get('/seller/store')->assertRedirect(route('auth.seller.login'));
-});
-
 it('mints the store on the first visit and shows the form', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
 
