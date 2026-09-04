@@ -218,3 +218,15 @@ it('names the maker on a listing page as the way into their store', function () 
         ->assertOk()
         ->assertSee(route('shop.store', ['slug' => $profile->slug]), false);
 });
+
+it('answers 404 at the old address of a store that has since been hidden', function () use ($publishedStore): void {
+    [, $profile] = $publishedStore();
+    app(RenameStoreSlug::class)($profile, 'burrow-works', now()->toDateTimeImmutable());
+    $profile->update(['published_at' => null]);
+
+    $this->get('/s/the-burrow-craftworks')->assertNotFound();
+});
+
+it('leaves the Open Graph tags off a page that asks for none', function (): void {
+    $this->get('/')->assertOk()->assertDontSee('og:title', false);
+});

@@ -27,7 +27,10 @@ final readonly class StoreAddressLookup
     /**
      * The address a store moved to, for an address it left behind inside
      * {@see RetiredSlugWindow}. Null when nothing has answered to the
-     * address, or when it was retired too long ago to forward.
+     * address, when it was retired too long ago to forward, or when the
+     * store it would forward to is hidden — a redirect off a store's old
+     * address would otherwise tell a stranger that the hidden store exists
+     * and name where it lives.
      */
     public function movedTo(string $slug, DateTimeImmutable $now): ?string
     {
@@ -43,6 +46,11 @@ final readonly class StoreAddressLookup
             return null;
         }
 
-        return $retired->storeProfile?->slug;
+        $current = StoreProfile::query()
+            ->published()
+            ->whereKey($retired->store_profile_id)
+            ->value('slug');
+
+        return is_string($current) ? $current : null;
     }
 }
