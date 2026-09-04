@@ -10,13 +10,16 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Swaps one section with its neighbor one place earlier or later. The swap
- * passes through a sentinel position because `store_sections` is unique on
- * `(store_profile_id, position)` and SQLite enforces that immediately
- * rather than at commit.
+ * passes through a sentinel position: `store_sections` is unique on
+ * `(store_profile_id, position)` and SQLite enforces that as each statement
+ * runs, so the row being moved parks somewhere free while its neighbor
+ * takes its place. The sentinel sits above
+ * {@see StoreSection::MAX_PER_PROFILE} and inside the unsigned range the
+ * column holds.
  */
 final readonly class MoveStoreSection
 {
-    private const int SENTINEL_POSITION = -1;
+    private const int SENTINEL_POSITION = 9999;
 
     public function __invoke(StoreSection $section, StoreSectionMove $direction): void
     {

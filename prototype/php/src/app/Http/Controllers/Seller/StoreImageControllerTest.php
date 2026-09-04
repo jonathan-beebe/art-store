@@ -72,3 +72,24 @@ it('answers not found for another store\'s picture', function () use ($storekeep
 it('sends a signed-out visitor to the sign-in page', function (): void {
     $this->post('/seller/store/images')->assertRedirect(route('auth.seller.login'));
 });
+
+it('keeps the description a seller typed with the picture', function () use ($storekeeper): void {
+    [$seller, $profile] = $storekeeper();
+
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('studio.jpg'),
+        'role' => StorePictureRole::Gallery->value,
+        'alt' => 'The wheel by the window',
+    ]);
+
+    expect($profile->images()->sole()->alt)->toBe('The wheel by the window');
+});
+
+it('offers a description field on the upload form', function () use ($storekeeper): void {
+    [$seller] = $storekeeper();
+
+    $this->actingAs($seller, 'seller')
+        ->get('/seller/store')
+        ->assertOk()
+        ->assertSee('name="alt"', false);
+});

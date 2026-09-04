@@ -6,6 +6,7 @@ use App\Actions\Store\AddStoreImage;
 use App\Domain\Store\StorePictureRole;
 use App\Models\StoreImage;
 use App\Models\StoreProfile;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -54,4 +55,18 @@ it('keeps the description the seller typed', function (): void {
     $image = app(AddStoreImage::class)($profile, UploadedFile::fake()->image('studio.jpg'), StorePictureRole::Gallery, 'The wheel by the window');
 
     expect($image?->alt)->toBe('The wheel by the window');
+});
+
+it('takes the file off the disk again when the row cannot be written', function (): void {
+    $profile = StoreProfile::factory()->create();
+    // A seller_id no row holds trips the foreign key inside the
+    // transaction, the way any failed write there would.
+    $profile->seller_id = 'sel_00000000000000000000000000';
+
+    $before = Storage::disk('public')->allFiles('stores');
+
+    expect(fn () => app(AddStoreImage::class)($profile, UploadedFile::fake()->image('studio.jpg'), StorePictureRole::Gallery))
+        ->toThrow(QueryException::class);
+
+    expect(Storage::disk('public')->allFiles('stores'))->toBe($before);
 });

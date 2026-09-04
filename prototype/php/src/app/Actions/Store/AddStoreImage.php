@@ -10,11 +10,16 @@ use App\Models\StoreProfile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * Puts an uploaded file on the public disk and adds it to a store's
  * pictures. A portrait or a cover also becomes the column the profile
  * points at; a gallery picture waits for a section to place it.
+ *
+ * The disk write happens before the transaction, so a transaction that
+ * rolls back would leave the file behind with no row naming it. The catch
+ * takes the file off the disk again, keeping the two in step.
  */
 final readonly class AddStoreImage
 {
@@ -32,20 +37,29 @@ final readonly class AddStoreImage
             return null;
         }
 
-        return DB::transaction(function () use ($profile, $path, $role, $alt): StoreImage {
-            $image = $profile->images()->create([
-                'seller_id' => $profile->seller_id,
-                'path' => $path,
-                'alt' => $alt,
-            ]);
+        try {
+            return DB::transaction(fn (): StoreImage => $this->attach($profile, $path, $role, $alt));
+        } catch (Throwable $e) {
+            Storage::disk('public')->delete($path);
 
-            $column = $role->profileColumn();
+            throw $e;
+        }
+    }
 
-            if ($column !== null) {
-                $profile->update([$column => $image->id]);
-            }
+    private function attach(StoreProfile $profile, string $path, StorePictureRole $role, ?string $alt): StoreImage
+    {
+        $image = $profile->images()->create([
+            'seller_id' => $profile->seller_id,
+            'path' => $path,
+            'alt' => $alt,
+        ]);
 
-            return $image;
-        });
+        $column = $role->profileColumn();
+
+        if ($column !== null) {
+            $profile->update([$column => $image->id]);
+        }
+
+        return $image;
     }
 }
