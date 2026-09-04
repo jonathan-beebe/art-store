@@ -8,11 +8,14 @@ use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
- * A timestamp the way an inbox row reads it: exact enough to matter within
- * the last day ("now", "5m", "3h"), a calendar landmark ("Yesterday") just
+ * How long ago something happened, in two shapes. {@see short()} is the
+ * way an inbox row reads a timestamp: exact enough to matter within the
+ * last day ("now", "5m", "3h"), a calendar landmark ("Yesterday") just
  * after, and a bare date once neither elapsed time nor "yesterday" says
- * anything useful. Pure — every case a caller sees is decided by the two
- * instants passed in, nothing else.
+ * anything useful. {@see long()} is the same span spelled out ("2 days
+ * ago"), which a sentence reads better than an abbreviation. Pure — every
+ * case a caller sees is decided by the two instants passed in, nothing
+ * else.
  */
 final class RelativeTime
 {
@@ -46,5 +49,31 @@ final class RelativeTime
         }
 
         return $at->format('Y') === $now->format('Y') ? $at->format('M j') : $at->format('M j, Y');
+    }
+
+    /**
+     * The span spelled out, in the largest unit that still says something:
+     * "just now", "5 minutes ago", "3 hours ago", "2 days ago".
+     */
+    public static function long(DateTimeInterface $at, DateTimeInterface $now): string
+    {
+        $minutes = intdiv($now->getTimestamp() - $at->getTimestamp(), 60);
+
+        if ($minutes < 1) {
+            return 'just now';
+        }
+
+        if ($minutes < 60) {
+            return self::plural($minutes, 'minute');
+        }
+
+        $hours = intdiv($minutes, 60);
+
+        return $hours < 24 ? self::plural($hours, 'hour') : self::plural(intdiv($hours, 24), 'day');
+    }
+
+    private static function plural(int $count, string $unit): string
+    {
+        return $count === 1 ? "1 {$unit} ago" : "{$count} {$unit}s ago";
     }
 }

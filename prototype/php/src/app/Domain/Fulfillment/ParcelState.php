@@ -7,6 +7,7 @@ namespace App\Domain\Fulfillment;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Support\RelativeTime;
 use DateTimeImmutable;
 
 /**
@@ -56,10 +57,10 @@ final readonly class ParcelState
         if ($this->lastStepLabel === null || $this->lastStepAt === null) {
             $shipBy = $this->placedAt->modify('+'.self::SHIP_WITHIN_DAYS.' days');
 
-            return 'Placed '.$this->elapsedSince($this->placedAt).' · ship by '.$shipBy->format('M j');
+            return 'Placed '.RelativeTime::long($this->placedAt, $this->now).' · ship by '.$shipBy->format('M j');
         }
 
-        return $this->lastStepLabel.' '.$this->elapsedSince($this->lastStepAt).' · waiting for the parcel to leave';
+        return $this->lastStepLabel.' '.RelativeTime::long($this->lastStepAt, $this->now).' · waiting for the parcel to leave';
     }
 
     private function shippedLine(): string
@@ -90,28 +91,5 @@ final readonly class ParcelState
             LedgerEntryType::PaidOut => 'paid out',
             LedgerEntryType::Refunded => 'returned to the buyer',
         };
-    }
-
-    private function elapsedSince(DateTimeImmutable $at): string
-    {
-        $seconds = $this->now->getTimestamp() - $at->getTimestamp();
-        $minutes = intdiv($seconds, 60);
-
-        if ($minutes < 1) {
-            return 'just now';
-        }
-
-        if ($minutes < 60) {
-            return self::plural($minutes, 'minute');
-        }
-
-        $hours = intdiv($minutes, 60);
-
-        return $hours < 24 ? self::plural($hours, 'hour') : self::plural(intdiv($hours, 24), 'day');
-    }
-
-    private static function plural(int $count, string $unit): string
-    {
-        return $count === 1 ? "1 {$unit} ago" : "{$count} {$unit}s ago";
     }
 }

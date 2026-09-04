@@ -25,37 +25,36 @@ final class AttentionQueue
     /**
      * The four groups, in the order the dashboard renders them.
      *
-     * @param  list<AttentionRow>  $toShip  oldest first
-     * @param  list<AttentionRow>  $waiting
-     * @param  list<AttentionRow>  $payout
-     * @param  list<AttentionRow>  $listings
+     * @param  AttentionRows  $toShip  oldest first
      * @return list<AttentionGroup>
      */
     public static function build(
-        array $toShip,
-        array $waiting,
-        array $payout,
-        array $listings,
+        AttentionRows $toShip,
+        AttentionRows $waiting,
+        AttentionRows $payout,
+        AttentionRows $listings,
         DateTimeImmutable $payoutDate,
         AttentionLinks $links,
     ): array {
         return [
             new AttentionGroup(
                 icon: FeedIcon::Truck,
-                title: self::counted(count($toShip), 'order to ship', 'orders to ship'),
+                title: self::counted($toShip->total, 'order to ship', 'orders to ship'),
                 supporting: 'Oldest first. Buyers expect a parcel within three days.',
                 actionLabel: 'Open orders',
                 actionHref: $links->orders,
-                rows: $toShip,
+                rows: $toShip->shown,
+                total: $toShip->total,
                 emptySentence: 'Nothing is waiting to ship.',
             ),
             new AttentionGroup(
                 icon: FeedIcon::Chat,
-                title: self::counted(count($waiting), 'message waiting on you', 'messages waiting on you'),
+                title: self::counted($waiting->total, 'message waiting on you', 'messages waiting on you'),
                 supporting: 'Buyers who wrote and have not heard back.',
                 actionLabel: 'Open messages',
                 actionHref: $links->messages,
-                rows: $waiting,
+                rows: $waiting->shown,
+                total: $waiting->total,
                 emptySentence: 'Every buyer has heard back from you.',
             ),
             new AttentionGroup(
@@ -64,16 +63,18 @@ final class AttentionQueue
                 supporting: 'What has released so far, and what is still on its way.',
                 actionLabel: 'See earnings',
                 actionHref: $links->earnings,
-                rows: $payout,
+                rows: $payout->shown,
+                total: $payout->total,
                 emptySentence: 'Nothing has settled yet.',
             ),
             new AttentionGroup(
                 icon: FeedIcon::Pencil,
-                title: self::counted(count($listings), 'listing needs work', 'listings need work'),
-                supporting: 'Drafts that cannot publish, and pieces that sold out.',
+                title: self::counted($listings->total, 'listing needs work', 'listings need work'),
+                supporting: 'Drafts waiting to go live, and pieces that sold out.',
                 actionLabel: 'Open listings',
                 actionHref: $links->listings,
-                rows: $listings,
+                rows: $listings->shown,
+                total: $listings->total,
                 emptySentence: 'Every listing is published and in stock.',
             ),
         ];

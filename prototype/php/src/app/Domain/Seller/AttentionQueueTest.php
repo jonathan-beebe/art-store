@@ -17,22 +17,33 @@ function attentionLinks(): AttentionLinks
 }
 
 /**
- * @param  list<AttentionRow>  $toShip
- * @param  list<AttentionRow>  $waiting
- * @param  list<AttentionRow>  $payout
- * @param  list<AttentionRow>  $listings
  * @return list<AttentionGroup>
  */
-function attentionGroups(array $toShip = [], array $waiting = [], array $payout = [], array $listings = []): array
-{
+function attentionGroups(
+    ?AttentionRows $toShip = null,
+    ?AttentionRows $waiting = null,
+    ?AttentionRows $payout = null,
+    ?AttentionRows $listings = null,
+): array {
     return AttentionQueue::build(
-        toShip: $toShip,
-        waiting: $waiting,
-        payout: $payout,
-        listings: $listings,
+        toShip: $toShip ?? AttentionRows::of([]),
+        waiting: $waiting ?? AttentionRows::of([]),
+        payout: $payout ?? AttentionRows::of([]),
+        listings: $listings ?? AttentionRows::of([]),
         payoutDate: new DateTimeImmutable('2026-09-07'),
         links: attentionLinks(),
     );
+}
+
+function attentionRowsOf(int $count): AttentionRows
+{
+    $rows = [];
+
+    for ($i = 0; $i < $count; $i++) {
+        $rows[] = attentionRow();
+    }
+
+    return AttentionRows::of($rows);
 }
 
 it('builds the four groups, in the order the dashboard renders them', function (): void {
@@ -51,7 +62,7 @@ it('gives each group the link to the tool that clears it', function (): void {
 });
 
 it('counts the orders waiting to ship in the heading', function (int $rows, string $title): void {
-    $groups = attentionGroups(toShip: array_fill(0, $rows, attentionRow()));
+    $groups = attentionGroups(toShip: attentionRowsOf($rows));
 
     expect($groups[0]->title)->toBe($title);
 })->with([
@@ -61,7 +72,7 @@ it('counts the orders waiting to ship in the heading', function (int $rows, stri
 ]);
 
 it('counts the messages waiting on the seller in the heading', function (int $rows, string $title): void {
-    $groups = attentionGroups(waiting: array_fill(0, $rows, attentionRow()));
+    $groups = attentionGroups(waiting: attentionRowsOf($rows));
 
     expect($groups[1]->title)->toBe($title);
 })->with([
@@ -71,7 +82,7 @@ it('counts the messages waiting on the seller in the heading', function (int $ro
 ]);
 
 it('counts the listings that need work in the heading', function (int $rows, string $title): void {
-    $groups = attentionGroups(listings: array_fill(0, $rows, attentionRow()));
+    $groups = attentionGroups(listings: attentionRowsOf($rows));
 
     expect($groups[3]->title)->toBe($title);
 })->with([
@@ -102,7 +113,7 @@ it('hands each group its rows in the order it was given them', function (): void
     $first = attentionRow('Ginny Weasley');
     $second = attentionRow('Luna Lovegood');
 
-    $groups = attentionGroups(toShip: [$first, $second]);
+    $groups = attentionGroups(toShip: AttentionRows::of([$first, $second]));
 
     expect($groups[0]->rows)->toBe([$first, $second])
         ->and($groups[0]->isEmpty())->toBeFalse();
@@ -117,3 +128,17 @@ it('reads a parcel as overdue once it has waited past two days', function (strin
     'placed two days and an hour ago' => ['2026-09-02 11:00:00', true],
     'placed a week ago' => ['2026-08-28 12:00:00', true],
 ]);
+
+it('counts the whole queue in the heading while the panel shows the head of it', function (): void {
+    $groups = attentionGroups(toShip: new AttentionRows([attentionRow(), attentionRow()], 9));
+
+    expect($groups[0]->title)->toBe('9 orders to ship')
+        ->and($groups[0]->rows)->toHaveCount(2)
+        ->and($groups[0]->hidden())->toBe(7);
+});
+
+it('hides nothing when the panel shows the whole queue', function (): void {
+    $groups = attentionGroups(toShip: AttentionRows::of([attentionRow()]));
+
+    expect($groups[0]->hidden())->toBe(0);
+});

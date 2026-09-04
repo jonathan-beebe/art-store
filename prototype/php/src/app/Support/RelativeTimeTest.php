@@ -40,3 +40,17 @@ it('falls back to a bare date once the gap is neither today, an hour count, nor 
     expect(RelativeTime::short(new DateTimeImmutable('2026-08-19 08:00:00'), $now))->toBe('Aug 19')
         ->and(RelativeTime::short(new DateTimeImmutable('2025-12-01 08:00:00'), $now))->toBe('Dec 1, 2025');
 });
+
+it('spells the span out in the largest unit that still says something', function (string $ago, string $expected): void {
+    $now = new DateTimeImmutable('2026-08-21 12:00:00');
+
+    expect(RelativeTime::long($now->modify($ago), $now))->toBe($expected);
+})->with([
+    'under a minute' => ['-30 seconds', 'just now'],
+    'one minute' => ['-1 minute', '1 minute ago'],
+    'minutes' => ['-45 minutes', '45 minutes ago'],
+    'one hour' => ['-1 hour', '1 hour ago'],
+    'hours' => ['-23 hours', '23 hours ago'],
+    'one day' => ['-24 hours', '1 day ago'],
+    'days' => ['-9 days', '9 days ago'],
+]);
