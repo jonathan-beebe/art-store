@@ -36,6 +36,16 @@ it('leaves out orders placed outside the period', function (): void {
     expect(PeriodSales::for($seller, $period))->toBeEmpty();
 });
 
+it('leaves out an order that never paid', function (): void {
+    $seller = $this->seller();
+    $unpaid = $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+    $unpaid->update(['placed_at' => $this->moment('2026-08-11 09:00:00')]);
+
+    $period = PayoutPeriod::endingBefore($this->moment('2026-08-17 00:00:00'));
+
+    expect(PeriodSales::for($seller, $period))->toBeEmpty();
+});
+
 it('reports each row buyer, item, subtotal, fee, and net', function (): void {
     $seller = $this->seller();
     $order = $this->orderFor(

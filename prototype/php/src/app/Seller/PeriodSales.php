@@ -15,11 +15,11 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use RuntimeException;
 
 /**
- * Every order placed inside one payout period, newest first — the rows
+ * Every paid order placed inside one payout period, newest first — the rows
  * behind that period's sales table and its printable statement. Every
- * status is included, live or not: a declined order still placed that
- * period, and a statement is a record of what happened rather than only
- * what paid.
+ * status a paid order can reach is included, so a declined or refunded one
+ * still shows as an order the period held; an order whose card never
+ * cleared holds no money and is not one of them.
  */
 final readonly class PeriodSales
 {
@@ -31,7 +31,9 @@ final readonly class PeriodSales
     public static function for(Seller $seller, PayoutPeriod $period): array
     {
         return array_values($seller->fulfillments()
-            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereBetween('placed_at', [$period->start, $period->end]))
+            ->whereHas('order', fn (Builder $orders): Builder => $orders
+                ->whereBetween('placed_at', [$period->start, $period->end])
+                ->whereIn('status', Order::paidStatuses()))
             ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
             ->get()
             ->sortByDesc(fn (Fulfillment $fulfillment): string => $fulfillment->order->placed_at->format('Y-m-d H:i:s.u').$fulfillment->id)

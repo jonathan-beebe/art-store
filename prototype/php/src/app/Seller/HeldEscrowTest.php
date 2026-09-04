@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Money\Money;
+use App\Domain\Seller\HeldOrder;
 use App\Domain\Seller\HeldState;
 
 it('totals from the ledger fold and lists every order still holding money, oldest first', function (): void {
@@ -44,6 +46,28 @@ it('leaves out delivered, declined, and refunded fulfillments', function (): voi
 
     expect($held->orders)->toBeEmpty()
         ->and($held->total->isZero())->toBeTrue();
+});
+
+it('leaves out an order still awaiting a card — its fulfillment sits at awaiting_shipment before payment ever writes a held entry', function (): void {
+    $seller = $this->seller();
+    $this->orderFor($this->verifiedCustomer(), $this->listing($seller));
+
+    $held = HeldEscrow::for($seller);
+
+    expect($held->orders)->toBeEmpty()
+        ->and($held->total->isZero())->toBeTrue();
+});
+
+it('sums its own rows to exactly what it totals', function (): void {
+    $seller = $this->seller();
+    $this->shippedFulfillmentFor($seller, priceCents: 10_000, orderedAt: $this->moment('2026-08-20 10:00:00'), shippedAt: $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller, priceCents: 5_000, paidAt: $this->moment('2026-08-21 10:00:00'));
+    $this->orderFor($this->verifiedCustomer(), $this->listing($seller)); // never paid; must not be summed in either place
+
+    $held = HeldEscrow::for($seller);
+    $summed = array_reduce($held->orders, fn (Money $sum, HeldOrder $order): Money => $sum->add($order->net), Money::zero());
+
+    expect($summed->equals($held->total))->toBeTrue();
 });
 
 it('reports each order buyer, item, and net', function (): void {

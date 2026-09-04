@@ -9,16 +9,18 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Seller\HeldOrder;
 use App\Domain\Seller\HeldState;
 use App\Models\Fulfillment;
+use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Seller;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 /**
- * Every order still holding a seller's money, oldest first, and what they
- * total — the escrow half of the earnings page. `$total` is read from the
- * ledger fold rather than summed from the rows below it, so the figure
- * reconciles with the fold even where a stray ledger entry would make the
- * two diverge.
+ * Every paid order still holding a seller's money, oldest first, and what
+ * they total — the escrow half of the earnings page. `$total` is read from
+ * the ledger fold, so it reconciles with the fold even where a stray
+ * ledger entry would put the two out of step; every row below it draws
+ * from the same paid orders the fold's `held` entries name.
  */
 final readonly class HeldEscrow
 {
@@ -34,6 +36,7 @@ final readonly class HeldEscrow
     {
         $fulfillments = $seller->fulfillments()
             ->whereIn('status', [FulfillmentStatus::AwaitingShipment, FulfillmentStatus::Shipped])
+            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()))
             ->with(['order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
             ->orderBy('created_at')
             ->orderBy('id')
