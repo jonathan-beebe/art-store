@@ -6,7 +6,7 @@
 - DSGN: 11
 - ARCH: 1
 - FEAT: 62
-- IMPRV: 34
+- IMPRV: 37
 - MAINT: 9
 - A11Y: 1
 - RFCTR: 14
@@ -14,6 +14,9 @@
 
 ## Log
 
+- 2026-09-04:08:10:00 — IMPRV-036 — defined: The listings overlay tests prove the right block shows per viewport
+- 2026-09-04:08:10:00 — IMPRV-035 — defined: The dashboard's "needs work" group names a draft's actual issues
+- 2026-09-04:08:10:00 — IMPRV-034 — defined: The shared status-tint lookup carries a name that fits both portals
 - 2026-09-04:07:32:43 — IMPRV-033 — started
 - 2026-09-04:07:27:28 — IMPRV-033 — defined: The docs say the seller portal once, and the deferrals become tickets
 - 2026-09-04:07:27:28 — IMPRV-032 — defined: One sort stack, one link, one query request, one paid rule, one sidecar rule
