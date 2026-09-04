@@ -174,3 +174,57 @@ ticket did not touch — `AnalyticsSource`, `EarningsPeriods`,
 `NeedsAttention`, `OrderDetail`, `Variant`, `VariantOption`,
 `SellerLayoutComposer`, `AdminLayoutComposer` — pre-existing on this
 branch.)
+
+Review pass: `StatementController` no longer authorizes a seller against
+themselves — `SellerPolicy` (the always-true check) is gone, and a new
+`StatementRequest` owns the real rule: a statement exists only for one of
+the eight periods the earnings page charts, `authorize()` denies as 404
+for any other, and `StatementControllerTest`'s two 404 cases moved to
+`StatementRequestTest`. `ListingCreateRequest` normalizes an unrecognised
+`?shape=` to null (DSGN-003's own call: the question screen falls back
+to itself, the audit's bare-400 rule is for report filters). Both store
+controllers pass `['page' => $page]`; the `(array)` cast the
+array-vs-object step left behind is gone, and the two Blade views read
+`$page->…`. `FulfillmentLanes::tabs()` returns `array<string, NavLink>`
+keyed by the lane's own value, so a test (and a future caller) reads
+`$tabs[LaneFilter::ToShip->value]`, naming the lane. `NavLink` gained
+`?string $iconPath`; the listings view switch's icons route through it,
+retiring the parallel `ListingsChrome::$viewIcons` list a `$loop->index`
+had to keep in step by hand; `x-seller.segmented` gained a `current`
+prop (default `'true'`) and the listings header passes `current="page"`,
+since the view switch navigates. `ListingSortColumn::defaultSort()` and
+`CustomerSortColumn::defaultSort()` replace the `TableSort::of(Views,
+Desc)`/`TableSort::of(Spent, Desc)` literal spelled out at every caller
+and test. `HeldEscrow::tallyFor()` renamed `factsFor()` to match its
+`HeldFacts` return, left behind when `HeldTally` became `HeldFacts`
+earlier in this ticket. `docs/seller-portal.md`'s suffix-vocabulary
+paragraph now says `*Row` means one rendered row wherever the class
+holding it lives, `App\Domain` or `App\Seller` alike. Docs and the
+ticket itself: the Working note above now names the listings table (it
+said customers); the title and this file's name drop "one paid rule",
+an outcome IMPRV-031 owns; the sidecar count in step 5
+reads 31, the list's actual size; step 3's note on
+`MessagesQueryRequest::replyTo()` states the rule answers 400 on a
+non-scalar `reply_to` and that a stray id falls back to a plain reply by
+design, reading it off the conversation's already-loaded messages.
+Contrast clauses ("rather than", "not X") dropped from three class
+docblocks and three test names, and reworded out of one commit body via
+`git filter-branch --msg-filter` over `php/seller-portal-next..php/au-shape`.
+
+Rebased onto `php/seller-portal-next` (IMPRV-030 and IMPRV-031 merged):
+`ListingActivity`'s sold-units query took `Fulfillment::counted()` over
+`App\Models\Order` (IMPRV-031) where this ticket's own edits to that file
+only concerned the sort call, so both landed; the listings header moved
+to a real Blade component (`x-seller.listings-header`, IMPRV-030) where
+this ticket's edits still targeted the old `_header.blade.php` include,
+so the segmented-component swap replayed onto the new file; two guest-
+redirect and 404 tests this ticket deletes collided with new IMPRV-030
+tests on the same routes, kept alongside the deletion; the store profile
+picture markup picked up IMPRV-030's alt-text and layout fixes alongside
+this ticket's `$page->` rewrite. One conflict needed a genuine fix:
+IMPRV-030's `AriaCurrentPairingTest` asserted every `aria-current`
+on the listings View switch reads `"true"`; this ticket's own
+`current="page"` change (above) makes that assertion wrong, so the
+listings-pane case now asserts the switch reads `"page"`, and the file's
+docblock names the switch as a third case of the pane-row rule.
+`make check` green after the rebase: 5247 tests, 99.5% coverage.
