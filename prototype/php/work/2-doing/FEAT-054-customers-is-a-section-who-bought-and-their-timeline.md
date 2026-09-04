@@ -34,3 +34,21 @@ The brief's first dashboard tile is the customer count and it opens "into a cust
 - FEAT-052 (activity feed)
 - docs/ontology.md, prototype/php/docs/ontology.md — "Customer" gains the seller's meaning
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Customers)
+
+## Working
+
+Design decided before the first test:
+
+- `App\Seller\SellerCustomers` derives the list from `fulfillments` (live
+  statuses only), joins favorites and conversations by id in PHP, and hands
+  back `list<App\Domain\Seller\CustomerRow>`. `forCustomer()` is the
+  one-customer method the orders workspace and the thread rail read.
+- `App\Domain\Seller\{CustomerRow,CustomerSegment,CustomerSortColumn,
+  CustomerSort,CustomerTableSort,CustomerTally}` are pure.
+- `App\Http\Requests\Seller\CustomersQueryRequest` owns `range`, `segment`,
+  `sort`, `dir`, `kind` and answers a bare 400 on an unrecognised value.
+- `App\Seller\CustomersChrome` builds the segment links and the sortable
+  column headers, the `ListingsChrome` idiom.
+- A customer with no live fulfillment with the seller answers 404, which is
+  also the privacy rule: browsing, favoriting, and asking do not open a
+  person's page to a seller.
