@@ -13,6 +13,7 @@ use App\Http\Middleware\LogRequestStory;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
 use App\Models\Listing;
+use App\Models\StoreProfile;
 use Illuminate\Http\Request;
 
 /**
@@ -344,6 +345,32 @@ it('names a cart subject "cart {id}" on an actor\'s feed, unlinked, with its lis
         ->and($view->feed[0]->otherId)->toBe($cart->id)
         ->and($view->feed[0]->otherExists)->toBeFalse()
         ->and($view->feed[0]->listingTitles)->toBe(['Starry Night', 'Snowy Owl']);
+});
+
+it('names a store subject "store {id}" on an actor\'s feed, unlinked, with no listing titles', function (): void {
+    $customer = $this->verifiedCustomer();
+    $profile = StoreProfile::factory()->create();
+    $analytics = app(Analytics::class);
+
+    $analytics->recordEvent(AnalyticsEvent::forStore(
+        AnalyticsEventName::StoreView,
+        $profile->id,
+        $customer->id,
+        $this->moment('2026-08-19 09:00:00'),
+    ));
+    $analytics->flush();
+
+    $range = AnalyticsRange::of(7, $this->moment('2026-08-24 12:00:00'));
+    $view = EntityActivity::forActor($customer, $range, null, $this->moment('2026-08-24 12:00:00'));
+
+    expect($view->feed)->toHaveCount(1)
+        ->and($view->feed[0]->name)->toBe('store.view')
+        ->and($view->feed[0]->verb)->toBe('opened')
+        ->and($view->feed[0]->otherLabel)->toBe("store {$profile->id}")
+        ->and($view->feed[0]->otherKind)->toBe('store')
+        ->and($view->feed[0]->otherId)->toBe($profile->id)
+        ->and($view->feed[0]->otherExists)->toBeFalse()
+        ->and($view->feed[0]->listingTitles)->toBe([]);
 });
 
 it('reads no listing titles for a listing subject, only for an order or cart subject', function (): void {
