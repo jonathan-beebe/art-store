@@ -19,7 +19,7 @@ One statement of which parcels count, read by every seller figure, on a schema t
 - Every seeded shipped or delivered parcel carries its `shipped` and `delivered` events; a test walks the seed and asserts status and log agree.
 - The one-default-flow index is `where is_default` (bare) and steps park above the range; the migration comments and the docs say what each database accepts.
 - Removing a store picture removes its file when the store owns it; a seeded picture that shares a listing photo's path is left, and the action says why.
-- `AddStoreSection` and `MoveStoreSection` read positions inside the transaction that writes them; `Order::items()` orders by position then id; `StoreImageRequest` mints the profile the way `StoreController::show` does; `FulfillmentLanes::notes()` and `SellerCustomers::shippedIdentities()` read latest-per-parcel in one grouped query each; `Order::shippingAddressLines()` sits under its own docblock and drops an empty city cleanly.
+- `AddStoreSection` and `MoveStoreSection` read positions inside the transaction that writes them; `Order::items()` orders by `created_at` then `id` — there is no `position` column on `order_items`; `StoreImageRequest` mints the profile the way `StoreController::show` does; `FulfillmentLanes::notes()` and `SellerCustomers::shippedIdentities()` read latest-per-parcel in one grouped query each; `Order::shippingAddressLines()` sits under its own docblock and drops an empty city cleanly.
 - Factories never mint unrelated parents (`StoreImageFactory`, `StoreSectionImageFactory`, `FulfillmentEventFactory` follow `FulfillmentFlowStepFactory`).
 - `make precommit` green; `make check` green before the PR.
 
