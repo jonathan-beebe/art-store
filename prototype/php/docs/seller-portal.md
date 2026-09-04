@@ -1,8 +1,25 @@
 # Seller portal
 
-The seller portal's tools beyond the backbone (dashboard, orders, messages,
-earnings) covered in [`architecture.md`](architecture.md). Each tool gets its
-own section here as its lane lands.
+The seller's own site: what a seller shows the world, what they have for
+sale, what they owe a buyer, and what they are owed. The chrome, the
+dashboard, and messages are in [`architecture.md`](architecture.md); each
+tool gets its own section here as its lane lands.
+
+| Section                                 | Read it for                                                     |
+| --------------------------------------- | --------------------------------------------------------------- |
+| [Store profile](#store-profile)         | The six store tables, the typed-section rule, addresses as      |
+|                                         | history, the routes, the limits, the seeds                      |
+| [The public page](#the-public-page)     | `/s/{slug}`, how an address resolves, what the page shows,      |
+|                                         | the listing cards that lead to it, `store.view`                 |
+| [Listings](#listings)                   | List, table, and grid over one detail component; the query      |
+|                                         | vocabulary; sorting as a link; overlay against takeover         |
+| [Activity feed](#activity-feed)         | The four sources, which one owns which row, and why merging     |
+|                                         | and filtering are pure                                          |
+| [Earnings](#earnings)                   | Next payout, held escrow, this period against the seven before  |
+|                                         | it, and the printable statement                                 |
+| [Support](#support)                     | The desk, its presence and reply time, help articles from       |
+|                                         | markdown, and the seller's own support threads                  |
+| [Data](#data)                           | The nine tables the portal added, drawn from the migrations     |
 
 ## Store profile
 
@@ -399,6 +416,7 @@ the optional `quote` and `link`. `FeedIcon` carries the heroicon path, so a
 row brings its own picture and `x-seller.feed` stays a renderer — the only
 feed markup in the portal, in the Tailwind Plus feed shape: a 32px round icon
 on a rail, the body, the instant.
+
 ## Earnings
 
 `/seller/earnings` leads with the next payout, what is still held and why,
@@ -550,3 +568,132 @@ newest first — the same rows Messages' Support tab lists
 are unchanged: the seller's existing titled new-conversation form, now
 reached from the hub's "Start a conversation" button rather than being the
 `/seller/support` route itself.
+
+## Data
+
+Question: which tables did the portal add, and what does each column carry?
+
+Nine tables, in two groups: six for how a seller presents, three for how a
+seller ships. `listings` gains one nullable column. Every id is a prefixed
+ULID (`docs/alignment.md` §1); the whole-database picture is
+[`data-model.md`](data-model.md).
+
+```mermaid
+erDiagram
+    sellers ||--o| store_profiles : "presents as"
+    store_profiles ||--o{ store_slugs : "has answered to"
+    store_profiles ||--o{ store_images : owns
+    store_profiles ||--o{ store_sections : "is built from"
+    store_sections ||--o{ store_section_images : places
+    store_images ||--o{ store_section_images : ""
+    store_profiles ||--o{ store_links : ""
+
+    sellers ||--o{ fulfillment_flows : owns
+    fulfillment_flows ||--o{ fulfillment_flow_steps : orders
+    listings }o--o| fulfillment_flows : "ships by"
+    fulfillments ||--o{ fulfillment_events : "is the record of"
+    fulfillment_flow_steps ||--o{ fulfillment_events : "completed as"
+
+    store_profiles {
+        text id PK "sto_"
+        text seller_id FK "unique"
+        text slug UK "the current address"
+        text name
+        text tagline "nullable"
+        text location "nullable"
+        text portrait_image_id "nullable, sim_, indexed, no foreign key"
+        text cover_image_id "nullable, sim_, indexed, no foreign key"
+        timestamp published_at "nullable, indexed; null = hidden"
+    }
+    store_slugs {
+        text id PK "ssl_"
+        text store_profile_id FK
+        text slug UK "unique across every store, current and retired"
+        timestamp retired_at "nullable, indexed; null = current"
+    }
+    store_images {
+        text id PK "sim_"
+        text store_profile_id FK
+        text seller_id FK "indexed"
+        text path "on the public disk"
+        text alt "nullable"
+    }
+    store_sections {
+        text id PK "sse_"
+        text store_profile_id FK
+        text kind "story | gallery"
+        integer position "unique with store_profile_id"
+        text heading "nullable"
+        text body "nullable"
+    }
+    store_section_images {
+        text id PK "ssi_"
+        text store_section_id FK
+        text store_image_id FK "unique with store_section_id"
+        integer position "unique with store_section_id"
+    }
+    store_links {
+        text id PK "slk_"
+        text store_profile_id FK
+        text kind "website | instagram, unique with store_profile_id"
+        text url
+        integer position "unique with store_profile_id"
+    }
+    fulfillment_flows {
+        text id PK "ffl_"
+        text seller_id FK "indexed with is_default"
+        text name
+        boolean is_default "partial unique index: one true per seller"
+    }
+    fulfillment_flow_steps {
+        text id PK "ffs_"
+        text fulfillment_flow_id FK
+        text seller_id FK "the flow's seller, copied down"
+        text key "40 chars, unique with fulfillment_flow_id"
+        text label "the words the seller gave the step"
+        text action "none | print_label"
+        integer position "unique with fulfillment_flow_id"
+    }
+    fulfillment_events {
+        text id PK "fev_"
+        text fulfillment_id FK "indexed with occurred_at"
+        text seller_id FK "indexed with occurred_at"
+        text kind "step_completed | shipped | delivered | declined | refunded"
+        text fulfillment_flow_step_id FK "nullable, nullOnDelete, unique with fulfillment_id"
+        text step_label "nullable, the step's words at completion"
+        text actor_type "seller | customer | admin | system"
+        text actor_id "nullable"
+        text carrier "nullable, from a print_label step"
+        text tracking_number "nullable, from a print_label step"
+        timestamp occurred_at
+    }
+    listings {
+        text id PK "lst_"
+        text fulfillment_flow_id FK "nullable, nullOnDelete; null = the seller's default flow"
+    }
+```
+
+Six shapes the migrations hold that the lines above do not:
+
+- `store_profiles.portrait_image_id` and `cover_image_id` carry a `sim_` id
+  with no database foreign key. `store_images` carries `store_profile_id`, so
+  a key back the other way is a cycle SQLite cannot create in either order.
+  `RemoveStoreImage` clears both columns before it deletes the row.
+- `store_slugs.slug` is unique across the whole table, retired rows included,
+  so a rename can never take an address another store has ever answered to
+  and a redirect can never be ambiguous.
+- `fulfillment_flows` holds one default per seller as
+  `create unique index … on fulfillment_flows (seller_id) where is_default = 1`.
+  Blueprint writes no partial index; SQLite and Postgres both take the
+  clause, so the migration writes the statement.
+- `fulfillment_events` is unique on
+  `(fulfillment_id, fulfillment_flow_step_id)`, so a step completed twice is
+  one row. A unique index counts each null as its own value, which leaves
+  every transition row — none of which names a step — outside the
+  constraint.
+- `fulfillment_events.step_label` copies the step's words at the moment of
+  completion, and `fulfillment_flow_step_id` is `nullOnDelete`, so a seller
+  who drops a step from their flow leaves the log still saying what they did.
+- `store_section_images` and `store_links` each carry two unique indexes: one
+  on position, so a section's pictures and a store's links hold an order, and
+  one on the child (image, link kind), so neither is listed twice.

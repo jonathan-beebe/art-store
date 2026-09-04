@@ -78,6 +78,9 @@ simply unused there):
 | payments                                  | `pay`  |
 | refunds                                   | `rfd`  |
 | fulfillments                              | `ful`  |
+| fulfillment_flows                         | `ffl`  |
+| fulfillment_flow_steps                    | `ffs`  |
+| fulfillment_events                        | `fev`  |
 | ledger_entries                            | `led`  |
 | payouts                                   | `pyt`  |
 | conversations                             | `cnv`  |
@@ -235,7 +238,10 @@ prototype emits every event below that its features support.
 
 The vocabulary is closed: a write with no event above stays silent rather than
 minting a name one prototype has and the others lack. Reserved for a future
-round: `favorite.toggle`, `conversation.read`, `faq.update`, `session.start`.
+round: `favorite.toggle`, `conversation.read`, `faq.update`, `session.start`,
+`fulfillment.step` (a seller completing one step of their own flow, §4.5 —
+the appended `fulfillment_events` row is the record until all three
+prototypes carry the name).
 
 ### 2.4 Emoji prefixes
 
@@ -433,6 +439,9 @@ awaiting_shipment ─ship─▶ shipped ─deliver─▶ delivered
 - Decline or refund on a fulfillment already `declined`/`refunded` is refused.
   Ship after decline is refused. Both checks run inside the transaction that
   writes.
+- The column above is the contract. Beside it runs an append-only log of what
+  happened to the parcel, including the seller's own steps between paid and
+  shipped: §4.5.
 
 Payment (unchanged): `payments` rows record each card attempt, `approved` or
 `declined` with `decline_reason`. The fake card table stays: `4242…`
@@ -487,7 +496,11 @@ The platform fee on a refunded fulfillment is forgone: accounting reports
 - Customer: Cancel button on unpaid orders; order page shows declined /
   refunded fulfillments with the reason and the refund amount.
 - Seller: Decline form (reason) on `awaiting_shipment` fulfillments; earnings
-  page shows `refunded` movements.
+  page shows `refunded` movements; the parcel's own page draws the flow of
+  §4.5 with a control on the step in front, and the step whose action is
+  `print_label` takes a carrier and a tracking number and answers a printable
+  label page; an editor for the seller's own flow (add, rename, reorder,
+  remove a step, and choose which one prints the label).
 - Admin: order detail and fulfillment detail pages with a Cancel (unpaid) and
   Refund (per fulfillment, with reason) action; refund rows listed on the
   order; `refunded` filter values on orders/fulfillments lists; ledger browser
@@ -495,6 +508,67 @@ The platform fee on a refunded fulfillment is forgone: accounting reports
 - Notifications: the counterpart is notified in-app on decline, refund, and
   cancel (customer ← seller decline; seller ← admin refund/cancel; customer ←
   admin refund/cancel).
+
+### 4.5 The fulfillment event log and the seller's flow
+
+`fulfillments.status` in §4.1 stays the state machine every prototype
+enforces. `fulfillment_events` is an append-only log of what happened to one
+parcel, and it holds what the column has no room for: the steps a seller
+takes between paid and shipped.
+
+```mermaid
+erDiagram
+    sellers ||--o{ fulfillment_flows : owns
+    fulfillment_flows ||--o{ fulfillment_flow_steps : orders
+    listings }o--o| fulfillment_flows : "ships by"
+    fulfillments ||--o{ fulfillment_events : "is the record of"
+    fulfillment_flow_steps ||--o{ fulfillment_events : "completed as"
+```
+
+A **flow** (`ffl`) is a seller's ordered list of **steps** (`ffs`) — label
+printed, packed, kiln cooled, framed. A step carries a key and a position,
+both unique inside the flow, the words the seller gave it, and an action:
+`none`, or `print_label` for the one step that answers a printable label. A
+seller has one default flow, seeded with *Label printed* (`print_label`) then
+*Packed*. A listing may name a flow (`listings.fulfillment_flow_id`,
+nullable); a listing that names none ships by its seller's default. One
+default flow per seller is a database constraint.
+
+An **event** (`fev`) names its fulfillment, its seller, a kind, an actor
+(`seller` | `customer` | `admin` | `system`) and id, and the instant it
+happened. `step_completed` also names the step and copies the step's label,
+so a step the seller later renames or removes leaves the log reading as it
+did; a `print_label` completion also carries the carrier and the tracking
+number. Two kinds of writer:
+
+- The transitions of §4.1 — ship, deliver, decline, refund — append
+  `shipped`, `delivered`, `declined`, `refunded` **inside the transaction
+  that writes `fulfillments.status`**, so a status that moved without its
+  event cannot commit.
+- The seller's steps append `step_completed`. A step is completed only from
+  `awaiting_shipment`, only when it is the step in front, and only by the
+  seller who owns the parcel. `(fulfillment_id, fulfillment_flow_step_id)` is
+  unique, so a step completed twice is one row; a unique index counts each
+  null as its own value, which leaves the transition rows outside the
+  constraint.
+
+Reading the log is pure. Which steps are behind a parcel is read against the
+flow as it stands, so a removed step leaves the steps after it where they
+were; whether a parcel has started is read from the completions, so removing
+a step the seller had already done never walks the parcel back to the top.
+The seller's desk sorts parcels into three lanes from the status and that
+progress together:
+
+| Lane          | Status                                  | Progress               |
+| ------------- | --------------------------------------- | ---------------------- |
+| `To ship`     | `awaiting_shipment`                     | no step completed      |
+| `In progress` | `awaiting_shipment`                     | at least one completed |
+| `In progress` | `shipped`                               | any                    |
+| `Done`        | `delivered` \| `declined` \| `refunded` | any                    |
+
+A flow with no steps is allowed: the parcel sits in `To ship` until it is
+marked shipped. §2.3's vocabulary is closed, so a step completion and a flow
+edit write no log line; the appended row is the record.
 
 ## 5. Admin feature set
 
@@ -962,3 +1036,21 @@ listing page names the seller as a link to their store when it is
 published. PHP ships it on FEAT-058 —
 `prototype/php/docs/seller-portal.md` § "The public page" is the
 reference. Node and rails owe the whole feature.
+
+2026-09-03, seller portal: §1's prefix table gains `ffl`
+(fulfillment_flows), `ffs` (fulfillment_flow_steps), and `fev`
+(fulfillment_events), beside the six store prefixes the entry above added.
+§4.5 is new — an append-only `fulfillment_events` log beside §4.1's status
+machine, the seller's own ordered flow of steps between paid and shipped,
+the two writers, and the three lanes a desk reads from status plus
+progress. §4.4's seller row gains the flow panel, the `print_label` step
+with its carrier and tracking number and its printable label page, and the
+flow editor. §2.3 reserves `fulfillment.step` and holds the vocabulary
+closed until all three prototypes carry it, so a step completion writes the
+appended row and no log line. PHP ships the nine tables, the log, the flow,
+the store profile and its public page, the listings table and grid, the
+earnings period view, the support hub, and the activity feed on FEAT-051,
+FEAT-052, FEAT-056, FEAT-057, FEAT-058, FEAT-060, and FEAT-061 —
+`prototype/php/docs/seller-portal.md` and `prototype/php/docs/orders.md`
+§ "The fulfillment event log and the seller's flow" are the reference. Node
+owes it as FEAT-023 and rails as FEAT-022.

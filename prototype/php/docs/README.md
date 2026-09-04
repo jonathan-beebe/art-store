@@ -16,8 +16,8 @@
 | [`funnel.md`](funnel.md)             | The funnel's query/component boundary: the `FunnelStep` contract, the       |
 |                                      | session-unit decision, the accepted design's drawing rules, and what an     |
 |                                      | admin-defined funnel needs.                                                                                  |
-| [`seller-portal.md`](seller-portal.md) | The seller's own site. Today: the activity feed — which source owns which row, and why merging and        |
-|                                      | filtering are pure.                                                                                         |
+| [`seller-portal.md`](seller-portal.md) | The seller's own site, one section per tool: the store profile and its public page, listings as list,       |
+|                                        | table, and grid, the activity feed, earnings, support, and the nine tables the portal added.                |
 | [`messaging.md`](messaging.md)       | The one `conversations`/`messages` table serving four kinds of thread, who may read and post, the           |
 |                                      | listing-question-to-FAQ path, the live SSE badge, and the admin site's block.                               |
 | [`backups.md`](backups.md)           | **Design, not yet built.** The hourly SQLite snapshot and the nightly archive to Cloudflare R2, why they    |
@@ -26,12 +26,8 @@
 | [`data-model.md`](data-model.md)     | ER diagram generated from `database/migrations/`.                                                           |
 | [`item-configurator.md`](item-configurator.md) | The item configurator: taxonomy, option axes, sparse variants, serialized units, scoped modifiers, |
 |                                      | quantity breaks; price/availability resolution; seller and customer flows; what v1 defers.                  |
-| [`seller-portal.md`](seller-portal.md) | The seller portal: the store profile's six tables, the typed-section rule, addresses as history,   |
-|                                      | the routes and limits, the seeded stores, and the public `/s/{slug}` page.                                                              |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One       |
 |                                      | concept-level diagram.                                                                                      |
-| [`seller-portal.md`](seller-portal.md) | The seller portal's next evolution, one section per tool: store profile and public page, listings   |
-|                                      | (list/table/grid, overlay/takeover), activity feed, earnings, support, and more as lanes land.       |
 | [`review.md`](review.md)             | Every requirement in the brief, its status, and the route and test that prove it. Known gaps and next       |
 |                                      | steps.                                                                                                      |
 

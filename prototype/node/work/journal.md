@@ -5,7 +5,7 @@
 - RSRCH: 1
 - DSGN: 1
 - ARCH: 1
-- FEAT: 23
+- FEAT: 24
 - IMPRV: 36
 - MAINT: 9
 - A11Y: 1
@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:01:30:00 — FEAT-023 — defined: the seller portal grows a store, a fulfillment flow, and a feed (parity with php's seller-portal landing, docs/alignment.md §1/§2.6/§4.4/§4.5)
 - 2026-09-01:00:52:56 — IMPRV-035 — landed on node/php-alignment (ae5f498): 34 curated images wired via `make demo-images` + gitignored storage/demo-images, placeholder fallback proven; resolve on merge
 - 2026-08-31:23:51:19 — IMPRV-035 — defined: seed listings carry openly licensed demo images (sources documented in __local__/demo-images/node/manifest.md)
 - 2026-08-31:20:09:56 — FEAT-022 — defined: storefront images render as cached webp derivatives
