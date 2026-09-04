@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Domain\Seller;
 
+use App\Domain\Analytics\RangeChange;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Domain\Money\Money;
 
 /**
  * A payout period's business, folded from facts an adapter reads off the
- * database: how many orders were placed, what the live ones totalled before
- * and after the platform fee, and what was refunded — regardless of which
- * period the refunded sale itself was placed in.
+ * database: how many orders were placed, what they totalled gross before
+ * and after the platform fee, and what was refunded — dated by when the
+ * refund happened, which can be a later period than the sale itself. Gross
+ * sales and fees carry every order placed that period, live or since
+ * refunded; a refund nets itself back out through the `refunds` figure of
+ * whichever period it lands in.
  */
 final readonly class PeriodFigures
 {
@@ -51,18 +55,24 @@ final readonly class PeriodFigures
     }
 
     /**
+     * How this period's sales compare with `$previous`'s.
+     */
+    public function salesChange(self $previous): RangeChange
+    {
+        return RangeChange::between($this->sales->cents, $previous->sales->cents);
+    }
+
+    /**
      * @param  list<SaleFact>  $sales
      * @param  list<RefundFact>  $refunds
      */
     private static function forPeriod(PayoutPeriod $period, array $sales, array $refunds): self
     {
-        $live = array_values(array_filter($sales, fn (SaleFact $sale): bool => $sale->isLive));
-
         return new self(
             $period,
             count($sales),
-            array_reduce($live, fn (Money $sum, SaleFact $sale): Money => $sum->add($sale->subtotal), Money::zero()),
-            array_reduce($live, fn (Money $sum, SaleFact $sale): Money => $sum->add($sale->fee), Money::zero()),
+            array_reduce($sales, fn (Money $sum, SaleFact $sale): Money => $sum->add($sale->subtotal), Money::zero()),
+            array_reduce($sales, fn (Money $sum, SaleFact $sale): Money => $sum->add($sale->fee), Money::zero()),
             array_reduce($refunds, fn (Money $sum, RefundFact $refund): Money => $sum->add($refund->amount), Money::zero()),
         );
     }

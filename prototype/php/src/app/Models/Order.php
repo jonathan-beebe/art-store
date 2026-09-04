@@ -156,6 +156,35 @@ class Order extends Model
     }
 
     /**
+     * Every order whose card cleared, the fold every money report reads
+     * through: a fulfillment row exists from the moment an order is placed,
+     * before a card is even charged, so a report over fulfillments alone
+     * would count a cart that never paid the same as a sale.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function hasBeenPaid(Builder $query): void
+    {
+        $query->whereIn('status', self::paidStatuses());
+    }
+
+    /**
+     * The statuses {@see hasBeenPaid} filters to — named separately so a
+     * query built inside a `whereHas` closure can reach it as a plain
+     * `whereIn`, where Larastan does not resolve a custom scope call.
+     *
+     * @return list<OrderStatus>
+     */
+    public static function paidStatuses(): array
+    {
+        return array_values(array_filter(
+            OrderStatus::cases(),
+            fn (OrderStatus $status): bool => $status->hasBeenPaid(),
+        ));
+    }
+
+    /**
      * One row per status the table holds, carrying how many hold it — the
      * dashboard's order tally reads this the way `Listing::countedByStatus`
      * feeds the listing one.

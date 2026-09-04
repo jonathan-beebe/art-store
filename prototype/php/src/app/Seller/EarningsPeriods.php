@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
+use App\Domain\Analytics\RangeChange;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Domain\Money\Money;
@@ -46,7 +47,9 @@ final readonly class EarningsPeriods
         $windowStart = $periods[0]->start;
 
         $sales = array_values($seller->fulfillments()
-            ->whereHas('order', fn (Builder $orders): Builder => $orders->where('placed_at', '>=', $windowStart))
+            ->whereHas('order', fn (Builder $orders): Builder => $orders
+                ->where('placed_at', '>=', $windowStart)
+                ->whereIn('status', Order::paidStatuses()))
             ->with('order')
             ->get()
             ->map(self::toSaleFact(...))
@@ -59,11 +62,10 @@ final readonly class EarningsPeriods
             ->map(self::toRefundFact(...))
             ->all());
 
-        // Matched in PHP by the formatted date rather than a `whereIn` on
-        // `period_start`: the column is a plain date and a seller's payouts
-        // are few, so reading them all and keying them here sidesteps
-        // whatever format the query grammar would bind the window's edges
-        // as.
+        // A seller's payouts are few: reading them all and keying them here
+        // by the formatted date sidesteps whatever format the query
+        // grammar would bind a `whereIn` on the plain-date `period_start`
+        // column as.
         $payouts = $seller->payouts()
             ->get()
             ->keyBy(fn (Payout $payout): string => $payout->period_start->format('Y-m-d'));
@@ -102,6 +104,14 @@ final readonly class EarningsPeriods
         return Money::fromCents(max([1, ...$cents]));
     }
 
+    /**
+     * How this period's sales compare with the period right before it.
+     */
+    public function currentSalesChange(): RangeChange
+    {
+        return $this->current()->salesChange($this->past()[0]);
+    }
+
     public function settlementOf(PeriodFigures $figures): PeriodSettlement
     {
         $payout = $this->payoutsByPeriodStart[$figures->period->start->format('Y-m-d')] ?? null;
@@ -137,7 +147,6 @@ final readonly class EarningsPeriods
             $placedAt->toDateTimeImmutable(),
             $fulfillment->subtotal(),
             $fulfillment->fee(),
-            $fulfillment->status->isLive(),
         );
     }
 
