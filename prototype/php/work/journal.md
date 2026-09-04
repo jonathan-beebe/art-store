@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:07:32:43 — IMPRV-033 — started
 - 2026-09-04:07:27:28 — IMPRV-033 — defined: The docs say the seller portal once, and the deferrals become tickets
 - 2026-09-04:07:27:28 — IMPRV-032 — defined: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:07:27:28 — IMPRV-031 — defined: Every seller figure counts the same parcels and survives Postgres
