@@ -1328,11 +1328,11 @@ it('FEAT-056 opens a table rows detail as an overlay and a takeover from the sam
     $response->assertSee('The Burrow at Dusk');
 });
 
-it('IMPRV-036 keeps the listings workspace visible at 2xl and up, inert below it', function (): void {
+it('IMPRV-036 keeps the listings workspace visible at 2xl and up, inert below it', function (string $view): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from={$view}");
     $crawler = new Crawler((string) $response->getContent());
 
     $workspace = $crawler->filterXPath('//div[@inert]');
@@ -1340,13 +1340,13 @@ it('IMPRV-036 keeps the listings workspace visible at 2xl and up, inert below it
     expect($workspace->count())->toBe(1)
         ->and($workspace->attr('class'))->toContain('hidden')
         ->and($workspace->attr('class'))->toContain('2xl:flex');
-});
+})->with(['table', 'grid']);
 
-it('IMPRV-036 shows the detail as a real dialog at 2xl and up', function (): void {
+it('IMPRV-036 shows the detail as a real dialog at 2xl and up', function (string $view): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from={$view}");
     $crawler = new Crawler((string) $response->getContent());
 
     $dialog = $crawler->filter('dialog[open]');
@@ -1354,13 +1354,13 @@ it('IMPRV-036 shows the detail as a real dialog at 2xl and up', function (): voi
     expect($dialog->count())->toBe(1)
         ->and($dialog->attr('class'))->toContain('hidden')
         ->and($dialog->attr('class'))->toContain('2xl:flex');
-});
+})->with(['table', 'grid']);
 
-it('IMPRV-036 shows the detail as a takeover below 2xl', function (): void {
+it('IMPRV-036 shows the detail as a takeover below 2xl', function (string $view): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=table");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from={$view}");
     $crawler = new Crawler((string) $response->getContent());
 
     $takeover = $crawler->filterXPath("//div[contains(concat(' ', normalize-space(@class), ' '), ' 2xl:hidden ')]");
@@ -1368,7 +1368,7 @@ it('IMPRV-036 shows the detail as a takeover below 2xl', function (): void {
     expect($takeover->count())->toBe(1)
         ->and($takeover->attr('class'))->not->toContain('2xl:flex')
         ->and($takeover->attr('inert'))->toBeNull();
-});
+})->with(['table', 'grid']);
 
 it('IMPRV-036 gives the overlays and the takeovers copy of the detail their own heading ids, each inside its own block', function (): void {
     $seller = $this->seller();
@@ -1470,7 +1470,6 @@ it('FEAT-056 opens a grid rows detail from the same route', function (): void {
     $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?from=grid");
 
     $response->assertOk();
-    $response->assertSee('<dialog', escape: false);
 });
 
 it('FEAT-056 keeps the new-listing dialog on the table and grid views', function (string $view): void {

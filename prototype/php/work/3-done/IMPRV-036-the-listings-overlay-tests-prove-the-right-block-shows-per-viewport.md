@@ -44,3 +44,11 @@ The doc's "Overlay vs takeover" section said the workspace carries
 
 `ListingControllerTest.php` scoped run: 110 passed. `make precommit` green
 (pre-commit hook, this commit).
+
+### Review fix
+The workspace/dialog/takeover structural tests only opened the route with
+`?from=table`; the grid route's own structural coverage still leaned on a
+weak `assertSee('<dialog', ...)` string check elsewhere in the file. All
+three tests now run as a dataset over `['table', 'grid']`, and the weak
+assertion is gone (the dataset-ized dialog test already proves `dialog[open]`
+count 1 for both). Scoped run: 113 passed.

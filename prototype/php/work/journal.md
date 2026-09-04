@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:16:06:30 — IMPRV-036 — review fix: the workspace/dialog/takeover structural tests run as a dataset over table and grid; the grid route's weak <dialog> string assertion is gone
 - 2026-09-04:16:03:48 — IMPRV-039 — review fix: BarStrip::baseline() clamps each bar to its own side's budget, an sr-only list carries the per-bar tooltips, netStrip() moves to the controller with heightPx on BarStripBaseline
 - 2026-09-04:15:36:10 — IMPRV-039 — resolved: `BarStrip::baseline()` + `BarStripBaseline`, `bar-strip.blade.php` gains a `baseline` prop, earnings net-per-period chart now renders through `x-bar-strip`, `EarningsPeriods::tallestNet()` replaced by `netStrip()`
 - 2026-09-04:15:35:00 — IMPRV-039 — started
