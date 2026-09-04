@@ -30,3 +30,16 @@ The brief calls Messages "command central … collecting all correspondence with
 ## Related work
 - FEAT-054, FEAT-050 (inbox domains), PR #62 (messaging v2)
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Messages)
+
+## Working
+
+Design decided before the first test:
+
+- `App\Seller\ThreadContext::forSeller(Seller, Conversation)` is the rail's
+  one read: the counterpart's identity, FEAT-054's `CustomerRow` where the
+  counterpart has bought, the listing or the parcel the thread is about, and
+  their other threads with this seller. The `FeedScope` idiom — a readonly
+  value object in `App\Seller` with a named constructor that reads.
+- `x-seller.context-rail` renders it; the thread component gains one prop.
+- Privacy: a buyer's numbers and their email show because an order carried
+  them. A visitor who has only asked a question shows a name and nothing else.
