@@ -5,30 +5,41 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Messaging\ConversationKind;
+use App\Domain\Messaging\ConversationStatus;
+use App\Domain\Seller\SupportThreadRow;
 use App\Models\Conversation;
 use App\Models\Seller;
 
 /**
  * The seller's own support threads, newest first — the support hub's own
- * list, and the same rows Messages' Support tab lists.
+ * list, and the same threads Messages' Support tab lists.
  */
-final readonly class SupportThreads
+final class SupportThreads
 {
-    private function __construct(
-        /** @var list<Conversation> */
-        public array $threads,
-    ) {}
+    private function __construct() {} // @codeCoverageIgnore
 
-    public static function for(Seller $seller): self
+    /**
+     * @return list<SupportThreadRow>
+     */
+    public static function for(Seller $seller): array
     {
-        $threads = Conversation::query()
+        return array_values(Conversation::query()
             ->withParticipant($seller)
             ->ofKind(ConversationKind::AdminSeller)
             ->with('latestMessage')
             ->orderByDesc('last_message_at')
             ->get()
-            ->all();
+            ->map(self::toRow(...))
+            ->all());
+    }
 
-        return new self(array_values($threads));
+    private static function toRow(Conversation $conversation): SupportThreadRow
+    {
+        return new SupportThreadRow(
+            $conversation->id,
+            $conversation->title ?? '',
+            $conversation->latestMessage?->body,
+            $conversation->status() === ConversationStatus::Resolved,
+        );
     }
 }

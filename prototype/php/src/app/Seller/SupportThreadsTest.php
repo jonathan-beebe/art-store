@@ -26,9 +26,10 @@ it('lists the seller\'s own support threads, newest first', function (): void {
 
     $threads = SupportThreads::for($seller);
 
-    expect($threads->threads)->toHaveCount(2)
-        ->and($threads->threads[0]->id)->toBe($newer->id)
-        ->and($threads->threads[1]->id)->toBe($older->id);
+    expect($threads)->toHaveCount(2)
+        ->and($threads[0]->conversationId)->toBe($newer->id)
+        ->and($threads[0]->title)->toBe('Second question')
+        ->and($threads[1]->conversationId)->toBe($older->id);
 });
 
 it('leaves out another seller\'s support threads and threads with buyers', function (): void {
@@ -41,5 +42,21 @@ it('leaves out another seller\'s support threads and threads with buyers', funct
         $this->moment('2026-08-19 09:00:00'),
     );
 
-    expect(SupportThreads::for($seller)->threads)->toBeEmpty();
+    expect(SupportThreads::for($seller))->toBeEmpty();
+});
+
+it('reports the latest message as its preview and reads a resolved thread', function (): void {
+    $seller = $this->seller();
+    $conversation = app(OpenThread::class)(
+        ThreadOpening::adminSeller($seller->id, ThreadTitle::of('A question')),
+        $seller,
+        MessageBody::of('Where did my payout go?'),
+        $this->moment('2026-08-19 09:00:00'),
+    );
+    $conversation->update(['resolved_at' => $this->moment('2026-08-19 10:00:00')]);
+
+    [$row] = SupportThreads::for($seller);
+
+    expect($row->preview)->toBe('Where did my payout go?')
+        ->and($row->isResolved)->toBeTrue();
 });
