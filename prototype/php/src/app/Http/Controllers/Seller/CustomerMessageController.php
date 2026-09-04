@@ -51,8 +51,9 @@ final class CustomerMessageController extends SellerController
     }
 
     /**
-     * The buyer's newest live parcel with this seller. A row on the
-     * customer page means there is one.
+     * The buyer's newest live parcel with this seller, newest by when the
+     * order was placed — the recency the customers section reads
+     * everywhere. A row on the customer page means there is one.
      */
     private function latestParcel(Seller $seller, Customer $customer): string
     {
@@ -62,10 +63,12 @@ final class CustomerMessageController extends SellerController
         ));
 
         return (string) $seller->fulfillments()
-            ->where('customer_id', $customer->id)
-            ->whereIn('status', $live)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
+            ->where('fulfillments.customer_id', $customer->id)
+            ->whereIn('fulfillments.status', $live)
+            ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
+            ->orderByDesc('orders.placed_at')
+            ->orderByDesc('fulfillments.id')
+            ->select('fulfillments.*')
             ->firstOrFail()
             ->id;
     }

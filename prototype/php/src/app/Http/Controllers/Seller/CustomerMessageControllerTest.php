@@ -60,3 +60,19 @@ it('sends a signed-out visitor to sign in', function (): void {
 
     $this->post("/seller/customers/{$customer->id}/messages")->assertRedirect(route('auth.seller.login'));
 });
+
+it('opens the thread for the parcel placed last, whatever order the rows were written in', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);
+
+    // Written first, placed last: the two orders run against each other, so
+    // a row's own age cannot stand in for when the order was placed.
+    $latest = $this->paidFulfillmentFor($seller, $customer, 5000);
+    $latest->order->update(['placed_at' => $this->moment('2026-08-25 09:00:00')]);
+    $earlier = $this->paidFulfillmentFor($seller, $customer, 9000);
+    $earlier->order->update(['placed_at' => $this->moment('2026-06-01 09:00:00')]);
+
+    $this->actingAs($seller, 'seller')->post("/seller/customers/{$customer->id}/messages");
+
+    expect(Conversation::query()->sole()->fulfillment_id)->toBe($latest->id);
+});

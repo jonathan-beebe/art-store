@@ -6,9 +6,9 @@ namespace App\Domain\Seller;
 
 /**
  * Orders the customers table's rows by one {@see CustomerSort} — the key
- * the sort's column reads off each row, the customer id breaking a tie, so
- * two rows never read as equal and the order never depends on the rows'
- * input order.
+ * the sort's column reads off each row, the customer id breaking a tie
+ * ascending in both directions, so two rows never read as equal and the
+ * order never depends on the rows' input order.
  */
 final class CustomerTableSort
 {
@@ -25,7 +25,13 @@ final class CustomerTableSort
         usort($sorted, function (CustomerRow $a, CustomerRow $b) use ($sort): int {
             $result = self::compare($a, $b, $sort->column);
 
-            return $sort->direction->isAscending() ? $result : -$result;
+            if ($result !== 0) {
+                return $sort->direction->isAscending() ? $result : -$result;
+            }
+
+            // The id breaks a tie ascending whichever way the column runs,
+            // so two rows holding the same figure keep one order.
+            return $a->customerId <=> $b->customerId;
         });
 
         return $sorted;
@@ -36,8 +42,6 @@ final class CustomerTableSort
         $keyA = $column->keyOf($a);
         $keyB = $column->keyOf($b);
 
-        $result = is_string($keyA) && is_string($keyB) ? strcmp($keyA, $keyB) : $keyA <=> $keyB;
-
-        return $result !== 0 ? $result : $a->customerId <=> $b->customerId;
+        return is_string($keyA) && is_string($keyB) ? strcmp($keyA, $keyB) : $keyA <=> $keyB;
     }
 }
