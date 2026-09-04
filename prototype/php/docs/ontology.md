@@ -93,6 +93,12 @@ conditions: anonymous (`email` null) → guest with an unverified address
 
 **In code.** `App\Models\Customer` (table `customers`).
 
+**From a seller's side.** A seller's *customer* is a buyer: a customer with
+at least one live fulfillment with that seller. Favoriting, viewing, or asking
+about a listing does not make someone a seller's customer; those facts join
+the buyer's timeline once they have bought. The seller portal's Customers
+section lists exactly this set.
+
 ### Anonymous visitor
 
 **Who/what.** Not a separate table — a Customer row with `email = null`,

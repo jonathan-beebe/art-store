@@ -5,15 +5,27 @@
 - RSRCH: 2
 - DSGN: 11
 - ARCH: 1
-- FEAT: 51
+- FEAT: 62
 - IMPRV: 30
-- MAINT: 8
+- MAINT: 9
 - A11Y: 1
 - RFCTR: 14
 - BUG: 16
 
 ## Log
 
+- 2026-09-03:21:19:56 — MAINT-008 — defined: The contract, the ontology, and the docs learn the seller portal
+- 2026-09-03:21:19:56 — FEAT-061 — defined: Support feels like two people nearby
+- 2026-09-03:21:19:56 — FEAT-060 — defined: Earnings focuses on this period and the next payout
+- 2026-09-03:21:19:56 — FEAT-059 — defined: A thread shows who the customer is beside the words
+- 2026-09-03:21:19:56 — FEAT-058 — defined: A store has a public page and every listing card leads to it
+- 2026-09-03:21:19:56 — FEAT-057 — defined: A seller builds their store profile from typed sections
+- 2026-09-03:21:19:56 — FEAT-056 — defined: Listings has list, table, and grid views over one detail
+- 2026-09-03:21:19:56 — FEAT-055 — defined: The dashboard opens on three tiles, listing activity, and what needs attention
+- 2026-09-03:21:19:56 — FEAT-054 — defined: Customers is a section: who bought, and their timeline
+- 2026-09-03:21:19:56 — FEAT-053 — defined: Orders is lanes, a step-aware detail, and the activity feed
+- 2026-09-03:21:19:56 — FEAT-052 — defined: One activity feed over analytics, orders, fulfillment, and messages
+- 2026-09-03:21:19:56 — FEAT-051 — defined: Fulfillment is an event log with seller-owned flow steps
 - 2026-09-03:18:40:09 — FEAT-050 — follow-up: filter popover removed; each inbox is the domain tabs over every conversation by last_message_at
 - 2026-09-03:17:38:21 — FEAT-050 — follow-up: rows order by last_message_at alone so reading never moves a row
 - 2026-09-03:17:31:41 — FEAT-050 — follow-up: unread threads list under the default view regardless of status

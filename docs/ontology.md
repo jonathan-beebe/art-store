@@ -11,6 +11,14 @@ Owns the copyright to the goods they sell.
 
 Could a seller be a studio? Maybe, if headed by a human and creating hand-made art.
 
+**Customer**
+
+Also *buyer*, from a seller's side.
+
+A storefront visitor who has bought. Platform-wide, every visitor gets a
+customer row; to a seller, a customer is a person with at least one live
+fulfillment with them. Favorites, views, and questions do not make a customer.
+
 **Product**
 
 Also *works*, *goods*, *wares*, *crafts*, or any category-specific name like *ceramics*, *painting*, etc.
