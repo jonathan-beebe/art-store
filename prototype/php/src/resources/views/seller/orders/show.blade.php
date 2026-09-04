@@ -170,17 +170,7 @@
 
                     <div class="mt-7 flex flex-wrap items-center justify-between gap-3">
                         <h3 class="text-sm/6 font-semibold text-gray-900 dark:text-white">Activity</h3>
-                        <div class="inline-flex isolate rounded-md" role="group" aria-label="Activity kind">
-                            @foreach ($feedFilter->links as $link)
-                                <a
-                                    href="{{ $link->href }}"
-                                    @if ($link->active) aria-current="true" @endif
-                                    class="relative inline-flex items-center px-3 py-1.5 text-xs font-medium -ml-px first:ml-0 first:rounded-l-md last:rounded-r-md {{ $link->active
-                                        ? 'bg-indigo-50 text-indigo-700 inset-ring inset-ring-indigo-300 z-10 dark:bg-indigo-500/20 dark:text-indigo-300 dark:inset-ring-indigo-500/30'
-                                        : 'bg-white text-gray-600 inset-ring inset-ring-gray-300 dark:bg-white/10 dark:text-gray-400 dark:inset-ring-white/10' }}"
-                                >{{ $link->label }}</a>
-                            @endforeach
-                        </div>
+                        <x-seller.segmented :links="$feedFilters" label="Activity kind" />
                     </div>
                     <div class="mt-2 rounded-lg border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-gray-900">
                         <x-seller.feed :feed="$feed" empty="Nothing has happened on this order yet." />

@@ -14,8 +14,10 @@
 
 ## Log
 
+- 2026-09-04:15:50:14 — IMPRV-032 — done: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:12:06:48 — FEAT-064 — defined: A seller can keep more than one fulfillment flow and pick one per listing
 - 2026-09-04:15:00:00 — IMPRV-030 — resolved: ten commits — external scripts for the CSP (mobile nav, admin drawer, New listing), the thread rail at 2xl, the listings detail dialog a real modal at 2xl (owner kept it), unpublished support facts as text, dark-mode print fixes plus a no-JS print fallback, bar-strip names and four other accessible-name fixes, six help-article corrections, FeedTest on data- markers, and two owner-walk fixes (store picture Remove overlap, empty vs "new" Sales change); make check green
+- 2026-09-04:12:32:15 — IMPRV-032 — started
 - 2026-09-04:12:00:00 — IMPRV-030 — started: External scripts for the CSP, the thread rail breakpoint, the listings overlay, placeholder text, print controls, and accessibility fixes from the seller-portal audit
 - 2026-09-04:11:16:21 — IMPRV-031 — reviewed: review-pass fixes on php/au-data after a rebase onto php/seller-portal-next — latestCompletedStep()'s ofMany() constraint, RangeChange's abs(previous), MoveStoreSection's profile lock, Fulfillment::onPaidOrder(), a seeder duplicate-event bug the strengthened seed-walk test caught, a store-picture filename collision, a factory's eager create(), two tautological test guards replaced, the ticket bullet corrected, seven commit messages reworded; make check green (5202 tests, 99.5% coverage)
 - 2026-09-04:10:02:46 — IMPRV-031 — resolved (worktree au-data, prototype/php): Fulfillment::live()/counted() consolidate the paid/live rule across nine readers; dashboard earnings tile follows the earnings-page model; seeded shipped/delivered parcels carry their events; partial index and step-parking survive Postgres; store pictures always own their file; positions read inside their transaction; Order::items() ordered; StoreImageRequest mints on first POST; factories never mint unrelated parents. make check green (5198 tests, 99.5% coverage).

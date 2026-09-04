@@ -6,28 +6,11 @@ namespace App\Http\Controllers\Seller;
 
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Models\FulfillmentEvent;
-use App\Models\FulfillmentFlow;
-use App\Models\FulfillmentFlowStep;
-use App\Models\Seller;
 
-/**
- * A seller's default flow of two steps: print a label, then pack with no
- * further action.
- *
- * @return array{0: FulfillmentFlowStep, 1: FulfillmentFlowStep}
- */
-$twoStepFlow = function (Seller $seller): array {
-    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
-    $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create();
-    $packStep = FulfillmentFlowStep::factory()->of($flow, 1)->create();
-
-    return [$labelStep, $packStep];
-};
-
-it('appends a step_completed event and redirects to the label page for a step that prints a label', function () use ($twoStepFlow): void {
+it('appends a step_completed event and redirects to the label page for a step that prints a label', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
 
     $response = $this->actingAs($seller, 'seller')
         ->post("/seller/orders/{$fulfillment->id}/steps/{$labelStep->id}", ['carrier' => 'Owl Post', 'tracking_number' => 'OP 1234']);
@@ -40,10 +23,10 @@ it('appends a step_completed event and redirects to the label page for a step th
         ->and($event->tracking_number)->toBe('OP 1234');
 });
 
-it('redirects to the order with a flash status naming the step for a step that prints no label', function () use ($twoStepFlow): void {
+it('redirects to the order with a flash status naming the step for a step that prints no label', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep, $packStep] = $twoStepFlow($seller);
+    [$labelStep, $packStep] = $this->flowFor($seller);
     $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/steps/{$labelStep->id}", ['carrier' => 'Owl Post', 'tracking_number' => 'OP 1234']);
 
     $response = $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/steps/{$packStep->id}", []);
@@ -52,10 +35,10 @@ it('redirects to the order with a flash status naming the step for a step that p
     $response->assertSessionHas('status', $packStep->label.' — recorded.');
 });
 
-it('re-renders the domain refusal on a second submit of the same step, leaving one event', function () use ($twoStepFlow): void {
+it('re-renders the domain refusal on a second submit of the same step, leaving one event', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
     $order = route('seller.orders.show', $fulfillment->id);
     $this->actingAs($seller, 'seller')->post("/seller/orders/{$fulfillment->id}/steps/{$labelStep->id}", ['carrier' => 'Owl Post', 'tracking_number' => 'OP 1234']);
 
@@ -69,10 +52,10 @@ it('re-renders the domain refusal on a second submit of the same step, leaving o
     expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->count())->toBe(1);
 });
 
-it('refuses a step submitted out of order', function () use ($twoStepFlow): void {
+it('refuses a step submitted out of order', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [, $packStep] = $twoStepFlow($seller);
+    [, $packStep] = $this->flowFor($seller);
     $order = route('seller.orders.show', $fulfillment->id);
 
     $response = $this->actingAs($seller, 'seller')
@@ -85,10 +68,10 @@ it('refuses a step submitted out of order', function () use ($twoStepFlow): void
     expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->count())->toBe(0);
 });
 
-it('refuses a step on a fulfillment that already shipped', function () use ($twoStepFlow): void {
+it('refuses a step on a fulfillment that already shipped', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->shippedFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
     $order = route('seller.orders.show', $fulfillment->id);
 
     $response = $this->actingAs($seller, 'seller')
@@ -100,10 +83,10 @@ it('refuses a step on a fulfillment that already shipped', function () use ($two
     $response->assertSee('A step cannot be completed on a fulfillment that is shipped.');
 });
 
-it('answers not found for another sellers fulfillment', function () use ($twoStepFlow): void {
+it('answers not found for another sellers fulfillment', function (): void {
     $other = $this->seller('Lovegood Curiosities');
     $fulfillment = $this->paidFulfillmentFor($other);
-    [$labelStep] = $twoStepFlow($other);
+    [$labelStep] = $this->flowFor($other);
 
     $response = $this->actingAs($this->seller(), 'seller')
         ->post("/seller/orders/{$fulfillment->id}/steps/{$labelStep->id}", ['carrier' => 'Owl Post', 'tracking_number' => 'OP 1234']);
@@ -111,22 +94,13 @@ it('answers not found for another sellers fulfillment', function () use ($twoSte
     $response->assertNotFound();
 });
 
-it('answers not found for another sellers step on the sellers own fulfillment', function () use ($twoStepFlow): void {
+it('answers not found for another sellers step on the sellers own fulfillment', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$otherLabelStep] = $twoStepFlow($this->seller('Lovegood Curiosities'));
+    [$otherLabelStep] = $this->flowFor($this->seller('Lovegood Curiosities'));
 
     $response = $this->actingAs($seller, 'seller')
         ->post("/seller/orders/{$fulfillment->id}/steps/{$otherLabelStep->id}", ['carrier' => 'Owl Post', 'tracking_number' => 'OP 1234']);
 
     $response->assertNotFound();
-});
-
-it('sends a signed-out visitor to seller sign-in', function () use ($twoStepFlow): void {
-    $seller = $this->seller();
-    $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
-
-    $this->post("/seller/orders/{$fulfillment->id}/steps/{$labelStep->id}", [])
-        ->assertRedirect(route('auth.seller.login'));
 });

@@ -10,8 +10,8 @@ use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Store\StoreViewCollapse;
 use App\Models\Seller;
 use App\Models\StoreProfile;
-use App\Support\Store\StoreAddressLookup;
-use App\Support\Store\StorefrontStorePageData;
+use App\Seller\Store\StoreAddressLookup;
+use App\Seller\Store\StorefrontStorePageData;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -47,7 +47,7 @@ final class StoreController extends ShopController
             $this->recordView($profile, $analytics);
         }
 
-        return view('shop.store', StorefrontStorePageData::build($profile, $isOwnStore));
+        return view('shop.store', ['page' => StorefrontStorePageData::build($profile, $isOwnStore)]);
     }
 
     private function isOwnStore(StoreProfile $profile): bool

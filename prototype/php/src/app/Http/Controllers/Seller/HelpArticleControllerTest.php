@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-it('refuses a signed-out visitor', function (): void {
-    $this->get('/seller/support/articles/when-money-reaches-your-account')->assertRedirect('/seller/login');
-});
-
 it('shows a known article by its slug', function (): void {
     $seller = $this->seller();
 

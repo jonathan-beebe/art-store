@@ -10,6 +10,7 @@ use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Seller\ActivityKind;
 use App\Domain\Seller\FeedEvent;
+use App\Domain\Seller\FeedIcon;
 use App\Models\Conversation;
 use App\Models\Message;
 
@@ -80,4 +81,35 @@ it('reads an empty feed for a customer who has done nothing with this seller', f
     );
 
     expect($feed->isEmpty())->toBeTrue();
+});
+
+it('merges whatever sources it is given', function (): void {
+    $scope = FeedScope::forCustomer($this->seller(), $this->verifiedCustomer());
+
+    $older = new FeedEvent($this->moment('2026-08-01 09:00:00'), ActivityKind::Browse, FeedIcon::Eye, 'Luna', 'viewed a piece');
+    $newer = new FeedEvent($this->moment('2026-08-02 09:00:00'), ActivityKind::Order, FeedIcon::Cash, 'Luna', 'placed an order');
+
+    $sourceOfOlder = new class($older) implements ActivityFeedSource
+    {
+        public function __construct(private readonly FeedEvent $event) {}
+
+        public function events(FeedScope $scope): array
+        {
+            return [$this->event];
+        }
+    };
+
+    $sourceOfNewer = new class($newer) implements ActivityFeedSource
+    {
+        public function __construct(private readonly FeedEvent $event) {}
+
+        public function events(FeedScope $scope): array
+        {
+            return [$this->event];
+        }
+    };
+
+    $feed = (new ActivityFeedReader($sourceOfOlder, $sourceOfNewer))->read($scope);
+
+    expect($feed->events)->toBe([$newer, $older]);
 });

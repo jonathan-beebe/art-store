@@ -9,7 +9,7 @@ use App\Http\Requests\Seller\OrdersQueryRequest;
 use App\Models\Fulfillment;
 use App\Seller\ActivityFeedReader;
 use App\Seller\CustomerOnOrder;
-use App\Seller\FeedFilter;
+use App\Seller\FeedFilters;
 use App\Seller\FeedScope;
 use App\Seller\FulfillmentLanes;
 use App\Seller\OrderDetail;
@@ -62,7 +62,7 @@ final class OrderController extends SellerController
             'tabs' => $lanes->tabs($seller, $lane),
             'pane' => $lanes->pane($seller, $lane, $fulfillment),
             'feed' => $feed->read(FeedScope::forFulfillment($fulfillment))->filter($request->kind()),
-            'feedFilter' => FeedFilter::build(
+            'feedFilters' => FeedFilters::for(
                 'seller.orders.show',
                 ['fulfillment' => $fulfillment->id, 'lane' => $lane->value],
                 $request->kind(),

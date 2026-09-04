@@ -17,7 +17,7 @@
     <dl class="mt-4 divide-y divide-gray-100 text-xs/5 dark:divide-white/5">
         <div class="flex justify-between gap-2 py-1.5">
             <dt class="text-gray-500 dark:text-gray-400">Orders</dt>
-            <dd class="font-medium text-gray-900 tabular-nums dark:text-gray-100">{{ $context->customer->orders }} &middot; {{ $context->customer->spent()->format() }}</dd>
+            <dd class="font-medium text-gray-900 tabular-nums dark:text-gray-100"><span data-stat="orders">{{ $context->customer->orders }}</span> &middot; <span data-stat="spent">{{ $context->customer->spent()->format() }}</span></dd>
         </div>
         <div class="flex justify-between gap-2 py-1.5">
             <dt class="text-gray-500 dark:text-gray-400">Favorites</dt>

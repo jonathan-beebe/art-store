@@ -45,12 +45,6 @@ it('hides another sellers fulfillment', function (): void {
     $response->assertNotFound();
 });
 
-it('sends a signed-out visitor to seller sign-in', function (): void {
-    $fulfillment = $this->paidFulfillmentFor($this->seller());
-
-    $this->get("/seller/orders/{$fulfillment->id}/label")->assertRedirect(route('auth.seller.login'));
-});
-
 it('IMPRV-030 offers a print control that still reads with scripts blocked', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);

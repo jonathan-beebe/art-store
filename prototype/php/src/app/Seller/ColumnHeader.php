@@ -12,6 +12,9 @@ use App\Domain\Seller\SortableColumn;
  */
 final readonly class ColumnHeader
 {
+    /**
+     * @param  SortableColumn<covariant object>  $column
+     */
     public function __construct(
         public SortableColumn $column,
         public string $href,

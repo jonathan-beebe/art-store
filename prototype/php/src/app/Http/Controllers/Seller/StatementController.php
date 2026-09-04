@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Domain\Seller\PeriodFigures;
-use App\Seller\EarningsPeriods;
+use App\Http\Requests\Seller\StatementRequest;
 use App\Seller\PeriodSales;
 use Illuminate\View\View;
+use RuntimeException;
 
 /**
  * A printable statement for one payout period: the same figures the
@@ -17,31 +17,18 @@ use Illuminate\View\View;
  */
 final class StatementController extends SellerController
 {
-    public function __invoke(string $period): View
+    public function __invoke(StatementRequest $request): View
     {
         $seller = $this->seller();
-        $now = $this->now();
-        $periods = EarningsPeriods::for($seller, $now);
-
-        $figures = $this->periodFigures($periods, $period);
+        $figures = $request->figures()
+            ?? throw new RuntimeException('authorize() already refused a request naming no period.');
 
         return view('seller.earnings.statement', [
             'seller' => $seller,
             'figures' => $figures,
-            'settlement' => $periods->settlementOf($figures),
+            'settlement' => $request->periods()->settlementOf($figures),
             'sales' => PeriodSales::for($seller, $figures->period),
-            'generatedAt' => $now,
+            'generatedAt' => $this->now(),
         ]);
-    }
-
-    private function periodFigures(EarningsPeriods $periods, string $period): PeriodFigures
-    {
-        foreach ($periods->periods as $figures) {
-            if ($figures->period->start->format('Y-m-d') === $period) {
-                return $figures;
-            }
-        }
-
-        abort(404);
     }
 }

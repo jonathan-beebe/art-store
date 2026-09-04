@@ -11,9 +11,10 @@ use Symfony\Component\DomCrawler\Crawler;
 /**
  * `aria-current` names two different things across the seller and admin
  * panes: a tab or filter that narrows what a pane shows carries `true`;
- * a pane row that names the record the detail beside it is showing
- * carries `page`. This sweeps a page from each family and asserts every
- * `[aria-current]` on it lands on the right side of that pairing.
+ * a pane row (or a navigation control, like the listings view switch,
+ * IMPRV-032) that names the page a link opens carries `page`. This sweeps
+ * a page from each family and asserts every `[aria-current]` on it lands
+ * on the right side of that pairing.
  */
 function assertPaneRowsCarryPage(string $html, string $selector = '[data-pane-cell][aria-current]'): void
 {
@@ -61,14 +62,21 @@ it('IMPRV-030 pairs aria-current=page with a selected pane row and =true with a 
     assertTabsCarryTrue($html, 'nav[aria-label="Domain"] a');
 });
 
-it('IMPRV-030 pairs aria-current=page with a selected pane row and =true with a tab, on the listings pane', function (): void {
+it('IMPRV-030 pairs aria-current=page with a selected pane row, on the listings pane', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
     $html = (string) $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}")->getContent();
 
     assertPaneRowsCarryPage($html);
-    assertTabsCarryTrue($html, '[role="group"][aria-label="View"] a');
+});
+
+it('IMPRV-032 pairs aria-current=page with the listings view switch, a navigation control', function (): void {
+    $seller = $this->seller();
+
+    $html = (string) $this->actingAs($seller, 'seller')->get('/seller/listings?view=table')->getContent();
+
+    assertPaneRowsCarryPage($html, '[role="group"][aria-label="View"] a[aria-current]');
 });
 
 it('IMPRV-030 pairs aria-current=page with a selected pane row on an admin pane', function (): void {

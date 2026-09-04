@@ -24,7 +24,7 @@ use LogicException;
  * ranged event counts and the app database's all-time sales — the seller
  * listings table and grid's source, and the one detail component's source
  * for the same figures on a single listing. Rows come back in no
- * particular order; {@see \App\Domain\Seller\ListingTableSort} orders a
+ * particular order; {@see \App\Domain\Seller\RowSort} orders a
  * list of them.
  */
 final class ListingTable

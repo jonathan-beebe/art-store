@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
+use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerSegment;
-use App\Domain\Seller\CustomerSort;
 use App\Domain\Seller\CustomerSortColumn;
+use App\Domain\Seller\TableSort;
 
 /**
  * The customers table's header: the segment control and the sortable
@@ -17,59 +18,36 @@ use App\Domain\Seller\CustomerSortColumn;
 final readonly class CustomersChrome
 {
     /**
-     * @param  list<SegmentLink>  $segments
+     * @param  list<NavLink>  $segments
+     * @param  TableSort<CustomerRow>  $sort
      * @param  list<ColumnHeader>  $columnHeaders
      */
     private function __construct(
         public CustomerSegment $segment,
         public array $segments,
-        public CustomerSort $sort,
+        public TableSort $sort,
         public array $columnHeaders,
     ) {}
 
     /**
      * @param  array<string, string>  $roundTripped  the query the index route was reached with
+     * @param  TableSort<CustomerRow>  $sort
      */
-    public static function build(array $roundTripped, CustomerSegment $segment, CustomerSort $sort): self
+    public static function build(array $roundTripped, CustomerSegment $segment, TableSort $sort): self
     {
         return new self(
             segment: $segment,
-            segments: self::segmentLinks($roundTripped, $segment),
+            segments: NavLinks::for(
+                routeName: 'seller.customers.index',
+                without: collect($roundTripped)->except('segment')->all(),
+                param: 'segment',
+                cases: CustomerSegment::cases(),
+                label: fn (CustomerSegment $case): string => $case->label(),
+                value: fn (CustomerSegment $case): string => $case->value,
+                active: fn (CustomerSegment $case): bool => $case === $segment,
+            ),
             sort: $sort,
-            columnHeaders: self::columnHeaders($roundTripped, $sort),
+            columnHeaders: ColumnHeaders::for('seller.customers.index', $roundTripped, $sort, CustomerSortColumn::cases()),
         );
-    }
-
-    /**
-     * @param  array<string, string>  $roundTripped
-     * @return list<SegmentLink>
-     */
-    private static function segmentLinks(array $roundTripped, CustomerSegment $current): array
-    {
-        $without = collect($roundTripped)->except('segment')->all();
-
-        return array_map(fn (CustomerSegment $segment): SegmentLink => new SegmentLink(
-            label: $segment->label(),
-            href: route('seller.customers.index', [...$without, 'segment' => $segment->value]),
-            active: $segment === $current,
-        ), CustomerSegment::cases());
-    }
-
-    /**
-     * Every column links to itself sorted: the sorted one flips direction,
-     * every other one opens descending.
-     *
-     * @param  array<string, string>  $roundTripped
-     * @return list<ColumnHeader>
-     */
-    private static function columnHeaders(array $roundTripped, CustomerSort $sort): array
-    {
-        $without = collect($roundTripped)->except(['sort', 'dir'])->all();
-
-        return array_map(fn (CustomerSortColumn $column): ColumnHeader => new ColumnHeader(
-            column: $column,
-            href: route('seller.customers.index', [...$without, 'sort' => $column->value, 'dir' => $sort->nextDirectionFor($column)->value]),
-            ariaSort: $sort->ariaSort($column) ?? 'none',
-        ), CustomerSortColumn::cases());
     }
 }

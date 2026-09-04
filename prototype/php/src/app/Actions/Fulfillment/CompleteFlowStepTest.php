@@ -10,27 +10,11 @@ use App\Domain\Fulfillment\FulfillmentLane;
 use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
-use App\Models\Seller;
 
-/**
- * A seller's default flow of two steps: print a label, then pack with no
- * further action. Every test builds its own so completing one step in one
- * test cannot leak into another.
- *
- * @return array{0: FulfillmentFlowStep, 1: FulfillmentFlowStep}
- */
-$twoStepFlow = function (Seller $seller): array {
-    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
-    $labelStep = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create();
-    $packStep = FulfillmentFlowStep::factory()->of($flow, 1)->create();
-
-    return [$labelStep, $packStep];
-};
-
-it('completes the first step, appending one step_completed event for the seller', function () use ($twoStepFlow): void {
+it('completes the first step, appending one step_completed event for the seller', function (): void {
     $seller = $this->seller('Molly Weasley');
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
 
     $event = app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 09:00:00'));
 
@@ -42,10 +26,10 @@ it('completes the first step, appending one step_completed event for the seller'
         ->and(FulfillmentEvent::count())->toBe(1);
 });
 
-it('moves the lane from to ship into progress once the first step is behind it, naming the second as next', function () use ($twoStepFlow): void {
+it('moves the lane from to ship into progress once the first step is behind it, naming the second as next', function (): void {
     $seller = $this->seller('Neville Longbottom');
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep, $packStep] = $twoStepFlow($seller);
+    [$labelStep, $packStep] = $this->flowFor($seller);
 
     expect($fulfillment->lane())->toBe(FulfillmentLane::ToShip);
 
@@ -56,10 +40,10 @@ it('moves the lane from to ship into progress once the first step is behind it, 
         ->and($fulfillment->lane())->toBe(FulfillmentLane::InProgress);
 });
 
-it('leaves the progress done once the second step is completed', function () use ($twoStepFlow): void {
+it('leaves the progress done once the second step is completed', function (): void {
     $seller = $this->seller('Luna Lovegood');
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep, $packStep] = $twoStepFlow($seller);
+    [$labelStep, $packStep] = $this->flowFor($seller);
     $completeStep = app(CompleteFlowStep::class);
 
     $completeStep($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 09:00:00'));
@@ -68,10 +52,10 @@ it('leaves the progress done once the second step is completed', function () use
     expect($fulfillment->refresh()->progress()->isDone())->toBeTrue();
 });
 
-it('refuses completing the same step twice, leaving exactly one event', function () use ($twoStepFlow): void {
+it('refuses completing the same step twice, leaving exactly one event', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
     $completeStep = app(CompleteFlowStep::class);
 
     $completeStep($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 09:00:00'));
@@ -82,10 +66,10 @@ it('refuses completing the same step twice, leaving exactly one event', function
     expect(FulfillmentEvent::count())->toBe(1);
 });
 
-it('refuses a step submitted out of order', function () use ($twoStepFlow): void {
+it('refuses a step submitted out of order', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [, $packStep] = $twoStepFlow($seller);
+    [, $packStep] = $this->flowFor($seller);
 
     expect(fn () => app(CompleteFlowStep::class)($fulfillment, $packStep, null, null, $this->moment('2026-08-21 09:00:00')))
         ->toThrow(DomainRuleViolation::class);
@@ -93,10 +77,10 @@ it('refuses a step submitted out of order', function () use ($twoStepFlow): void
     expect(FulfillmentEvent::count())->toBe(0);
 });
 
-it('refuses completing a step on a fulfillment that is not awaiting shipment, appending nothing', function () use ($twoStepFlow): void {
+it('refuses completing a step on a fulfillment that is not awaiting shipment, appending nothing', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->shippedFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
     $before = FulfillmentEvent::count();
 
     expect(fn () => app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-22 09:00:00')))
@@ -105,10 +89,10 @@ it('refuses completing a step on a fulfillment that is not awaiting shipment, ap
     expect(FulfillmentEvent::count())->toBe($before);
 });
 
-it('refuses a label step with no carrier or no tracking number', function (?string $carrier, ?string $trackingNumber) use ($twoStepFlow): void {
+it('refuses a label step with no carrier or no tracking number', function (?string $carrier, ?string $trackingNumber): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep] = $twoStepFlow($seller);
+    [$labelStep] = $this->flowFor($seller);
 
     expect(fn () => app(CompleteFlowStep::class)($fulfillment, $labelStep, $carrier, $trackingNumber, $this->moment('2026-08-21 09:00:00')))
         ->toThrow(DomainRuleViolation::class);
@@ -118,19 +102,19 @@ it('refuses a label step with no carrier or no tracking number', function (?stri
     'neither' => [null, null],
 ]);
 
-it('refuses shipment details on a step that prints no label', function () use ($twoStepFlow): void {
+it('refuses shipment details on a step that prints no label', function (): void {
     $seller = $this->seller();
     $fulfillment = $this->paidFulfillmentFor($seller);
-    [$labelStep, $packStep] = $twoStepFlow($seller);
+    [$labelStep, $packStep] = $this->flowFor($seller);
     app(CompleteFlowStep::class)($fulfillment, $labelStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 09:00:00'));
 
     expect(fn () => app(CompleteFlowStep::class)($fulfillment->refresh(), $packStep, 'Owl Post', 'OP 1234', $this->moment('2026-08-21 10:00:00')))
         ->toThrow(DomainRuleViolation::class);
 });
 
-it('ships by the flow a listing names instead of the seller default', function () use ($twoStepFlow): void {
+it('ships by the flow a listing names instead of the seller default', function (): void {
     $seller = $this->seller('Cho Chang');
-    $twoStepFlow($seller);
+    $this->flowFor($seller);
     $fulfillment = $this->paidFulfillmentFor($seller);
 
     $namedFlow = FulfillmentFlow::factory()->create(['seller_id' => $seller->id, 'name' => 'Framed pieces']);

@@ -6,6 +6,8 @@ namespace App\Domain\Seller;
 
 /**
  * The seller listings table's eleven sortable columns.
+ *
+ * @implements SortableColumn<ListingTableRow>
  */
 enum ListingSortColumn: string implements SortableColumn
 {
@@ -45,12 +47,24 @@ enum ListingSortColumn: string implements SortableColumn
     }
 
     /**
+     * The sort the table opens on: the listing buyers are looking at, most first.
+     *
+     * @return TableSort<ListingTableRow>
+     */
+    public static function defaultSort(): TableSort
+    {
+        return TableSort::of(self::Views, SortDirection::Desc);
+    }
+
+    /**
      * The value one row sorts by on this column. A listing with no views
      * yet reads as the lowest conversion, keeping it in the order;
      * made-to-order stock (a null quantity) reads as unlimited, so it
      * sorts above every counted number.
+     *
+     * @param  ListingTableRow  $row
      */
-    public function keyOf(ListingTableRow $row): int|float|string
+    public function keyOf(object $row): int|float|string
     {
         return match ($this) {
             self::Title => mb_strtolower($row->title),

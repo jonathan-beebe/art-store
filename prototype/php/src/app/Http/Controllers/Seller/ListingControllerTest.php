@@ -28,6 +28,9 @@ use App\Models\Seller;
 use App\Models\Variant;
 use App\Support\ListPaneWindow;
 use DateTimeImmutable;
+use DOMDocument;
+use DOMNodeList;
+use DOMXPath;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\UploadedFile;
@@ -1209,6 +1212,35 @@ it('FEAT-056 renders the table view with every column', function (): void {
     $response->assertOk();
     $response->assertSee('The Burrow at Dusk');
     $response->assertSee('24 x 36 in');
+});
+
+it('IMPRV-032 marks the view switch\'s active entry aria-current="page"', function (): void {
+    $seller = $this->seller();
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+
+    $response->assertOk();
+    expect($response->getContent())->toMatch('/view=table"[^>]*aria-current="page"/');
+});
+
+it('IMPRV-032 renders one cell per header, so an added column cannot drift from its cells', function (): void {
+    $seller = $this->seller();
+    $this->listing($seller, ['title' => 'The Burrow at Dusk']);
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/listings?view=table');
+    $content = $response->getContent();
+
+    $dom = new DOMDocument;
+    @$dom->loadHTML(is_string($content) ? $content : '');
+    $xpath = new DOMXPath($dom);
+
+    $countOf = fn (DOMNodeList|false $nodes): int => $nodes instanceof DOMNodeList ? $nodes->length : 0;
+
+    $headerCount = $countOf($xpath->query('//table/thead//th'));
+    $cellCount = $countOf($xpath->query('//table/tbody/tr[1]/td'));
+
+    expect($headerCount)->toBeGreaterThan(0)
+        ->and($cellCount)->toBe($headerCount);
 });
 
 it('FEAT-056 renders the grid view', function (): void {

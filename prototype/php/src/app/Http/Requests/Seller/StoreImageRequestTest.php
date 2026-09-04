@@ -23,7 +23,7 @@ it('mints the store on a first POST, before any GET /seller/store', function ():
 
 it('refuses a file type other than jpeg, png, webp, or gif', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/images', [
         'image' => UploadedFile::fake()->create('notes.txt', 10),
@@ -35,7 +35,7 @@ it('refuses a file type other than jpeg, png, webp, or gif', function (): void {
 
 it('refuses a file over the 5120 KB limit', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/images', [
         'image' => UploadedFile::fake()->image('huge.jpg')->size(5121),
@@ -47,7 +47,7 @@ it('refuses a file over the 5120 KB limit', function (): void {
 
 it('requires a role', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/images', [
         'image' => UploadedFile::fake()->image('portrait.jpg'),
@@ -58,7 +58,7 @@ it('requires a role', function (): void {
 
 it('refuses a role outside portrait, cover, or gallery', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
 
     $response = $this->actingAs($seller, 'seller')->post('/seller/store/images', [
         'image' => UploadedFile::fake()->image('portrait.jpg'),
@@ -70,7 +70,7 @@ it('refuses a role outside portrait, cover, or gallery', function (): void {
 
 it('refuses a picture past the store cap with its cap message', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
-    $this->actingAs($seller, 'seller')->get('/seller/store');
+    $this->storeFor($seller);
     $profile = $seller->storeProfile()->sole();
     StoreImage::factory()
         ->count(StoreProfile::MAX_IMAGES)

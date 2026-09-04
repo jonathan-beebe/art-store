@@ -9,11 +9,9 @@ use App\Analytics\ListingEventCounts;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\BarStrip;
 use App\Domain\Seller\ActivityTotal;
-use App\Domain\Seller\ListingSort;
 use App\Domain\Seller\ListingSortColumn;
 use App\Domain\Seller\ListingTableRow;
-use App\Domain\Seller\ListingTableSort;
-use App\Domain\Seller\SortDirection;
+use App\Domain\Seller\RowSort;
 use App\Models\Fulfillment;
 use App\Models\OrderItem;
 use App\Models\Seller;
@@ -63,7 +61,11 @@ final readonly class ListingActivity
         $sold = self::unitsSoldByListingAndDay($seller, $previous->start, $range->end);
 
         $top = array_slice(
-            ListingTableSort::apply(ListingSort::of(ListingSortColumn::Views, SortDirection::Desc), $listings),
+            RowSort::apply(
+                ListingSortColumn::defaultSort(),
+                $listings,
+                fn (ListingTableRow $row): string => $row->id,
+            ),
             0,
             self::TOP_LISTINGS,
         );

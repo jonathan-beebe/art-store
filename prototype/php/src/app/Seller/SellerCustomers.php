@@ -37,7 +37,7 @@ final class SellerCustomers
 
     /**
      * Every buyer of this seller, in no particular order —
-     * {@see \App\Domain\Seller\CustomerTableSort} orders a list of them.
+     * {@see \App\Domain\Seller\RowSort} orders a list of them.
      *
      * @return list<CustomerRow>
      */

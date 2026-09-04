@@ -8,7 +8,7 @@ use App\Actions\Store\SaveStore;
 use App\Actions\Store\StartStore;
 use App\Domain\Store\StoreDraft;
 use App\Http\Requests\Seller\UpdateStoreRequest;
-use App\Support\Store\StorePageData;
+use App\Seller\Store\StorePageData;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -22,7 +22,7 @@ final class StoreController extends SellerController
 {
     public function show(StartStore $startStore): View
     {
-        return view('seller.store.show', StorePageData::build($startStore($this->seller())));
+        return view('seller.store.show', ['page' => StorePageData::build($startStore($this->seller()))]);
     }
 
     public function update(UpdateStoreRequest $request, StartStore $startStore, SaveStore $saveStore): RedirectResponse

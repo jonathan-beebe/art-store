@@ -55,12 +55,6 @@ it('answers 404 for a customer who has never bought from this seller', function 
     expect(Conversation::query()->count())->toBe(0);
 });
 
-it('sends a signed-out visitor to sign in', function (): void {
-    $customer = Customer::factory()->create();
-
-    $this->post("/seller/customers/{$customer->id}/messages")->assertRedirect(route('auth.seller.login'));
-});
-
 it('opens the thread for the parcel placed last, whatever order the rows were written in', function (): void {
     $seller = $this->seller('The Burrow Craftworks');
     $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);

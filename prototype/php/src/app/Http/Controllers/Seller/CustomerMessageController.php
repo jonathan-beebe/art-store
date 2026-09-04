@@ -7,11 +7,9 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Messaging\OpenConversation;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitName;
-use App\Domain\Seller\CustomerRow;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Seller;
-use App\Seller\SellerCustomers;
 use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 
@@ -26,8 +24,7 @@ final class CustomerMessageController extends SellerController
     public function __invoke(Customer $customer, OpenConversation $openConversation, RateLimitGate $rateLimit): RedirectResponse
     {
         $seller = $this->seller();
-
-        abort_if(! SellerCustomers::forCustomer($seller, $customer) instanceof CustomerRow, 404);
+        $this->authorize('view', $customer);
 
         $existing = $seller->conversations()
             ->where('customer_id', $customer->id)

@@ -19,18 +19,18 @@ final class FeedFilters
 
     /**
      * @param  array<string, string>  $routeParams  what identifies the page the feed sits on
-     * @return list<SegmentLink>
+     * @return list<NavLink>
      */
     public static function for(string $routeName, array $routeParams, ?ActivityKind $current): array
     {
-        $links = [new SegmentLink(
+        $links = [new NavLink(
             label: 'All',
             href: route($routeName, $routeParams),
             active: ! $current instanceof ActivityKind,
         )];
 
         foreach (ActivityKind::cases() as $kind) {
-            $links[] = new SegmentLink(
+            $links[] = new NavLink(
                 label: $kind->label(),
                 href: route($routeName, [...$routeParams, 'kind' => $kind->value]),
                 active: $kind === $current,

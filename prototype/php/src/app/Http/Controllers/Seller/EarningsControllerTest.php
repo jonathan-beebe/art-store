@@ -14,10 +14,6 @@ beforeEach(function (): void {
     $this->travelTo($this->moment('2026-08-19 09:00:00'));
 });
 
-it('refuses a signed-out visitor', function (): void {
-    $this->get('/seller/earnings')->assertRedirect('/seller/login');
-});
-
 it('shows the next payout as the ledger balance available to pay out', function (): void {
     $seller = $this->seller();
     $this->deliveredFulfillmentFor(

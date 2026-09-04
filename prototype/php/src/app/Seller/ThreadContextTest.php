@@ -107,7 +107,7 @@ it('lists the buyer\'s other threads with this seller, newest first', function (
 
     $context = ThreadContext::forSeller($seller, $open, $this->moment('2026-08-26 09:00:00'));
 
-    expect(array_map(fn (ThreadLink $link): string => $link->title, $context->others))->toBe(['A newer question', 'An older question'])
+    expect(array_map(fn (ThreadRow $row): string => $row->title, $context->others))->toBe(['A newer question', 'An older question'])
         ->and($context->others[0]->href)->toBe(route('seller.messages.show', $newer))
         ->and($context->others[0]->when)->toBe('Yesterday');
 });

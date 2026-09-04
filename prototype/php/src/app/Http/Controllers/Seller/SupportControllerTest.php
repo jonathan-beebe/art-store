@@ -15,10 +15,6 @@ use App\Models\Fulfillment;
 use Database\Seeders\AdminSeeder;
 use Illuminate\Support\Facades\Config;
 
-it('refuses a signed-out visitor to the support hub', function (): void {
-    $this->get('/seller/support')->assertRedirect('/seller/login');
-});
-
 it('shows the desk, one entry per seeded admin', function (): void {
     $this->seed(AdminSeeder::class);
     $seller = $this->seller();

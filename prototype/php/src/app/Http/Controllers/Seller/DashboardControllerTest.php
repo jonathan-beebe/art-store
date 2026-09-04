@@ -21,9 +21,9 @@ use App\Domain\Seller\AttentionRow;
 use App\Models\Customer;
 use App\Models\Seller;
 use App\Seller\ListingActivity;
+use App\Seller\NavLink;
 use App\Seller\OverviewListingRow;
 use App\Seller\OverviewTile;
-use App\Seller\SegmentLink;
 use DateTimeImmutable;
 use RuntimeException;
 
@@ -119,7 +119,7 @@ it('offers the three ranges as links, the one in force marked current', function
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller?range=7');
 
     $response->assertViewHas('rangeLinks', function (array $links): bool {
-        /** @var list<SegmentLink> $links */
+        /** @var list<NavLink> $links */
         return count($links) === 3
             && $links[0]->label === '7 days'
             && $links[0]->active
