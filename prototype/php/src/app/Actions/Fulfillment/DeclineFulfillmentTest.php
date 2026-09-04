@@ -16,9 +16,11 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Configurator\UnitState;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Escrow\LedgerEntryType;
+use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Orders\OrderStatus;
+use App\Models\FulfillmentEvent;
 use App\Models\LedgerEntry;
 use App\Models\Refund;
 use Tests\CapturedStory;
@@ -191,4 +193,28 @@ it('tells the story of the decline and the refund it issued', function (): void 
             'amount_cents' => 10000,
             'reason' => 'Damaged.',
         ]);
+});
+
+it('appends the declined event in the seller\'s name', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
+
+    $event = FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->sole();
+
+    expect($event->kind)->toBe(FulfillmentEventKind::Declined)
+        ->and($event->actor_type)->toBe(ActorType::Seller)
+        ->and($event->actor_id)->toBe($seller->id)
+        ->and($event->occurred_at->format('Y-m-d H:i:s'))->toBe('2026-08-21 09:00:00')
+        ->and($event->fulfillment_flow_step_id)->toBeNull();
+});
+
+it('appends nothing when the decline is refused', function (): void {
+    $fulfillment = $this->shippedFulfillmentFor($this->seller());
+
+    expect(fn () => app(DeclineFulfillment::class)($fulfillment, 'Too late.', $this->moment('2026-08-22 09:00:00')))
+        ->toThrow(DomainRuleViolation::class);
+
+    expect(FulfillmentEvent::where('fulfillment_id', $fulfillment->id)->where('kind', FulfillmentEventKind::Declined)->count())->toBe(0);
 });
