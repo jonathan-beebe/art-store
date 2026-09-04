@@ -34,3 +34,22 @@ Two of these defects mean a seller in production cannot create a listing or navi
 ## Related work
 - FEAT-051..061 (the portal), MAINT-008
 - IMPRV-021 (commit gate), IMPRV-026..029 (shared chrome idioms)
+
+## Working
+
+- Item 1 (CSP): the nav drawer script is identical between the seller and
+  admin layouts bar the element id, so it moves to one shared
+  `public/nav-drawer.js` keyed off a `data-nav-drawer` attribute instead of
+  two id-bound copies. The New listing dialog gets its own
+  `public/new-listing-modal.js`, same shape as the existing autosubmit
+  scripts.
+- Item 5 (listings overlay): the `<dialog>` cannot be made genuinely modal
+  and still satisfy a static-markup test that the header sits in an inert
+  region, without duplicating the header (breaking the "one New listing
+  dialog per response" invariant `_header.blade.php` documents) or making
+  the header unreachable below `2xl` (breaking the "reachable at any
+  viewport" the same file promises). Falling back to the takeover at every
+  width per the ticket's own escape hatch; the two-`<h1>` defect (the
+  header's "Listings" plus the listing's own title) is fixed by giving
+  `_header.blade.php` an `asHeading` prop so the detail route renders it as
+  a `<p>`.
