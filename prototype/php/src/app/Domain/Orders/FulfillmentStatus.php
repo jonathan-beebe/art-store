@@ -58,4 +58,19 @@ enum FulfillmentStatus: string
     {
         return ucfirst(str_replace('_', ' ', $this->value));
     }
+
+    /**
+     * The color the status badge wears. Named here so the row, the header,
+     * and the badge on one page cannot drift apart.
+     */
+    public function tint(): string
+    {
+        return match ($this) {
+            self::AwaitingShipment => 'yellow',
+            self::Shipped => 'blue',
+            self::Delivered => 'green',
+            self::Refunded => 'red',
+            self::Declined => 'gray',
+        };
+    }
 }

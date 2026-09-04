@@ -7,9 +7,12 @@ namespace App\Models;
 use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
 use App\Actions\Fulfillment\RefundFulfillment;
+use App\Actions\Orders\FinalizeOrder;
+use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\FulfillmentLane;
+use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Orders\FulfillmentStatus;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
@@ -172,4 +175,115 @@ it('keeps the words of a step the seller removed on the row that recorded it', f
 
     expect($event->fulfillment_flow_step_id)->toBeNull()
         ->and($event->stepLabel())->toBe('Label printed');
+});
+
+it('selects each lane the way the loaded flow reads it', function (): void {
+    $seller = $this->seller('Molly Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $toShip = $this->paidFulfillmentFor($seller);
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $shipped = $this->shippedFulfillmentFor($seller);
+    $delivered = $this->deliveredFulfillmentFor($seller);
+
+    $inLane = fn (LaneFilter $filter): array => Fulfillment::query()
+        ->whereBelongsTo($seller)
+        ->inLane($filter)
+        ->pluck('id')
+        ->sort()
+        ->values()
+        ->all();
+
+    expect($inLane(LaneFilter::ToShip))->toBe([$toShip->id])
+        ->and($inLane(LaneFilter::InProgress))->toEqualCanonicalizing([$started->id, $shipped->id])
+        ->and($inLane(LaneFilter::Done))->toBe([$delivered->id])
+        ->and($inLane(LaneFilter::All))->toHaveCount(4);
+});
+
+it('agrees with the lane each fulfillment reads off its own flow', function (): void {
+    $seller = $this->seller('Luna Lovegood');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->shippedFulfillmentFor($seller);
+    $this->deliveredFulfillmentFor($seller);
+    app(DeclineFulfillment::class)($this->paidFulfillmentFor($seller), 'The kiln cracked it.', $this->moment('2026-08-22 09:00:00'));
+
+    foreach (Fulfillment::query()->whereBelongsTo($seller)->get() as $fulfillment) {
+        $selected = Fulfillment::query()->inLane(LaneFilter::of($fulfillment->lane()))->pluck('id')->all();
+
+        expect($selected)->toContain($fulfillment->id);
+    }
+});
+
+it('counts the two facts a lane is read from, one row per pair', function (): void {
+    $seller = $this->seller('Ginny Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->of($flow, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+
+    $started = $this->paidFulfillmentFor($seller);
+    app(CompleteFlowStep::class)($started, $step, null, null, $this->moment('2026-08-21 09:00:00'));
+    $this->paidFulfillmentFor($seller);
+    $this->paidFulfillmentFor($seller);
+
+    $counted = [];
+    foreach (Fulfillment::query()->whereBelongsTo($seller)->countedByLane()->get() as $row) {
+        $counted[FulfillmentLane::forStarted($row->status, $row->started)->value] = $row->tally;
+    }
+
+    expect($counted)->toEqualCanonicalizing([
+        FulfillmentLane::ToShip->value => 2,
+        FulfillmentLane::InProgress->value => 1,
+    ]);
+});
+
+it('names the seller lines on the order as one phrase', function (): void {
+    $seller = $this->seller();
+    $order = $this->orderFor(
+        $this->verifiedCustomer(),
+        $this->listing($seller, ['title' => 'Harbour at Dusk']),
+        $this->listing($seller, ['title' => 'Kiln Study']),
+    );
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+
+    expect($order->fulfillments()->sole()->itemLabel())->toBe('Harbour at Dusk +1 more');
+});
+
+it('says where the money for a parcel stands', function (): void {
+    $seller = $this->seller();
+
+    expect($this->paidFulfillmentFor($seller)->escrowState())->toBe(LedgerEntryType::Held)
+        ->and($this->deliveredFulfillmentFor($seller)->escrowState())->toBe(LedgerEntryType::Released);
+});
+
+it('reads its state as the sentence the order page carries', function (): void {
+    $seller = $this->seller();
+    $delivered = $this->deliveredFulfillmentFor($seller, priceCents: 10000, deliveredAt: $this->moment('2026-08-28 11:00:00'));
+
+    expect($delivered->state($this->moment('2026-09-04 09:00:00'))->line())
+        ->toBe('Delivered Aug 28 · $90.00 released to your balance');
+});
+
+it('reads a parcel still in the studio as the clock the buyer is watching', function (): void {
+    $fulfillment = $this->paidFulfillmentFor($this->seller());
+
+    expect($fulfillment->state($this->moment('2026-08-22 09:00:00'))->line())
+        ->toBe('Placed 2 days ago · ship by Aug 23');
+});
+
+it('reads the last completed step into the state of a parcel that has started', function (): void {
+    $seller = $this->seller('Arthur Weasley');
+    $flow = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id]);
+    $step = FulfillmentFlowStep::factory()->printsLabel()->of($flow, 0)->create(['label' => 'Label printed']);
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    app(CompleteFlowStep::class)($fulfillment, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
+
+    expect($fulfillment->refresh()->state($this->moment('2026-08-21 12:00:00'))->line())
+        ->toBe('Label printed 3 hours ago · waiting for the parcel to leave');
 });
