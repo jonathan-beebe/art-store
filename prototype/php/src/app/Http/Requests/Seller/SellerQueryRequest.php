@@ -11,8 +11,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 /**
  * The seller query vocabulary every list/detail route's `?…` shares
  * (docs/alignment.md §5): an absent or emptied value reads as the
- * default, and an unrecognised value answers a bare 400 rather than the
- * framework's own redirect-with-errors.
+ * default, and an unrecognised value answers a bare 400.
  */
 abstract class SellerQueryRequest extends FormRequest
 {

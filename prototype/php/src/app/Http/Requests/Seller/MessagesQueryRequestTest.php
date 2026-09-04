@@ -24,13 +24,13 @@ it('answers 400 on a domain value outside the documented set', function (): void
     $response->assertStatus(400);
 });
 
-it('reads an emptied domain as absent rather than as a value to reject', function (): void {
+it('reads an emptied domain as absent', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/messages?domain=');
 
     $response->assertOk();
 });
 
-it('answers 400 when reply_to is not a single value', function (): void {
+it('answers 400 when reply_to arrives as an array', function (): void {
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
 

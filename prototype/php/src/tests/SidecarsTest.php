@@ -10,7 +10,7 @@ use Symfony\Component\Finder\Finder;
  * an explicit list for everything else. A `final readonly` class under
  * `App\Domain` or `App\Seller` whose only declared method is its
  * constructor is a value carrier with nothing beyond its values to test;
- * it needs no sidecar, by shape rather than by name. The list below names
+ * it needs no sidecar, by shape. The list below names
  * the judgment calls: a class covered by another file's tests, or one
  * with no independently testable behavior that the structural rule does
  * not reach. An exception entry whose sidecar now exists, or whose class

@@ -15,10 +15,9 @@ use Illuminate\Support\ServiceProvider;
 
 /**
  * `App\Seller\ActivityFeedReader` takes its sources as a variadic
- * `ActivityFeedSource ...$sources` rather than the four concrete classes
- * by name, so the container needs telling what fills that parameter and
- * in what order — the order a feed's rows tie in: browsing, order,
- * shipping, messages.
+ * `ActivityFeedSource ...$sources`, so the container needs telling what
+ * fills that parameter and in what order — the order a feed's rows tie
+ * in: browsing, order, shipping, messages.
  */
 final class ActivityFeedServiceProvider extends ServiceProvider
 {

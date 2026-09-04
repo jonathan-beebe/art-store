@@ -83,7 +83,7 @@ it('reads an empty feed for a customer who has done nothing with this seller', f
     expect($feed->isEmpty())->toBeTrue();
 });
 
-it('merges whatever sources it is given, not a fixed four', function (): void {
+it('merges whatever sources it is given', function (): void {
     $scope = FeedScope::forCustomer($this->seller(), $this->verifiedCustomer());
 
     $older = new FeedEvent($this->moment('2026-08-01 09:00:00'), ActivityKind::Browse, FeedIcon::Eye, 'Luna', 'viewed a piece');
