@@ -41,6 +41,8 @@ final class ListingTable
         $listings = Listing::query()
             ->ofSeller($seller->id)
             ->with(['activeRemoval', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
         return array_values(self::rowsFor($listings, $seller->id, $range)->all());
@@ -107,7 +109,8 @@ final class ListingTable
     /**
      * The Medium attribute label for each of `$listingIds` that carries
      * one, one query — the same fact {@see Listing::mediumAttributeLabel()}
-     * reads per listing, batched.
+     * reads per listing, batched. Ordered by id, keeping the first row per
+     * listing — the same "first" `mediumAttributeLabel()` reads.
      *
      * @param  list<string>  $listingIds
      * @return array<string, string> listing id => label
@@ -123,9 +126,16 @@ final class ListingTable
             ->whereIn('listing_id', $listingIds)
             ->whereHas('property', fn (Builder $properties): Builder => $properties->where('name', 'Medium'))
             ->with('propertyValue')
+            ->orderBy('id')
             ->get();
 
-        return $attributes->mapWithKeys(fn (ListingAttribute $attribute): array => [$attribute->listing_id => $attribute->propertyValue->label])->all();
+        $mediums = [];
+
+        foreach ($attributes as $attribute) {
+            $mediums[$attribute->listing_id] ??= $attribute->propertyValue->label;
+        }
+
+        return $mediums;
     }
 
     /**

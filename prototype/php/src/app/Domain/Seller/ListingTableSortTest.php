@@ -53,3 +53,19 @@ it('sorts a text column alphabetically', function () use ($row): void {
 it('leaves an empty list empty', function (): void {
     expect(ListingTableSort::apply(ListingSort::default(), []))->toBe([]);
 });
+
+it('breaks a tie on equal keys by id, ascending', function () use ($row): void {
+    $rows = [$row(id: 'c', views: 5), $row(id: 'a', views: 5), $row(id: 'b', views: 5)];
+
+    $sorted = ListingTableSort::apply(ListingSort::of(ListingSortColumn::Views, ListingSortDirection::Asc), $rows);
+
+    expect(array_map(fn (ListingTableRow $r): string => $r->id, $sorted))->toBe(['a', 'b', 'c']);
+});
+
+it('breaks a tie on equal keys by id, descending', function () use ($row): void {
+    $rows = [$row(id: 'c', views: 5), $row(id: 'a', views: 5), $row(id: 'b', views: 5)];
+
+    $sorted = ListingTableSort::apply(ListingSort::of(ListingSortColumn::Views, ListingSortDirection::Desc), $rows);
+
+    expect(array_map(fn (ListingTableRow $r): string => $r->id, $sorted))->toBe(['c', 'b', 'a']);
+});

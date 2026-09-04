@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Actions\Fulfillment\DeclineFulfillment;
+use App\Actions\Fulfillment\RefundFulfillment;
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
@@ -81,6 +82,18 @@ it('reads the medium attribute label off the listing, batched across every listi
         ->and(rowFor($rows, $cloak->id)->medium)->toBeNull();
 });
 
+it('reads the first medium attribute when a listing carries more than one, ordered by id', function (): void {
+    $seller = $this->seller();
+    $wand = $this->listing($seller, ['title' => 'Holly Wand']);
+    $first = $this->mediumAttribute($wand, 'Wood');
+    $second = $this->mediumAttribute($wand, 'Phoenix Feather');
+    expect($first->id < $second->id)->toBeTrue();
+
+    $rows = ListingTable::forSeller($seller, AnalyticsRange::of(30, new DateTimeImmutable('2026-09-03')));
+
+    expect(rowFor($rows, $wand->id)->medium)->toBe('Wood');
+});
+
 it('reads a listing\'s ranged view, favorite, and cart-add counts', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller, ['title' => 'Marauders Map']);
@@ -139,6 +152,20 @@ it('leaves a declined fulfillment off sold and revenue', function (): void {
     $listingId = $fulfillment->order->items()->sole()->listing_id;
 
     app(DeclineFulfillment::class)($fulfillment, 'The kiln cracked the glaze.', $this->moment('2026-08-21 09:00:00'));
+
+    $rows = ListingTable::forSeller($seller, AnalyticsRange::of(30, new DateTimeImmutable('2026-09-03')));
+    $row = rowFor($rows, $listingId);
+
+    expect($row->sold)->toBe(0)
+        ->and($row->revenueCents)->toBe(0);
+});
+
+it('leaves a refunded fulfillment off sold and revenue', function (): void {
+    $seller = $this->seller();
+    $fulfillment = $this->paidFulfillmentFor($seller, priceCents: 500);
+    $listingId = $fulfillment->order->items()->sole()->listing_id;
+
+    app(RefundFulfillment::class)($fulfillment, $this->admin(), 'The piece never arrived.', $this->moment('2026-08-21 09:00:00'));
 
     $rows = ListingTable::forSeller($seller, AnalyticsRange::of(30, new DateTimeImmutable('2026-09-03')));
     $row = rowFor($rows, $listingId);
