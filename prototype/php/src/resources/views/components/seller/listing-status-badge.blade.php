@@ -10,13 +10,9 @@
 @props(['listing'])
 
 @php
-    [$label, $color] = match (true) {
-        (bool) $listing->activeRemoval => ['Removed', 'red'],
-        $listing->status === \App\Domain\Listings\ListingStatus::Archived => ['Removed', 'red'],
-        $listing->status === \App\Domain\Listings\ListingStatus::ForSale => ['Live', 'green'],
-        $listing->status === \App\Domain\Listings\ListingStatus::Sold => ['Sold out', 'red'],
-        default => ['Draft', 'gray'],
-    };
+    $hasActiveRemoval = (bool) $listing->activeRemoval;
+    $label = $listing->status->sellerBadgeLabel($hasActiveRemoval);
+    $color = $listing->status->sellerBadgeTint($hasActiveRemoval);
 
     $colorClasses = match ($color) {
         'green' => 'bg-green-50 text-green-700 inset-ring-green-600/20 dark:bg-green-400/10 dark:text-green-400 dark:inset-ring-green-500/20',
