@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -49,6 +50,12 @@ class Seller extends Authenticatable
     public function listings(): HasMany
     {
         return $this->hasMany(Listing::class);
+    }
+
+    /** @return HasOne<StoreProfile, $this> */
+    public function storeProfile(): HasOne
+    {
+        return $this->hasOne(StoreProfile::class);
     }
 
     /** @return HasMany<Fulfillment, $this> */

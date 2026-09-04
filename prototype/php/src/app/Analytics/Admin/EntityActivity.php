@@ -54,6 +54,8 @@ final class EntityActivity
 
     private const string OTHER_CART = 'cart';
 
+    private const string OTHER_STORE = 'store';
+
     public static function forListing(Listing $listing, AnalyticsRange $range, ?AnalyticsEventName $filter): EntityActivityView
     {
         $scope = fn (Builder $query): Builder => $query->where('subject_type', 'listing')->where('subject_id', $listing->id);
@@ -622,6 +624,7 @@ final class EntityActivity
             return match ($subjectType) {
                 'order' => self::feedRowForOrder($row, $name, $listings),
                 'cart' => self::feedRowForCart($row, $name, $listings),
+                'store' => self::feedRowForStore($row, $name),
                 default => self::feedRowForListing($row, $name, $listings),
             };
         })->all();
@@ -669,6 +672,18 @@ final class EntityActivity
     }
 
     /**
+     * A store carries no admin page of its own to link to, the same as a
+     * cart — its row names the store it was opened at, unlinked.
+     */
+    private static function feedRowForStore(stdClass $row, AnalyticsEventName $name): EntityFeedRow
+    {
+        /** @var string $storeId */
+        $storeId = $row->subject_id ?? '';
+
+        return self::feedRow($row, $name, "store {$storeId}", $storeId, self::OTHER_STORE, false, []);
+    }
+
+    /**
      * The listing ids one feed row needs {@see feedRowsForActorPage()} to
      * have already fetched: a listing subject's own id, or an order or
      * cart subject's `data.listing_ids`.
@@ -682,6 +697,10 @@ final class EntityActivity
 
         if ($subjectType === 'order' || $subjectType === 'cart') {
             return self::dataListingIds($row);
+        }
+
+        if ($subjectType === 'store') {
+            return [];
         }
 
         /** @var string|null $subjectId */

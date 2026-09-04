@@ -27,6 +27,8 @@ final readonly class AnalyticsEvent
 
     private const string SUBJECT_ORDER = 'order';
 
+    private const string SUBJECT_STORE = 'store';
+
     /**
      * @param  array<string, scalar|list<string>|null>  $data
      */
@@ -54,6 +56,20 @@ final readonly class AnalyticsEvent
         ?string $dedupeKey = null,
     ): self {
         return new self($name, $at, self::SUBJECT_LISTING, $listingId, $customerId, $dedupeKey);
+    }
+
+    /**
+     * A buyer opening a store's public page, attributed to the customer who
+     * opened it — or to nobody, for an anonymous visitor.
+     */
+    public static function forStore(
+        AnalyticsEventName $name,
+        string $storeProfileId,
+        ?string $customerId,
+        DateTimeImmutable $at,
+        ?string $dedupeKey = null,
+    ): self {
+        return new self($name, $at, self::SUBJECT_STORE, $storeProfileId, $customerId, $dedupeKey);
     }
 
     /**

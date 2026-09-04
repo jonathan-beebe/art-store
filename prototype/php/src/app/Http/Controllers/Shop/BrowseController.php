@@ -29,7 +29,7 @@ final class BrowseController extends ShopController
             'category' => $category,
             'children' => $category->children()->where('browsable', true)->orderBy('name')->get(),
             'listings' => Listing::query()->forSale()
-                ->with(['seller', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
+                ->with(['seller.storeProfile', 'images' => fn (Relation $images): Relation => $images->orderBy('position')])
                 ->orderByDesc('created_at')->orderByDesc('id')
                 ->ofCategoryPathPrefix($category->path)
                 ->paginate(self::LISTINGS_PER_PAGE)->withQueryString(),

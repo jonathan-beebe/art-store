@@ -85,6 +85,12 @@ simply unused there):
 | notifications                             | `ntf`  |
 | outbox_messages                           | `obx`  |
 | funnels                                   | `fnl`  |
+| store_profiles                            | `sto`  |
+| store_slugs                               | `ssl`  |
+| store_images                              | `sim`  |
+| store_sections                            | `sse`  |
+| store_section_images                      | `ssi`  |
+| store_links                               | `slk`  |
 | page_view_counts                          | `pvc`  |
 | rate_limit_windows                        | `rlw`  |
 | sessions (the `sid` cookie value, §2)     | `ses`  |
@@ -286,10 +292,13 @@ batch — a store outage loses buffered rows, never blocks the request.
 `analytics_events` holds one row per occurrence, named from a closed
 vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
 `listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
-`order.cancel`), with a nullable `dedupe_key` unique index. A listing
-view collapses to one row per (listing, customer, UTC hour) by expressing
-that window as a dedupe key and inserting with `INSERT OR IGNORE` — no read
-happens in the request to decide whether the write is a duplicate.
+`order.cancel`, `store.view`), with a nullable `dedupe_key` unique index. A
+listing view collapses to one row per (listing, customer, UTC hour) by
+expressing that window as a dedupe key and inserting with `INSERT OR
+IGNORE` — no read happens in the request to decide whether the write is a
+duplicate. `store.view` carries `subject_type = 'store'` and the store
+profile's `sto_` id, and collapses to the same hour window; a seller
+previewing their own hidden page records nothing.
 `page_view_counts` stays the roll-up the flush maintains, one upsert per
 (site, path pattern, day) carrying the buffered hit count.
 
@@ -923,3 +932,33 @@ on the step with the lowest rate, and the footer/side/note lines —
 `prototype/php/docs/funnel.md` is the reference. Node and rails owe the
 whole feature — each still ships only its own fixed, hard-coded funnel,
 the deviation this entry queues.
+
+2026-09-03, store profile: §1's prefix table gains `sto` (store_profiles),
+`ssl` (store_slugs), `sim` (store_images), `sse` (store_sections), `ssi`
+(store_section_images), and `slk` (store_links). A seller presents on the
+site as a store: a small profile row carrying identity, address, pictures,
+and visibility, with everything the page says held as typed, ordered
+section rows — a new kind of store content is a `StoreSectionKind` case, a
+renderer, and where it needs them, columns on a child table keyed by
+section, never a wider profile row and never a JSON blob. Addresses are
+history: the current one sits on the profile for the unique index, every
+address the store has ever answered to is a `store_slugs` row, and the
+column is unique across the whole table so a redirect can never be
+ambiguous. PHP ships the tables, the seller form, and the seeded stores on
+FEAT-057 — `prototype/php/docs/seller-portal.md` § "Store profile" is the
+reference. §2.3's event vocabulary and §3's limiter names gain nothing:
+store writes stay silent under §2.3's closed-vocabulary rule. Node and
+rails owe the whole feature.
+
+2026-09-03, public store page: §2.6's event vocabulary gains `store.view`
+(`subject_type = 'store'`, subject the `sto_` profile id), collapsed to one
+row per (store, customer, UTC hour) the same way a listing view is. A
+store's public page is `/s/{slug}`: the current address answers it, an
+address the store retired inside thirty days redirects 301 to the current
+one, and an older address, an unknown one, and a hidden store all answer
+the same 404 so a hidden store is never confirmed to exist — its own
+seller is the one exception and sees a banner. Every listing card and
+listing page names the seller as a link to their store when it is
+published. PHP ships it on FEAT-058 —
+`prototype/php/docs/seller-portal.md` § "The public page" is the
+reference. Node and rails owe the whole feature.

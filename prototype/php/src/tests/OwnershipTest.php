@@ -28,6 +28,8 @@ use App\Models\Payout;
 use App\Models\QuantityBreak;
 use App\Models\Refund;
 use App\Models\Seller;
+use App\Models\StoreImage;
+use App\Models\StoreProfile;
 use App\Models\Unit;
 use App\Models\Variant;
 use App\Models\VariantOption;
@@ -64,6 +66,8 @@ $sellerOwnedModels = [
     ModifierScope::class,
     QuantityBreak::class,
     DescriptionSection::class,
+    StoreProfile::class,
+    StoreImage::class,
 ];
 
 /** @var list<class-string<Model>> */

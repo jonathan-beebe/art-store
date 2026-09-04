@@ -31,7 +31,7 @@ final class ListingPagePresenter
 
         return [
             'listing' => $listing->load([
-                'seller', 'faqs',
+                'seller.storeProfile', 'faqs',
                 'descriptionSections' => fn (Relation $query): Relation => $query->orderBy('position'),
                 'images' => fn (Relation $query): Relation => $query->orderBy('position'),
                 'listingAttributes.property', 'listingAttributes.propertyValue',
