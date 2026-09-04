@@ -50,7 +50,7 @@ final readonly class HeldEscrow
      * hydrating a parcel — what a page wanting the numbers and none of the
      * rows asks for.
      */
-    public static function tallyFor(Seller $seller): HeldFacts
+    public static function factsFor(Seller $seller): HeldFacts
     {
         return new HeldFacts($seller->escrowBalance()->held, self::heldParcels($seller)->count());
     }

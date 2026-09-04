@@ -5,7 +5,7 @@ status: resolved
 created: 2026-09-04
 ---
 
-# IMPRV-032: One sort stack, one link, one query request, one paid rule, one sidecar rule
+# IMPRV-032: One sort stack, one link, one query request, one sidecar rule
 
 ## Problem
 Seven lanes built the seller portal in parallel and each invented its own version of the same shapes (`__local__/design/seller-portal/AUDIT.md` §3 items 1, 2, 3, 5, 7, 8, 9 and §2 items 6, 20; §4 bullets 2–6, 8): two sort stacks with different tie-break rules, four link value objects and two feed filters, five query requests that copy the same 400 idiom while two routes forgot it, two chrome builders with identical header and segment methods, a 59-entry sidecar exemption list, a listings table whose header loop and hardcoded cells can drift apart, store adapters returning `array<string, mixed>` under a namespace the architecture does not name, three authorization idioms, eleven redundant guest-redirect tests, an ownership sweep that skips the new resources, four copies of a two-step flow fixture, and 45 uses of a GET as a fixture.
@@ -61,9 +61,13 @@ branch's `--min=95` gate, lint and PHPStan max clean).
    `roundTrippedOf`); the five requests extend it. `ListingCreateRequest`
    closes `ListingController::create`'s `?shape=`/`?title=` gap;
    `MessagesQueryRequest::replyTo()` closes `MessageController`'s
-   `?reply_to=` gap. `MessageDomain` enum (`App\Domain\Seller`) replaces the
-   string `DOMAINS`/`DEFAULT_DOMAIN` pair; its `kinds()` replaces the
-   controller's `match`.
+   `?reply_to=` gap: the rule (`'nullable', 'string'`) answers the bare 400
+   on a non-scalar `reply_to` (an array). `resolveReplyTo()` reads the id
+   off the conversation's already-loaded messages by design, so a stray id
+   — naming no message in that conversation — falls back to a plain reply
+   with no quoted message. `MessageDomain` enum (`App\Domain\Seller`)
+   replaces the string `DOMAINS`/`DEFAULT_DOMAIN` pair; its `kinds()`
+   replaces the controller's `match`.
 4. `ColumnHeaders::for()` (generic over `TRow`/`TColumn extends
    SortableColumn<TRow>&BackedEnum`) and `NavLinks::for()` (a callable-based
    builder, since the dashboard's range cases are plain ints, not an enum)
@@ -76,7 +80,7 @@ branch's `--min=95` gate, lint and PHPStan max clean).
    "value carrier" entries removed (the 4 left carry a real method beyond
    the constructor — `AxisDefaults::of()`, `CompletedStep::line()`,
    `AttentionGroup`'s predicates, `AttentionRows::of()` — so the structural
-   rule correctly does not reach them). List: 59 → 34 entries (Console,
+   rule correctly does not reach them). List: 59 → 31 entries (Console,
    Models, `App\Analytics`, `App\Logging\Admin`, `App\Support\Configurator`
    stay explicit — outside `App\Domain`/`App\Seller`).
 6. `ListingControllerTest` gained a DOMDocument/DOMXPath-based test
@@ -121,10 +125,13 @@ branch's `--min=95` gate, lint and PHPStan max clean).
     for plain values — split into `StoreFacts` (the two fields + `sentence()`)
     and `StoreFactsReader::for()` (the read). `HeldTally` (an adapter
     output under a `*Tally` name reserved for pure folds) renamed to
-    `HeldFacts`. `ThreadLink` (the same `{label→title, href, active→(none),
+    `HeldFacts`, and its builder `HeldEscrow::tallyFor()` to `factsFor()` to
+    match. `ThreadLink` (the same `{label→title, href, active→(none),
     ?count→when}`-flavored shape the four `*Link` classes step 2 replaced)
     renamed to `ThreadRow`. Vocabulary recorded in one paragraph of
-    `docs/seller-portal.md`.
+    `docs/seller-portal.md`: `*Row` is one rendered row, an adapter's
+    output, wherever the class holding it lives (`App\Domain` or
+    `App\Seller` alike).
 11. (Added by the coordinator.) `ActivityFeedReader::__construct(ActivityFeedSource
     ...$sources)` replaces the four named-by-concrete-class parameters.
     `App\Providers\ActivityFeedServiceProvider` binds the variadic

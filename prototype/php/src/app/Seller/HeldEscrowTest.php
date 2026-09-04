@@ -93,15 +93,15 @@ it('tallies what is held and how many parcels hold it, without hydrating one', f
     $this->shippedFulfillmentFor($seller, $this->verifiedCustomer(), priceCents: 10000);
     $this->deliveredFulfillmentFor($seller, $this->verifiedCustomer(), priceCents: 50000);
 
-    $tally = HeldEscrow::tallyFor($seller);
+    $facts = HeldEscrow::factsFor($seller);
 
-    expect($tally->total)->toBeMoney(27000)
-        ->and($tally->orders)->toBe(2);
+    expect($facts->total)->toBeMoney(27000)
+        ->and($facts->orders)->toBe(2);
 });
 
 it('tallies a seller holding nothing as zero', function (): void {
-    $tally = HeldEscrow::tallyFor($this->seller());
+    $facts = HeldEscrow::factsFor($this->seller());
 
-    expect($tally->total)->toBeMoney(0)
-        ->and($tally->orders)->toBe(0);
+    expect($facts->total)->toBeMoney(0)
+        ->and($facts->orders)->toBe(0);
 });

@@ -12,13 +12,14 @@ controller otherwise. No controller hand-rolls an ownership check with
 `abort_if`.
 
 Four suffixes carry one meaning each: `*Row` is one rendered row, the
-output of an adapter that reads many; `*Facts` is a handful of plain
-values about one thing, an adapter's output but never itself a query
-(`StoreFacts` holds the values, `StoreFactsReader` runs the count that
-fills them); `*Tally` is a pure fold with no I/O, always under
-`App\Domain`; `NavLink` is the one `{label, href, active, ?count}` a
-seller nav control renders, replacing every `*Link` value object a lane
-built its own version of.
+output of an adapter that reads many, wherever the class holding it
+lives (`App\Domain` or `App\Seller` alike — the suffix names the shape,
+not the layer); `*Facts` is a handful of plain values about one thing,
+an adapter's output but never itself a query (`StoreFacts` holds the
+values, `StoreFactsReader` runs the count that fills them); `*Tally` is
+a pure fold with no I/O, always under `App\Domain`; `NavLink` is the
+one `{label, href, active, ?count}` a seller nav control renders,
+replacing every `*Link` value object a lane built its own version of.
 
 | Section                             | Read it for                                                                                             |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |

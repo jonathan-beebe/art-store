@@ -144,7 +144,7 @@ final readonly class NeedsAttention
      */
     private static function payout(Seller $seller, PayoutEstimate $payout): AttentionRows
     {
-        $held = HeldEscrow::tallyFor($seller);
+        $held = HeldEscrow::factsFor($seller);
 
         return AttentionRows::of([
             new AttentionRow(
