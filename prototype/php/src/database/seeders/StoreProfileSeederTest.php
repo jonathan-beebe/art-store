@@ -18,6 +18,7 @@ use Database\Seeders\SellerSeeder;
 use Database\Seeders\StoreProfileSeeder;
 use Database\Seeders\TaxonomySeeder;
 use Database\Seeders\WizardingSellerSeeder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
@@ -111,6 +112,27 @@ it('copies every store picture onto its own path, never a listing\'s', function 
         expect($listingPaths)->not->toContain($storePath)
             ->and(Storage::disk('public')->exists($storePath))->toBeTrue();
     }
+});
+
+it('names two stores drawing on a same-named listing photo by different paths', function (): void {
+    [$sellerA, $sellerB] = Seller::query()->has('listings.images', '>=', 1)->take(2)->get()->all();
+
+    $imageA = ListingImage::whereHas('listing', fn (Builder $query): Builder => $query->where('seller_id', $sellerA->id))->firstOrFail();
+    $imageB = ListingImage::whereHas('listing', fn (Builder $query): Builder => $query->where('seller_id', $sellerB->id))->firstOrFail();
+
+    // Both sellers' first picked photo now names the same file.
+    $imageB->update(['path' => $imageA->path]);
+
+    $this->seed(StoreProfileSeeder::class);
+
+    /** @var list<string> $pathsA */
+    $pathsA = StoreImage::where('seller_id', $sellerA->id)->pluck('path')->all();
+    /** @var list<string> $pathsB */
+    $pathsB = StoreImage::where('seller_id', $sellerB->id)->pluck('path')->all();
+
+    expect($pathsA)->not->toBeEmpty()
+        ->and($pathsB)->not->toBeEmpty()
+        ->and(array_intersect($pathsA, $pathsB))->toBe([]);
 });
 
 it('removing a store picture leaves every listing image on disk', function (): void {

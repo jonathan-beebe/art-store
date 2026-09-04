@@ -209,7 +209,10 @@ class StoreProfileSeeder extends Seeder
         $pictures = [];
 
         foreach (array_slice($listingPaths, 0, self::PICTURES_PER_STORE) as $listingPath) {
-            $storePath = self::DIRECTORY.'/'.basename($listingPath);
+            // Named by the store's own id, so two stores drawing on
+            // listing photos that happen to share a filename never copy
+            // onto the same store path.
+            $storePath = self::DIRECTORY.'/'.$profile->id.'-'.basename($listingPath);
             Storage::disk('public')->copy($listingPath, $storePath);
 
             $pictures[] = StoreImage::create([
