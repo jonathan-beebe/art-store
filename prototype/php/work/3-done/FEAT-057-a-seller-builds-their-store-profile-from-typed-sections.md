@@ -1,7 +1,7 @@
 ---
 id: FEAT-057
 type: feature
-status: in-progress
+status: resolved
 created: 2026-09-03
 ---
 
@@ -36,3 +36,63 @@ Buyers on this platform buy from a person. A store page is the first thing the b
 - FEAT-058 (public store page)
 - FEAT-025..029 (item configurator — image upload and the buyer preview idiom)
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Store)
+
+## Working
+
+Landed as one commit off `php/seller-portal-next` on `php/sp-store`, plus
+two earlier commits for the domain types and the schema.
+
+**Schema.** Six tables, migrations `2026_09_03_000300..000305`.
+`store_profiles.portrait_image_id` and `cover_image_id` hold a `sim_` id
+with no database foreign key: `store_images` carries `store_profile_id`, so
+a key back the other way is a cycle SQLite cannot create in either order.
+`RemoveStoreImage` clears both columns before it deletes the row.
+`store_slugs.slug` is unique across the whole table (current and retired
+alike), so no rename can produce an ambiguous redirect.
+`store_section_images` is unique on both `(section, position)` and
+`(section, image)`.
+
+**Domain.** `App\Domain\Store`: `StoreSlug` (normalize, validate,
+`firstFree`), `StoreSectionKind` with `allows(StoreSectionField)`,
+`StoreLinkKind`, `StoreVisibility`, `StorePictureRole`, `StoreSectionMove`,
+`StoreDraft`.
+
+**Actions.** `StartStore`, `SaveStore`, `RenameStoreSlug`, `AddStoreSection`,
+`SaveStoreSection`, `MoveStoreSection`, `RemoveStoreSection`,
+`AddStoreImage`, `RemoveStoreImage`.
+
+**Decisions taken.**
+
+- The store is minted on the first `GET /seller/store`, the shape
+  `Customer::cart()` already gives a storefront visitor. The alternative
+  considered was a first-run form state that creates the row on the first
+  PUT; the cart precedent won because sections and pictures need an id to
+  hang on and the route is behind `auth.seller`, so only the seller
+  themselves can trigger the write.
+- The store writes emit no log event and take no rate limiter.
+  `docs/alignment.md` §2.3 closes the event vocabulary ("a write with no
+  event above stays silent") and §3 closes the limiter names. Adding
+  `store.*` events or a `store_write` limiter is a contract change the
+  other two prototypes owe; MAINT-008 can take it. Noted in
+  `docs/seller-portal.md`.
+- Links are two fields on the store form rather than their own resource:
+  one row per kind per profile, synced by `SaveStore`. A link kind the
+  seller clears loses its row.
+- Gallery placement is a checkbox set on the section form, saved by
+  rewriting `store_section_images` rather than patching it, so the order
+  the form sent is the order the page renders.
+- Seven seeded sellers get a store, not six: `ConfiguratorArchetypeSeeder`
+  adds a seventh (George Weasley) and the ticket says "every seeded
+  seller".
+
+**Tried and reverted.** Pest `beforeEach` with `$this->seller` /
+`$this->profile` instance properties: PHPStan at level max reports
+"Access to an undefined property" for every use and the repo carries no
+baseline. Rewritten as local variables and top-level closures captured with
+`use()`, which is what the rest of the suite already does.
+
+**Found and left.** `DatabaseSeederTest` asserts the seeder count; bumped
+11 → 12 for `StoreProfileSeeder`.
+
+**Gate.** `make precommit` green: 4248 tests, 33784 assertions, Pint and
+PHPStan clean.
