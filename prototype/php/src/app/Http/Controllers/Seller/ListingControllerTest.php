@@ -299,12 +299,11 @@ it('DSGN-003 continues to the extras landing screen', function (): void {
     $response->assertSee('Create with just the price');
 });
 
-it('DSGN-003 falls back to the question screen for an unrecognized shape', function (): void {
+it('answers 400 for an unrecognized shape', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')
         ->get('/seller/listings/create?'.http_build_query(['title' => 'X', 'shape' => 'bogus']));
 
-    $response->assertOk();
-    $response->assertSee('What are you selling?');
+    $response->assertStatus(400);
 });
 
 it('DSGN-003 falls back to the question screen for a recognized shape with no title', function (): void {

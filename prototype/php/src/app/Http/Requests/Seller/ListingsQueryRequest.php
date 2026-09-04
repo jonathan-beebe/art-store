@@ -10,24 +10,17 @@ use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingView;
 use App\Domain\Seller\SortDirection;
 use App\Domain\Seller\TableSort;
-use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 /**
  * The listings tool's query vocabulary, shared by `GET /seller/listings`
  * (`view`, `sort`, `dir`, `range`) and `GET /seller/listings/{listing}`
- * (`from`, `sort`, `dir`, `range`) — docs/alignment.md §5: an absent or
- * emptied value reads as the default, and an unrecognised value answers a
- * bare 400. `from` names the view a detail row was opened from: absent
- * for the list pane's own detail, `table` or `grid` for the
- * overlay/takeover.
+ * (`from`, `sort`, `dir`, `range`). `from` names the view a detail row was
+ * opened from: absent for the list pane's own detail, `table` or `grid`
+ * for the overlay/takeover.
  */
-final class ListingsQueryRequest extends FormRequest
+final class ListingsQueryRequest extends SellerQueryRequest
 {
-    private const int DEFAULT_RANGE_DAYS = 30;
-
     /**
      * @return array<string, list<mixed>>
      */
@@ -40,23 +33,6 @@ final class ListingsQueryRequest extends FormRequest
             'dir' => ['nullable', Rule::enum(SortDirection::class)],
             'range' => ['nullable', Rule::in(array_map(strval(...), AnalyticsRange::SIZES))],
         ];
-    }
-
-    /** An emptied value reads as absent, so the rules above see no value
-     * to validate. */
-    protected function prepareForValidation(): void
-    {
-        $blanked = array_map(
-            fn (mixed $value): mixed => $value === '' ? null : $value,
-            $this->only(array_keys($this->rules())),
-        );
-
-        $this->merge($blanked);
-    }
-
-    protected function failedValidation(Validator $validator): void
-    {
-        throw new HttpResponseException(response('', 400));
     }
 
     public function view(): ListingView
@@ -82,36 +58,13 @@ final class ListingsQueryRequest extends FormRequest
         return TableSort::of($column ?? ListingSortColumn::Views, $direction ?? SortDirection::Desc);
     }
 
-    public function rangeDays(): int
-    {
-        $value = $this->stringOrNull('range');
-
-        return $value === null ? self::DEFAULT_RANGE_DAYS : (int) $value;
-    }
-
-    /** The submitted filters, in the shape every view/sort/range link round-trips.
+    /**
+     * The submitted filters, in the shape every view/sort/range link round-trips.
      *
      * @return array<string, string>
      */
     public function roundTripped(): array
     {
-        $filters = [];
-
-        foreach (['view', 'sort', 'dir', 'range'] as $field) {
-            $value = $this->stringOrNull($field);
-
-            if ($value !== null) {
-                $filters[$field] = $value;
-            }
-        }
-
-        return $filters;
-    }
-
-    private function stringOrNull(string $field): ?string
-    {
-        $value = $this->input($field);
-
-        return is_string($value) ? $value : null;
+        return $this->roundTrippedOf(['view', 'sort', 'dir', 'range']);
     }
 }

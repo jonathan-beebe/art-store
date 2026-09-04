@@ -11,21 +11,15 @@ use App\Domain\Seller\CustomerSegment;
 use App\Domain\Seller\CustomerSortColumn;
 use App\Domain\Seller\SortDirection;
 use App\Domain\Seller\TableSort;
-use Illuminate\Contracts\Validation\Validator;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 
 /**
  * The customers tool's query vocabulary, shared by `GET /seller/customers`
  * (`range`, `segment`, `sort`, `dir`) and `GET /seller/customers/{customer}`
- * (`kind`) — docs/alignment.md §5: an absent or emptied value reads as the
- * default, and an unrecognised value answers a bare 400.
+ * (`kind`).
  */
-final class CustomersQueryRequest extends FormRequest
+final class CustomersQueryRequest extends SellerQueryRequest
 {
-    private const int DEFAULT_RANGE_DAYS = 30;
-
     /**
      * @return array<string, list<mixed>>
      */
@@ -38,29 +32,6 @@ final class CustomersQueryRequest extends FormRequest
             'dir' => ['nullable', Rule::enum(SortDirection::class)],
             'kind' => ['nullable', Rule::enum(ActivityKind::class)],
         ];
-    }
-
-    /** An emptied value reads as absent, so the rules above see no value to validate. */
-    protected function prepareForValidation(): void
-    {
-        $blanked = array_map(
-            fn (mixed $value): mixed => $value === '' ? null : $value,
-            $this->only(array_keys($this->rules())),
-        );
-
-        $this->merge($blanked);
-    }
-
-    protected function failedValidation(Validator $validator): void
-    {
-        throw new HttpResponseException(response('', 400));
-    }
-
-    public function rangeDays(): int
-    {
-        $value = $this->stringOrNull('range');
-
-        return $value === null ? self::DEFAULT_RANGE_DAYS : (int) $value;
     }
 
     /**
@@ -99,23 +70,6 @@ final class CustomersQueryRequest extends FormRequest
      */
     public function roundTripped(): array
     {
-        $filters = [];
-
-        foreach (['range', 'segment', 'sort', 'dir'] as $field) {
-            $value = $this->stringOrNull($field);
-
-            if ($value !== null) {
-                $filters[$field] = $value;
-            }
-        }
-
-        return $filters;
-    }
-
-    private function stringOrNull(string $field): ?string
-    {
-        $value = $this->input($field);
-
-        return is_string($value) ? $value : null;
+        return $this->roundTrippedOf(['range', 'segment', 'sort', 'dir']);
     }
 }

@@ -21,6 +21,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingView;
 use App\Domain\Seller\RowSort;
+use App\Http\Requests\Seller\ListingCreateRequest;
 use App\Http\Requests\Seller\ListingRequest;
 use App\Http\Requests\Seller\ListingsQueryRequest;
 use App\Models\Listing;
@@ -36,7 +37,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
 
@@ -78,12 +78,12 @@ final class ListingController extends SellerController
      * instead — the same route both ways, so a shape typed into the address
      * bar (or bookmarked) reopens exactly where Continue left off.
      */
-    public function create(Request $request): View
+    public function create(ListingCreateRequest $request): View
     {
-        $shape = ListingCreationShape::tryFrom((string) $request->query('shape'));
-        $title = $request->query('title');
+        $shape = $request->shape();
+        $title = $request->title();
 
-        if ($shape !== null && is_string($title)) {
+        if ($shape !== null && $title !== null) {
             return view($this->createView($shape), ['title' => $title]);
         }
 
