@@ -502,12 +502,17 @@ A listing may name a flow (`listings.fulfillment_flow_id`, nullable); the
 Basics screen's Workflow picker sets it, ownership-checked in
 `ListingRequest`, and shown only when the seller holds more than one flow —
 a seller with one has nothing to pick, so every listing ships by it.
-`Fulfillment::flowInEffect()` answers the same question once a parcel exists:
-the flow its own listing names, or the seller's default when it names none.
-A parcel already in progress keeps running the flow it started under — the
-`fulfillment_events` a step completion writes name their step by id, so a
-later change to the listing's flow, or a later default swap, never walks a
-parcel already under way back to a different list of steps.
+A parcel's own flow is a snapshot, not a live lookup: `PlaceOrder` stamps
+`fulfillments.fulfillment_flow_id` at placement — the flow the first of the
+seller's own lines names, or the seller's default when none does — the same
+rule the seeders apply to every seeded parcel. `App\Seller\FulfillmentFlowReader::read()`
+reads that snapshot first and falls back to live resolution only for a row
+placed before the column existed. A later change to the listing's flow, or a
+later default swap, never moves a parcel already placed onto a different
+flow — its steps panel and its desk lane both keep reading the flow it
+started under, and the `fulfillment_events` a step completion writes name
+their step by id on top of that, so a step renamed or removed after the
+fact still reads as it did when the seller completed it.
 
 ## Activity feed
 

@@ -45,6 +45,7 @@ final readonly class OrderDetail
             'ledgerEntries',
             'refund',
             'fulfillmentEvents',
+            'fulfillmentFlow.steps',
             'seller.defaultFulfillmentFlow.steps',
         ]);
 

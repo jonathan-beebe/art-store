@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Actions\Fulfillment\CompleteFlowStep;
+use App\Actions\Fulfillment\MakeFulfillmentFlowDefault;
 use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Fulfillment\FlowStep;
 use App\Domain\Fulfillment\FulfillmentEventKind;
@@ -68,6 +69,54 @@ it('reads only step completions as progress, leaving the transition events out',
     FulfillmentEvent::factory()->on($fulfillment)->completing($step)->create();
 
     expect($reader->read($this->loadedForFlow($fulfillment->refresh()))->progress->hasStarted())->toBeTrue();
+});
+
+it('keeps a parcel on the flow it started under after its listing is repointed to another', function (): void {
+    $seller = $this->seller('Ginny Weasley');
+    $original = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id, 'name' => 'How I ship']);
+    $originalStep = FulfillmentFlowStep::factory()->of($original, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+    $listing = $this->listing($seller, ['fulfillment_flow_id' => $original->id]);
+    $order = $this->orderFor($this->verifiedCustomer(), $listing);
+    app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+    $fulfillment = $order->fulfillments()->sole();
+
+    app(CompleteFlowStep::class)($fulfillment, $originalStep, null, null, $this->moment('2026-08-21 09:00:00'));
+
+    // The listing now ships by a different flow, with different steps.
+    $other = FulfillmentFlow::factory()->create(['seller_id' => $seller->id, 'name' => 'Framed pieces']);
+    FulfillmentFlowStep::factory()->of($other, 0)->create(['label' => 'Wrapped', 'key' => 'wrapped']);
+    $listing->update(['fulfillment_flow_id' => $other->id]);
+
+    $reader = app(FulfillmentFlowReader::class);
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
+    $facts = $reader->read($fulfillment);
+
+    expect($facts->flow?->id)->toBe($original->id)
+        ->and(array_map(fn (FlowStep $step): string => $step->label, $facts->steps))->toBe(['Packed'])
+        ->and($facts->progress->hasCompleted($originalStep->toFlowStep()))->toBeTrue()
+        ->and($fulfillment->lane($facts->progress))->toBe(FulfillmentLane::InProgress);
+});
+
+it('keeps a parcel on the flow it started under after another flow becomes the default', function (): void {
+    $seller = $this->seller('Fleur Delacour');
+    $original = FulfillmentFlow::factory()->isDefault()->create(['seller_id' => $seller->id, 'name' => 'How I ship']);
+    $originalStep = FulfillmentFlowStep::factory()->of($original, 0)->create(['label' => 'Packed', 'key' => 'packed']);
+    // The listing names no flow, so placement snapshots the seller's default.
+    $fulfillment = $this->paidFulfillmentFor($seller);
+
+    app(CompleteFlowStep::class)($fulfillment, $originalStep, null, null, $this->moment('2026-08-21 09:00:00'));
+
+    $newDefault = FulfillmentFlow::factory()->create(['seller_id' => $seller->id, 'name' => 'Framed pieces']);
+    FulfillmentFlowStep::factory()->of($newDefault, 0)->create(['label' => 'Wrapped', 'key' => 'wrapped']);
+    app(MakeFulfillmentFlowDefault::class)($newDefault);
+
+    $reader = app(FulfillmentFlowReader::class);
+    $fulfillment = $this->loadedForFlow($fulfillment->refresh());
+    $facts = $reader->read($fulfillment);
+
+    expect($facts->flow?->id)->toBe($original->id)
+        ->and($facts->progress->hasCompleted($originalStep->toFlowStep()))->toBeTrue()
+        ->and($fulfillment->lane($facts->progress))->toBe(FulfillmentLane::InProgress);
 });
 
 it('keeps a parcel in progress after the seller removes the step they had completed', function (): void {

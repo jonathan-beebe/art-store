@@ -262,8 +262,17 @@ printable label page. `FulfillmentFlowSeeder` gives every seller one default
 flow, *Label printed* then *Packed*. A listing may name a flow
 (`listings.fulfillment_flow_id`), set from the Basics screen's Workflow
 picker (`docs/seller-portal.md`'s Workflows section); a listing that names
-none ships by its seller's default, which is what
-`App\Seller\FulfillmentFlowReader::flowInEffect()` reads.
+none ships by its seller's default.
+
+Which flow a parcel ships by is decided once, at placement, and kept:
+`PlaceOrder` stamps `fulfillments.fulfillment_flow_id` (nullable) from the
+same rule — the flow the first of the seller's own lines names, else the
+seller's default — and every seeder that places an order inherits the same
+stamp. `App\Seller\FulfillmentFlowReader::read()` reads that snapshot first;
+a row placed before the column existed carries no snapshot, and falls back
+to the live rule. A later change to the listing's flow, or to which flow is
+the seller's default, never moves a parcel already placed onto a different
+flow.
 
 `App\Actions\Fulfillment\AppendFulfillmentEvent` is the only writer of the
 table. The transitions (`MarkShipped`, `ConfirmDelivered`,

@@ -12,7 +12,8 @@ use App\Models\FulfillmentFlow;
 
 /**
  * The flow one parcel ships by, and how far it has come through it, in one
- * read. Reads `order.items.listing.fulfillmentFlow.steps`,
+ * read. Reads `fulfillmentFlow.steps`,
+ * `order.items.listing.fulfillmentFlow.steps`,
  * `seller.defaultFulfillmentFlow.steps`, and `fulfillmentEvents`; a caller
  * that has not eager-loaded them is refused by the lazy-loading guard.
  */
@@ -31,11 +32,19 @@ final readonly class FulfillmentFlowReader
     }
 
     /**
-     * The flow this parcel ships by: the one the first of the seller's own
-     * lines names, and the seller's default flow when none does.
+     * The flow this parcel ships by. A row placed after the snapshot column
+     * existed carries its own answer, stamped once at placement and kept
+     * through a later change to the listing's flow or the seller's default.
+     * A row from before that column reads live: the one the first of the
+     * seller's own lines names, and the seller's default flow when none
+     * does.
      */
     private function flowInEffect(Fulfillment $fulfillment): ?FulfillmentFlow
     {
+        if ($fulfillment->fulfillment_flow_id !== null) {
+            return $fulfillment->fulfillmentFlow;
+        }
+
         return $this->flowNamedByAListing($fulfillment) ?? $fulfillment->seller->defaultFulfillmentFlow;
     }
 
