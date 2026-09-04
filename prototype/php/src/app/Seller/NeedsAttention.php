@@ -62,16 +62,20 @@ final readonly class NeedsAttention
 
     /**
      * Parcels nobody has started, oldest first — the one keeping a buyer
-     * waiting longest leads.
+     * waiting longest leads. Oldest is the day the order was placed, the
+     * same fact the row's age and its urgency are read from, so the order
+     * of the rows and the red on them can never disagree.
      */
     private static function toShip(Seller $seller, DateTimeImmutable $now): AttentionRows
     {
         $query = Fulfillment::query()->whereBelongsTo($seller)->inLane(LaneFilter::ToShip);
 
         $parcels = (clone $query)
+            ->join('orders', 'orders.id', '=', 'fulfillments.order_id')
             ->with(['order', 'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id)])
-            ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderBy('orders.placed_at')
+            ->orderBy('fulfillments.id')
+            ->select('fulfillments.*')
             ->limit(self::MAX_ROWS)
             ->get();
 
@@ -140,7 +144,7 @@ final readonly class NeedsAttention
      */
     private static function payout(Seller $seller, PayoutEstimate $payout): AttentionRows
     {
-        $held = HeldEscrow::for($seller);
+        $held = HeldEscrow::tallyFor($seller);
 
         return AttentionRows::of([
             new AttentionRow(
@@ -153,9 +157,13 @@ final readonly class NeedsAttention
             new AttentionRow(
                 initials: '$',
                 title: $held->total->format().' still held',
-                supporting: self::plural(count($held->orders), 'order').' waiting on delivery',
+                supporting: self::plural($held->orders, 'order').' waiting on delivery',
                 meta: 'later',
-                href: route('seller.orders.index', ['lane' => LaneFilter::InProgress->value]),
+                // The held rows are every awaiting-shipment and shipped
+                // parcel; the In progress lane leaves out the ones nobody
+                // has started, so the earnings page's own held list is
+                // where this row goes.
+                href: route('seller.earnings').'#held-heading',
             ),
         ]);
     }

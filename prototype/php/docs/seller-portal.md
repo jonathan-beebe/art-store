@@ -907,11 +907,17 @@ carries the rest to the tool.
 | --- | --- | --- |
 | Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
 | Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
-| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow`) | `/seller/earnings` |
+| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::tallyFor()`) | `/seller/earnings` |
 | Listings that need work | drafts and sold-out pieces, most recently edited first | `/seller/listings` |
 
 Every row opens the exact thing: the parcel, the thread, the earnings
-page, the listing. A group holding nothing shows a sentence in place of
+page, the listing. The held row opens the earnings page's own held list
+(`#held-heading`) — the In progress lane leaves out the parcels nobody has
+started, which that figure counts. To ship reads oldest by
+`orders.placed_at`, the same fact the row's age and its urgency come from,
+so the order of the rows and the red on them cannot disagree
+(`Fulfillment::inLane()` names `fulfillments.status` so the lane rule
+survives that join). A group holding nothing shows a sentence in place of
 its rows — "Nothing is waiting to ship.", "Every buyer has heard back from
 you.", "Every listing is published and in stock." — so the page never
 renders a blank panel.
@@ -926,10 +932,12 @@ the two lines, the meta, the href, and whether the row reads urgent.
 The page reads six queues across two connections and renders on a fixed
 number of queries however many rows a seller holds, which one test pins.
 Two reads are duplicated by design: `Seller::escrowBalance()` is folded
-once for the payout estimate and once for `HeldEscrow`'s total, and the
-parcels waiting to ship are counted once for the orders tile's footer and
-once for the focus group's heading. Both are cheap aggregates, and
+once for the payout estimate and once for `HeldEscrow::tallyFor()`, and
+the parcels waiting to ship are counted once for the orders tile's footer
+and once for the focus group's heading. Both are cheap aggregates, and
 threading either through would tie two adapters together for one query.
+Nothing on the page hydrates a row it does not render: the held figures
+are a ledger fold and one count, never the parcels behind them.
 
 ## Data
 

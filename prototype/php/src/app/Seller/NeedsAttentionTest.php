@@ -11,13 +11,26 @@ use App\Domain\Messaging\MessageBody;
 use App\Domain\Messaging\ThreadOpening;
 use App\Domain\Messaging\ThreadTitle;
 use App\Domain\Seller\AttentionGroup;
+use App\Domain\Seller\AttentionRow;
 use App\Models\Customer;
+use App\Models\Fulfillment;
 use App\Models\Seller;
 use DateTimeImmutable;
 
 function attentionNow(): DateTimeImmutable
 {
     return new DateTimeImmutable('2026-09-04 12:00:00');
+}
+
+/**
+ * The test helpers place every order at one fixed moment; this moves one
+ * onto the day a test is asking about.
+ */
+function attentionPlacedOn(Fulfillment $parcel, string $day): Fulfillment
+{
+    $parcel->order->forceFill(['placed_at' => new DateTimeImmutable($day)])->save();
+
+    return $parcel->refresh();
 }
 
 /**
@@ -49,6 +62,23 @@ it('reads the parcels waiting to ship oldest first, with the age in the meta', f
         ->and($orders->rows[0]->href)->toBe(route('seller.orders.show', ['fulfillment' => $first->id, 'lane' => 'ship']))
         ->and($orders->rows[0]->meta)->toBe('15 days ago')
         ->and($orders->rows[0]->urgent)->toBeTrue();
+});
+
+it('orders the ship queue by the day the order was placed, not the row insertion order', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    // Inserted first, placed second — ordering by the fulfillment's own
+    // creation would put this row at the top.
+    $newer = attentionPlacedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter'])), '2026-09-02 10:00:00');
+    $older = attentionPlacedOn($this->paidFulfillmentFor($seller, Customer::factory()->create(['name' => 'Ginny Weasley'])), '2026-08-28 10:00:00');
+
+    $orders = attentionFor($seller)[0];
+
+    expect(array_map(fn (AttentionRow $row): string => $row->href, $orders->rows))->toBe([
+        route('seller.orders.show', ['fulfillment' => $older->id, 'lane' => 'ship']),
+        route('seller.orders.show', ['fulfillment' => $newer->id, 'lane' => 'ship']),
+    ])
+        ->and($orders->rows[0]->meta)->toBe('7 days ago')
+        ->and($orders->rows[1]->meta)->toBe('2 days ago');
 });
 
 it('leaves a parcel inside the two-day window unmarked', function (): void {
@@ -130,7 +160,18 @@ it('splits the money into what has released and what is still held', function ()
         ->and($payout->rows[0]->supporting)->toBe('1 delivered order since the last payout')
         ->and($payout->rows[1]->title)->toBe('$180.00 still held')
         ->and($payout->rows[1]->supporting)->toBe('1 order waiting on delivery')
-        ->and($payout->rows[1]->href)->toBe(route('seller.orders.index', ['lane' => 'progress']));
+        ->and($payout->rows[1]->href)->toBe(route('seller.earnings').'#held-heading');
+});
+
+it('counts a parcel nobody has started among what is still held', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->paidFulfillmentFor($seller, priceCents: 20000);
+    $this->shippedFulfillmentFor($seller, Customer::factory()->create(['name' => 'Harry Potter']), priceCents: 10000);
+
+    $payout = attentionFor($seller)[2];
+
+    expect($payout->rows[1]->title)->toBe('$270.00 still held')
+        ->and($payout->rows[1]->supporting)->toBe('2 orders waiting on delivery');
 });
 
 it('lists the drafts and the sold-out pieces, most recently edited first', function (): void {

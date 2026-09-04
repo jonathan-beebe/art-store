@@ -86,3 +86,22 @@ it('reports each order buyer, item, and net', function (): void {
         ->and($held->orders[0]->net->format())->toBe('$90.00')
         ->and($held->orders[0]->fulfillmentId)->toBe($fulfillment->id);
 });
+
+it('tallies what is held and how many parcels hold it, without hydrating one', function (): void {
+    $seller = $this->seller();
+    $this->paidFulfillmentFor($seller, priceCents: 20000);
+    $this->shippedFulfillmentFor($seller, $this->verifiedCustomer(), priceCents: 10000);
+    $this->deliveredFulfillmentFor($seller, $this->verifiedCustomer(), priceCents: 50000);
+
+    $tally = HeldEscrow::tallyFor($seller);
+
+    expect($tally->total)->toBeMoney(27000)
+        ->and($tally->orders)->toBe(2);
+});
+
+it('tallies a seller holding nothing as zero', function (): void {
+    $tally = HeldEscrow::tallyFor($this->seller());
+
+    expect($tally->total)->toBeMoney(0)
+        ->and($tally->orders)->toBe(0);
+});

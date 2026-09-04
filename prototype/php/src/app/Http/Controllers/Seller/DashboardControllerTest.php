@@ -344,7 +344,8 @@ it('names the payout day and what has released against what is still held', func
             && $payout->rows[0]->title === '$90.00 released and ready'
             && $payout->rows[0]->supporting === '1 delivered order since the last payout'
             && $payout->rows[1]->title === '$180.00 still held'
-            && $payout->rows[1]->supporting === '1 order waiting on delivery';
+            && $payout->rows[1]->supporting === '1 order waiting on delivery'
+            && $payout->rows[1]->href === route('seller.earnings').'#held-heading';
     });
 });
 
@@ -440,7 +441,7 @@ it('renders on a fixed number of queries however many rows the seller holds', fu
     // across both ranges, the listings table, the units sold, and the four
     // focus queues read down and counted whole.
     $response = $this->actingAs($seller, 'seller')
-        ->expectsDatabaseQueryCount(37)
+        ->expectsDatabaseQueryCount(35)
         ->get('/seller');
 
     $response->assertOk();
