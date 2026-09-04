@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Domain\Analytics\AnalyticsRange;
-use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerTally;
-use App\Domain\Seller\RowSort;
+use App\Domain\Seller\EvergreenWindow;
 use App\Http\Requests\Seller\CustomersQueryRequest;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -36,18 +35,24 @@ final class CustomerController extends SellerController
     public function index(CustomersQueryRequest $request): View
     {
         $seller = $this->seller();
-        $range = AnalyticsRange::of($request->rangeDays(), $this->now());
+        $newSince = AnalyticsRange::of(EvergreenWindow::DAYS, $this->now())->start;
         $segment = $request->customerSegment();
         $sort = $request->sort();
+        $roundTripped = $request->roundTripped();
 
-        $rows = SellerCustomers::forSeller($seller);
+        $facts = SellerCustomers::tallyFor($seller, $newSince);
         $counts = SellerCustomers::conversationCounts($seller);
 
+        $total = SellerCustomers::countForSegment($seller, $segment, $newSince);
+        $page = $request->page($total);
+
         return view('seller.customers.index', [
-            'rows' => RowSort::apply($sort, $segment->apply($rows, $range->start), fn (CustomerRow $row): string => $row->customerId),
-            'tally' => CustomerTally::of($rows, $range->start, $counts->open, $counts->unread),
-            'chrome' => CustomersChrome::build($request->roundTripped(), $segment, $sort),
-            'rangeDays' => $range->days,
+            'rows' => SellerCustomers::pageForSeller($seller, $segment, $newSince, $request->sortColumn(), $request->sortDirection(), $page->limit, $page->offset),
+            'tally' => CustomerTally::of($facts, $counts->open, $counts->unread),
+            'chrome' => CustomersChrome::build($roundTripped, $segment, $sort),
+            'rangeDays' => EvergreenWindow::DAYS,
+            'page' => $page,
+            'pagerQuery' => $roundTripped,
         ]);
     }
 

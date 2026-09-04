@@ -17,11 +17,4 @@ interface SortableColumn
 
     /** Whether the column's cells sit against the right edge. */
     public function alignsRight(): bool;
-
-    /**
-     * The value one row sorts by on this column.
-     *
-     * @param  TRow  $row
-     */
-    public function keyOf(object $row): int|float|string;
 }

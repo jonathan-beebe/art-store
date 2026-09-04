@@ -48,20 +48,52 @@ it('answers 400 on a direction outside asc or desc', function (): void {
     $response->assertStatus(400);
 });
 
-it('accepts every documented range', function (string $range): void {
+it('ignores a range on the index route, whatever value it carries', function (string $range): void {
     $response = $this->actingAs($this->seller(), 'seller')->get("/seller/customers?range={$range}");
 
     $response->assertOk();
-})->with(['7', '30', '90']);
+})->with(['7', '30', '90', '14', 'bogus']);
 
-it('answers 400 on a range outside the documented set', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?range=14');
+it('reads emptied query values as absent', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?range=&segment=&sort=&dir=');
+
+    $response->assertOk();
+});
+
+it('IMPRV-038 opens page one with nothing to show', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?page=1');
+
+    $response->assertOk();
+});
+
+it('IMPRV-038 answers 400 on page zero', function (): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?page=0');
 
     $response->assertStatus(400);
 });
 
-it('reads emptied query values as absent', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/customers?range=&segment=&sort=&dir=');
+it('IMPRV-038 answers 400 on a non-integer page', function (string $page): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/customers?page={$page}");
+
+    $response->assertStatus(400);
+})->with(['abc', '1.5', '-1']);
+
+it('IMPRV-038 answers 400 on a page past the end', function (): void {
+    $seller = $this->seller();
+    $this->paidFulfillmentFor($seller, Customer::factory()->create());
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
+
+    $response->assertStatus(400);
+});
+
+it('IMPRV-038 accepts the last page exactly', function (): void {
+    $seller = $this->seller();
+    foreach (range(1, 51) as $i) {
+        $this->paidFulfillmentFor($seller, Customer::factory()->create());
+    }
+
+    $response = $this->actingAs($seller, 'seller')->get('/seller/customers?page=2');
 
     $response->assertOk();
 });

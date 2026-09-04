@@ -43,7 +43,8 @@ final readonly class TableSort
         return $this->column === $column;
     }
 
-    /** The `aria-sort` value `$column`'s header carries: this sort's direction on the sorted column, none on every other.
+    /**
+     * The `aria-sort` value `$column`'s header carries: this sort's direction on the sorted column, none on every other.
      *
      * @param  SortableColumn<TRow>  $column
      */

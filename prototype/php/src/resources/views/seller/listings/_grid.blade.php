@@ -3,11 +3,11 @@
     the seller sees it — square cover, title and price, medium and stock,
     a stats line, the status badge over the image. Rows lead to the
     listing's detail as an overlay or takeover (?from=grid). Expects
-    `rows`, `chrome`, `rangeDays`.
+    `rows`, `chrome`.
 --}}
 <div class="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
     @forelse ($rows as $row)
-        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'grid', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value, 'range' => $rangeDays]) }}" class="flex min-w-0 flex-col text-left">
+        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'grid', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value]) }}" class="flex min-w-0 flex-col text-left">
             <span class="relative block w-full">
                 <img src="{{ $row->imageUrl }}" alt="" class="aspect-square w-full rounded-lg bg-gray-100 object-cover dark:bg-white/5">
                 <span class="absolute top-2.5 left-2.5"><x-seller.status-badge :tint="$row->statusTint">{{ $row->statusLabel }}</x-seller.status-badge></span>

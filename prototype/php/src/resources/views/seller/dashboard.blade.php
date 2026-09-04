@@ -21,7 +21,7 @@
     <section aria-labelledby="activity-heading" class="mt-8">
         <div class="flex items-baseline justify-between gap-4">
             <h2 id="activity-heading" class="text-sm/6 font-semibold text-gray-900 dark:text-white">Activity on your listings</h2>
-            <a href="{{ route('seller.listings.index', ['view' => 'table', 'range' => $range->days]) }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">All listings</a>
+            <a href="{{ route('seller.listings.index', ['view' => 'table']) }}" class="text-sm/6 font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">All listings</a>
         </div>
 
         <div class="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-lg bg-gray-200 ring-1 ring-gray-200 sm:grid-cols-4 dark:bg-white/10 dark:ring-white/10">

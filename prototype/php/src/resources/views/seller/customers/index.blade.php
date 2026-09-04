@@ -32,7 +32,7 @@
 
     <div class="mt-5 overflow-x-auto rounded border border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
         <table class="w-full text-left">
-            <caption class="sr-only">Every buyer, with their orders, spend, favorites, last order, conversations, and first order</caption>
+            <caption class="sr-only">Buyers, with their orders, spend, favorites, last order, conversations, and first order</caption>
             <thead class="border-b border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
                 <tr>
                     @foreach ($chrome->columnHeaders as $header)
@@ -69,4 +69,6 @@
     </div>
 
     <p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Repeat buyers have ordered twice or more. New counts a first order inside the last {{ $rangeDays }} days. An order that was never paid for, or that was declined or refunded, counts for nothing here.</p>
+
+    <x-seller.pager :page="$page" route-name="seller.customers.index" :query="$pagerQuery" />
 </x-layouts.seller>

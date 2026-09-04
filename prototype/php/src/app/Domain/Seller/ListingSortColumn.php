@@ -7,9 +7,9 @@ namespace App\Domain\Seller;
 /**
  * The seller listings table's eleven sortable columns.
  *
- * @implements SortableColumn<ListingTableRow>
+ * @implements KeyedColumn<ListingTableRow>
  */
-enum ListingSortColumn: string implements SortableColumn
+enum ListingSortColumn: string implements KeyedColumn
 {
     case Title = 'title';
     case Status = 'status';
@@ -30,9 +30,9 @@ enum ListingSortColumn: string implements SortableColumn
             self::Status => 'Status',
             self::Price => 'Price',
             self::Stock => 'Stock',
-            self::Views => 'Views',
-            self::Favorites => 'Favorites',
-            self::CartAdds => 'Cart adds',
+            self::Views => 'Views (last '.EvergreenWindow::DAYS.' days)',
+            self::Favorites => 'Favorites (last '.EvergreenWindow::DAYS.' days)',
+            self::CartAdds => 'Cart adds (last '.EvergreenWindow::DAYS.' days)',
             self::Sold => 'Sold',
             self::Revenue => 'Revenue',
             self::Conversion => 'Conversion',

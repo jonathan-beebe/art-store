@@ -46,23 +46,17 @@ it('answers 400 on a direction outside asc or desc', function (): void {
     $response->assertStatus(400);
 });
 
-it('accepts every documented range', function (string $range): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings?view=table&range={$range}");
-
-    $response->assertOk();
-})->with(['7', '30', '90']);
-
-it('answers 400 on a range outside the documented set', function (): void {
-    $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings?view=table&range=14');
-
-    $response->assertStatus(400);
-});
-
 it('reads emptied query values as absent', function (): void {
     $response = $this->actingAs($this->seller(), 'seller')->get('/seller/listings?view=&sort=&dir=&range=');
 
     $response->assertOk();
 });
+
+it('ignores a range on the index route, whatever value it carries', function (string $range): void {
+    $response = $this->actingAs($this->seller(), 'seller')->get("/seller/listings?view=table&range={$range}");
+
+    $response->assertOk();
+})->with(['7', '30', '90', '14', 'bogus']);
 
 it('accepts every documented from value on the detail route', function (string $from): void {
     $seller = $this->seller();
@@ -82,14 +76,14 @@ it('answers 400 on a from value outside the documented set', function (): void {
     $response->assertStatus(400);
 });
 
-it('answers 400 on a detail route range outside the documented set', function (): void {
+it('ignores a range on the detail route, whatever value it carries', function (string $range): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
 
-    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?range=14");
+    $response = $this->actingAs($seller, 'seller')->get("/seller/listings/{$listing->id}?range={$range}");
 
-    $response->assertStatus(400);
-});
+    $response->assertOk();
+})->with(['7', '30', '90', '14', 'bogus']);
 
 it('leaves the detail route to its default with nothing in the query string', function (): void {
     $seller = $this->seller();

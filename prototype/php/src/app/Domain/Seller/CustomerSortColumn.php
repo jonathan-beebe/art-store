@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Seller;
 
 /**
- * The customers table's seven sortable columns.
+ * The customers table's seven sortable columns. The table sorts in SQL
+ * ({@see \App\Seller\SellerCustomers}), so this carries no `keyOf()` —
+ * only the label and alignment {@see \App\Seller\ColumnHeaders} renders
+ * a header from.
  *
  * @implements SortableColumn<CustomerRow>
  */
@@ -41,31 +44,19 @@ enum CustomerSortColumn: string implements SortableColumn
         };
     }
 
+    /** What each buyer has spent, largest first. */
+    public static function default(): self
+    {
+        return self::Spent;
+    }
+
     /**
-     * The sort the table opens on: what each buyer has spent, largest first.
+     * The sort the table opens on.
      *
      * @return TableSort<CustomerRow>
      */
     public static function defaultSort(): TableSort
     {
-        return TableSort::of(self::Spent, SortDirection::Desc);
-    }
-
-    /**
-     * The value one row sorts by on this column.
-     *
-     * @param  CustomerRow  $row
-     */
-    public function keyOf(object $row): int|string
-    {
-        return match ($this) {
-            self::Name => mb_strtolower($row->name),
-            self::Orders => $row->orders,
-            self::Spent => $row->spentCents,
-            self::Favorites => $row->favorites,
-            self::LastOrder => $row->lastOrderAt->getTimestamp(),
-            self::Conversations => $row->conversations,
-            self::Since => $row->firstOrderAt->getTimestamp(),
-        };
+        return TableSort::of(self::default(), SortDirection::Desc);
     }
 }

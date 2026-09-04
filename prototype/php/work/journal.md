@@ -14,6 +14,10 @@
 
 ## Log
 
+- 2026-09-04:20:40:00 — IMPRV-038 — resolved: the customers table pages at fifty rows through a new `x-seller.pager`; `CustomersQueryRequest::page()` 400s on 0, a non-integer, and a page past the end; `SellerCustomers::pageForSeller()`/`countForSegment()` filter, sort, and page entirely in SQL over the grouped aggregate, no PHP slice; tiles keep counting every buyer off the unpaged `forSeller()`; `make precommit` green
+- 2026-09-04:20:35:00 — IMPRV-038 — started
+- 2026-09-04:20:20:00 — IMPRV-037 — resolved: range dropped from the listings and customers query vocabularies, requests, chrome links, and the dashboard's outbound links to them; a stray `?range=` on either route is now an unvalidated, unlisted key (ignored); listings table headers name the fixed thirty-day window, the customers footnote does too; `make precommit` green
+- 2026-09-04:16:00:00 — IMPRV-037 — started
 - 2026-09-04:20:35:00 — IMPRV-035 — done: App\Seller\DraftPublishIssues batches publishIssues()'s reads across the needs-work panel's drafts in nine or ten grouped queries whatever their count; rows name the first publish issue and how many more
 - 2026-09-04:20:25:00 — IMPRV-035 — started
 - 2026-09-04:20:20:00 — IMPRV-040 — done: platformCountsByStatus/platformFees to App\Admin\PlatformFulfillmentReader, itemLabel/itemImageUrl to App\Support\ParcelLine, flowInEffect/flowSteps/progress to App\Seller\FulfillmentFlowReader, lane() takes a FulfillmentProgress, every loadMissing() gone; 498 to 371 lines

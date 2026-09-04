@@ -4,20 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Seller;
 
-use DateTimeImmutable;
-
-$row = new CustomerRow(
-    customerId: 'cus_01',
-    name: 'Luna Lovegood',
-    email: 'luna@example.test',
-    orders: 4,
-    spentCents: 68000,
-    favorites: 3,
-    conversations: 2,
-    firstOrderAt: new DateTimeImmutable('2026-06-01 09:00:00'),
-    lastOrderAt: new DateTimeImmutable('2026-09-01 09:00:00'),
-);
-
 it('names every column', function (CustomerSortColumn $column, string $expected): void {
     expect($column->label())->toBe($expected);
 })->with([
@@ -41,14 +27,11 @@ it('right-aligns the counted columns alone', function (): void {
     ]);
 });
 
-it('reads the value each column sorts by', function (CustomerSortColumn $column, int|string $expected) use ($row): void {
-    expect($column->keyOf($row))->toBe($expected);
-})->with([
-    [CustomerSortColumn::Name, 'luna lovegood'],
-    [CustomerSortColumn::Orders, 4],
-    [CustomerSortColumn::Spent, 68000],
-    [CustomerSortColumn::Favorites, 3],
-    [CustomerSortColumn::LastOrder, (new DateTimeImmutable('2026-09-01 09:00:00'))->getTimestamp()],
-    [CustomerSortColumn::Conversations, 2],
-    [CustomerSortColumn::Since, (new DateTimeImmutable('2026-06-01 09:00:00'))->getTimestamp()],
-]);
+it('opens on spent, largest first', function (): void {
+    expect(CustomerSortColumn::default())->toBe(CustomerSortColumn::Spent);
+
+    $sort = CustomerSortColumn::defaultSort();
+
+    expect($sort->isColumn(CustomerSortColumn::Spent))->toBeTrue()
+        ->and($sort->direction)->toBe(SortDirection::Desc);
+});

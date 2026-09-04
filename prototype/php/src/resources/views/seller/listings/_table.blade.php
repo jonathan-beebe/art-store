@@ -1,7 +1,7 @@
 {{--
     Table view (04-listings.html): every column sortable by a header
     link, condensed rows leading to the listing's detail as an overlay or
-    takeover (?from=table). Expects `rows`, `chrome`, `rangeDays`.
+    takeover (?from=table). Expects `rows`, `chrome`.
 --}}
 <div class="mt-2 overflow-x-auto rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900">
     <table class="w-full text-left">
@@ -17,7 +17,7 @@
             @forelse ($rows as $row)
                 <tr>
                     <td class="px-4 py-2">
-                        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'table', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value, 'range' => $rangeDays]) }}" class="flex items-center gap-3">
+                        <a href="{{ route('seller.listings.show', ['listing' => $row->id, 'from' => 'table', 'sort' => $chrome->sort->column->value, 'dir' => $chrome->sort->direction->value]) }}" class="flex items-center gap-3">
                             <img src="{{ $row->imageUrl }}" alt="" class="size-9 flex-none rounded-md object-cover">
                             <span class="min-w-0">
                                 <span class="block truncate font-semibold text-gray-900 dark:text-gray-100">{{ $row->title }}</span>
@@ -44,4 +44,4 @@
         </tbody>
     </table>
 </div>
-<p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Views, favorites, and cart adds count the last {{ $rangeDays }} days. Sold and revenue count paid orders that were not declined or refunded, all time.</p>
+<p class="mt-2 text-xs text-gray-500 dark:text-gray-500">Sold and revenue count paid orders that were not declined or refunded, all time.</p>

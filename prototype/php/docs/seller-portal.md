@@ -57,7 +57,7 @@ built by `App\Seller\SellerOverview` as three `OverviewTile` values.
 
 | Tile | Figure | Change | Line | Opens |
 | --- | --- | --- | --- | --- |
-| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers?range=` |
+| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers` |
 | Orders | parcels placed in the range | vs the range before it (`RangeChange`) | parcels per day | `/seller/orders?lane=ship` |
 | Earnings | net of the range's live parcels | vs the range before it | net per day | `/seller/earnings` |
 
@@ -299,7 +299,8 @@ detail, unchanged when `from` is absent.
 
 `App\Http\Requests\Seller\ListingsQueryRequest` owns every parameter both
 routes share, the `docs/alignment.md` §5 idiom: an absent or emptied value
-reads as its default, an unrecognised one answers a bare 400.
+reads as its default; an unrecognised value for a named parameter answers
+400, and a key the table does not name is ignored.
 
 | Param   | Values                                                                | Default | Read by                     |
 | ------- | ---------------------------------------------------------------------- | ------- | ---------------------------- |
@@ -307,12 +308,17 @@ reads as its default, an unrecognised one answers a bare 400.
 | `from`  | `table` \| `grid`                                                     | absent  | the detail route             |
 | `sort`  | one of eleven `App\Domain\Seller\ListingSortColumn` cases               | `views` (`ListingSortColumn::defaultSort()`) | table/grid, and the header's `<select>` |
 | `dir`   | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)              | `desc`  | table/grid                   |
-| `range` | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)      | `30`    | the ranged columns and the detail's view strip |
 
 The detail route carries `from`, not `view` — `ListingController::show()`
 resolves `view` from it before building the header and, on table/grid,
 the workspace behind the overlay, so every link there still names `view`
 explicitly.
+
+Listings are evergreen, so `range` is not part of this vocabulary. The
+table's ranged columns (Views, Favorites, Cart adds) and the detail's view
+strip read a fixed thirty days, named in the column headers and the
+strip's own heading; `rules()` never names `range`, so a stray `?range=`
+on either route validates nothing and changes nothing.
 
 ### Layers
 
@@ -582,28 +588,52 @@ name is the account's own where it has one, and the latest order's
 
 `App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
 routes read, the `docs/alignment.md` §5 idiom: an absent or emptied value
-reads as its default, an unrecognised one answers a bare 400.
+reads as its default; an unrecognised value for a named parameter answers
+400, and a key the table does not name is ignored.
 
 | Param     | Values                                                                   | Default | Read by         |
 | --------- | ------------------------------------------------------------------------ | ------- | --------------- |
-| `range`   | `7` \| `30` \| `90` (`App\Domain\Analytics\AnalyticsRange::SIZES`)        | `30`    | the index route |
 | `segment` | `all` \| `repeat` \| `new` (`App\Domain\Seller\CustomerSegment`)          | `all`   | the index route |
 | `sort`    | one of seven `App\Domain\Seller\CustomerSortColumn` cases                | `spent` (`CustomerSortColumn::defaultSort()`) | the index route |
 | `dir`     | `asc` \| `desc` (`App\Domain\Seller\SortDirection`)                      | `desc`  | the index route |
 | `kind`    | one of four `App\Domain\Seller\ActivityKind` cases                       | absent  | the customer page's timeline |
+| `page`    | a positive integer, fifty rows a page                                    | `1`     | the index route |
 
-`range` is what "new this period" means: a buyer is new when their first
-order falls inside the window. The four figures above the table count every
-buyer whatever the segment shows, so switching segments never moves them.
+Customers are evergreen, so `range` is not part of this vocabulary: a
+buyer is new when their first order falls inside a fixed thirty days,
+which the table's footnote names. `rules()` never names `range`, so a
+stray `?range=` validates nothing and changes nothing. The four figures
+above the table count every buyer whatever the segment shows, so
+switching segments never moves them.
+
+`0` and a non-integer `page` fail `rules()` the way every other value in
+this table does. `CustomersQueryRequest::page()` refuses a page past
+the end itself — the table has nothing sane to fall back to when the
+page asked for holds no rows.
 
 ### Layers
 
-`Seller\SellerCustomers::forSeller()` folds the figures in one grouped
-query, then joins the account rows, favorites, and thread counts by id in
-PHP. A buyer holding no account name or address takes both from their
-latest order, one more query, run only when such a buyer is in the list.
-`forCustomer()` is the same fold narrowed to one person; the customer
-page, the Message button, and the thread rail all read it.
+`Seller\SellerCustomers::tallyFor()` folds every buyer to five figures
+— count, new-since count, repeat count, orders, spent — in one query
+over the grouped aggregate; the tiles above the table read this, so
+they count every buyer whatever the segment or page shows.
+`pageForSeller()` reads the same grouped aggregate narrowed to a
+segment in a `HAVING` clause, wraps it in `fromSub()`, and sorts and
+pages the wrapped query with `ORDER BY`/`LIMIT`/`OFFSET` — wrapping
+first means the sort reads the aggregate's own columns (`orders`,
+`account_name`, …) rather than a bare name resolving against the joined
+`fulfillments`/`orders`/`customers` tables underneath it. Favorites,
+conversations, and a shipped name/email fallback join in as correlated
+subqueries, so a page of rows costs one query, whatever page it is —
+name and email carry the account's own column and, alongside it, the
+latest counted parcel's shipped name/email, and the row builder picks
+whichever the account left null. `countForSegment()` is the same
+`HAVING` wrapped in a `count(*)`, what the pager's page count is built
+from. `forSeller()`/`forCustomer()` stay as the unpaged, row-per-buyer
+fold — `forCustomer()` narrowed to one person for the customer page,
+the Message button, and the thread rail; `forSeller()` for the
+dashboard's customer tile, which needs each buyer's own arrival day for
+its sparkline.
 
 ### The customer page
 

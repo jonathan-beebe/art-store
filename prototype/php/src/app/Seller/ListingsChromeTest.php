@@ -46,7 +46,7 @@ it('names the current view and sort', function (): void {
 });
 
 it('builds one view link per view, marking the current one active', function (): void {
-    $chrome = ListingsChrome::build(['range' => '7'], ListingView::Table, ListingSortColumn::defaultSort());
+    $chrome = ListingsChrome::build(['sort' => 'price'], ListingView::Table, ListingSortColumn::defaultSort());
 
     expect($chrome->viewLinks)->toHaveCount(3);
 
@@ -55,7 +55,7 @@ it('builds one view link per view, marking the current one active', function ():
 
     expect($table->active)->toBeTrue()
         ->and($grid->active)->toBeFalse()
-        ->and($table->href)->toContain('range=7')
+        ->and($table->href)->toContain('sort=price')
         ->and($table->href)->toContain('view=table');
 });
 
@@ -90,7 +90,7 @@ it('builds one column header per column, carrying the flipped direction', functi
 });
 
 it('drops sort and dir from the sort forms hidden fields', function (): void {
-    $chrome = ListingsChrome::build(['sort' => 'price', 'dir' => 'asc', 'range' => '7'], ListingView::Table, ListingSortColumn::defaultSort());
+    $chrome = ListingsChrome::build(['sort' => 'price', 'dir' => 'asc', 'view' => 'table'], ListingView::Table, ListingSortColumn::defaultSort());
 
-    expect($chrome->sortFormFields)->toBe(['range' => '7']);
+    expect($chrome->sortFormFields)->toBe(['view' => 'table']);
 });

@@ -16,7 +16,7 @@ use DateTimeImmutable;
 final readonly class CustomerRow
 {
     /** Two orders is the line between a buyer and a repeat buyer. */
-    private const int REPEAT_ORDERS = 2;
+    public const int REPEAT_ORDERS = 2;
 
     public function __construct(
         public string $customerId,
