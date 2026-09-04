@@ -8,7 +8,7 @@
 
             <x-slot:list>
                 <x-seller.fulfillment-cells :pane="$pane" />
-                <x-seller.cell-footer :shown="$pane->shown()" :total="$pane->total" :route="route('seller.orders.index', ['lane' => $lane->value])" />
+                <x-seller.cell-footer :shown="$pane->shown()" :total="$pane->total" />
             </x-slot:list>
 
             <div class="hidden h-full items-center justify-center p-8 lg:flex">

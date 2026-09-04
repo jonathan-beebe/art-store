@@ -8,7 +8,7 @@
             <x-seller.list-detail mobile="detail">
                 <x-slot:list>
                     <x-seller.listing-rows :listings="$cellListings" :selected="$listing" />
-                    <x-seller.cell-footer :shown="$cellListings->count()" :total="$cellListingsTotal" />
+                    <x-seller.cell-footer :shown="$cellListings->count()" :total="$cellListingsTotal" :route="route('seller.listings.index')" />
                 </x-slot:list>
 
                 <div class="p-6 lg:h-full lg:overflow-y-auto lg:p-8">
