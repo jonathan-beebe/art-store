@@ -206,7 +206,10 @@ it('IMPRV-030 stacks a pictures Remove control under it, never overlapping the t
     ]);
 
     $response = $this->actingAs($seller, 'seller')->get('/seller/store');
+    $crawler = new Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
+    $picture = $crawler->filter('[data-store-picture]');
 
-    $response->assertSee('data-store-picture', escape: false);
-    $response->assertDontSee('absolute right-1 bottom-1', escape: false);
+    expect($picture->count())->toBe(1)
+        ->and($picture->attr('class'))->toContain('flex-col')
+        ->and($picture->filter('button')->attr('class'))->not->toContain('absolute');
 });

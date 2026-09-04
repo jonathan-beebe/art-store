@@ -515,7 +515,7 @@ it('renders the rail again when a reply trips the rate limit', function (): void
     $response->assertStatus(429)->assertSee('View customer');
 });
 
-it('IMPRV-030 puts the context rail at 2xl, never a bare xl breakpoint', function (): void {
+it('IMPRV-030 puts the thread\'s every breakpoint at 2xl, the context rail included', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $conversation = Conversation::factory()->listingQuestion()->create([
@@ -525,15 +525,15 @@ it('IMPRV-030 puts the context rail at 2xl, never a bare xl breakpoint', functio
     ]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
-    $content = (string) $response->getContent();
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
 
     $response->assertOk();
-    expect($content)->toContain('2xl:flex-row')
-        ->toContain('2xl:w-80')
-        ->and(preg_match('/(?<!2)xl:/', $content))->toBe(0);
+    expect($crawler->filter('[data-thread]')->attr('class'))->toContain('2xl:flex-row')
+        ->and($crawler->filter('[data-thread-rail]')->attr('class'))->toContain('2xl:w-80')
+        ->and(preg_match('/(?<!2)xl:/', $crawler->filter('[data-thread]')->outerHtml()))->toBe(0);
 });
 
-it('IMPRV-030 wraps the thread header row and does not shrink its action group', function (): void {
+it('IMPRV-030 wraps the thread header row, its action group free to shrink with it', function (): void {
     $seller = $this->seller();
     $customer = $this->verifiedCustomer();
     $conversation = Conversation::factory()->listingQuestion()->create([
@@ -543,10 +543,9 @@ it('IMPRV-030 wraps the thread header row and does not shrink its action group',
     ]);
 
     $response = $this->actingAs($seller, 'seller')->get("/seller/messages/{$conversation->id}");
-    $content = (string) $response->getContent();
+    $crawler = new \Symfony\Component\DomCrawler\Crawler((string) $response->getContent());
 
     $response->assertOk();
-    expect($content)->toContain('flex flex-wrap items-start justify-between gap-4')
-        ->and($content)->toContain('flex items-start gap-2')
-        ->and($content)->not->toContain('flex shrink-0 items-start gap-2');
+    expect($crawler->filter('[data-thread-header]')->attr('class'))->toContain('flex-wrap')
+        ->and($crawler->filter('[data-thread-actions]')->attr('class'))->not->toContain('shrink-0');
 });
