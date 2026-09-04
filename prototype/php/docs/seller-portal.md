@@ -1,9 +1,9 @@
 # Seller portal
 
 The seller's own site: what a seller shows the world, what they have for
-sale, what they owe a buyer, and what they are owed. The chrome and the
-dashboard are in [`architecture.md`](architecture.md); each tool gets its
-own section here as its lane lands.
+sale, what they owe a buyer, and what they are owed. The chrome is in
+[`architecture.md`](architecture.md); each tool gets its own section here
+as its lane lands.
 
 | Section                             | Read it for                                                                                             |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -16,6 +16,7 @@ own section here as its lane lands.
 | [Messages](#messages)               | The context rail beside the transcript: the buyer's numbers, the piece or the parcel, their other threads  |
 | [Earnings](#earnings)               | Next payout, held escrow, this period against the seven before it, and the printable statement            |
 | [Support](#support)                 | The desk, its presence and reply time, help articles from markdown, and the seller's own support threads   |
+| [Dashboard](#dashboard)             | The range, the three tiles and their lines, listing activity, and the four focus groups                    |
 | [Data](#data)                       | The nine tables the portal added, drawn from the migrations                                               |
 
 ## Store profile
@@ -811,6 +812,124 @@ newest first — the same rows Messages' Support tab lists
 are unchanged: the seller's existing titled new-conversation form, now
 reached from the hub's "Start a conversation" button rather than being the
 `/seller/support` route itself.
+
+## Dashboard
+
+Question: a seller opens the portal in the morning. What are the three
+numbers that say how the business is doing, which listings are working, and
+what has to be done today — each one click from the tool that does it?
+
+`GET /seller?range=7|30|90` is the whole vocabulary.
+`App\Http\Requests\Seller\DashboardQueryRequest` owns it, the
+docs/alignment.md §5 idiom: an absent or emptied value reads as `30`, an
+unrecognised one answers a bare 400. Every figure, delta, line, and strip
+on the page is read over that one range, and the caption under the title
+names the store and the window
+(`App\Domain\Analytics\AnalyticsRange::caption()`).
+
+```mermaid
+flowchart LR
+    C["Http\Controllers\Seller\DashboardController"] --> P["Seller\NextPayout"]
+    C --> O["Seller\SellerOverview"]
+    C --> L["Seller\ListingActivity"]
+    C --> N["Seller\NeedsAttention"]
+    C --> H["Seller\DashboardChrome"]
+    O --> SC["Seller\SellerCustomers"]
+    O --> SP["Domain\Seller\Sparkline"]
+    L --> LT["Seller\ListingTable"]
+    L --> AR["Analytics\AnalyticsReport"]
+    L --> BS["Domain\Analytics\BarStrip"]
+    N --> HE["Seller\HeldEscrow"]
+    N --> AQ["Domain\Seller\AttentionQueue"]
+    P --> PE["Domain\Seller\PayoutEstimate"]
+```
+
+`NextPayout` is read once in the controller and handed to both
+`SellerOverview` and `NeedsAttention`, so the earnings tile's footer and
+the payout group's heading can never name two different Mondays.
+
+### Three tiles
+
+Each is the Tailwind Plus "with brand icon" shape, and the whole tile is
+the link. `App\Seller\SellerOverview` builds all three as
+`App\Seller\OverviewTile` values.
+
+| Tile | Figure | Change | Line | Opens |
+| --- | --- | --- | --- | --- |
+| Customers | every buyer, all-time | `+N new` — buyers whose first order landed in the range | new buyers per day | `/seller/customers?range=` |
+| Orders | parcels placed in the range | vs the range before it (`RangeChange`) | parcels per day | `/seller/orders?lane=ship` |
+| Earnings | net of the range's live parcels | vs the range before it | net per day | `/seller/earnings` |
+
+The buyers are `SellerCustomers::forSeller()`'s own rows, so the tile and
+the customers table count the same people, and "new" is the same
+`CustomerRow::isNewSince()` the customers tally reads.
+
+Orders and earnings come from one query: the seller's parcels on paid
+orders placed anywhere between the previous range's first day and this
+range's last, folded in PHP by the UTC day of `orders.placed_at`. A parcel
+declined or refunded later still counts as an order placed and earns
+nothing — the rule `EarningsPeriods` reads a period by.
+
+`App\Domain\Seller\Sparkline::of()` scales a daily series onto one SVG
+polyline and names its last point, which `x-seller.sparkline` marks with a
+dot. The line keeps a two-pixel inset top and bottom and is scaled against
+the series' own floor, so a high plateau still shows its dip.
+`BarStrip` is the same idea in bars.
+
+### Activity on your listings
+
+`App\Seller\ListingActivity` answers four totals and five rows.
+
+Views, favorites, and cart adds are summed off `ListingTable`'s rows for
+this range and off `AnalyticsReport::countsForListingsBetween()` for the
+previous one — the ranged form `countsForListingsSince()` now delegates
+to. Sold is units off `order_items` on paid orders whose parcel still
+stands, the pair `ListingTable` counts an all-time sale by, narrowed to
+the range and bucketed by day so both windows read off one query.
+
+The rows are `ListingTable`'s own `ListingTableRow` values sorted by
+`ListingTableSort` on Views descending and cut to five, so a listing's
+figures on the dashboard and in the listings table are the same figures.
+Each row carries the units it sold inside the range and a daily view strip
+from `AnalyticsReport::dailyViewsForListings()` — five listings in one
+query. The strip covers the range capped at thirty days, so ninety bars
+never squeeze into one table cell; the header says which window it draws.
+
+### Needs your attention
+
+`App\Seller\NeedsAttention` reads four queues and
+`App\Domain\Seller\AttentionQueue` turns them into the panels. Each
+queue is counted whole and read down to five rows, so a heading says how
+big the pile is while the panel stays scannable and a "N more" link
+carries the rest to the tool.
+
+| Group | Rows | Header opens |
+| --- | --- | --- |
+| Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
+| Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
+| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow`) | `/seller/earnings` |
+| Listings that need work | drafts and sold-out pieces, most recently edited first | `/seller/listings` |
+
+Every row opens the exact thing: the parcel, the thread, the earnings
+page, the listing. A group holding nothing shows a sentence in place of
+its rows — "Nothing is waiting to ship.", "Every buyer has heard back from
+you.", "Every listing is published and in stock." — so the page never
+renders a blank panel.
+
+`AttentionQueue` is pure: it owns the heading each group wears at each
+count, the sentence it shows holding nothing, and the two-day rule, and it
+takes rows an adapter already built. `AttentionRow` carries the initials,
+the two lines, the meta, the href, and whether the row reads urgent.
+
+### What the dashboard costs
+
+The page reads six queues across two connections and renders on a fixed
+number of queries however many rows a seller holds, which one test pins.
+Two reads are duplicated by design: `Seller::escrowBalance()` is folded
+once for the payout estimate and once for `HeldEscrow`'s total, and the
+parcels waiting to ship are counted once for the orders tile's footer and
+once for the focus group's heading. Both are cheap aggregates, and
+threading either through would tie two adapters together for one query.
 
 ## Data
 
