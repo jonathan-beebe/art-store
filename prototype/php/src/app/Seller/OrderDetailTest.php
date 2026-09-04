@@ -6,9 +6,11 @@ namespace App\Seller;
 
 use App\Actions\Fulfillment\CompleteFlowStep;
 use App\Actions\Fulfillment\DeclineFulfillment;
+use App\Actions\Orders\FinalizeOrder;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
+use App\Models\Listing;
 use App\Models\Seller;
 use Illuminate\Support\Facades\DB;
 
@@ -132,21 +134,34 @@ it('names the flow the parcel ships by and the card the buyer paid with', functi
         ->and($facts->paymentStatus)->toBe('Approved');
 });
 
-it('reads one order page in a fixed number of queries', function () use ($flowWithTwoSteps): void {
+it('reads one order page in the same number of queries whatever its order holds', function () use ($flowWithTwoSteps): void {
     $seller = $this->seller('Molly Weasley');
-    $step = $flowWithTwoSteps($seller);
-    $fulfillment = $this->paidFulfillmentFor($seller);
-    app(CompleteFlowStep::class)($fulfillment, $step, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
-    $fulfillment->refresh();
+    $label = $flowWithTwoSteps($seller);
 
-    $queries = 0;
-    DB::listen(function () use (&$queries): void {
-        $queries++;
-    });
+    $queriesFor = function (int $itemCount) use ($seller, $label): int {
+        $order = $this->orderFor(
+            $this->verifiedCustomer(),
+            ...array_map(fn (): Listing => $this->listing($seller), range(1, $itemCount)),
+        );
+        $order = app(FinalizeOrder::class)($order, '4242424242424242', $this->moment('2026-08-20 10:00:00'));
+        $fulfillment = $order->fulfillments()->sole();
+        app(CompleteFlowStep::class)($fulfillment, $label, 'Owl Post', 'OP 4471', $this->moment('2026-08-21 09:00:00'));
 
-    $facts = app(OrderDetail::class)->facts($fulfillment, $seller, $this->moment('2026-08-22 09:00:00'));
+        $queries = 0;
+        DB::listen(function () use (&$queries): void {
+            $queries++;
+        });
 
-    expect($facts->state->line())->toStartWith('Label printed')
-        ->and($facts->completed)->toHaveCount(1)
-        ->and($queries)->toBeLessThanOrEqual(12);
+        $facts = app(OrderDetail::class)->facts($fulfillment->refresh(), $seller, $this->moment('2026-08-22 09:00:00'));
+
+        expect($facts->state->line())->toStartWith('Label printed')
+            ->and($facts->completed)->toHaveCount(1);
+
+        return $queries;
+    };
+
+    $withOne = $queriesFor(1);
+    $withTwo = $queriesFor(2);
+
+    expect($withTwo)->toBe($withOne);
 });
