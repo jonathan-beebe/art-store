@@ -7,9 +7,9 @@ namespace App\Seller;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\ChangeDirection;
 use App\Domain\Analytics\RangeChange;
+use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Money\Money;
-use App\Domain\Orders\FulfillmentStatus;
 use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\FeedIcon;
 use App\Domain\Seller\PayoutEstimate;
@@ -27,11 +27,11 @@ use DateTimeZone;
  * range before it, its daily line, and the tool the tile opens.
  *
  * The buyers come from {@see SellerCustomers}, so the tile and the
- * customers table count the same people. Orders and earnings come from one
- * read of the seller's paid parcels across both ranges, folded by day in
- * PHP — a parcel declined or refunded later still counts as an order
- * placed, and earns nothing, which is how {@see EarningsPeriods} reads a
- * period.
+ * customers table count the same people. Orders and earnings read the
+ * earnings page's own model — gross sales dated by placement, refunds
+ * netted in the day they land — the same fold {@see EarningsPeriods} reads
+ * a period by, so a parcel declined in a later period never moves the day
+ * it sold on.
  */
 final readonly class SellerOverview
 {
@@ -177,9 +177,10 @@ final readonly class SellerOverview
 
     /**
      * The seller's paid parcels placed between the two instants, folded by
-     * the UTC day the order was placed on: how many parcels, and what the
-     * live ones among them earned. One query, no models, no date function
-     * in the SQL.
+     * the UTC day the order was placed on: how many parcels, and what they
+     * grossed net of the platform fee — live or since declined or
+     * refunded, the gross sale {@see EarningsPeriods} folds a period by. Two
+     * queries, no models, no date function in the SQL.
      *
      * @return array{orders: array<string, int>, net: array<string, int>}
      */
@@ -192,7 +193,7 @@ final readonly class SellerOverview
             ->where('orders.placed_at', '>=', $from)
             ->where('orders.placed_at', '<=', $to)
             ->toBase()
-            ->get(['orders.placed_at as placed_at', 'fulfillments.status as status', 'fulfillments.net_cents as net_cents']);
+            ->get(['orders.placed_at as placed_at', 'fulfillments.net_cents as net_cents']);
 
         $orders = [];
         $net = [];
@@ -200,14 +201,40 @@ final readonly class SellerOverview
         foreach ($rows as $row) {
             $day = self::day($row->placed_at);
             $orders[$day] = ($orders[$day] ?? 0) + 1;
-            $net[$day] ??= 0;
+            $net[$day] = ($net[$day] ?? 0) + self::number($row->net_cents);
+        }
 
-            if (FulfillmentStatus::from(self::text($row->status))->isLive()) {
-                $net[$day] += self::number($row->net_cents);
-            }
+        foreach (self::refundsBetween($seller, $from, $to) as $day => $refundedCents) {
+            $net[$day] = ($net[$day] ?? 0) - $refundedCents;
         }
 
         return ['orders' => $orders, 'net' => $net];
+    }
+
+    /**
+     * What refunded between the two instants, by the UTC day the refund
+     * happened — the day {@see EarningsPeriods} nets a refund in, whichever
+     * day the sale itself landed on.
+     *
+     * @return array<string, int> Y-m-d => cents refunded that day
+     */
+    private static function refundsBetween(Seller $seller, DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $rows = $seller->ledgerEntries()
+            ->ofType(LedgerEntryType::Refunded)
+            ->where('occurred_at', '>=', $from)
+            ->where('occurred_at', '<=', $to)
+            ->toBase()
+            ->get(['occurred_at', 'amount_cents']);
+
+        $refunds = [];
+
+        foreach ($rows as $row) {
+            $day = self::day($row->occurred_at);
+            $refunds[$day] = ($refunds[$day] ?? 0) - self::number($row->amount_cents);
+        }
+
+        return $refunds;
     }
 
     private static function day(mixed $value): string
