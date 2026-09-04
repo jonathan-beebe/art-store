@@ -23,12 +23,14 @@ final readonly class SaveFulfillmentFlow
     private const int KEY_LIMIT = 36;
 
     /**
-     * Positions the rewrite parks a surviving step at while it fills the
-     * range from zero. `fulfillment_flow_steps` is unique on
+     * The position the rewrite parks a surviving step at, one further per
+     * step, while it fills the range from zero — above the range any flow
+     * holds, since `position` is an unsigned column and a negative sentinel
+     * Postgres and MySQL both refuse. `fulfillment_flow_steps` is unique on
      * (fulfillment_flow_id, position) and SQLite judges that row by row, so
      * a reorder writing a position another row still holds is refused.
      */
-    private const int PARKED_POSITION = -1;
+    private const int PARKED_POSITION = 9999;
 
     /**
      * @param  list<FlowStepDraft>  $drafts
@@ -71,7 +73,7 @@ final readonly class SaveFulfillmentFlow
     private function parkPositions(FulfillmentFlow $flow): void
     {
         foreach ($flow->steps()->get() as $index => $step) {
-            $step->update(['position' => self::PARKED_POSITION - $index]);
+            $step->update(['position' => self::PARKED_POSITION + $index]);
         }
     }
 

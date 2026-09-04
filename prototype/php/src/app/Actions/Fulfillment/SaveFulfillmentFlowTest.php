@@ -8,6 +8,8 @@ use App\Domain\Fulfillment\FlowStepAction;
 use App\Domain\Fulfillment\FlowStepDraft;
 use App\Models\FulfillmentFlow;
 use App\Models\FulfillmentFlowStep;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 
 it('creates a default flow named and ordered as submitted, for a seller with none', function (): void {
     $seller = $this->seller('Molly Weasley');
@@ -92,6 +94,39 @@ it('reorders two existing steps without a unique-index collision', function (): 
 
     expect($reordered->pluck('id')->all())->toBe([$second->id, $first->id])
         ->and($reordered->pluck('position')->all())->toBe([0, 1]);
+});
+
+it('parks a step above the range, never below zero, while it reorders', function (): void {
+    $seller = $this->seller();
+    $save = app(SaveFulfillmentFlow::class);
+    $flow = $save($seller, 'How I ship', [
+        FlowStepDraft::of(null, 'Label printed', FlowStepAction::PrintLabel),
+        FlowStepDraft::of(null, 'Packed', FlowStepAction::None),
+    ]);
+    $first = $flow->steps()->where('label', 'Label printed')->sole();
+    $second = $flow->steps()->where('label', 'Packed')->sole();
+
+    $positions = [];
+    DB::listen(function (QueryExecuted $query) use (&$positions): void {
+        if (str_contains($query->sql, 'update "fulfillment_flow_steps"')) {
+            foreach ($query->bindings as $binding) {
+                if (is_int($binding)) {
+                    $positions[] = $binding;
+                }
+            }
+        }
+    });
+
+    $save($seller, 'How I ship', [
+        FlowStepDraft::of($second->id, $second->label, $second->action),
+        FlowStepDraft::of($first->id, $first->label, $first->action),
+    ]);
+
+    expect($positions)->not->toBeEmpty();
+
+    foreach ($positions as $position) {
+        expect($position)->toBeGreaterThanOrEqual(0);
+    }
 });
 
 it('slugs a new step\'s key from its label, numbering a second step whose label slugs the same', function (): void {

@@ -18,6 +18,10 @@ return new class extends Migration
             $table->string('key', 40);
             $table->string('label');
             $table->string('action')->default(FlowStepAction::None->value);
+            // Unsigned on all three databases this prototype targets:
+            // SQLite, Postgres, and MySQL. SaveFulfillmentFlow parks a
+            // surviving step above the range a flow ever holds while it
+            // rewrites positions, never below zero.
             $table->unsignedInteger('position');
             $table->timestamps();
 
