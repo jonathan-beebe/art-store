@@ -15,10 +15,12 @@ use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Seller;
 use App\Seller\ActivityFeedReader;
+use App\Seller\CustomerParcelRow;
 use App\Seller\CustomersChrome;
 use App\Seller\FeedFilters;
 use App\Seller\FeedScope;
 use App\Seller\SellerCustomers;
+use App\Support\ParcelLine;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\View\View;
@@ -73,11 +75,11 @@ final class CustomerController extends SellerController
      * refunded one included, which the numbers above leave out and the
      * seller still has to be able to look back at.
      *
-     * @return Collection<int, Fulfillment>
+     * @return list<CustomerParcelRow>
      */
-    private function fulfillmentsFor(Seller $seller, Customer $customer): Collection
+    private function fulfillmentsFor(Seller $seller, Customer $customer): array
     {
-        return $seller->fulfillments()
+        $fulfillments = $seller->fulfillments()
             ->where('fulfillments.customer_id', $customer->id)
             ->with([
                 'order.items' => fn (Relation $items) => $items->where('seller_id', $seller->id),
@@ -88,6 +90,16 @@ final class CustomerController extends SellerController
             ->orderByDesc('fulfillments.id')
             ->select('fulfillments.*')
             ->get();
+
+        return array_values($fulfillments->map(fn (Fulfillment $fulfillment): CustomerParcelRow => new CustomerParcelRow(
+            href: route('seller.orders.show', $fulfillment->id),
+            imageUrl: ParcelLine::imageUrl($fulfillment),
+            itemLabel: ParcelLine::label($fulfillment),
+            placed: $fulfillment->order->placed_at->format('M j, Y'),
+            subtotal: $fulfillment->subtotal()->format(),
+            statusLabel: $fulfillment->status->label(),
+            tint: $fulfillment->status->sellerBadgeTint(),
+        ))->all());
     }
 
     /**

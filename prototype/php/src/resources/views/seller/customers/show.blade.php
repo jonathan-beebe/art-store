@@ -47,15 +47,15 @@
             <div>
                 <h2 class="text-sm/6 font-semibold text-gray-900 dark:text-white">Orders</h2>
                 <ul role="list" class="mt-2 divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white dark:divide-white/5 dark:border-white/10 dark:bg-gray-900">
-                    @forelse ($fulfillments as $fulfillment)
+                    @forelse ($fulfillments as $row)
                         <li>
-                            <a href="{{ route('seller.orders.show', $fulfillment) }}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-white/5">
-                                <img src="{{ \App\Support\ParcelLine::imageUrl($fulfillment) }}" alt="" class="size-10 flex-none rounded-md object-cover">
+                            <a href="{{ $row->href }}" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-indigo-600 dark:hover:bg-white/5">
+                                <img src="{{ $row->imageUrl }}" alt="" class="size-10 flex-none rounded-md object-cover">
                                 <span class="min-w-0 flex-1">
-                                    <span class="block truncate font-medium text-gray-900 dark:text-gray-100">{{ \App\Support\ParcelLine::label($fulfillment) }}</span>
-                                    <span class="block text-xs/5 text-gray-500 dark:text-gray-400">{{ $fulfillment->order->placed_at?->format('M j, Y') }} &middot; {{ $fulfillment->subtotal()->format() }}</span>
+                                    <span class="block truncate font-medium text-gray-900 dark:text-gray-100">{{ $row->itemLabel }}</span>
+                                    <span class="block text-xs/5 text-gray-500 dark:text-gray-400">{{ $row->placed }} &middot; {{ $row->subtotal }}</span>
                                 </span>
-                                <x-seller.status-badge :tint="$fulfillment->status->sellerBadgeTint()">{{ $fulfillment->status->label() }}</x-seller.status-badge>
+                                <x-seller.status-badge :tint="$row->tint">{{ $row->statusLabel }}</x-seller.status-badge>
                             </a>
                         </li>
                     @empty

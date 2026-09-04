@@ -13,6 +13,7 @@ use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Seller;
 use App\Support\ActorDisplay;
+use App\Support\ParcelLine;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
@@ -38,6 +39,7 @@ final readonly class ThreadContext
         public ?CustomerRow $customer,
         public ?Listing $listing,
         public ?Fulfillment $order,
+        public ?string $orderLabel,
         public array $others,
     ) {}
 
@@ -58,6 +60,7 @@ final readonly class ThreadContext
             ? SellerCustomers::forCustomer($seller, $customer)
             : null;
         $name = $conversation->counterpartName(ActorType::Seller);
+        $order = self::orderOf($seller, $conversation);
 
         return new self(
             name: $name,
@@ -66,7 +69,8 @@ final readonly class ThreadContext
             isDesk: $isDesk,
             customer: $row,
             listing: $conversation->listing,
-            order: self::orderOf($seller, $conversation),
+            order: $order,
+            orderLabel: $order instanceof Fulfillment ? ParcelLine::label($order) : null,
             others: self::otherThreads($seller, $conversation, $now),
         );
     }
