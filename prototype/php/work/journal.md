@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-04:10:02:46 — IMPRV-031 — resolved (worktree au-data, prototype/php): Fulfillment::live()/counted() consolidate the paid/live rule across nine readers; dashboard earnings tile follows the earnings-page model; seeded shipped/delivered parcels carry their events; partial index and step-parking survive Postgres; store pictures always own their file; positions read inside their transaction; Order::items() ordered; StoreImageRequest mints on first POST; factories never mint unrelated parents. make check green (5198 tests, 99.5% coverage).
 - 2026-09-04:08:30:10 — FEAT-063 — defined: A seller's answer to "did this answer it?" is recorded
 - 2026-09-04:08:30:10 — FEAT-062 — defined: A store has an admin analytics page, reached from its events and from the seller
 - 2026-09-04:08:30:10 — IMPRV-040 — defined: The Fulfillment model keeps its rows and rules; pages read through adapters
@@ -25,6 +26,7 @@
 - 2026-09-04:08:10:00 — IMPRV-035 — defined: The dashboard's "needs work" group names a draft's actual issues
 - 2026-09-04:08:10:00 — IMPRV-034 — defined: The shared status-tint lookup carries a name that fits both portals
 - 2026-09-04:07:32:43 — IMPRV-033 — started
+- 2026-09-04:07:29:33 — IMPRV-031 — started (worktree au-data, prototype/php)
 - 2026-09-04:07:27:28 — IMPRV-033 — defined: The docs say the seller portal once, and the deferrals become tickets
 - 2026-09-04:07:27:28 — IMPRV-032 — defined: One sort stack, one link, one query request, one paid rule, one sidecar rule
 - 2026-09-04:07:27:28 — IMPRV-031 — defined: Every seller figure counts the same parcels and survives Postgres
