@@ -14,6 +14,7 @@
 
 ## Log
 
+- 2026-09-03:23:55:00 — FEAT-058 — resolved: A store has a public page and every listing card leads to it
 - 2026-09-03:23:15:00 — FEAT-058 — started: A store has a public page and every listing card leads to it
 - 2026-09-03:23:10:00 — FEAT-057 — resolved: A seller builds their store profile from typed sections
 - 2026-09-03:22:00:00 — FEAT-057 — started: A seller builds their store profile from typed sections

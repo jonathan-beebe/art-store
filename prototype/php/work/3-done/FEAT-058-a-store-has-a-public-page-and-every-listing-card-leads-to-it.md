@@ -1,7 +1,7 @@
 ---
 id: FEAT-058
 type: feature
-status: in-progress
+status: resolved
 created: 2026-09-03
 ---
 
@@ -33,3 +33,58 @@ A seller writes their story so buyers read it. Until the page is public and reac
 - FEAT-057
 - FEAT-039 (analytics store), FEAT-044..048 (admin analytics)
 - Design canvas: https://claude.ai/code/artifact/9f8ad3b7-a73e-45b9-873e-fd704193acad (Store preview column)
+
+## Working
+
+One commit off FEAT-057 on `php/sp-store`.
+
+**Routes.** `GET /s/{slug}` (`shop.store`), inside the storefront's
+`customer.identity` group so the view records with a session behind it. The
+slug is read as a string rather than bound to a model: an address the store
+left behind names no `store_profiles` row and still has to redirect.
+
+**Resolution.** `App\Support\Store\StoreAddressLookup` — one query for the
+current address, and only on a miss a second for the history.
+`App\Domain\Store\RetiredSlugWindow` holds the thirty-day rule. A hidden
+store, an address retired too long ago, and an address no store ever held
+all answer the same 404; the store's own seller sees the page with a
+banner.
+
+**Analytics.** `AnalyticsEventName::StoreView` with its label, plural,
+verb, and icon; `AnalyticsEvent::forStore()` with `subject_type = 'store'`;
+`App\Domain\Store\StoreViewCollapse` for the hour window.
+`EntityActivity` gained a `store` branch so an actor's feed names the store
+unlinked, the way it already names a cart, rather than falling through to
+"listing no longer exists".
+
+**Decisions taken.**
+
+- The seller's own preview of a hidden page records nothing. A published
+  page records on every render, collapsed by the dedupe key.
+- `x-layouts.shop` gained `description` and `image` props rather than a
+  meta partial; a page passing neither renders neither tag.
+- The store link reads `$listing->seller->storeProfile`, so every query
+  that feeds a card eager loads `seller.storeProfile` (ten call sites).
+  `Model::shouldBeStrict()` turns a missed one into a lazy-loading
+  violation outside production, so a missed site fails loudly rather than
+  running an N+1.
+
+**Tried and reverted.** A controller test asserting the hour collapse
+across two `$this->get()` calls: each test request gets its own session and
+so its own anonymous customer, which is two different dedupe keys and two
+rows — correct behavior, a wrong assertion. The collapse is pinned in
+`StoreViewCollapseTest` and by a case recording three events through
+`Analytics` under one key.
+
+**Found and left.**
+
+- `EventTotalsTest` asserts the event-name order; `store.view` slots in
+  before the synthetic `page.view` row. Updated.
+- `ListingQuestionControllerTest` asserts `assertSee('Made by Rye Press')`;
+  the seller line has to stay on one source line for the string to be
+  contiguous in the rendered HTML. The markup keeps it inline.
+- The `store` subject has no admin page of its own, so its feed row is
+  unlinked. An admin store page is not in any ticket.
+
+**Gate.** `make precommit` green: 4295 tests, 33864 assertions, Pint and
+PHPStan clean.
