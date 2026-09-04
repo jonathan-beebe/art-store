@@ -184,13 +184,15 @@ their page. See "sold" in Vocabulary notes.
 (enum), `ListingAvailability`, `ListingStock`, `ListingSlug`, `ListingDraft`
 (table `listings`).
 
-### Listing event
+### Analytics event
 
-**Who/what.** One recorded interaction with a listing: a view, a favorite,
-an unfavorite, or a cart-add.
+**Who/what.** One recorded interaction, one of nine names: a listing
+viewed, favorited, unfavorited, or cart-added; a checkout opened; an order
+placed, paid, or cancelled; a store's public page viewed.
 
-**Why it exists.** Feeds the seller's per-listing activity numbers (views,
-favorites, cart adds) and the dashboard's daily activity timeline.
+**Why it exists.** Feeds the seller's per-listing activity numbers, the
+dashboard's daily activity timeline, the storefront funnel, and the admin
+analytics drill-in.
 
 **Lifecycle.** None — write-once, timestamped fact. The timestamp is the
 instant the interaction was recorded, not the instant the row was written —
@@ -198,14 +200,17 @@ recording only appends to an in-memory buffer, which a later flush turns
 into rows.
 
 **Relates to.**
-- belongs to one Listing, named by `subject_type`/`subject_id`
+- belongs to one Listing, Order, Cart, or Store, named by
+  `subject_type`/`subject_id` (nullable — a listing view names one, a
+  checkout-open does not)
 - optionally attributed to one Customer (`actor_id` nullable)
 
 **In code.** `App\Analytics\Analytics` (the one writer),
-`App\Analytics\AnalyticsEvent`, `App\Domain\Analytics\AnalyticsEventName` (enum:
-`listing.view` | `listing.favorite` | `listing.unfavorite` |
-`listing.cart_add`), `App\Analytics\AnalyticsReport` (the reader) (table
-`analytics_events`). See [`analytics.md`](analytics.md).
+`App\Analytics\AnalyticsEvent`, `App\Domain\Analytics\AnalyticsEventName`
+(enum: `listing.view` | `listing.favorite` | `listing.unfavorite` |
+`listing.cart_add` | `checkout.open` | `order.place` | `order.pay` |
+`order.cancel` | `store.view`), `App\Analytics\AnalyticsReport` (the
+reader) (table `analytics_events`). See [`analytics.md`](analytics.md).
 
 ### Listing removal
 
