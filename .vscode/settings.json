@@ -1,5 +1,49 @@
 {
   "cSpell.words": [
     "configurator"
-  ]
+  ],
+
+  // PHP: Intelephense is the language server; the built-in suggester
+  // would duplicate every completion.
+  "php.suggest.basic": false,
+  "php.validate.enable": false,
+  "intelephense.environment.phpVersion": "8.3.0",
+  "intelephense.files.exclude": [
+    "**/.git/**",
+    "**/.svn/**",
+    "**/.hg/**",
+    "**/CVS/**",
+    "**/.DS_Store/**",
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/resources/views/**",
+    "**/.claude/worktrees/**",
+    "**/storage/**",
+    "**/public/build/**"
+  ],
+
+  // Laravel (official): routes, views, config, Blade components. PHP never
+  // runs on the host; every artisan call goes through the running compose
+  // stack (`make up` from prototype/php first).
+  "Laravel.basePath": "prototype/php/src",
+  "Laravel.phpEnvironment": "docker",
+  "Laravel.phpCommand": [
+    "docker", "compose",
+    "-p", "art-store-php",
+    "-f", "prototype/php/docker-compose.yml",
+    "exec", "-T", "app", "php"
+  ],
+
+  // Laravel Extra Intellisense: same container, host paths for reading
+  // files and the container's path for the code it requires.
+  "LaravelExtraIntellisense.basePath": "prototype/php/src",
+  "LaravelExtraIntellisense.basePathForCode": "/var/www/src",
+  "LaravelExtraIntellisense.phpCommand": "docker compose -p art-store-php -f prototype/php/docker-compose.yml exec -T app php -r \"{code}\"",
+
+  "[php]": {
+    "editor.defaultFormatter": null
+  },
+  "[blade]": {
+    "editor.defaultFormatter": "laravel.vscode-laravel"
+  }
 }
