@@ -670,8 +670,8 @@ flowchart LR
   closing that gap needs a database that supports concurrent connections
   under the test runner.
 - Coverage via `pcov`: `composer test:coverage` (`make coverage`) runs the
-  suite gated at 100% of lines (`--min=100`), prints a text summary, and
-  writes `coverage/`. The suite covers 100.0% of the lines under `app/`.
+  suite gated at 95% of lines (`--min=95`, PR #57), prints a text summary,
+  and writes `coverage/`.
 - TDD: write the failing sidecar test, make it pass, refactor. Feature tickets
   are done when their flow has an HTTP test that walks it end to end.
 - The gate: `make check` runs `lint`, then `assets`, then `coverage`,
@@ -681,7 +681,7 @@ flowchart LR
   config types understood via `parseModelCastsMethod` and `checkConfigTypes`),
   against the file tree only (`--no-deps`, no web server). `assets` builds
   the Tailwind CSS. `coverage` runs the full Pest suite under pcov, gated at
-  100% of lines (`--min=100`). `make analyse` runs PHPStan alone.
+  95% of lines (`--min=95`). `make analyse` runs PHPStan alone.
 - Sidecar tests are analysed at the same level as the code they cover: there
   are no `excludePaths`, no `ignoreErrors`, and no baseline. Pest reaches the
   test case, the custom expectations, and the arch DSL through traits and
