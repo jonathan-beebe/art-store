@@ -45,3 +45,18 @@ it('closes the gap between bars once the series passes thirty-one days', functio
         ->and($html)->toContain('width="3"')
         ->and($html)->not->toContain('width="2"');
 });
+
+it('IMPRV-030 carries role=img and aria-labelledby when the caller names a heading', function (): void {
+    $bars = [new BarStripBar(10, 'Aug 1: 0')];
+
+    $withLabel = (string) $this->blade(
+        '<x-bar-strip :bars="$bars" :height="26" labelledby="views-strip-heading" />',
+        ['bars' => $bars],
+    );
+    $withoutLabel = (string) $this->blade('<x-bar-strip :bars="$bars" :height="26" />', ['bars' => $bars]);
+
+    expect($withLabel)->toContain('role="img"')
+        ->and($withLabel)->toContain('aria-labelledby="views-strip-heading"')
+        ->and($withoutLabel)->not->toContain('role="img"')
+        ->and($withoutLabel)->not->toContain('aria-labelledby');
+});

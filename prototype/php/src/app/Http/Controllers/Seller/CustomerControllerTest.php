@@ -338,3 +338,19 @@ it('carries the segment through a sort link and the sort through a segment link'
     expect(customerHeaderQuery($html, 'Spent'))->toBe(['segment' => 'repeat', 'sort' => 'spent', 'dir' => 'desc'])
         ->and(customerSegmentQuery($html, 'New this period'))->toBe(['sort' => 'orders', 'dir' => 'asc', 'segment' => 'new']);
 });
+
+it('IMPRV-030 shows a placeholder image for an order row with no item to read one from', function (): void {
+    $seller = $this->seller('The Burrow Craftworks');
+    $customer = Customer::factory()->create(['name' => 'Luna Lovegood']);
+    $fulfillment = $this->paidFulfillmentFor($seller, $customer);
+    // A valid, if unusual, state to render around: the order's line
+    // deleted out from under it, the way `Fulfillment::itemLabel()`
+    // already defends against ("no items") — no dangling foreign key
+    // needed to reach it.
+    $fulfillment->order->items()->delete();
+
+    $response = $this->actingAs($seller, 'seller')->get("/seller/customers/{$customer->id}");
+
+    $response->assertOk();
+    $response->assertDontSee('src=""', escape: false);
+});

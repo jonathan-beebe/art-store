@@ -13,6 +13,9 @@
     use Illuminate\Support\Str;
 
     $nameTag = $compact ? 'h3' : 'h1';
+    // One level under the name, so a section heading never outranks it:
+    // full mode's h1 name takes h2 sections, compact's h3 name takes h4.
+    $sectionHeadingTag = $compact ? 'h4' : 'h2';
     $storyLimit = 240;
     $galleryLimit = $compact ? 3 : 8;
 @endphp
@@ -47,7 +50,7 @@
             @if ($section->kind === StoreSectionKind::Story && $section->body)
                 <section class="mt-4">
                     @if ($section->heading)
-                        <h2 class="font-display {{ $compact ? 'text-base' : 'text-xl' }} text-ink">{{ $section->heading }}</h2>
+                        <{{ $sectionHeadingTag }} class="font-display {{ $compact ? 'text-base' : 'text-xl' }} text-ink">{{ $section->heading }}</{{ $sectionHeadingTag }}>
                     @endif
 
                     @if ($compact)
@@ -64,7 +67,7 @@
             @elseif ($section->kind === StoreSectionKind::Gallery && $section->sectionImages->isNotEmpty())
                 <section class="mt-4">
                     @if ($section->heading)
-                        <h2 class="font-display {{ $compact ? 'text-base' : 'text-xl' }} text-ink">{{ $section->heading }}</h2>
+                        <{{ $sectionHeadingTag }} class="font-display {{ $compact ? 'text-base' : 'text-xl' }} text-ink">{{ $section->heading }}</{{ $sectionHeadingTag }}>
                     @endif
 
                     <div class="mt-2 grid gap-2 {{ $compact ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4' }}">

@@ -126,10 +126,10 @@
                 <div class="flex flex-col gap-5">
                     <div class="flex flex-wrap items-center gap-4">
                         @if ($profile->portraitImage)
-                            <img src="{{ $profile->portraitImage->url() }}" alt="" class="size-16 rounded-full object-cover">
+                            <img src="{{ $profile->portraitImage->url() }}" alt="{{ $profile->portraitImage->alt ?? '' }}" class="size-16 rounded-full object-cover">
                         @endif
                         @if ($profile->coverImage)
-                            <img src="{{ $profile->coverImage->url() }}" alt="" class="h-16 w-48 rounded-md object-cover">
+                            <img src="{{ $profile->coverImage->url() }}" alt="{{ $profile->coverImage->alt ?? '' }}" class="h-16 w-48 rounded-md object-cover">
                         @endif
                     </div>
 
@@ -141,7 +141,7 @@
                                     <form method="POST" action="{{ route('seller.store.images.destroy', $image) }}" class="absolute right-1 bottom-1">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="rounded-full bg-gray-900/70 px-2 py-0.5 text-xs text-white">Remove</button>
+                                        <button type="submit" class="rounded-full bg-gray-900/70 px-2 py-0.5 text-xs text-white">Remove<span class="sr-only"> {{ $image->alt ?: 'this picture' }}</span></button>
                                     </form>
                                 </li>
                             @endforeach
@@ -259,7 +259,7 @@
                                                     <span class="sr-only">Show {{ $image->alt ?? 'this picture' }} in this gallery</span>
                                                 </label>
                                                 <label class="mt-1 block">
-                                                    <span class="sr-only">Its place in the gallery</span>
+                                                    <span class="sr-only">{{ $image->alt ?: 'This picture' }}'s place in the gallery</span>
                                                     <input type="number" name="order[{{ $image->id }}]" min="0" max="{{ $maxGalleryImages }}"
                                                            value="{{ $failed ? old('order.'.$image->id, $place) : $place }}"
                                                            class="{{ $input }} mt-0 px-1.5 py-0.5 text-center text-xs">
@@ -288,7 +288,7 @@
                             <form method="POST" action="{{ route('seller.store.sections.destroy', $section) }}">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="{{ $secondarySmall }}">Remove</button>
+                                <button type="submit" class="{{ $secondarySmall }}">Remove<span class="sr-only"> {{ $section->kind->label() }} section</span></button>
                             </form>
                         </div>
                     @empty
