@@ -50,9 +50,7 @@ final readonly class FulfillmentLanes
     public function pane(Seller $seller, LaneFilter $lane, ?Fulfillment $open = null): OrderPane
     {
         $window = ListPaneWindow::of($this->query($seller, $lane), $open);
-
-        /** @var list<Fulfillment> $fulfillments */
-        $fulfillments = $window->items->all();
+        $fulfillments = array_values($window->items->all());
         $notes = $this->notes(array_map(fn (Fulfillment $fulfillment): string => $fulfillment->id, $fulfillments));
 
         $rows = array_map(fn (Fulfillment $fulfillment): OrderRow => new OrderRow(

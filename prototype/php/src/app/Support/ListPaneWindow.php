@@ -13,13 +13,15 @@ use Illuminate\Database\Eloquent\Model;
  * follow-up): at most SIZE rows off an already-filtered, already-ordered
  * query, without losing the row a show route has open when it sorts outside
  * that window, and without hiding how many rows exist beyond it.
+ *
+ * @template TModel of Model
  */
 final readonly class ListPaneWindow
 {
     public const int SIZE = 50;
 
     /**
-     * @param  Collection<int, Model>  $items
+     * @param  Collection<int, TModel>  $items
      */
     private function __construct(
         public Collection $items,
@@ -27,10 +29,11 @@ final readonly class ListPaneWindow
     ) {}
 
     /**
-     * @template TModel of Model
+     * @template TQueried of Model
      *
-     * @param  Builder<TModel>  $query  already filtered and ordered; read via a count and a capped fetch, neither mutated on the caller's copy
-     * @param  TModel|null  $mustInclude  the item the current page has open, guaranteed a place in `items` with a single extra fetch when the window would otherwise have left it out
+     * @param  Builder<TQueried>  $query  already filtered and ordered; read via a count and a capped fetch, neither mutated on the caller's copy
+     * @param  TQueried|null  $mustInclude  the item the current page has open, guaranteed a place in `items` with a single extra fetch when the window would otherwise have left it out
+     * @return self<TQueried>
      */
     public static function of(Builder $query, ?Model $mustInclude = null): self
     {
@@ -45,7 +48,10 @@ final readonly class ListPaneWindow
             }
         }
 
-        return new self($items, $total);
+        /** @var self<TQueried> $window */
+        $window = new self($items, $total);
+
+        return $window;
     }
 
     /**
