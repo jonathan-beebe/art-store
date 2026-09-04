@@ -109,6 +109,20 @@ class Fulfillment extends Model
     }
 
     /**
+     * The most recently completed step on this parcel, read as one grouped
+     * subquery rather than the whole log — {@see \App\Seller\FulfillmentLanes}
+     * eager-loads it across a pane's whole page in one query.
+     *
+     * @return HasOne<FulfillmentEvent, $this>
+     */
+    public function latestCompletedStep(): HasOne
+    {
+        return $this->hasOne(FulfillmentEvent::class)
+            ->where('kind', FulfillmentEventKind::StepCompleted)
+            ->latestOfMany('occurred_at');
+    }
+
+    /**
      * The admin fulfillments list, narrowed to one status. A null filter adds
      * no clause, which is what the console's "All statuses" submits.
      *
@@ -133,6 +147,50 @@ class Fulfillment extends Model
         if ($sellerId !== null) {
             $query->where('seller_id', $sellerId);
         }
+    }
+
+    /**
+     * A fulfillment the seller portal still rolls up as ongoing business:
+     * not declined, not refunded — {@see FulfillmentStatus::isLive()}.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function live(Builder $query): void
+    {
+        // Named so a caller that has also joined `orders` — which carries a
+        // status column of its own — reads an unambiguous clause.
+        $query->whereIn('fulfillments.status', self::liveStatuses());
+    }
+
+    /**
+     * The statuses {@see live} filters to — named separately so a query
+     * built inside a `whereHas` closure can reach it as a plain `whereIn`,
+     * the way {@see Order::paidStatuses()} does for orders.
+     *
+     * @return list<FulfillmentStatus>
+     */
+    public static function liveStatuses(): array
+    {
+        return array_values(array_filter(
+            FulfillmentStatus::cases(),
+            fn (FulfillmentStatus $status): bool => $status->isLive(),
+        ));
+    }
+
+    /**
+     * The parcels every seller figure counts: still live, on an order that
+     * has been paid. A fulfillment row exists from the moment an order is
+     * placed, before a card is even charged, so the paid gate is what keeps
+     * an abandoned checkout out of a seller's buyers, sales, and totals.
+     *
+     * @param  Builder<$this>  $query
+     */
+    #[Scope]
+    protected function counted(Builder $query): void
+    {
+        $query->whereIn('fulfillments.status', self::liveStatuses())
+            ->whereHas('order', fn (Builder $orders): Builder => $orders->whereIn('status', Order::paidStatuses()));
     }
 
     /**
