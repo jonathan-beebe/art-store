@@ -6,6 +6,8 @@ namespace App\Domain\Seller;
 
 /**
  * The customers table's seven sortable columns.
+ *
+ * @implements SortableColumn<CustomerRow>
  */
 enum CustomerSortColumn: string implements SortableColumn
 {
@@ -39,8 +41,12 @@ enum CustomerSortColumn: string implements SortableColumn
         };
     }
 
-    /** The value one row sorts by on this column. */
-    public function keyOf(CustomerRow $row): int|string
+    /**
+     * The value one row sorts by on this column.
+     *
+     * @param  CustomerRow  $row
+     */
+    public function keyOf(object $row): int|string
     {
         return match ($this) {
             self::Name => mb_strtolower($row->name),

@@ -6,10 +6,11 @@ namespace App\Http\Requests\Seller;
 
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Seller\ActivityKind;
+use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerSegment;
-use App\Domain\Seller\CustomerSort;
 use App\Domain\Seller\CustomerSortColumn;
 use App\Domain\Seller\SortDirection;
+use App\Domain\Seller\TableSort;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -71,15 +72,17 @@ final class CustomersQueryRequest extends FormRequest
         return $this->enum('segment', CustomerSegment::class) ?? CustomerSegment::default();
     }
 
-    /** Any `sort` or `dir` in the query sets the sort; neither present keeps the default. */
-    public function sort(): CustomerSort
+    /**
+     * Any `sort` or `dir` in the query sets the sort; neither present keeps the default.
+     *
+     * @return TableSort<CustomerRow>
+     */
+    public function sort(): TableSort
     {
         $column = $this->enum('sort', CustomerSortColumn::class);
         $direction = $this->enum('dir', SortDirection::class);
 
-        return $column === null && $direction === null
-            ? CustomerSort::default()
-            : CustomerSort::of($column ?? CustomerSortColumn::Spent, $direction ?? SortDirection::Desc);
+        return TableSort::of($column ?? CustomerSortColumn::Spent, $direction ?? SortDirection::Desc);
     }
 
     /** The timeline's filter. Absent is the whole feed. */

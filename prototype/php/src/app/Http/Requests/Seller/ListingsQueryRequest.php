@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Requests\Seller;
 
 use App\Domain\Analytics\AnalyticsRange;
-use App\Domain\Seller\ListingSort;
 use App\Domain\Seller\ListingSortColumn;
+use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingView;
 use App\Domain\Seller\SortDirection;
+use App\Domain\Seller\TableSort;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -68,15 +69,17 @@ final class ListingsQueryRequest extends FormRequest
         return $this->enum('from', ListingView::class);
     }
 
-    /** Any `sort` or `dir` in the query sets the sort; neither present keeps the default. */
-    public function sort(): ListingSort
+    /**
+     * Any `sort` or `dir` in the query sets the sort; neither present keeps the default.
+     *
+     * @return TableSort<ListingTableRow>
+     */
+    public function sort(): TableSort
     {
         $column = $this->enum('sort', ListingSortColumn::class);
         $direction = $this->enum('dir', SortDirection::class);
 
-        return $column === null && $direction === null
-            ? ListingSort::default()
-            : ListingSort::of($column ?? ListingSortColumn::Views, $direction ?? SortDirection::Desc);
+        return TableSort::of($column ?? ListingSortColumn::Views, $direction ?? SortDirection::Desc);
     }
 
     public function rangeDays(): int

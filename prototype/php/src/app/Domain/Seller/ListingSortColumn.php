@@ -6,6 +6,8 @@ namespace App\Domain\Seller;
 
 /**
  * The seller listings table's eleven sortable columns.
+ *
+ * @implements SortableColumn<ListingTableRow>
  */
 enum ListingSortColumn: string implements SortableColumn
 {
@@ -49,8 +51,10 @@ enum ListingSortColumn: string implements SortableColumn
      * yet reads as the lowest conversion, keeping it in the order;
      * made-to-order stock (a null quantity) reads as unlimited, so it
      * sorts above every counted number.
+     *
+     * @param  ListingTableRow  $row
      */
-    public function keyOf(ListingTableRow $row): int|float|string
+    public function keyOf(object $row): int|float|string
     {
         return match ($this) {
             self::Title => mb_strtolower($row->title),

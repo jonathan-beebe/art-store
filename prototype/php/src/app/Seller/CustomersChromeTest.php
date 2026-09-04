@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Seller\CustomerSegment;
-use App\Domain\Seller\CustomerSort;
 use App\Domain\Seller\CustomerSortColumn;
 use App\Domain\Seller\SortDirection;
+use App\Domain\Seller\TableSort;
 use RuntimeException;
 
 /**
@@ -39,7 +39,7 @@ function customerHeaderFor(array $headers, CustomerSortColumn $column): ColumnHe
 }
 
 it('links one segment button per segment, marking the one in force', function (): void {
-    $chrome = CustomersChrome::build([], CustomerSegment::Repeat, CustomerSort::default());
+    $chrome = CustomersChrome::build([], CustomerSegment::Repeat, TableSort::of(CustomerSortColumn::Spent, SortDirection::Desc));
 
     expect($chrome->segments)->toHaveCount(3)
         ->and(segmentLinkFor($chrome->segments, CustomerSegment::Repeat)->active)->toBeTrue()
@@ -51,7 +51,7 @@ it('carries the sort through a segment link and the segment through a sort link'
     $chrome = CustomersChrome::build(
         ['segment' => 'repeat', 'sort' => 'orders', 'dir' => 'asc'],
         CustomerSegment::Repeat,
-        CustomerSort::of(CustomerSortColumn::Orders, SortDirection::Asc),
+        TableSort::of(CustomerSortColumn::Orders, SortDirection::Asc),
     );
 
     $newSegment = segmentLinkFor($chrome->segments, CustomerSegment::New);
@@ -64,21 +64,21 @@ it('carries the sort through a segment link and the segment through a sort link'
 });
 
 it('flips the sorted column and opens every other one descending', function (): void {
-    $chrome = CustomersChrome::build([], CustomerSegment::All, CustomerSort::of(CustomerSortColumn::Orders, SortDirection::Desc));
+    $chrome = CustomersChrome::build([], CustomerSegment::All, TableSort::of(CustomerSortColumn::Orders, SortDirection::Desc));
 
     expect(customerHeaderFor($chrome->columnHeaders, CustomerSortColumn::Orders)->href)->toContain('dir=asc')
         ->and(customerHeaderFor($chrome->columnHeaders, CustomerSortColumn::Spent)->href)->toContain('dir=desc');
 });
 
 it('marks the sorted column alone with an aria-sort value', function (): void {
-    $chrome = CustomersChrome::build([], CustomerSegment::All, CustomerSort::of(CustomerSortColumn::Name, SortDirection::Asc));
+    $chrome = CustomersChrome::build([], CustomerSegment::All, TableSort::of(CustomerSortColumn::Name, SortDirection::Asc));
 
     expect(customerHeaderFor($chrome->columnHeaders, CustomerSortColumn::Name)->ariaSort)->toBe('ascending')
         ->and(customerHeaderFor($chrome->columnHeaders, CustomerSortColumn::Spent)->ariaSort)->toBe('none');
 });
 
 it('carries one header per column, in the order the table renders them', function (): void {
-    $chrome = CustomersChrome::build([], CustomerSegment::All, CustomerSort::default());
+    $chrome = CustomersChrome::build([], CustomerSegment::All, TableSort::of(CustomerSortColumn::Spent, SortDirection::Desc));
 
     expect(array_map(fn (ColumnHeader $header): string => $header->column->label(), $chrome->columnHeaders))
         ->toBe(['Customer', 'Orders', 'Spent', 'Favorites', 'Last order', 'Conversations', 'Since']);

@@ -6,8 +6,8 @@ namespace App\Http\Controllers\Seller;
 
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Seller\CustomerRow;
-use App\Domain\Seller\CustomerTableSort;
 use App\Domain\Seller\CustomerTally;
+use App\Domain\Seller\RowSort;
 use App\Http\Requests\Seller\CustomersQueryRequest;
 use App\Models\Conversation;
 use App\Models\Customer;
@@ -42,7 +42,7 @@ final class CustomerController extends SellerController
         $counts = SellerCustomers::conversationCounts($seller);
 
         return view('seller.customers.index', [
-            'rows' => CustomerTableSort::apply($sort, $segment->apply($rows, $range->start)),
+            'rows' => RowSort::apply($sort, $segment->apply($rows, $range->start), fn (CustomerRow $row): string => $row->customerId),
             'tally' => CustomerTally::of($rows, $range->start, $counts->open, $counts->unread),
             'chrome' => CustomersChrome::build($request->roundTripped(), $segment, $sort),
             'rangeDays' => $range->days,

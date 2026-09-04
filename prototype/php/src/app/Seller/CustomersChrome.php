@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
+use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerSegment;
-use App\Domain\Seller\CustomerSort;
 use App\Domain\Seller\CustomerSortColumn;
+use App\Domain\Seller\TableSort;
 
 /**
  * The customers table's header: the segment control and the sortable
@@ -18,19 +19,21 @@ final readonly class CustomersChrome
 {
     /**
      * @param  list<SegmentLink>  $segments
+     * @param  TableSort<CustomerRow>  $sort
      * @param  list<ColumnHeader>  $columnHeaders
      */
     private function __construct(
         public CustomerSegment $segment,
         public array $segments,
-        public CustomerSort $sort,
+        public TableSort $sort,
         public array $columnHeaders,
     ) {}
 
     /**
      * @param  array<string, string>  $roundTripped  the query the index route was reached with
+     * @param  TableSort<CustomerRow>  $sort
      */
-    public static function build(array $roundTripped, CustomerSegment $segment, CustomerSort $sort): self
+    public static function build(array $roundTripped, CustomerSegment $segment, TableSort $sort): self
     {
         return new self(
             segment: $segment,
@@ -60,9 +63,10 @@ final readonly class CustomersChrome
      * every other one opens descending.
      *
      * @param  array<string, string>  $roundTripped
+     * @param  TableSort<CustomerRow>  $sort
      * @return list<ColumnHeader>
      */
-    private static function columnHeaders(array $roundTripped, CustomerSort $sort): array
+    private static function columnHeaders(array $roundTripped, TableSort $sort): array
     {
         $without = collect($roundTripped)->except(['sort', 'dir'])->all();
 

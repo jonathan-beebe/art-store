@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
-use App\Domain\Seller\ListingSort;
 use App\Domain\Seller\ListingSortColumn;
+use App\Domain\Seller\ListingTableRow;
 use App\Domain\Seller\ListingView;
+use App\Domain\Seller\TableSort;
 
 /**
  * The listings header every view shares: the view switch, and, on table
@@ -19,6 +20,7 @@ final readonly class ListingsChrome
 {
     /**
      * @param  list<ViewLink>  $viewLinks
+     * @param  TableSort<ListingTableRow>  $sort
      * @param  list<ListingSortColumn>  $sortOptions
      * @param  list<ColumnHeader>  $columnHeaders
      * @param  array<string, string>  $sortFormFields
@@ -26,7 +28,7 @@ final readonly class ListingsChrome
     private function __construct(
         public ListingView $view,
         public array $viewLinks,
-        public ListingSort $sort,
+        public TableSort $sort,
         public array $sortOptions,
         public array $columnHeaders,
         public array $sortFormFields,
@@ -38,8 +40,9 @@ final readonly class ListingsChrome
      *                                               {@see \App\Http\Requests\Seller\ListingsQueryRequest::roundTripped()},
      *                                               or that plus the view `from` resolved to on the detail route,
      *                                               whose own query carries `from`.
+     * @param  TableSort<ListingTableRow>  $sort
      */
-    public static function build(array $roundTripped, ListingView $view, ListingSort $sort): self
+    public static function build(array $roundTripped, ListingView $view, TableSort $sort): self
     {
         return new self(
             view: $view,
@@ -82,9 +85,10 @@ final readonly class ListingsChrome
 
     /**
      * @param  array<string, string>  $roundTripped
+     * @param  TableSort<ListingTableRow>  $sort
      * @return list<ColumnHeader>
      */
-    private static function columnHeaders(array $roundTripped, ListingSort $sort): array
+    private static function columnHeaders(array $roundTripped, TableSort $sort): array
     {
         $without = collect($roundTripped)->except(['sort', 'dir'])->all();
 

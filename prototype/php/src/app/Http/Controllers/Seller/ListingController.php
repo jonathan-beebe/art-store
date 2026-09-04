@@ -19,8 +19,8 @@ use App\Domain\Listings\ListingCreationShape;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Domain\Seller\ListingTableRow;
-use App\Domain\Seller\ListingTableSort;
 use App\Domain\Seller\ListingView;
+use App\Domain\Seller\RowSort;
 use App\Http\Requests\Seller\ListingRequest;
 use App\Http\Requests\Seller\ListingsQueryRequest;
 use App\Models\Listing;
@@ -62,7 +62,7 @@ final class ListingController extends SellerController
         }
 
         $range = AnalyticsRange::of($request->rangeDays(), $this->now());
-        $rows = ListingTableSort::apply($sort, ListingTable::forSeller($this->seller(), $range));
+        $rows = RowSort::apply($sort, ListingTable::forSeller($this->seller(), $range), fn (ListingTableRow $row): string => $row->id);
 
         return view('seller.listings.index', [
             'chrome' => $chrome,
@@ -156,7 +156,7 @@ final class ListingController extends SellerController
         // One read of the seller's rows serves both the workspace behind
         // the overlay and the opened listing's own detail, so a listing's
         // sold, revenue, and ranged counts are read once, not twice.
-        $rows = ListingTableSort::apply($sort, ListingTable::forSeller($this->seller(), $range));
+        $rows = RowSort::apply($sort, ListingTable::forSeller($this->seller(), $range), fn (ListingTableRow $row): string => $row->id);
         $detail = $this->detailData($listing, $range, self::rowFor($rows, $listing, $range));
 
         return view('seller.listings.detail-overlay', [
