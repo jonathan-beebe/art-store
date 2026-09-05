@@ -54,6 +54,8 @@ it('derives each lines domain from its own requests opening line path', function
         Fixtures::line(['request_id' => 'req_shop_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
         Fixtures::line(['request_id' => 'req_health_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /up', 'data' => ['method' => 'GET', 'path' => '/up']]),
         Fixtures::line(['request_id' => 'req_events_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /events', 'data' => ['method' => 'GET', 'path' => '/events']]),
+        Fixtures::line(['request_id' => 'req_mcp_root', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'POST /mcp', 'data' => ['method' => 'POST', 'path' => '/mcp']]),
+        Fixtures::line(['request_id' => 'req_mcp_root', 'msg' => 'mcp body line']),
         Fixtures::line(['request_id' => null, 'msg' => 'orphan, no request id']),
     ]);
 
@@ -65,6 +67,7 @@ it('derives each lines domain from its own requests opening line path', function
     expect($msgsFor(LogDomain::Admin))->toEqualCanonicalizing(['GET /admin/orders', 'admin body line', 'GET /admin']);
     expect($msgsFor(LogDomain::Seller))->toEqualCanonicalizing(['GET /seller/listings', 'GET /seller']);
     expect($msgsFor(LogDomain::Shop))->toEqualCanonicalizing(['GET /checkout']);
+    expect($msgsFor(LogDomain::Mcp))->toEqualCanonicalizing(['POST /mcp', 'mcp body line']);
 });
 
 it('hides a health-check requests lines by default, shows them with health=1, and composes with domain', function (): void {
@@ -79,6 +82,20 @@ it('hides a health-check requests lines by default, shows them with health=1, an
         ->and($query->count(new LogRowFilters(hideHealth: false)))->toBe(4)
         ->and($query->count(new LogRowFilters(domain: LogDomain::Shop)))->toBe(1)
         ->and($query->count(new LogRowFilters(domain: LogDomain::Shop, hideHealth: false)))->toBe(1);
+});
+
+it('hides the MCP endpoints own requests by default, shows them with mcp=1 or domain=mcp', function (): void {
+    $query = Fixtures::query([
+        Fixtures::line(['request_id' => 'req_mcp', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'POST /mcp', 'data' => ['method' => 'POST', 'path' => '/mcp']]),
+        Fixtures::line(['request_id' => 'req_mcp', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'POST /mcp 200', 'data' => ['status' => 200]]),
+        Fixtures::line(['request_id' => 'req_shop', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
+        Fixtures::line(['request_id' => null, 'msg' => 'boot line, no request id']),
+    ]);
+
+    expect($query->count(new LogRowFilters))->toBe(2)
+        ->and($query->count(new LogRowFilters(hideMcp: false)))->toBe(4)
+        ->and($query->count(new LogRowFilters(domain: LogDomain::Mcp)))->toBe(2)
+        ->and($query->count(new LogRowFilters(domain: LogDomain::Shop, hideMcp: false)))->toBe(1);
 });
 
 it('hides the log viewers own requests by default, shows them with viewer=1, and composes with domain', function (): void {

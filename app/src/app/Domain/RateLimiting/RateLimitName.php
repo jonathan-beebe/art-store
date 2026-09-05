@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\RateLimiting;
 
 /**
- * The seven limits of docs/spec.md §3. Each case names its own env
+ * The eight limits of docs/spec.md §3. Each case names its own env
  * variable and default, so `config/rate_limits.php` reads them from here
  * instead of repeating the table as a second, driftable copy.
  */
@@ -18,6 +18,7 @@ enum RateLimitName: string
     case Checkout = 'checkout';
     case PaymentAttempt = 'payment_attempt';
     case ListingWrite = 'listing_write';
+    case McpRequest = 'mcp_request';
 
     public function envVariable(): string
     {
@@ -29,6 +30,7 @@ enum RateLimitName: string
             self::Checkout => 'RATE_LIMIT_CHECKOUT',
             self::PaymentAttempt => 'RATE_LIMIT_PAYMENT_ATTEMPT',
             self::ListingWrite => 'RATE_LIMIT_LISTING_WRITE',
+            self::McpRequest => 'RATE_LIMIT_MCP_REQUEST',
         };
     }
 
@@ -42,6 +44,7 @@ enum RateLimitName: string
             self::Checkout => '10/1h',
             self::PaymentAttempt => '5/15m',
             self::ListingWrite => '60/1h',
+            self::McpRequest => '600/1h',
         };
     }
 }

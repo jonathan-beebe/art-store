@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Console\Commands\MintMcpKey;
 use App\Console\Commands\RunWeeklyPayouts;
 use App\Console\Commands\SeedActivity;
 use App\Console\Commands\SweepOrders;
@@ -31,7 +32,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
     // Named explicitly rather than left to the default directory scan:
     // `App\Console\Kernel` (bound below) is what turns that scan off, and
     // this is what fills the gap it leaves — see the class's docblock.
-    ->withCommands([RunWeeklyPayouts::class, SweepOrders::class, SeedActivity::class])
+    ->withCommands([RunWeeklyPayouts::class, SweepOrders::class, SeedActivity::class, MintMcpKey::class])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Http\LoggedRequestBody;
 use App\Logging\StoryEvent;
 use App\Support\DataRedaction;
 use App\Support\DbActivity;
@@ -92,6 +93,9 @@ final readonly class LogRequestStory
             // every other `data` field (§2.2) — a visitor's own typing, not
             // a fact the story wrote for itself.
             'query' => DataRedaction::redact($request->query()),
+            // And to the body, which is the same person's typing —
+            // `LoggedRequestBody` names what it leaves out.
+            'body' => LoggedRequestBody::of($request),
         ]));
 
         try {

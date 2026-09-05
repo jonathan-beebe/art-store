@@ -14,6 +14,7 @@ it('names its own env variable per limit', function (RateLimitName $limit, strin
     'checkout' => [RateLimitName::Checkout, 'RATE_LIMIT_CHECKOUT'],
     'payment_attempt' => [RateLimitName::PaymentAttempt, 'RATE_LIMIT_PAYMENT_ATTEMPT'],
     'listing_write' => [RateLimitName::ListingWrite, 'RATE_LIMIT_LISTING_WRITE'],
+    'mcp_request' => [RateLimitName::McpRequest, 'RATE_LIMIT_MCP_REQUEST'],
 ]);
 
 it('holds the default docs/spec.md §3 names for every limit when unset', function (RateLimitName $limit, string $default): void {
@@ -26,4 +27,5 @@ it('holds the default docs/spec.md §3 names for every limit when unset', functi
     'checkout' => [RateLimitName::Checkout, '10/1h'],
     'payment_attempt' => [RateLimitName::PaymentAttempt, '5/15m'],
     'listing_write' => [RateLimitName::ListingWrite, '60/1h'],
+    'mcp_request' => [RateLimitName::McpRequest, '600/1h'],
 ]);

@@ -30,6 +30,7 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Http/Requests/Admin',
     '../app/Http/Requests/Seller',
     '../app/Listeners',
+    '../app/Mcp',
     '../app/Models',
     '../app/Notifications',
     '../app/Observers',
@@ -52,6 +53,7 @@ pest()->extend(Tests\TestCase::class)->in('../app/Logging', '../routes', 'Databa
 
 pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Controllers/Auth',
+    '../app/Http/LoggedRequestBodyTest.php',
     '../app/Http/Middleware',
     '../app/Http/Requests/Auth',
     '../database/seeders',

@@ -41,6 +41,7 @@ Prefix table (one prefix per domain table):
 | Table                                     | Prefix |
 | ----------------------------------------- | ------ |
 | admins                                    | `adm`  |
+| api_keys                                  | `key`  |
 | sellers                                   | `sel`  |
 | customers                                 | `cus`  |
 | customer_merges                           | `cmg`  |
@@ -171,10 +172,16 @@ carrying `method`, `path`, and — when the URL has one — the query string as
 carries `status` and `duration_ms` in `data`, and also
 `data.db = {queries: <int>, total_ms: <number>}` — how many queries the
 request ran and their summed time in milliseconds (rounded to two decimal
-places), zero of each when none ran. `data.path` stays the bare path, so
+places), zero of each when none ran. A request with a body carries it on
+the `will` line as `data.body`, an object of every field a form or a JSON
+client sent: the framework's `_token` and `_method` left out, the card
+fields (`card_number`, `card_expiry`, `card_cvc`) dropped by name, each
+upload reduced to `{file, bytes}`, and every string value capped at 500
+characters with a trailing `…`. `POST /mcp` carries no body — its
+`mcp.call` line (§2.3) already carries the arguments. `data.path` stays the bare path, so
 path-prefix rules (the log viewer's domain buckets) read one field.
-The §2.1 redaction rule applies to `data.query` the way it applies to every
-`data` field. Every request story closes exactly once, however the connection ends.
+The §2.1 redaction rule applies to `data.query` and `data.body` the way it
+applies to every `data` field. Every request story closes exactly once, however the connection ends.
 
 Example, one checkout:
 
@@ -221,6 +228,12 @@ app emits every event below that its features support.
 | `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
 | `rate_limit.exceed`                                                     | any limit trip (`warn`), `data` carries `limit`, `key`,                  |
 |                                                                         | `retry_after_seconds`                                                    |
+| `mcp.call`                                                              | every JSON-RPC message `POST /mcp` receives (§5.1): `will` before the    |
+|                                                                         | key is checked, `data` carrying `method`, `rpc_id`, `tool` or           |
+|                                                                         | `resource`, and a tool's `arguments` (redacted per §2.1); `did` with     |
+|                                                                         | `status`, `key_id`, and `outcome` (`ok` \| `tool_error` \| `rpc_error` |
+|                                                                         | \| `streamed` \| `unreadable`); `refused` at `warn` when the key was   |
+|                                                                         | missing, malformed, unknown, revoked, or over its limit                  |
 | `query.exceed`                                                          | any DB query slower than `LOG_SLOW_QUERY_MS` (`warn`), `data` carries    |
 |                                                                         | `source`, `duration_ms`, `sql`, `threshold_ms`                           |
 | `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
@@ -612,6 +625,9 @@ edit write no log line; the appended row is the record.
 |                                                                         | viewer's own requests hidden by default; a visit with no query string    |
 |                                                                         | redirects to `?domain=shop&group=1`                                      |
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
+| `/admin/settings/api-keys`, `POST /admin/settings/api-keys`,            | the signed-in admin's own MCP api keys, newest first; mint one by name   |
+| `POST /admin/settings/api-keys/:id/revoke`                              | (the plaintext shown once, on the page after the redirect); revoke one   |
+|                                                                         | (another admin's answers 404)                                            |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
 | `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread, filtered by `domain=`        |
@@ -633,14 +649,16 @@ Decisions carried by this table:
   (`data.order_id`); alone it filters for the attribute's existence, with
   `value` for equality on it.
 - `/admin/logs`'s `domain` selects one site's requests — `shop` | `seller` |
-  `admin`, derived from the request's opening line's path at segment
-  boundaries, the shop bucket excluding the health-probe path. The health
+  `admin` | `mcp`, derived from the request's opening line's path at segment
+  boundaries, the shop bucket excluding the health-probe path and `/mcp`. The health
   probe lives at Laravel's built-in `/up`, which the
   viewer names. `group=1` renders one summarized row
   per request and pages count groups. Health-check requests (the probe
-  path, exact) are hidden unless `health=1`, and the viewer's own requests
+  path, exact) are hidden unless `health=1`, the viewer's own requests
   (path `/admin/logs` at a segment boundary, the story view included) are
-  hidden unless `viewer=1`; the level tallies count the visible set. The
+  hidden unless `viewer=1`, and the MCP endpoint's own requests (path
+  `/mcp`, exact) are hidden unless `mcp=1` or `domain=mcp`; the level
+  tallies count the visible set. The
   story view ignores all of it — a request stays addressable by id.
 - `/admin/logs` ids are filter links: a line's request, transaction,
   session, and actor ids apply that filter in place, carrying the other
@@ -668,6 +686,39 @@ Decisions carried by this table:
   tile's end-to-end conversion is the last step's sessions over visitors,
   "—" rather than a division when the range held no visitors.
 
+### 5.1 MCP endpoint
+
+`POST /mcp` hosts a Model Context Protocol server (`laravel/mcp`) over the
+same readers the admin pages call, read-only: the `/admin/logs` filters as
+`search-logs`, `show-request`, and `tally-logs`; the `/admin/analytics`
+tables as `analytics-events`, `analytics-channels`, `analytics-actors`, and
+`trace-analytics`; and `describe` (also the `artstore://guide` resource),
+which answers every tool and the whole filter vocabulary from the enums that
+validate it. Rules:
+
+- One bearer api key per row of `api_keys` (prefix `key`), owned by an
+  admin; the plaintext is `artstore_` plus forty alphanumerics, stored as
+  its sha256 digest and shown once, when minted — on `/admin/settings/api-keys`
+  by the admin themself, or by `mcp:key` (`make mcp-key`) from the CLI. An
+  admin sees and revokes their own keys alone. A revoked key stays as a
+  record and never authenticates again.
+- The key's admin is the request's actor: signed in on the `admin` guard
+  for the request, named on its log lines. An admin's key reads everything
+  the admin site reads.
+- A missing, malformed, unknown, or revoked key answers 401 as JSON with a
+  bearer challenge; GET and DELETE on the path answer 405. The route sits
+  outside the `web` group: no session, no CSRF.
+- Every call spends `mcp_request` (§3).
+- Every message is an `mcp.call` line pair (§2.3), a refused key a `warn`,
+  so every access — and every attempt — is on the record.
+- The endpoint's own requests are hidden from the log viewer and the log
+  tools by default (`mcp=1` / `include_mcp`, or `domain=mcp`), the way the
+  viewer's own requests are.
+- A tool answers `structuredContent` JSON with the same text in `content`;
+  a value outside the vocabulary answers a tool error naming the field.
+
+See `app/docs/mcp.md`.
+
 ## 6. Workflows
 
 ### 6.1 Make vocabulary
@@ -693,6 +744,7 @@ Decisions carried by this table:
 | `seed-activity`                | fill a `make fresh`-seeded database with a deterministic ninety-plus day ramp of store      |
 |                                | activity, local dev only                                                                    |
 | `routes`                       | print the route table                                                                       |
+| `mcp-key`                      | mint an MCP api key for an admin and print it once (`EMAIL=` required, `NAME=` optional)    |
 | `payouts`, `sweep`             | the scheduled jobs, by hand (`AS_OF=` for `payouts`)                                        |
 | `outbox`                       | prints that the app has no outbox — notifications are in-app, rendered from the database    |
 |                                | channel                                                                                     |

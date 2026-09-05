@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\Analytics\EventController;
 use App\Http\Controllers\Admin\Analytics\FunnelController as AnalyticsFunnelController;
 use App\Http\Controllers\Admin\Analytics\ListingController as AnalyticsListingController;
 use App\Http\Controllers\Admin\Analytics\StoreController as AnalyticsStoreController;
+use App\Http\Controllers\Admin\ApiKeyController;
 use App\Http\Controllers\Admin\CustomerBlockController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\CustomerMessageController;
@@ -30,6 +31,7 @@ use App\Http\Controllers\Admin\PayoutController;
 use App\Http\Controllers\Admin\RefundController;
 use App\Http\Controllers\Admin\ReopenConversationController;
 use App\Http\Controllers\Admin\ResolveConversationController;
+use App\Http\Controllers\Admin\RevokeApiKeyController;
 use App\Http\Controllers\Admin\RunPayoutController;
 use App\Http\Controllers\Admin\SellerController;
 use App\Http\Controllers\Admin\SellerMessageController;
@@ -85,6 +87,10 @@ Route::prefix('admin')->name('admin.')->middleware('auth.admin')->group(function
     Route::post('messages/{conversation}', [MessageController::class, 'store'])->name('messages.store');
     Route::post('messages/{conversation}/resolve', ResolveConversationController::class)->name('messages.resolve');
     Route::post('messages/{conversation}/reopen', ReopenConversationController::class)->name('messages.reopen');
+
+    Route::get('settings/api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
+    Route::post('settings/api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
+    Route::post('settings/api-keys/{apiKey}/revoke', RevokeApiKeyController::class)->name('api-keys.revoke');
 
     Route::get('logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('logs/requests/{requestId}', [LogController::class, 'show'])

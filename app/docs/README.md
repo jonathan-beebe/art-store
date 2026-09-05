@@ -25,6 +25,8 @@
 | [`data-model.md`](data-model.md)     | ER diagram generated from `database/migrations/`.                                                           |
 | [`item-configurator.md`](item-configurator.md) | The item configurator: taxonomy, option axes, sparse variants, serialized units, scoped modifiers, |
 |                                      | quantity breaks; price/availability resolution; seller and customer flows; what v1 defers.                  |
+| [`mcp.md`](mcp.md)                   | The MCP endpoint: `POST /mcp` behind an admin's api key, the tools over the log and analytics readers, and |
+|                                      | the self-describing guide.                                                                                 |
 | [`ontology.md`](ontology.md)         | Every entity in the product: who/what it is, why it exists, its lifecycle, and its relationships. One       |
 |                                      | concept-level diagram.                                                                                      |
 

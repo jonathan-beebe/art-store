@@ -44,6 +44,22 @@ it('carries the query parameters on the opening line, and omits the key without 
     ]);
 });
 
+it('carries a POST body on the opening line, minus the forgery token, and none on a read', function (): void {
+    $log = CapturedStory::capture();
+
+    $this->post('/auth/customer/login', ['_token' => 'csrf', 'email' => 'harry@hogwarts.example', 'remember' => '1']);
+
+    /** @var array<string, mixed> $data */
+    $data = $log->line('http.request', 'will')['data'];
+
+    expect($data['body'])->toBe(['email' => '[redacted]', 'remember' => '1']);
+
+    $log = CapturedStory::capture();
+    $this->get('/');
+
+    expect($log->line('http.request', 'will')['data'])->not->toHaveKey('body');
+});
+
 it('redacts a query parameter shaped like an email address', function (): void {
     $log = CapturedStory::capture();
 

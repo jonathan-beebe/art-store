@@ -16,8 +16,10 @@ use App\Listeners\NotifyOfMessage;
 use App\Listeners\NotifyOfRefund;
 use App\Listeners\NotifySellerOfSale;
 use App\Models\Admin;
+use App\Models\ApiKey;
 use App\Models\Customer;
 use App\Models\Seller;
+use App\Policies\ApiKeyPolicy;
 use App\Policies\NotificationPolicy;
 use App\Support\CustomerIdentity;
 use App\View\Composers\AdminLayoutComposer;
@@ -57,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         // The inbox rows are the framework's model, so the policy that guards
         // them is registered rather than discovered.
         Gate::policy(DatabaseNotification::class, NotificationPolicy::class);
+        Gate::policy(ApiKey::class, ApiKeyPolicy::class);
 
         // What each business moment tells someone. Every listener implements
         // ShouldHandleEventsAfterCommit, so nothing is sent for a transaction

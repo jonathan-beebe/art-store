@@ -190,7 +190,7 @@ layer, rendering the "store unavailable" state instead. Filters, summarized
 live in [`docs/logging.md`](../../docs/logging.md) § "Viewer" and its
 subsections, which this implementation matches:
 
-- `domain` — a select over `LogDomain::cases()` (`shop`, `seller`, `admin`),
+- `domain` — a select over `LogDomain::cases()` (`shop`, `seller`, `admin`, `mcp`),
   derived per row via a correlated `EXISTS` against the request's opening
   `http.request` line's `data.path`.
 - `level`, `phase`, `event` — selects built from the `StoryLevel`,
@@ -215,6 +215,9 @@ subsections, which this implementation matches:
   `?domain=` — `domain=admin` alone does not show them. The story view
   itself ignores this filter, so a hidden viewer request's story stays
   addressable by id.
+- `mcp=1` — includes the MCP endpoint's own requests (`/mcp`, exact),
+  hidden by default the same way; `domain=mcp` shows them on its own,
+  since selecting that domain asks for exactly them.
 
 ### Layout: workflow-first, columnar
 

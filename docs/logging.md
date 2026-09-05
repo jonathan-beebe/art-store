@@ -202,9 +202,10 @@ row.
 A stored line carries no site field of its own. `?domain=` derives one from
 the line's request: a query correlated on `request_id` against that
 request's opening `http.request` line, prefix-matching `data.path` —
-`/admin*` and `/seller*` claim their site, the storefront claims the
-unprefixed root. The health-probe path (below) is excluded from the storefront bucket by
-name.
+`/admin*` and `/seller*` claim their site, `/mcp` (the MCP endpoint,
+docs/spec.md §5.1) is its own bucket, the storefront claims the unprefixed
+root. The health-probe path (below) and `/mcp` are excluded from the
+storefront bucket by name.
 A line with no `request_id` matches no domain.
 
 ### The health filter
@@ -243,6 +244,11 @@ independent of `?domain=` — `domain=admin` with `viewer` unset still hides
 them. The story view ignores it, so a viewer request stays addressable by
 id. A line with no `request_id` is never treated as viewer traffic; a
 lookalike path (`/admin/logs-export`) is never hidden.
+
+The MCP endpoint's own requests (opening path `/mcp`, exact) are hidden
+the same way — an agent session's tool calls are the viewer's kind of
+noise — with one difference: `domain=mcp` asks for exactly those requests,
+so it shows them without `mcp=1`.
 
 ### Grouped by request
 

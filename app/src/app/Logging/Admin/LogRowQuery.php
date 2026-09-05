@@ -43,6 +43,10 @@ final readonly class LogRowQuery
      * probe is traffic a founder means by "shop" — excluded by name. */
     private const string SHOP_EXCLUDED_PATH = '/events';
 
+    /** The MCP endpoint (`routes/ai.php`): one POST path, its own domain,
+     * and excluded from `shop` by name the way the events stream is. */
+    private const string MCP_PATH = '/mcp';
+
     /** The columns the any-attribute filter short-circuits to, keyed as a
      * log line names them, so the indexes serve a key that has one. */
     private const array MIRRORED_COLUMNS = [
@@ -242,6 +246,20 @@ final readonly class LogRowQuery
             array_push($params, ...$attributeParams);
         }
 
+        return [[...$conditions, ...$this->hiddenTrafficConditions($filters)], $params];
+    }
+
+    /**
+     * The three kinds of traffic the viewer hides unless asked: the health
+     * probe, its own requests, and the MCP endpoint's — the last one only
+     * while the domain is not `mcp`, which asks for exactly those.
+     *
+     * @return list<string>
+     */
+    private function hiddenTrafficConditions(LogRowFilters $filters): array
+    {
+        $conditions = [];
+
         if ($filters->hideHealth) {
             $conditions[] = 'NOT '.$this->healthCheckSql();
         }
@@ -250,7 +268,11 @@ final readonly class LogRowQuery
             $conditions[] = 'NOT '.$this->viewerRequestSql();
         }
 
-        return [$conditions, $params];
+        if ($filters->hideMcp && $filters->domain !== LogDomain::Mcp) {
+            $conditions[] = 'NOT '.$this->mcpRequestSql();
+        }
+
+        return $conditions;
     }
 
     /**
@@ -317,7 +339,9 @@ final readonly class LogRowQuery
         return match ($domain) {
             LogDomain::Admin => "{$path} = '/admin' OR {$path} LIKE '/admin/%'",
             LogDomain::Seller => "{$path} = '/seller' OR {$path} LIKE '/seller/%'",
+            LogDomain::Mcp => "{$path} = '".self::MCP_PATH."'",
             LogDomain::Shop => "{$path} <> '".self::HEALTH_CHECK_PATH."' AND {$path} <> '".self::SHOP_EXCLUDED_PATH."'
+                AND {$path} <> '".self::MCP_PATH."'
                 AND {$path} <> '/admin' AND {$path} NOT LIKE '/admin/%'
                 AND {$path} <> '/seller' AND {$path} NOT LIKE '/seller/%'",
         };
@@ -360,6 +384,25 @@ final readonly class LogRowQuery
               AND viewerLine.event = 'http.request'
               AND viewerLine.phase = 'will'
               AND ({$path} = '".self::VIEWER_PATH."' OR {$path} LIKE '".self::VIEWER_PATH."/%')
+        )";
+    }
+
+    /**
+     * A line's request opened on the MCP endpoint's path, by the same
+     * correlation, exact — the endpoint is one path. An agent session's
+     * tool calls are the viewer's own kind of noise: hidden by default,
+     * and selected on purpose with `domain=mcp`.
+     */
+    private function mcpRequestSql(): string
+    {
+        $path = "(CASE WHEN json_valid(mcpLine.data) THEN json_extract(mcpLine.data, '$.path') END)";
+
+        return "EXISTS (
+            SELECT 1 FROM log_lines mcpLine
+            WHERE mcpLine.request_id = log_lines.request_id
+              AND mcpLine.event = 'http.request'
+              AND mcpLine.phase = 'will'
+              AND {$path} = '".self::MCP_PATH."'
         )";
     }
 
