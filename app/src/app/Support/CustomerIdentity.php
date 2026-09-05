@@ -42,7 +42,7 @@ final class CustomerIdentity
      *
      * The attribute is written even when the cookie names nobody, so a cookie
      * pointing at a customer that no longer exists is looked up once for the
-     * request rather than once per asker.
+     * request and reused for every asker after.
      */
     public static function fromCookie(Request $request, ResolveCustomerFromCookie $resolve): ?Customer
     {

@@ -18,13 +18,13 @@ use LogicException;
  * (newest breaks the tie), so the picker refreshes as the catalog moves.
  *
  * The count and cover for every medium are drawn from one pass over the
- * medium-tagged for-sale listings rather than a query per medium: every
- * `Medium` attribute row on a for-sale listing is fetched once, each
- * carrying its listing's favorites count, then sorted by the same
- * tie-break rule a single medium's cover would use (favorites desc, then
- * created_at, then id) and grouped by value — a medium's winner is the
- * first row of its group. The query count holds steady as the number of
- * mediums, or the size of the catalogue, grows.
+ * medium-tagged for-sale listings: every `Medium` attribute row on a
+ * for-sale listing is fetched once, each carrying its listing's favorites
+ * count, then sorted by the same tie-break rule a single medium's cover
+ * would use (favorites desc, then created_at, then id) and grouped by
+ * value. A medium's winner is the first row of its group. The query count
+ * holds steady as the number of mediums, or the size of the catalogue,
+ * grows.
  */
 final class MediumBrowse
 {

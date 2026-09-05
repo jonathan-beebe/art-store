@@ -34,7 +34,7 @@ final class LogIdLinks
     /** `cus_01J5X3M9A2K8YB7Q4R6T1V0WZE` → `cus_01J5X3M9`, for a collapsed
      * row's id chips (docs/logging.md's expanded panels and the story view
      * show the full id instead). An id with no `_`, or one already this
-     * short or shorter, renders as given rather than mangled. */
+     * short or shorter, renders as given, not mangled. */
     public static function truncate(string $id): string
     {
         $separator = strpos($id, '_');

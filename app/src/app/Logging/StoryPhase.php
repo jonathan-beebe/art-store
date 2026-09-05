@@ -16,7 +16,7 @@ enum StoryPhase: string
 
     /**
      * The core turned the work down. The world is unchanged, so the reader is
-     * being told a rule held rather than that something broke.
+     * being told a rule held, not that something broke.
      */
     case Refused = 'refused';
 

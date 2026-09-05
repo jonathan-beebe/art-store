@@ -27,9 +27,9 @@ final class PlaceableLineBuilder
     {
         $listing = $item->listing;
         // An order item's own `title` is the snapshot frozen at placement,
-        // read here rather than the listing's live one so a later rename
-        // does not change what a retry's refusal names; a cart item has no
-        // snapshot yet, so it reads the listing's title live, same as today.
+        // so a later rename does not change what a retry's refusal names.
+        // A cart item has no snapshot yet; it reads the listing's title
+        // live, same as today.
         $title = $item instanceof OrderItem ? $item->title : $listing->title;
 
         if (! $item->hasVariant()) {

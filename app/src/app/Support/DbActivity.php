@@ -10,15 +10,14 @@ use Illuminate\Database\Events\QueryExecuted;
  * The current request's database work, tallied as queries land: how many ran
  * and how long they took together. `LogRequestStory` resets the tally when a
  * request opens and reads it when the request's `did` line is written, so
- * "was it the database" is answered on the line itself
- * (docs/spec.md §2.2) rather than a code-reading investigation.
+ * the line itself answers "was it the database" (docs/spec.md §2.2).
  *
- * A static tally rather than a container binding: `LoggingServiceProvider`
- * registers the `DB::listen` callback once per application boot, and PHP's
- * one-request-per-process model (see that provider) keeps one tally per
- * request outside of tests. A test process reuses one application across
- * many simulated requests, which is why `reset()` is called on every
- * request rather than relied on to start zeroed.
+ * A static tally: `LoggingServiceProvider` registers the `DB::listen`
+ * callback once per application boot, and PHP's one-request-per-process
+ * model (see that provider) keeps one tally per request outside of tests.
+ * A test process reuses one application across many simulated requests,
+ * carrying the tally forward between them unless `reset()` runs on every
+ * request.
  */
 final class DbActivity
 {

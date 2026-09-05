@@ -56,7 +56,7 @@ final readonly class LogRow
     }
 
     /** The key a request-grouped view keys this line's request by, when it
-     * carries none of its own: an orphan line groups alone rather than by
+     * carries none of its own: an orphan line groups alone, not by
      * `txn_id`. */
     public function groupKey(): string
     {

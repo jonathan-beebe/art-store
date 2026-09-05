@@ -10,8 +10,8 @@ use InvalidArgumentException;
  * Which slice of a total-count-based list a viewer is looking at, and the
  * offset/limit a query needs to fetch it. `of()` clamps whatever a query
  * string asked for onto the nearest real page, the way every other admin
- * filter treats an out-of-range request as "give me the closest sane thing"
- * rather than a 400 — unlike the filter values `LogsQueryRequest` gates.
+ * filter treats an out-of-range request: "give me the closest sane thing."
+ * The filter values `LogsQueryRequest` gates answer with a 400.
  */
 final readonly class Page
 {

@@ -12,8 +12,8 @@ use InvalidArgumentException;
  * positive integer number of days, or `"off"` to disable pruning entirely.
  * `parse()` is the one place a raw env string becomes that value;
  * `config/log_store.php` and `config/analytics.php` both call it while the
- * config file loads, so a malformed value throws at boot rather than on the
- * sweep that would have needed it — the same eager-parse shape as
+ * config file loads, so a malformed value throws at boot, before the
+ * sweep that would need it runs. Same eager-parse shape as
  * `App\Domain\RateLimiting\RateLimitValue::parse`.
  */
 final readonly class RetentionDays

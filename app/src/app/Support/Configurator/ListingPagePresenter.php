@@ -38,10 +38,11 @@ final class ListingPagePresenter
             ]),
             'isPurchasable' => ListingAvailability::isPurchasable($listing->status, $listing->quantity),
             'isFavorited' => $visitor->favorites()->where('listing_id', $listing->id)->exists(),
-            // Asking a question needs a signed-in customer, not merely an
-            // identified one — the same session `auth.customer` requires
-            // once the question actually posts, read ahead of time so the
-            // page can offer the sign-in prompt in the form's place.
+            // Asking a question requires a signed-in customer. Being
+            // identified — recognized by the visitor cookie — does not
+            // satisfy the same session `auth.customer` check the question's
+            // own post enforces; read ahead of time so the page can offer
+            // the sign-in prompt in the form's place.
             'isSignedIn' => Auth::guard('customer')->check(),
             'hasConfigurator' => $hasConfigurator,
             'configuration' => $hasConfigurator ? ConfiguratorPageResolver::resolve($listing, ConfiguratorInput::fromQuery($request)) : null,

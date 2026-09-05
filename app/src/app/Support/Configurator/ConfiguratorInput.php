@@ -35,11 +35,10 @@ final readonly class ConfiguratorInput
 
     /**
      * Reads the same four fields off either a GET query string or a POST
-     * body, tolerating whatever shape a tampered request sends instead of
-     * raising — a bad value falls back to the given default (the listing's
-     * own default when the caller supplies none) rather than to an empty
-     * selection, so a seller preview pinned to one variant or quantity
-     * still opens there before any interaction.
+     * body, tolerating whatever shape a tampered request sends. A bad
+     * value falls back to the given default (the listing's own default
+     * when the caller supplies none), so a seller preview pinned to one
+     * variant or quantity still opens there before any interaction.
      *
      * @param  array<string, string>  $defaultAxisSelections
      */

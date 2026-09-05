@@ -7,10 +7,9 @@ namespace App\Support\Configurator;
 use App\Domain\Configurator\UnitState;
 
 /**
- * The seller-facing word for a piece's state — deliberately hand-mapped
- * rather than derived from the enum's own value, so a state the schema
- * still carries but the product dropped (`reserved`) reads as the plain
- * "on hold" instead of surfacing its internal name.
+ * The seller-facing word for a piece's state, hand-mapped so a state the
+ * schema still carries but the product dropped (`reserved`) reads as the
+ * plain "on hold." Its internal name never surfaces.
  */
 final class UnitStateWord
 {

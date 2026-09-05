@@ -23,8 +23,8 @@ use Illuminate\Database\Events\QueryExecuted;
  */
 final class SlowQueryWatch
 {
-    /** Marks a frame as framework code rather than the call site that
-     * triggered it. */
+    /** Flags a frame as framework code, skipped when `sourceFrame()` looks
+     * for the call site that triggered the query. */
     private const string VENDOR_MARKER = '/vendor/';
 
     private const string UNKNOWN_SOURCE = 'unknown';
