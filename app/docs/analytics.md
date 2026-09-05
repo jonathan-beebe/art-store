@@ -158,7 +158,7 @@ Indexes: `(subject_id, name)`, `(name, occurred_at)`, `actor_id`, `ip`, `session
 | `utm_campaign`  | string(255), nullable | stored as given, capped at 255                 |
 | `utm_content`   | string(255), nullable | stored as given, capped at 255                 |
 | `utm_term`      | string(255), nullable | stored as given, capped at 255                 |
-| `actor_id`      | text(30), nullable  | references e.g. `customers.id`, no FK; filled when the request already has one |
+| `actor_id`      | text(30), nullable  | references e.g. `customers.id`, no FK; filled when the request already has one, or later, when one is claimed |
 
 Indexes: `first_seen_at`, `(utm_source, utm_medium)`, `actor_id`.
 
@@ -185,6 +185,13 @@ supplies the session id, including its fallback to the cookie
 `NameRequestVisitor` just queued for a browser's first-ever request, so
 the very first request a new visitor makes still records a visit under
 the id it was just given.
+
+A visit's `actor_id` stays null until the visitor's first tracked event,
+since `App\Http\Middleware\ResolveCustomerIdentity` mints a `customers` row
+lazily rather than on arrival (docs/spec.md §4.1). `App\Shop\CustomerIdentity::commit()`
+claims the row for that session at that point (`Analytics::claimVisit()`),
+so a session that lands on a read-only page before the event that makes it
+a customer still keeps its first-touch channel and landing page.
 
 ## Vocabulary
 

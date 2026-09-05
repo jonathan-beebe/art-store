@@ -24,6 +24,7 @@ use App\Models\ListingRemoval;
 use App\Models\Property;
 use App\Models\PropertyValue;
 use App\Models\Seller;
+use App\Shop\CustomerIdentity;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Http\Events\RequestHandled;
 use Illuminate\Support\Facades\DB;
@@ -190,6 +191,28 @@ it('still answers when the analytics store is unwritable', function (): void {
     AnalyticsStoreFixtures::withUnwritableStore(function (): void {
         $this->get('/art/harbour-at-dawn')->assertOk();
     });
+});
+
+it('claims the session\'s first-touch visit for the customer the listing view mints', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    // The session's first touch is the home page, which mints no customer
+    // row — the visit lands with no actor.
+    $home = $this->get('/');
+    $sessionId = $home->getCookie(NameRequestVisitor::SESSION_COOKIE)?->getValue();
+    assert(is_string($sessionId));
+
+    expect(AnalyticsStoreFixtures::visits()->sole()->actor_id)->toBeNull();
+
+    // The listing view is the event that mints one, on the same session.
+    $listingView = $this->withCookie(NameRequestVisitor::SESSION_COOKIE, $sessionId)->get('/art/harbour-at-dawn');
+    $customerId = $listingView->getCookie(CustomerIdentity::COOKIE)?->getValue();
+    assert(is_string($customerId));
+
+    $row = AnalyticsStoreFixtures::visits()->sole();
+    expect($row->session_id)->toBe($sessionId)
+        ->and($row->actor_id)->toBe($customerId)
+        ->and($row->landing_path)->toBe('/');
 });
 
 it('says a sold listing is sold and offers no cart button', function (): void {

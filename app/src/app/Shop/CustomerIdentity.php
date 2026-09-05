@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Shop;
 
+use App\Analytics\Analytics;
+use App\Analytics\RequestFacts;
 use App\Domain\Auth\ActorType;
 use App\Logging\Story;
 use App\Models\Customer;
@@ -70,6 +72,13 @@ final class CustomerIdentity
      * never triggers a write leaves no row behind. A row already saved —
      * signed in, or resolved from an earlier visit's cookie — comes back
      * unchanged; committing it twice in one request costs nothing.
+     *
+     * Also claims the session's `analytics_visits` row for this customer
+     * (`Analytics::claimVisit()`), so a session whose first-touch page
+     * mints no row still ends up with its landing page and channel
+     * credited to the customer it becomes, once one exists. A request
+     * carrying no session id — the console kernel's synthetic request —
+     * claims nothing.
      */
     public static function commit(Customer $visitor): Customer
     {
@@ -80,6 +89,12 @@ final class CustomerIdentity
         $visitor->save();
         self::rememberInCookie($visitor);
         Story::actorIs(ActorType::Customer, (string) $visitor->id);
+
+        $sessionId = RequestFacts::current()->sessionId;
+
+        if ($sessionId !== null) {
+            app(Analytics::class)->claimVisit($sessionId, $visitor->id);
+        }
 
         return $visitor;
     }

@@ -219,7 +219,7 @@ flowchart TD
     useCookie --> attach
     unsaved --> attach
     attach --> writes{"controller calls\nknownVisitor()?"}
-    writes -- yes --> commit["save the row, queue the cookie,\nname the actor (CustomerIdentity::commit)"]
+    writes -- yes --> commit["save the row, queue the cookie,\nname the actor, claim the session's visit\n(CustomerIdentity::commit)"]
     writes -- no --> nothing["nothing written —\nreads tolerate the unsaved row"]
 ```
 
@@ -231,7 +231,10 @@ already a row, so `attach` is where the diagram effectively ends for them —
 gets an unsaved row that writes nothing on its own: only a controller method
 that calls `knownVisitor()` — a cart add, a favorite, a listing view, a store
 view, placing an order, opening a conversation — commits it, at which point
-every later line in the request names the actor it just gained. A page that
+every later line in the request names the actor it just gained, and the
+session's `analytics_visits` row — first-touch channel and landing page
+included — is claimed for it (`Analytics::claimVisit()`), whether that row
+was written by this same request or an earlier, read-only one. A page that
 only reads (home, search, browse, medium, the cart page, orders, account)
 never reaches `knownVisitor()`, so a crawler, a scanner, or a browser that
 bounces after one page leaves no row and sets no cookie.

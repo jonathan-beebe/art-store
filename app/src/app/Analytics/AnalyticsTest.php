@@ -316,6 +316,58 @@ it('keeps the first visit recorded for a session across two flushes', function (
     expect(DB::connection('analytics')->table('analytics_visits')->sole()->landing_path)->toBe('/art/first');
 });
 
+it('buffers a claim without writing it', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', new DateTimeImmutable));
+    $analytics->flush();
+
+    $analytics->claimVisit('ses_01J00000000000000000000ABC', 'cus_XYZ');
+
+    expect($analytics->pending())->toBe(1)
+        ->and(DB::connection('analytics')->table('analytics_visits')->sole()->actor_id)->toBeNull();
+});
+
+it('fills a null actor on an existing visit row once the claim flushes', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', new DateTimeImmutable));
+    $analytics->flush();
+
+    $analytics->claimVisit('ses_01J00000000000000000000ABC', 'cus_XYZ');
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->actor_id)->toBe('cus_XYZ');
+});
+
+it('claims the very visit its own flush inserts, in one pass', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->recordVisit(visitFor('ses_01J00000000000000000000ABC', new DateTimeImmutable));
+    $analytics->claimVisit('ses_01J00000000000000000000ABC', 'cus_XYZ');
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->actor_id)->toBe('cus_XYZ');
+});
+
+it('leaves a visit\'s non-null actor alone', function (): void {
+    $analytics = new Analytics;
+    $analytics->recordVisit(new AnalyticsVisit('ses_01J00000000000000000000ABC', new DateTimeImmutable, '/', null, null, null, null, null, null, 'cus_FIRST'));
+    $analytics->flush();
+
+    $analytics->claimVisit('ses_01J00000000000000000000ABC', 'cus_SECOND');
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->sole()->actor_id)->toBe('cus_FIRST');
+});
+
+it('is a no-op when no visit row matches the claimed session', function (): void {
+    $analytics = new Analytics;
+
+    $analytics->claimVisit('ses_01J00000000000000000000ABC', 'cus_XYZ');
+    $analytics->flush();
+
+    expect(DB::connection('analytics')->table('analytics_visits')->count())->toBe(0);
+});
+
 it('flushes automatically at the row cap', function (): void {
     $analytics = new Analytics;
 
