@@ -54,8 +54,8 @@ final readonly class PlaceOrder
                 // the plan judges are the rows the stock claim writes back,
                 // so holding them from this read to the commit is what stops
                 // two shoppers both taking the last piece. A line that went
-                // stale between the page and this submit is refused — every
-                // blocked line at once — rather than half-placed.
+                // stale between the page and this submit is refused, every
+                // blocked line at once: no order is half-placed.
                 $cart->load([
                     'items.listing' => $this->takeForUpdate(...),
                     'items.variant' => $this->takeForUpdateVariant(...),
@@ -223,7 +223,7 @@ final readonly class PlaceOrder
      * The flow this seller's parcel snapshots at placement: the one the
      * first of their own cart lines names, and their default flow when none
      * does — the same rule {@see \App\Seller\FulfillmentFlowReader} falls
-     * back to for a row with no snapshot.
+     * back to for a row lacking a snapshot.
      */
     private function flowIdFor(string $sellerId, Cart $cart): ?string
     {

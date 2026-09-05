@@ -226,11 +226,11 @@ class Fulfillment extends Model
      * status the row holds and writes a new one back over it, so the row has
      * to be held from that read until the transaction commits — otherwise two
      * consoles both read `awaiting_shipment`, both pass `transitionTo`, and
-     * the second write lands on a row that has already moved (and, for a
-     * refund, breaks on `refunds.unique(fulfillment_id)` as a raw
-     * `QueryException` instead of a refusal). SQLite, which the app
-     * develops and tests on, has no row lock and serialises writers instead;
-     * its grammar compiles the clause away.
+     * the second write lands on a row that has already moved. For a refund,
+     * that second write breaks on `refunds.unique(fulfillment_id)` as a raw
+     * `QueryException`, where the domain would otherwise refuse cleanly.
+     * SQLite, which the app develops and tests on, serialises writers with a
+     * database-level lock; its grammar compiles the clause away.
      *
      * @param  Builder<$this>  $query
      */

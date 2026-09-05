@@ -135,10 +135,10 @@ class CartItem extends Model
     }
 
     /**
-     * The line's variant, read off an eager-loaded relation whenever the
-     * caller (the cart page) already fetched one — falling back to a load
-     * only when it did not, so neither price nor availability re-queries a
-     * relation the controller already brought back.
+     * The line's variant, read off an eager-loaded relation when the caller
+     * (the cart page) already fetched one. It loads the relation itself
+     * when the caller did not. Price and availability both call this
+     * method, so the relation is fetched at most once per line.
      */
     private function currentVariant(): ?Variant
     {
@@ -153,9 +153,8 @@ class CartItem extends Model
 
     /**
      * The line's unit, read the same way {@see self::currentVariant()} reads
-     * the variant — never touching the relation attribute when there is no
-     * unit_id to resolve, since accessing it at all is what triggers a lazy
-     * load.
+     * the variant. Accessing the relation attribute at all triggers a lazy
+     * load, so this touches it only when there is a unit_id to resolve.
      */
     private function currentUnit(): ?Unit
     {

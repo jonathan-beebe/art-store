@@ -98,8 +98,8 @@ final readonly class FinalizeOrder
                 ));
             }
 
-            // A decline is the payment processor holding a rule, not the
-            // application breaking, so it reads as a refusal.
+            // A decline is the payment processor holding a rule, so it reads
+            // as a refusal.
             match ($outcome) {
                 PaymentOutcome::Approved => $story->did('took the payment', [
                     'order_id' => $paid->id,
@@ -155,8 +155,8 @@ final readonly class FinalizeOrder
      * behind this order for update and reloads the items from them. Every
      * stock write in this transaction reads a quantity and writes the pair
      * back from what it read, so the rows are held from that read until the
-     * commit and a concurrent checkout waits rather than overwriting the
-     * result with its own stale arithmetic.
+     * commit — otherwise a concurrent checkout would overwrite the result
+     * with its own stale arithmetic.
      */
     private function lockListings(Order $order): Order
     {

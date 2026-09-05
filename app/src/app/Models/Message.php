@@ -62,7 +62,8 @@ class Message extends Model
     /**
      * The message this one answers, when the reader followed a "Reply"
      * link. `nullOnDelete` on the column means a quoted message that is
-     * later removed leaves this relation null rather than the reply itself.
+     * later removed leaves this relation null. The reply message itself
+     * stays.
      *
      * @return BelongsTo<Message, $this>
      */
@@ -72,8 +73,8 @@ class Message extends Model
     }
 
     /**
-     * Who a thread reads this message as from. Reads the relation already
-     * eager-loaded rather than fetching it fresh.
+     * Who a thread reads this message as from. Reads only the relation
+     * already eager-loaded.
      */
     public function senderName(): string
     {

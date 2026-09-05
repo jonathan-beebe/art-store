@@ -130,8 +130,8 @@ class Customer extends Authenticatable
     }
 
     /**
-     * A fresh read rather than the loaded relation, so a caller that never
-     * eager-loaded `activeBlock` still gets an answer under strict mode.
+     * Queries `activeBlock` fresh on every call, so a caller that never
+     * eager-loaded it still gets an answer under strict mode.
      */
     public function currentBlock(): ?CustomerBlock
     {
@@ -158,10 +158,9 @@ class Customer extends Authenticatable
     }
 
     /**
-     * A customer holds at most one cart — `MergeAnonymousCustomer` folds an
-     * anonymous visitor's cart into the verified customer's own rather than
-     * re-pointing it alongside, so there is never a second one to choose
-     * between.
+     * A customer holds at most one cart. `MergeAnonymousCustomer` merges an
+     * anonymous visitor's cart into the verified customer's own and retires
+     * the anonymous cart, so there is never a second one to choose between.
      */
     public function cart(): Cart
     {
@@ -215,12 +214,12 @@ class Customer extends Authenticatable
 
     /**
      * Takes the rows a moderation decision is judged against for update. A
-     * block is refused when one already stands, and that check reads the
-     * `customer_blocks` table rather than this row, so nothing there keeps
-     * two admins apart: both read no active block and both insert one. The
+     * block is refused when one already stands, and that check queries the
+     * `customer_blocks` table alone; locking this row does not guard it, so
+     * both admins can read no active block and both insert one. The
      * customer row they each have to take first is what serialises them.
-     * SQLite, which the app develops and tests on, has no row lock and
-     * serialises writers instead; its grammar compiles the clause away.
+     * SQLite, which the app develops and tests on, serialises writers with a
+     * database-level lock; its grammar compiles the clause away.
      *
      * @param  Builder<$this>  $query
      */

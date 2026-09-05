@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * The variant grid's bulk action: every variant selecting one axis value
- * (Size = Large, say) enabled or disabled together, rather than one row at a
- * time — the walnut table's 136-combination grid culled to what actually
- * sells without a click per cell.
+ * (Size = Large, say) enabled or disabled together in one action — the
+ * walnut table's 136-combination grid culled to what actually sells
+ * without a click per cell.
  */
 final readonly class SetVariantsEnabledByOptionValue
 {

@@ -25,10 +25,10 @@ final readonly class AddToCart
 
     /**
      * @param  bool  $listingHasVariants  whether the listing holds any variant row at all — a listing with axes
-     *                                    but no variant matching the current selection still takes this path,
-     *                                    refused as unavailable rather than falling back to the legacy,
-     *                                    variant-free stock check a listing with a modifier alone still uses
-     * @param  list<array{axisId: string, axisName: string, optionValueId: string, optionValueLabel: string}>  $configuration  axis/value ids and labels, empty for a listing with no axes
+     *                                    but no variant matching the current selection still takes this path
+     *                                    and reads as unavailable. A listing with only a modifier resolves
+     *                                    through the legacy, variant-free stock check.
+     * @param  list<array{axisId: string, axisName: string, optionValueId: string, optionValueLabel: string}>  $configuration  axis/value ids and labels, empty for a listing lacking axes
      * @param  array<string, array{prompt: string, answer: string, raw: string}>  $answers  modifier id => {prompt, answer, raw}
      * @param  array<string, string>  $fingerprintAnswers  modifier id => raw answer, for {@see CartLineFingerprint}
      */
@@ -49,9 +49,9 @@ final readonly class AddToCart
         $item = $cart->items()->firstOrNew(['listing_id' => $listing->id, 'fingerprint' => $fingerprint], ['customer_id' => $cart->customer_id]);
         $held = $item->quantity ?? 0;
 
-        // A cart holds one line per (listing, configuration), so the second
-        // time a shopper adds an identical configuration the line is raised
-        // rather than added.
+        // A cart holds one line per (listing, configuration). The second
+        // time a shopper adds an identical configuration, this raises the
+        // existing line's quantity.
         $raises = $item->exists;
 
         return Story::for($raises ? StoryEvent::CartUpdate : StoryEvent::CartAdd)->tell(

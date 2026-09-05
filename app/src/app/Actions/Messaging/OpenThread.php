@@ -39,9 +39,9 @@ final readonly class OpenThread
             $conversation = ($this->openConversation)($opening, $now);
 
             // Inside the transaction that opened the thread, so the refusal
-            // takes the thread with it. The sender is named rather than read
-            // off a guard: the storefront resolves its visitor from a cookie
-            // through middleware and signs nobody in.
+            // takes the thread with it. `Gate::forUser` takes the sender
+            // explicitly, because the storefront resolves its visitor from
+            // a cookie through middleware, without ever signing them in.
             Gate::forUser($sender)->authorize('post', $conversation);
 
             ($this->postMessage)($conversation, $sender, $body, $now);

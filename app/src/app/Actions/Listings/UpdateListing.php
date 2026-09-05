@@ -44,9 +44,9 @@ final readonly class UpdateListing
     /**
      * A category change can leave `listing_attributes` rows the new category
      * never granted — a Metal value the listing held under Jewelry means
-     * nothing once it moves to Home Goods. Dropped rather than left stale, so
-     * the Highlights panel and the publish gate both read only what the
-     * current category actually grants.
+     * nothing once it moves to Home Goods. The rows are dropped, so the
+     * Highlights panel and the publish gate both read only what the current
+     * category actually grants.
      */
     private function pruneAttributesTheNewCategoryDoesNotGrant(Listing $listing): void
     {

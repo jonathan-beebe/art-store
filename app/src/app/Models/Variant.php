@@ -23,9 +23,9 @@ use LogicException;
 use Override;
 
 /**
- * One sellable combination of a listing's option values — a sparse row, so a
- * seller creates only the combinations that actually sell rather than every
- * cell of the full cross product.
+ * One sellable combination of a listing's option values — a sparse row. A
+ * seller creates only the combinations that actually sell, skipping the
+ * rest of the full cross product.
  */
 #[Fillable(['listing_id', 'seller_id', 'combo_key', 'sku', 'price_override_cents', 'quantity', 'is_serialized', 'enabled'])]
 class Variant extends Model
@@ -134,7 +134,7 @@ class Variant extends Model
     /**
      * This combination's name for the seller: its option labels, in choice
      * order, joined the way the buyer-view breakdown joins them. The
-     * schema's empty combo key (a listing with no choices offers at most
+     * schema's empty combo key (a listing lacking choices offers at most
      * one) has no options at all, so it falls back to a generic name.
      */
     public function comboLabel(): string
@@ -146,8 +146,8 @@ class Variant extends Model
 
     /**
      * Whether this combination is worth flagging as running low: it is
-     * offered, tracked (not serialized — a piece listing's stock reads off
-     * its units instead), and its remaining count is at or under the
+     * offered, its stock is tracked by quantity — a piece listing tracks
+     * stock through its units — and the remaining count is at or under the
      * threshold. An untracked (null) quantity never reads as low.
      */
     public function isLowOnStock(): bool

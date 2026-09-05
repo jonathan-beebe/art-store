@@ -15,11 +15,11 @@ use Illuminate\Database\Eloquent\Model;
 use Override;
 
 /**
- * One row per (site, path_pattern, day): a request's route pattern rolled up
- * at response time rather than logged per hit, so the table grows with
- * routes and days rather than with traffic. The table lives in the
- * analytics store (config/database.php), a SQLite file of its own next to
- * the commerce database.
+ * One row per (site, path_pattern, day). A request's route pattern rolls up
+ * into this row at response time, so the table's row count is bounded by
+ * the number of routes and days, independent of traffic volume. The table
+ * lives in the analytics store (config/database.php), a SQLite file of its
+ * own next to the commerce database.
  * {@see \App\Analytics\Analytics::flush()} is the only writer, through an
  * upsert on this table's unique triple.
  */

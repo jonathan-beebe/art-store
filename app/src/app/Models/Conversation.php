@@ -128,8 +128,8 @@ class Conversation extends Model
      * The thread a subject names, opened if this is the first ask for it —
      * the find-or-open shape the one kind with a `subject_key` uses.
      * `subject_key` is the uniqueness spine: a second ask for the same
-     * subject finds the row the first ask created rather than opening a
-     * second one, even under contention.
+     * subject finds the row the first ask created, even under contention,
+     * and never opens a duplicate.
      */
     public static function openFor(ConversationSubject $subject, DateTimeImmutable $now): self
     {
@@ -214,9 +214,8 @@ class Conversation extends Model
     }
 
     /**
-     * The side of the thread a viewer is not on. Reads the relation already
-     * eager-loaded rather than fetching it fresh, so a caller plans its
-     * eager loads up front.
+     * The side of the thread a viewer is not on. Reads only the relation
+     * already eager-loaded, so a caller plans its eager loads up front.
      */
     public function counterpart(ActorType $viewer): Seller|Customer|Admin|null
     {
@@ -261,11 +260,11 @@ class Conversation extends Model
 
     /**
      * What a listing-question thread offers to carry onto a published FAQ
-     * entry, or null for a thread with no listing to publish one against.
+     * entry, or null for a thread lacking a listing to publish one against.
      * The opening message reads as the question and the seller's latest
      * reply as the answer, so a thread the seller has not answered yet
-     * offers nothing to publish. Reads the `messages` relation already
-     * eager-loaded rather than fetching it fresh.
+     * offers nothing to publish. Reads only the `messages` relation already
+     * eager-loaded.
      */
     public function faqPrefill(): ?FaqPrefill
     {
@@ -285,9 +284,9 @@ class Conversation extends Model
     /**
      * The threads a given actor is a participant in — the one query the
      * inbox and the unread-count total both filter through. The desk is
-     * every admin collectively, so an admin's inbox is the two support
-     * kinds rather than a column match on `admin_id`, which only ever names
-     * who first answered.
+     * every admin collectively, so an admin's inbox filters by the two
+     * support kinds. A column match on `admin_id` would only name who
+     * first answered.
      *
      * @param  Builder<$this>  $query
      */
@@ -349,8 +348,8 @@ class Conversation extends Model
     }
 
     /**
-     * The per-thread unread badge an inbox row carries, counted in SQL for
-     * the whole page rather than per row.
+     * The per-thread unread badge an inbox row carries, counted in SQL once
+     * for the whole page.
      *
      * @param  Builder<$this>  $query
      */
@@ -389,8 +388,8 @@ class Conversation extends Model
 
     /**
      * Takes over another thread's messages and drops it — how two threads
-     * that turn out to name one subject become one. `last_message_at` is the
-     * newest message's instant, so it is read back rather than carried over.
+     * that turn out to name one subject become one. `last_message_at` is
+     * recomputed from the merged messages, so it reflects the newest one.
      */
     private function absorb(self $other): void
     {

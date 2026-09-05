@@ -12,7 +12,7 @@ final readonly class RollUpOrderStatus
 {
     /**
      * The caller hands over an order whose `fulfillments` are loaded; the
-     * roll-up reads those rows rather than asking for them again.
+     * roll-up reads those loaded rows.
      */
     public function __invoke(Order $order): Order
     {

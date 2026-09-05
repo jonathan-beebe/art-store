@@ -62,8 +62,7 @@ class Unit extends Model
 
     /**
      * Claims this piece for a buyer — a serialized line's stock movement,
-     * mirroring {@see Listing::sell()} one unit at a time rather than by
-     * quantity.
+     * mirroring {@see Listing::sell()} one unit at a time.
      */
     public function sell(): self
     {

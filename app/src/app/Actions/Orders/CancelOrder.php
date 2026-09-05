@@ -40,8 +40,9 @@ final readonly class CancelOrder
         ], function (Story $story) use ($order, $now): Order {
             $cancelled = DB::transaction(function () use ($order, $now): Order {
                 // The status is read again here, under the transaction that
-                // writes it: an order paid between the page and this submit
-                // is refused rather than cancelled out from under the money.
+                // writes it, so an order paid between the page and this
+                // submit is refused. Money that has already moved stays
+                // untouched.
                 $status = $order->refresh()->status;
 
                 if ($status->releasesStockOnCancel()) {

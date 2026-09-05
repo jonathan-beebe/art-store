@@ -12,11 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Swaps one section with its neighbor one place earlier or later — the whole
- * of "reorder" for a list with no drag-and-drop, JavaScript off. The swap
- * passes through a sentinel position rather than writing the neighbor's
- * position onto this row directly, because `description_sections` is unique
- * on `(listing_id, position)` and SQLite enforces that constraint immediately
- * rather than at commit.
+ * of "reorder" for a list lacking drag-and-drop, JavaScript off. The swap
+ * passes through a sentinel position first, since `description_sections` is
+ * unique on `(listing_id, position)` and SQLite enforces that constraint
+ * immediately, before the transaction commits.
  */
 final readonly class ReorderDescriptionSection
 {
