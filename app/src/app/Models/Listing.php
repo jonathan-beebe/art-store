@@ -8,7 +8,6 @@ use App\Domain\Configurator\ConfiguratorPublishValidation;
 use App\Domain\Configurator\PricedModifier;
 use App\Domain\Configurator\PricedOption;
 use App\Domain\Configurator\PricingConfiguration;
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\PublishIssue;
 use App\Domain\Configurator\QuantityDiscount;
 use App\Domain\Configurator\StandaloneOptionSnapshot;
@@ -289,7 +288,7 @@ class Listing extends Model
         $attributedPropertyIds = array_values($this->listingAttributes()->distinct()->pluck('property_id')->all());
 
         $standaloneOptions = array_values($axes
-            ->filter(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone)
+            ->filter(fn (OptionAxis $axis): bool => $axis->pricing_mode->isStandalone())
             ->flatMap(fn (OptionAxis $axis) => $axis->optionValues)
             ->map(fn (OptionValue $value): StandaloneOptionSnapshot => new StandaloneOptionSnapshot($value->id, $value->price_cents))
             ->all());

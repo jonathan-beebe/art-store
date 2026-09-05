@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Configurator;
 
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\UnitLabelOrder;
 use App\Domain\Configurator\UnitPrice;
 use App\Domain\Money\Money;
@@ -91,7 +90,7 @@ final class SerializedUnitsPresentation
         foreach ($selectedOptionValues as $value) {
             $axis = $axisById->get($value->axis_id);
 
-            if ($axis instanceof OptionAxis && $axis->pricing_mode === PricingMode::Standalone) {
+            if ($axis instanceof OptionAxis && $axis->pricing_mode->isStandalone()) {
                 $standalonePrices[] = $value->price();
 
                 continue;

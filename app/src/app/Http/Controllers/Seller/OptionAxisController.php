@@ -10,7 +10,6 @@ use App\Actions\Configurator\DeleteOptionAxis;
 use App\Actions\Configurator\UpdateOptionAxis;
 use App\Configurator\AxisPropertyOptions;
 use App\Configurator\ListingConfiguratorSummaries;
-use App\Domain\Configurator\PricingMode;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\OptionAxisRequest;
@@ -53,7 +52,7 @@ final class OptionAxisController extends SellerController
         // this: its options need their own price and the catalog has none
         // to offer, so the axis keeps its catalog link (still searchable)
         // while the seller adds priced options by hand.
-        if ($property !== null && $axis->pricing_mode !== PricingMode::Standalone) {
+        if ($property !== null && ! $axis->pricing_mode->isStandalone()) {
             foreach ($property->values()->orderBy('position')->get() as $index => $value) {
                 $addValue($axis, $value->label, 0, $index === 0, $index, $value);
             }

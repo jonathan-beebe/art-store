@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Configurator\ListingPriceSync;
-use App\Domain\Configurator\PricingMode;
-use App\Domain\DomainRuleViolation;
+use App\Domain\Configurator\StandaloneOptionPriceGuard;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\PropertyValue;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class AddOptionValue
@@ -29,34 +29,33 @@ final readonly class AddOptionValue
             'listing_id' => $axis->listing_id,
             'axis_id' => $axis->id,
         ], function (Story $story) use ($axis, $label, $surchargeCents, $isDefault, $position, $propertyValue, $priceCents): OptionValue {
-            $isStandalone = $axis->pricing_mode === PricingMode::Standalone;
+            return DB::transaction(function () use ($story, $axis, $label, $surchargeCents, $isDefault, $position, $propertyValue, $priceCents): OptionValue {
+                StandaloneOptionPriceGuard::forOption($axis->pricing_mode, $priceCents);
+                $isStandalone = $axis->pricing_mode->isStandalone();
 
-            if ($isStandalone && $priceCents === null) {
-                throw new DomainRuleViolation('Every option on this choice needs its own price.');
-            }
+                $value = $axis->optionValues()->create([
+                    'seller_id' => $axis->seller_id,
+                    'property_value_id' => $propertyValue?->id,
+                    'label' => $label,
+                    'surcharge_cents' => $isStandalone ? 0 : $surchargeCents,
+                    'price_cents' => $isStandalone ? $priceCents : null,
+                    'is_default' => $isDefault,
+                    'position' => $position,
+                ]);
 
-            $value = $axis->optionValues()->create([
-                'seller_id' => $axis->seller_id,
-                'property_value_id' => $propertyValue?->id,
-                'label' => $label,
-                'surcharge_cents' => $isStandalone ? 0 : $surchargeCents,
-                'price_cents' => $isStandalone ? $priceCents : null,
-                'is_default' => $isDefault,
-                'position' => $position,
-            ]);
+                ListingPriceSync::sync($axis->listing ?? throw new LogicException('An option axis always belongs to a listing.'));
 
-            ListingPriceSync::sync($axis->listing ?? throw new LogicException('An option axis always belongs to a listing.'));
+                $story->did('added the option value', [
+                    'listing_id' => $axis->listing_id,
+                    'axis_id' => $axis->id,
+                    'option_value_id' => $value->id,
+                    'label' => $value->label,
+                    'surcharge_cents' => $value->surcharge_cents,
+                    'price_cents' => $value->price_cents,
+                ]);
 
-            $story->did('added the option value', [
-                'listing_id' => $axis->listing_id,
-                'axis_id' => $axis->id,
-                'option_value_id' => $value->id,
-                'label' => $value->label,
-                'surcharge_cents' => $value->surcharge_cents,
-                'price_cents' => $value->price_cents,
-            ]);
-
-            return $value;
+                return $value;
+            });
         });
     }
 }

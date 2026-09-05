@@ -8,6 +8,7 @@ use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Modifier;
 use App\Models\ModifierOption;
+use Illuminate\Support\Facades\DB;
 
 final readonly class AddModifierOption
 {
@@ -17,21 +18,23 @@ final readonly class AddModifierOption
             'listing_id' => $modifier->listing_id,
             'modifier_id' => $modifier->id,
         ], function (Story $story) use ($modifier, $label, $addOnPriceCents, $position): ModifierOption {
-            $option = $modifier->options()->create([
-                'seller_id' => $modifier->seller_id,
-                'label' => $label,
-                'add_on_price_cents' => $addOnPriceCents,
-                'position' => $position,
-            ]);
+            return DB::transaction(function () use ($story, $modifier, $label, $addOnPriceCents, $position): ModifierOption {
+                $option = $modifier->options()->create([
+                    'seller_id' => $modifier->seller_id,
+                    'label' => $label,
+                    'add_on_price_cents' => $addOnPriceCents,
+                    'position' => $position,
+                ]);
 
-            $story->did('added the modifier option', [
-                'listing_id' => $modifier->listing_id,
-                'modifier_id' => $modifier->id,
-                'modifier_option_id' => $option->id,
-                'label' => $option->label,
-            ]);
+                $story->did('added the modifier option', [
+                    'listing_id' => $modifier->listing_id,
+                    'modifier_id' => $modifier->id,
+                    'modifier_option_id' => $option->id,
+                    'label' => $option->label,
+                ]);
 
-            return $option;
+                return $option;
+            });
         });
     }
 }

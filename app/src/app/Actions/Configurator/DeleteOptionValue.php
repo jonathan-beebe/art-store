@@ -9,6 +9,7 @@ use App\Domain\Configurator\ConfiguratorDeletionGuard;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\OptionValue;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class DeleteOptionValue
@@ -22,22 +23,24 @@ final readonly class DeleteOptionValue
             'axis_id' => $value->axis_id,
             'option_value_id' => $value->id,
         ], function (Story $story) use ($value, $axis): void {
-            ConfiguratorDeletionGuard::forOptionValue($value->variantOptions()->exists());
+            DB::transaction(function () use ($story, $value, $axis): void {
+                ConfiguratorDeletionGuard::forOptionValue($value->variantOptions()->exists());
 
-            $listingId = $axis->listing_id;
-            $axisId = $value->axis_id;
-            $valueId = $value->id;
-            $listing = $axis->listing ?? throw new LogicException('An option axis always belongs to a listing.');
+                $listingId = $axis->listing_id;
+                $axisId = $value->axis_id;
+                $valueId = $value->id;
+                $listing = $axis->listing ?? throw new LogicException('An option axis always belongs to a listing.');
 
-            $value->delete();
+                $value->delete();
 
-            ListingPriceSync::sync($listing);
+                ListingPriceSync::sync($listing);
 
-            $story->did('deleted the option value', [
-                'listing_id' => $listingId,
-                'axis_id' => $axisId,
-                'option_value_id' => $valueId,
-            ]);
+                $story->did('deleted the option value', [
+                    'listing_id' => $listingId,
+                    'axis_id' => $axisId,
+                    'option_value_id' => $valueId,
+                ]);
+            });
         });
     }
 }

@@ -11,6 +11,7 @@ use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\Property;
+use Illuminate\Support\Facades\DB;
 
 final readonly class CreateOptionAxis
 {
@@ -19,24 +20,26 @@ final readonly class CreateOptionAxis
         return Story::for(StoryEvent::ListingUpdate)->tell('adding an option axis', [
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $name, $property, $position, $pricingMode): OptionAxis {
-            $axis = $listing->optionAxes()->create([
-                'seller_id' => $listing->seller_id,
-                'property_id' => $property?->id,
-                'name' => $name,
-                'position' => $position,
-                'pricing_mode' => $pricingMode,
-            ]);
+            return DB::transaction(function () use ($story, $listing, $name, $property, $position, $pricingMode): OptionAxis {
+                $axis = $listing->optionAxes()->create([
+                    'seller_id' => $listing->seller_id,
+                    'property_id' => $property?->id,
+                    'name' => $name,
+                    'position' => $position,
+                    'pricing_mode' => $pricingMode,
+                ]);
 
-            ListingPriceSync::sync($listing);
+                ListingPriceSync::sync($listing);
 
-            $story->did('added the option axis', [
-                'listing_id' => $listing->id,
-                'axis_id' => $axis->id,
-                'name' => $axis->name,
-                'pricing_mode' => $pricingMode->value,
-            ]);
+                $story->did('added the option axis', [
+                    'listing_id' => $listing->id,
+                    'axis_id' => $axis->id,
+                    'name' => $axis->name,
+                    'pricing_mode' => $pricingMode->value,
+                ]);
 
-            return $axis;
+                return $axis;
+            });
         });
     }
 }

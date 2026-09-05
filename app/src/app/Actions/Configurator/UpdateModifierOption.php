@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\ModifierOption;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class UpdateModifierOption
@@ -20,20 +21,22 @@ final readonly class UpdateModifierOption
             'modifier_id' => $option->modifier_id,
             'modifier_option_id' => $option->id,
         ], function (Story $story) use ($option, $modifier, $label, $addOnPriceCents, $position): ModifierOption {
-            $option->update([
-                'label' => $label,
-                'add_on_price_cents' => $addOnPriceCents,
-                'position' => $position,
-            ]);
+            return DB::transaction(function () use ($story, $option, $modifier, $label, $addOnPriceCents, $position): ModifierOption {
+                $option->update([
+                    'label' => $label,
+                    'add_on_price_cents' => $addOnPriceCents,
+                    'position' => $position,
+                ]);
 
-            $story->did('updated the modifier option', [
-                'listing_id' => $modifier->listing_id,
-                'modifier_id' => $option->modifier_id,
-                'modifier_option_id' => $option->id,
-                'label' => $option->label,
-            ]);
+                $story->did('updated the modifier option', [
+                    'listing_id' => $modifier->listing_id,
+                    'modifier_id' => $option->modifier_id,
+                    'modifier_option_id' => $option->id,
+                    'label' => $option->label,
+                ]);
 
-            return $option;
+                return $option;
+            });
         });
     }
 }

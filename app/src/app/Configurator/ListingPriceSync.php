@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Configurator;
 
-use App\Domain\Configurator\PricingMode;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
@@ -32,7 +31,7 @@ final class ListingPriceSync
     {
         $axes = $listing->optionAxes()->with('optionValues')->orderBy('position')->get();
 
-        if (! $axes->contains(fn (OptionAxis $axis): bool => $axis->pricing_mode === PricingMode::Standalone)) {
+        if (! $axes->contains(fn (OptionAxis $axis): bool => $axis->pricing_mode->isStandalone())) {
             return;
         }
 
@@ -51,7 +50,7 @@ final class ListingPriceSync
         $sum = 0;
 
         foreach ($axes as $axis) {
-            if ($axis->pricing_mode !== PricingMode::Standalone) {
+            if (! $axis->pricing_mode->isStandalone()) {
                 continue;
             }
 

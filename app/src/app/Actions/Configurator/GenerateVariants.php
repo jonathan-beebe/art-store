@@ -12,6 +12,7 @@ use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\Variant;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The full cross product of a listing's option axes, one variant per
@@ -30,50 +31,52 @@ final readonly class GenerateVariants
         return Story::for(StoryEvent::ListingUpdate)->tell('generating variants from option axes', [
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing): array {
-            $axes = $listing->optionAxes()->with('optionValues')->orderBy('position')->get();
+            return DB::transaction(function () use ($story, $listing): array {
+                $axes = $listing->optionAxes()->with('optionValues')->orderBy('position')->get();
 
-            // Zero axes has no combination to generate: the legacy, axis-free
-            // path keeps its zero rows. It never gains one variant for the
-            // empty combo key.
-            if ($axes->isEmpty()) {
-                $story->did('no axes to generate variants from', [
+                // Zero axes has no combination to generate: the legacy, axis-free
+                // path keeps its zero rows. It never gains one variant for the
+                // empty combo key.
+                if ($axes->isEmpty()) {
+                    $story->did('no axes to generate variants from', [
+                        'listing_id' => $listing->id,
+                        'created_count' => 0,
+                    ]);
+
+                    return [];
+                }
+
+                $existingComboKeys = $listing->variants()->pluck('combo_key')->all();
+                $created = [];
+
+                foreach ($this->combinations($axes) as $combination) {
+                    $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $combination));
+
+                    if (in_array($comboKey->value, $existingComboKeys, true)) {
+                        continue;
+                    }
+
+                    $variant = $listing->variants()->create(['seller_id' => $listing->seller_id, 'combo_key' => $comboKey->value]);
+
+                    foreach ($axes as $index => $axis) {
+                        $variant->options()->create([
+                            'seller_id' => $variant->seller_id,
+                            'axis_id' => $axis->id,
+                            'option_value_id' => $combination[$index]->id,
+                        ]);
+                    }
+
+                    $existingComboKeys[] = $comboKey->value;
+                    $created[] = $variant;
+                }
+
+                $story->did('generated variants from option axes', [
                     'listing_id' => $listing->id,
-                    'created_count' => 0,
+                    'created_count' => count($created),
                 ]);
 
-                return [];
-            }
-
-            $existingComboKeys = $listing->variants()->pluck('combo_key')->all();
-            $created = [];
-
-            foreach ($this->combinations($axes) as $combination) {
-                $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $combination));
-
-                if (in_array($comboKey->value, $existingComboKeys, true)) {
-                    continue;
-                }
-
-                $variant = $listing->variants()->create(['seller_id' => $listing->seller_id, 'combo_key' => $comboKey->value]);
-
-                foreach ($axes as $index => $axis) {
-                    $variant->options()->create([
-                        'seller_id' => $variant->seller_id,
-                        'axis_id' => $axis->id,
-                        'option_value_id' => $combination[$index]->id,
-                    ]);
-                }
-
-                $existingComboKeys[] = $comboKey->value;
-                $created[] = $variant;
-            }
-
-            $story->did('generated variants from option axes', [
-                'listing_id' => $listing->id,
-                'created_count' => count($created),
-            ]);
-
-            return $created;
+                return $created;
+            });
         });
     }
 

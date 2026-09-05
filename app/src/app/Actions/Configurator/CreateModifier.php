@@ -9,6 +9,7 @@ use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\Modifier;
+use Illuminate\Support\Facades\DB;
 
 final readonly class CreateModifier
 {
@@ -32,29 +33,31 @@ final readonly class CreateModifier
             $listing, $kind, $prompt, $instructions, $required, $position,
             $addOnPriceCents, $charLimit, $unit, $minValue, $maxValue, $rateCentsPerUnit,
         ): Modifier {
-            $modifier = $listing->modifiers()->create([
-                'seller_id' => $listing->seller_id,
-                'kind' => $kind,
-                'prompt' => $prompt,
-                'instructions' => $instructions,
-                'required' => $required,
-                'position' => $position,
-                'add_on_price_cents' => $addOnPriceCents,
-                'char_limit' => $charLimit,
-                'unit' => $unit,
-                'min_value' => $minValue,
-                'max_value' => $maxValue,
-                'rate_cents_per_unit' => $rateCentsPerUnit,
-            ]);
+            return DB::transaction(function () use ($story, $listing, $kind, $prompt, $instructions, $required, $position, $addOnPriceCents, $charLimit, $unit, $minValue, $maxValue, $rateCentsPerUnit): Modifier {
+                $modifier = $listing->modifiers()->create([
+                    'seller_id' => $listing->seller_id,
+                    'kind' => $kind,
+                    'prompt' => $prompt,
+                    'instructions' => $instructions,
+                    'required' => $required,
+                    'position' => $position,
+                    'add_on_price_cents' => $addOnPriceCents,
+                    'char_limit' => $charLimit,
+                    'unit' => $unit,
+                    'min_value' => $minValue,
+                    'max_value' => $maxValue,
+                    'rate_cents_per_unit' => $rateCentsPerUnit,
+                ]);
 
-            $story->did('added the modifier', [
-                'listing_id' => $listing->id,
-                'modifier_id' => $modifier->id,
-                'kind' => $modifier->kind->value,
-                'prompt' => $modifier->prompt,
-            ]);
+                $story->did('added the modifier', [
+                    'listing_id' => $listing->id,
+                    'modifier_id' => $modifier->id,
+                    'kind' => $modifier->kind->value,
+                    'prompt' => $modifier->prompt,
+                ]);
 
-            return $modifier;
+                return $modifier;
+            });
         });
     }
 }

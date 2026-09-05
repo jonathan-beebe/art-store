@@ -20,6 +20,6 @@ final class OptionBuyerPrice
 
     public static function forOption(Money $listingPrice, PricingMode $pricingMode, OptionValue $value): Money
     {
-        return $pricingMode === PricingMode::Standalone ? $value->price() : $listingPrice->add($value->surcharge());
+        return $pricingMode->isStandalone() ? $value->price() : $listingPrice->add($value->surcharge());
     }
 }

@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\QuantityBreak;
+use Illuminate\Support\Facades\DB;
 
 final readonly class DeleteQuantityBreak
 {
@@ -16,15 +17,17 @@ final readonly class DeleteQuantityBreak
             'listing_id' => $break->listing_id,
             'quantity_break_id' => $break->id,
         ], function (Story $story) use ($break): void {
-            $listingId = $break->listing_id;
-            $breakId = $break->id;
+            DB::transaction(function () use ($story, $break): void {
+                $listingId = $break->listing_id;
+                $breakId = $break->id;
 
-            $break->delete();
+                $break->delete();
 
-            $story->did('deleted the quantity break', [
-                'listing_id' => $listingId,
-                'quantity_break_id' => $breakId,
-            ]);
+                $story->did('deleted the quantity break', [
+                    'listing_id' => $listingId,
+                    'quantity_break_id' => $breakId,
+                ]);
+            });
         });
     }
 }

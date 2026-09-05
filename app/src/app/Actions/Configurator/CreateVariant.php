@@ -11,6 +11,7 @@ use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\OptionValue;
 use App\Models\Variant;
+use Illuminate\Support\Facades\DB;
 
 /**
  * One sparse cell: the sole way the walnut table's hand-priced dimension
@@ -36,46 +37,48 @@ final readonly class CreateVariant
         return Story::for(StoryEvent::ListingUpdate)->tell('creating a variant', [
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $optionValues, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
-            $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $optionValues));
+            return DB::transaction(function () use ($story, $listing, $optionValues, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
+                $comboKey = ComboKey::of(array_map(fn (OptionValue $value): string => $value->id, $optionValues));
 
-            // `CreateVariantRequest`'s combination rule catches this first;
-            // this is the backstop for a race between two requests and for
-            // the non-HTTP caller (a console command, a test) that skips the
-            // request layer entirely. Without it, the insert below throws a
-            // raw `UniqueConstraintViolationException`. This check raises a
-            // `DomainRuleViolation`, which the global handler turns into
-            // form feedback.
-            if ($listing->variants()->where('combo_key', $comboKey->value)->exists()) {
-                $label = $optionValues === [] ? 'This combination' : implode(' / ', array_map(fn (OptionValue $value): string => $value->label, $optionValues));
+                // `CreateVariantRequest`'s combination rule catches this first;
+                // this is the backstop for a race between two requests and for
+                // the non-HTTP caller (a console command, a test) that skips the
+                // request layer entirely. Without it, the insert below throws a
+                // raw `UniqueConstraintViolationException`. This check raises a
+                // `DomainRuleViolation`, which the global handler turns into
+                // form feedback.
+                if ($listing->variants()->where('combo_key', $comboKey->value)->exists()) {
+                    $label = $optionValues === [] ? 'This combination' : implode(' / ', array_map(fn (OptionValue $value): string => $value->label, $optionValues));
 
-                throw new DomainRuleViolation("{$label} already exists — edit its row in the grid above.");
-            }
+                    throw new DomainRuleViolation("{$label} already exists — edit its row in the grid above.");
+                }
 
-            $variant = $listing->variants()->create([
-                'seller_id' => $listing->seller_id,
-                'combo_key' => $comboKey->value,
-                'sku' => $sku,
-                'price_override_cents' => $priceOverrideCents,
-                'quantity' => $isSerialized ? null : $quantity,
-                'is_serialized' => $isSerialized,
-                'enabled' => $enabled,
-            ]);
-
-            foreach ($optionValues as $value) {
-                $variant->options()->create([
-                    'seller_id' => $variant->seller_id,
-                    'axis_id' => $value->axis_id,
-                    'option_value_id' => $value->id,
+                $variant = $listing->variants()->create([
+                    'seller_id' => $listing->seller_id,
+                    'combo_key' => $comboKey->value,
+                    'sku' => $sku,
+                    'price_override_cents' => $priceOverrideCents,
+                    'quantity' => $isSerialized ? null : $quantity,
+                    'is_serialized' => $isSerialized,
+                    'enabled' => $enabled,
                 ]);
-            }
 
-            $story->did('created the variant', [
-                'listing_id' => $listing->id,
-                'variant_id' => $variant->id,
-                'combo_key' => $variant->combo_key,
-            ]);
+                foreach ($optionValues as $value) {
+                    $variant->options()->create([
+                        'seller_id' => $variant->seller_id,
+                        'axis_id' => $value->axis_id,
+                        'option_value_id' => $value->id,
+                    ]);
+                }
 
-            return $variant;
+                $story->did('created the variant', [
+                    'listing_id' => $listing->id,
+                    'variant_id' => $variant->id,
+                    'combo_key' => $variant->combo_key,
+                ]);
+
+                return $variant;
+            });
         });
     }
 }
