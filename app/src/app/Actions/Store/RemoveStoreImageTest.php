@@ -8,6 +8,7 @@ use App\Models\StoreProfile;
 use App\Models\StoreSection;
 use App\Models\StoreSectionImage;
 use Illuminate\Support\Facades\Storage;
+use Tests\CapturedStory;
 
 it('takes the picture out of the store', function (): void {
     $image = StoreImage::factory()->create();
@@ -60,4 +61,20 @@ it('takes the gallery placements that named it with it', function (): void {
 
     expect(StoreSectionImage::count())->toBe(0)
         ->and(StoreSection::find($section->id))->not->toBeNull();
+});
+
+it('tells the story of the removal', function (): void {
+    $profile = StoreProfile::factory()->create();
+    $image = StoreImage::factory()->create(['store_profile_id' => $profile->id]);
+    $log = CapturedStory::capture();
+
+    app(RemoveStoreImage::class)($image);
+
+    expect($log->values('phase', 'store.image.write'))->toBe(['will', 'did'])
+        ->and($log->line('store.image.write', 'did')['data'])->toMatchArray([
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+            'image_id' => $image->id,
+            'op' => 'remove',
+        ]);
 });

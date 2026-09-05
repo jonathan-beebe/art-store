@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Store;
 
 use App\Domain\Store\StorePictureRole;
+use App\Logging\Story;
+use App\Logging\StoryEvent;
 use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use Illuminate\Http\UploadedFile;
@@ -19,7 +21,8 @@ use Throwable;
  *
  * The disk write happens before the transaction, so a transaction that
  * rolls back would leave the file behind with no row naming it. The catch
- * takes the file off the disk again, keeping the two in step.
+ * takes the file off the disk again, keeping the two in step. A failed disk
+ * write leaves the store's pictures untouched and tells no story.
  */
 final readonly class AddStoreImage
 {
@@ -37,13 +40,28 @@ final readonly class AddStoreImage
             return null;
         }
 
-        try {
-            return DB::transaction(fn (): StoreImage => $this->attach($profile, $path, $role, $alt));
-        } catch (Throwable $e) {
-            Storage::disk('public')->delete($path);
+        return Story::for(StoryEvent::StoreImageWrite)->tell('adding a store picture', [
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+            'op' => 'add',
+        ], function (Story $story) use ($profile, $path, $role, $alt): StoreImage {
+            try {
+                $image = DB::transaction(fn (): StoreImage => $this->attach($profile, $path, $role, $alt));
+            } catch (Throwable $e) {
+                Storage::disk('public')->delete($path);
 
-            throw $e;
-        }
+                throw $e;
+            }
+
+            $story->did('added the store picture', [
+                'seller_id' => $profile->seller_id,
+                'store_profile_id' => $profile->id,
+                'image_id' => $image->id,
+                'op' => 'add',
+            ]);
+
+            return $image;
+        });
     }
 
     private function attach(StoreProfile $profile, string $path, StorePictureRole $role, ?string $alt): StoreImage

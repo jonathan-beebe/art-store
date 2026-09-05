@@ -24,7 +24,7 @@ use InvalidArgumentException;
  * process the way a serial run does. `env()` still reads through that same
  * repository, and its reader chain checks `$_SERVER`, then `$_ENV`, then
  * `putenv()`, so a case that only wrote one of the three would still read
- * back a stale value out of the others. Each case starts from all seven
+ * back a stale value out of the others. Each case starts from all nine
  * variables cleared and gets back whatever `.env` gave them, so the file
  * reads the same on a checkout that sets them and one that does not.
  */
@@ -76,5 +76,6 @@ it('reads the docs/spec.md §3 default for every limit when nothing is set', fun
         ->and($limits['conversation_open']->decaySeconds)->toBe(3600)
         ->and($limits['checkout']->decaySeconds)->toBe(3600)
         ->and($limits['payment_attempt']->decaySeconds)->toBe(900)
-        ->and($limits['listing_write']->decaySeconds)->toBe(3600);
+        ->and($limits['listing_write']->decaySeconds)->toBe(3600)
+        ->and($limits['store_write']->decaySeconds)->toBe(3600);
 });

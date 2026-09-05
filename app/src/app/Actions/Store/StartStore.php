@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Store;
 
 use App\Domain\Store\StoreSlug as StoreSlugRule;
+use App\Logging\Story;
+use App\Logging\StoryEvent;
 use App\Models\Seller;
 use App\Models\StoreProfile;
 use App\Models\StoreSlug;
@@ -26,17 +28,29 @@ final readonly class StartStore
             return $existing;
         }
 
-        return DB::transaction(function () use ($seller): StoreProfile {
-            $name = $seller->displayName();
+        return Story::for(StoryEvent::StoreStart)->tell('minting a store for a seller', [
+            'seller_id' => $seller->id,
+        ], function (Story $story) use ($seller): StoreProfile {
+            $profile = DB::transaction(function () use ($seller): StoreProfile {
+                $name = $seller->displayName();
 
-            $profile = StoreProfile::create([
+                $profile = StoreProfile::create([
+                    'seller_id' => $seller->id,
+                    'slug' => StoreSlugRule::firstFree($name, $this->slugsTaken()),
+                    'name' => $name,
+                    'published_at' => null,
+                ]);
+
+                StoreSlug::create(['store_profile_id' => $profile->id, 'slug' => $profile->slug]);
+
+                return $profile;
+            });
+
+            $story->did('minted a store for the seller', [
                 'seller_id' => $seller->id,
-                'slug' => StoreSlugRule::firstFree($name, $this->slugsTaken()),
-                'name' => $name,
-                'published_at' => null,
+                'store_profile_id' => $profile->id,
+                'slug' => $profile->slug,
             ]);
-
-            StoreSlug::create(['store_profile_id' => $profile->id, 'slug' => $profile->slug]);
 
             return $profile;
         });

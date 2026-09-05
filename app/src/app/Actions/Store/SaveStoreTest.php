@@ -9,6 +9,7 @@ use App\Domain\Store\StoreLinkKind;
 use App\Domain\Store\StoreVisibility;
 use App\Models\Seller;
 use App\Models\StoreProfile;
+use Tests\CapturedStory;
 
 $draft = function (StoreVisibility $visibility = StoreVisibility::Hidden, array $links = [], string $slug = 'the-burrow-craftworks'): StoreDraft {
     /** @var array<string, string> $links */
@@ -101,4 +102,17 @@ it('keeps one row for a link the seller changed', function () use ($store, $draf
 
     expect($profile->links()->count())->toBe(1)
         ->and($profile->links()->sole()->url)->toBe('https://new.example');
+});
+
+it('tells the story of the save', function () use ($store, $draft, $now): void {
+    $profile = $store();
+    $log = CapturedStory::capture();
+
+    app(SaveStore::class)($profile, $draft(), $now);
+
+    expect($log->values('phase', 'store.save'))->toBe(['will', 'did'])
+        ->and($log->line('store.save', 'did')['data'])->toMatchArray([
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+        ]);
 });

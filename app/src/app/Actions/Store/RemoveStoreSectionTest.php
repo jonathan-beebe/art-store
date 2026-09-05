@@ -7,6 +7,7 @@ use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
 use App\Models\StoreSectionImage;
+use Tests\CapturedStory;
 
 it('takes the section off the page', function (): void {
     $section = StoreSection::factory()->create();
@@ -36,4 +37,21 @@ it('leaves the store\'s other sections alone', function (): void {
     app(RemoveStoreSection::class)($removed);
 
     expect($profile->sections()->pluck('id')->all())->toBe([$kept->id]);
+});
+
+it('tells the story of the removal', function (): void {
+    $profile = StoreProfile::factory()->create();
+    $section = StoreSection::factory()->create(['store_profile_id' => $profile->id]);
+    $log = CapturedStory::capture();
+
+    app(RemoveStoreSection::class)($section);
+
+    expect($log->values('phase', 'store.section.write'))->toBe(['will', 'did'])
+        ->and($log->line('store.section.write', 'did')['data'])->toMatchArray([
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+            'section_id' => $section->id,
+            'kind' => $section->kind->value,
+            'op' => 'remove',
+        ]);
 });

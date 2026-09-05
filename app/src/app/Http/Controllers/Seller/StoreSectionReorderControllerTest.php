@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Actions\Store\StartStore;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Models\Seller;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
+use Illuminate\Support\Facades\Config;
 
 /**
  * A signed-in seller whose store page holds a story then a gallery.
@@ -52,4 +54,17 @@ it('refuses a direction that is neither up nor down', function () use ($page): v
         ->assertSessionHasErrors('direction');
 
     expect($profile->sections()->pluck('id')->all())->toBe([$first->id, $second->id]);
+});
+
+it('trips the store-write limit on reorder, re-rendering the store page with nothing moved', function () use ($page): void {
+    Config::set('rate_limits.store_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_STORE_WRITE'));
+    [$seller, $profile, $first, $second] = $page();
+    $this->actingAs($seller, 'seller')->post("/seller/store/sections/{$second->id}/reorder", ['direction' => 'up']);
+
+    $response = $this->actingAs($seller, 'seller')->post("/seller/store/sections/{$first->id}/reorder", ['direction' => 'down']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect($profile->sections()->pluck('id')->all())->toBe([$second->id, $first->id]);
 });

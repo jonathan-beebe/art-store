@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Store\StoreLinkKind;
 use App\Domain\Store\StorePictureRole;
 use App\Domain\Store\StoreVisibility;
 use App\Models\StoreProfile;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
@@ -154,6 +156,20 @@ it('keeps the links a seller filled in and drops the ones they cleared', functio
     $links = $seller->storeProfile()->sole()->links()->get();
     expect($links)->toHaveCount(1)
         ->and($links->first()?->kind)->toBe(StoreLinkKind::Website);
+});
+
+it('trips the store-write limit on update, re-rendering the form with nothing changed', function () use ($form): void {
+    Config::set('rate_limits.store_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_STORE_WRITE'));
+    $seller = $this->seller('The Burrow Craftworks');
+    $this->storeFor($seller);
+    $this->actingAs($seller, 'seller')->put('/seller/store', $form(['name' => 'Burrow Works']));
+
+    $response = $this->actingAs($seller, 'seller')->put('/seller/store', $form(['name' => 'Second try']));
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect($seller->storeProfile()->sole()->name)->toBe('Burrow Works');
 });
 
 it('IMPRV-030 shows the alt text a seller gave the portrait and cover pictures', function (): void {

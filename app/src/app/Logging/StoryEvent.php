@@ -20,6 +20,11 @@ enum StoryEvent: string
     case ListingPublish = 'listing.publish';
     case ListingTransition = 'listing.transition';
     case ListingView = 'listing.view';
+    case StoreStart = 'store.start';
+    case StoreSave = 'store.save';
+    case StoreSlugRename = 'store.slug.rename';
+    case StoreSectionWrite = 'store.section.write';
+    case StoreImageWrite = 'store.image.write';
     case CartAdd = 'cart.add';
     case CartUpdate = 'cart.update';
     case CartRemove = 'cart.remove';

@@ -9,6 +9,7 @@ use App\Models\StoreProfile;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\CapturedStory;
 
 beforeEach(function (): void {
     Storage::fake('public');
@@ -69,4 +70,20 @@ it('takes the file off the disk again when the row cannot be written', function 
         ->toThrow(QueryException::class);
 
     expect(Storage::disk('public')->allFiles('stores'))->toBe($before);
+});
+
+it('tells the story of the add', function (): void {
+    $profile = StoreProfile::factory()->create();
+    $log = CapturedStory::capture();
+
+    $image = app(AddStoreImage::class)($profile, UploadedFile::fake()->image('studio.jpg'), StorePictureRole::Gallery);
+    assert($image instanceof StoreImage);
+
+    expect($log->values('phase', 'store.image.write'))->toBe(['will', 'did'])
+        ->and($log->line('store.image.write', 'did')['data'])->toMatchArray([
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+            'image_id' => $image->id,
+            'op' => 'add',
+        ]);
 });

@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Store\StartStore;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Store\StorePictureRole;
 use App\Models\Seller;
 use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -88,4 +90,23 @@ it('offers a description field on the upload form', function () use ($storekeepe
         ->get('/seller/store')
         ->assertOk()
         ->assertSee('name="alt"', false);
+});
+
+it('trips the store-write limit on upload, re-rendering the store page with nothing added', function () use ($storekeeper): void {
+    Config::set('rate_limits.store_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_STORE_WRITE'));
+    [$seller, $profile] = $storekeeper();
+    $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('studio.jpg'),
+        'role' => StorePictureRole::Gallery->value,
+    ]);
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/store/images', [
+        'image' => UploadedFile::fake()->image('second.jpg'),
+        'role' => StorePictureRole::Gallery->value,
+    ]);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect($profile->images()->count())->toBe(1);
 });
