@@ -11,11 +11,6 @@ function attentionRow(string $title = 'Molly Weasley'): AttentionRow
     return new AttentionRow('MW', $title, 'A tea bowl', '2 days ago', '/seller/orders');
 }
 
-function attentionLinks(): AttentionLinks
-{
-    return new AttentionLinks('/seller/orders', '/seller/messages', '/seller/earnings', '/seller/listings');
-}
-
 /**
  * @return list<AttentionGroup>
  */
@@ -31,7 +26,6 @@ function attentionGroups(
         payout: $payout ?? AttentionRows::of([]),
         listings: $listings ?? AttentionRows::of([]),
         payoutDate: new DateTimeImmutable('2026-09-07'),
-        links: attentionLinks(),
     );
 }
 
@@ -54,11 +48,11 @@ it('builds the four groups, in the order the dashboard renders them', function (
         ->toBe(['Open orders', 'Open messages', 'See earnings', 'Open listings']);
 });
 
-it('gives each group the link to the tool that clears it', function (): void {
+it('gives each group the tool that clears it', function (): void {
     $groups = attentionGroups();
 
-    expect(array_map(fn (AttentionGroup $group): string => $group->actionHref, $groups))
-        ->toBe(['/seller/orders', '/seller/messages', '/seller/earnings', '/seller/listings']);
+    expect(array_map(fn (AttentionGroup $group): AttentionTool => $group->tool, $groups))
+        ->toBe([AttentionTool::Orders, AttentionTool::Messages, AttentionTool::Earnings, AttentionTool::Listings]);
 });
 
 it('counts the orders waiting to ship in the heading', function (int $rows, string $title): void {

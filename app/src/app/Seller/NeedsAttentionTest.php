@@ -12,6 +12,7 @@ use App\Domain\Messaging\ThreadOpening;
 use App\Domain\Messaging\ThreadTitle;
 use App\Domain\Seller\AttentionGroup;
 use App\Domain\Seller\AttentionRow;
+use App\Domain\Seller\AttentionTool;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Seller;
@@ -214,13 +215,13 @@ it('leaves another sellers work off every queue', function (): void {
         ->and($groups[3]->title)->toBe('No listings need work');
 });
 
-it('links each group header at the tool that clears it', function (): void {
+it('names the tool that clears each group', function (): void {
     $groups = attentionFor($this->seller('The Burrow Craftworks'));
 
-    expect(array_map(fn (AttentionGroup $group): string => $group->actionHref, $groups))->toBe([
-        route('seller.orders.index', ['lane' => 'ship']),
-        route('seller.messages.index'),
-        route('seller.earnings'),
-        route('seller.listings.index'),
+    expect(array_map(fn (AttentionGroup $group): AttentionTool => $group->tool, $groups))->toBe([
+        AttentionTool::Orders,
+        AttentionTool::Messages,
+        AttentionTool::Earnings,
+        AttentionTool::Listings,
     ]);
 });

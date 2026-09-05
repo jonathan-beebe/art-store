@@ -89,7 +89,7 @@ final readonly class SellerOverview
         ));
 
         return new OverviewTile(
-            icon: FeedIcon::Users,
+            iconPath: FeedIconPath::of(FeedIcon::Users),
             label: 'Customers',
             value: number_format(count($this->customers)),
             changeText: '+'.number_format($newInRange).' new',
@@ -107,7 +107,7 @@ final readonly class SellerOverview
         $change = RangeChange::between($current, array_sum($this->over($this->ordersByDay, $this->range->previous())));
 
         return new OverviewTile(
-            icon: FeedIcon::Bag,
+            iconPath: FeedIconPath::of(FeedIcon::Bag),
             label: 'Orders',
             value: number_format($current),
             changeText: $change->text,
@@ -125,7 +125,7 @@ final readonly class SellerOverview
         $change = RangeChange::between($current, array_sum($this->over($this->netByDay, $this->range->previous())));
 
         return new OverviewTile(
-            icon: FeedIcon::Cash,
+            iconPath: FeedIconPath::of(FeedIcon::Cash),
             label: 'Earnings',
             value: Money::fromCents($current)->format(),
             changeText: $change->text,

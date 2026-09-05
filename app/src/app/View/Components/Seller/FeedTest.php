@@ -8,6 +8,7 @@ use App\Domain\Seller\ActivityFeed;
 use App\Domain\Seller\ActivityKind;
 use App\Domain\Seller\FeedEvent;
 use App\Domain\Seller\FeedIcon;
+use App\Seller\FeedIconPath;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Blade;
 
@@ -70,7 +71,7 @@ it('renders the actor in the strong voice and draws the icon path the event carr
 
     expect($html)->toContain('data-feed-actor')
         ->toContain('>You</span>')
-        ->toContain('d="'.FeedIcon::Truck->path().'"');
+        ->toContain('d="'.FeedIconPath::of(FeedIcon::Truck).'"');
 });
 
 it('quotes the words a message or a decline carries', function (): void {

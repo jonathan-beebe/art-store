@@ -10,7 +10,6 @@ use App\Domain\Configurator\PublishIssue;
 use App\Domain\Fulfillment\LaneFilter;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Seller\AttentionGroup;
-use App\Domain\Seller\AttentionLinks;
 use App\Domain\Seller\AttentionQueue;
 use App\Domain\Seller\AttentionRow;
 use App\Domain\Seller\AttentionRows;
@@ -53,12 +52,6 @@ final readonly class NeedsAttention
             payout: self::payout($seller, $payout),
             listings: self::listings($seller, $now),
             payoutDate: $payout->payoutDate,
-            links: new AttentionLinks(
-                orders: route('seller.orders.index', ['lane' => LaneFilter::ToShip->value]),
-                messages: route('seller.messages.index'),
-                earnings: route('seller.earnings'),
-                listings: route('seller.listings.index'),
-            ),
         );
     }
 
