@@ -4,69 +4,29 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Actions\Listings\ChangeListingStatus;
 use App\Domain\Configurator\ConfiguratorPublishRefused;
-use App\Domain\Listings\ListingStatus;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
-use App\Logging\Story;
-use App\Logging\StoryEvent;
 use App\Models\Listing;
 use Illuminate\Http\RedirectResponse;
 
 final class ListingStatusController extends SellerController
 {
-    public function __invoke(ChangeListingStatusRequest $request, Listing $listing): RedirectResponse
+    public function __invoke(ChangeListingStatusRequest $request, Listing $listing, ChangeListingStatus $changeStatus): RedirectResponse
     {
         $next = $request->status();
-        $from = $listing->status;
 
-        return Story::for(StoryEvent::ListingTransition)->tell('moving a listing to another status', [
-            'listing_id' => $listing->id,
-            'status_from' => $from->value,
-            'status_to' => $next->value,
-        ], function (Story $story) use ($listing, $from, $next): RedirectResponse {
-            // This action judges every issue publish validation holds
-            // against the listing's configurator state. `changeStatusTo()`'s
-            // state machine knows nothing about axes, variants, or units. A
-            // refusal sends the seller back to the edit screen, which links
-            // each issue to the screen that owns it.
-            if ($next === ListingStatus::ForSale) {
-                $issues = $listing->publishIssues();
+        try {
+            $changeStatus($listing, $next);
+        } catch (ConfiguratorPublishRefused) {
+            // The edit screen lists every issue and links each to the screen
+            // that owns it, so the refusal lands there rather than back on
+            // the list the form was submitted from.
+            return redirect()->route('seller.listings.edit', $listing);
+        }
 
-                if ($issues !== []) {
-                    $refusal = new ConfiguratorPublishRefused($issues);
-
-                    $story->refused($refusal->getMessage(), [
-                        'listing_id' => $listing->id,
-                        'status_from' => $from->value,
-                        'status_to' => $next->value,
-                        ...$refusal->refusalData(),
-                    ]);
-
-                    return redirect()->route('seller.listings.edit', $listing);
-                }
-            }
-
-            // The form request admits only the transitions the status held
-            // when it ran. A status that moved between then and here is
-            // refused by the core, and the refusal ends this story.
-            $listing->changeStatusTo($next);
-
-            if ($next === ListingStatus::ForSale) {
-                Story::for(StoryEvent::ListingPublish)->did('put the listing on the storefront', [
-                    'listing_id' => $listing->id,
-                    'slug' => $listing->slug,
-                ]);
-            }
-
-            $story->did('moved the listing', [
-                'listing_id' => $listing->id,
-                'status_from' => $from->value,
-                'status_to' => $next->value,
-            ]);
-
-            return redirect()
-                ->route('seller.listings.index')
-                ->with('status', "\"{$listing->title}\" is now ".lcfirst($next->label()).'.');
-        });
+        return redirect()
+            ->route('seller.listings.index')
+            ->with('status', "\"{$listing->title}\" is now ".lcfirst($next->label()).'.');
     }
 }

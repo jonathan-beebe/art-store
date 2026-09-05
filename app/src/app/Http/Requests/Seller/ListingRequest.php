@@ -6,6 +6,7 @@ namespace App\Http\Requests\Seller;
 
 use App\Configurator\AbsolutePriceInput;
 use App\Configurator\PriceDifferenceInput;
+use App\Domain\Listings\ListingCreationChoice;
 use App\Domain\Listings\ListingCreationShape;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Money\Money;
@@ -138,6 +139,22 @@ final class ListingRequest extends FormRequest
     public function shape(): ListingCreationShape
     {
         return ListingCreationShape::from($this->string('shape')->toString());
+    }
+
+    /**
+     * The one choice the chosen shape adds to the new listing, or null for a
+     * plain listing: the versions ramp always adds one; the extras ramp adds
+     * one only when the seller named it and filled a row.
+     */
+    public function creationChoice(): ?ListingCreationChoice
+    {
+        return match ($this->shape()) {
+            ListingCreationShape::OneThing => null,
+            ListingCreationShape::Versions => ListingCreationChoice::versions($this->choiceName(), $this->versionRows()),
+            ListingCreationShape::Extras => $this->extraOptionRows() === []
+                ? null
+                : ListingCreationChoice::extras($this->extraChoiceName(), $this->extraOptionRows()),
+        };
     }
 
     public function choiceName(): string

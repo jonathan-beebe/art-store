@@ -21,4 +21,15 @@ enum PricingMode: string
     {
         return $this === self::Standalone;
     }
+
+    /**
+     * A catalog property pre-fills an `add_on` choice's options from its own
+     * values (`docs/item-configurator.md` §4). A `standalone` choice takes
+     * none: each of its options needs its own price, and the catalog has
+     * none to offer.
+     */
+    public function acceptsCatalogPrefill(): bool
+    {
+        return $this === self::AddOn;
+    }
 }
