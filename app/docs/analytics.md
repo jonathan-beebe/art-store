@@ -16,8 +16,8 @@ Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport
 `database/migrations/*_create_analytics_visits_table.php`,
 `app/Models/PageViewCount.php`, `app/Domain/Listings/ListingViewCollapse.php`,
 `app/Domain/Analytics/{PageViewCountability,PageViewDay,PageViewSite,PageViewWeek}.php`,
-`app/Http/Middleware/RollUpPageViews.php`, `App\Console\Commands\SweepOrders`'s
-analytics step; the admin drill-in reads through `app/Analytics/Admin/`,
+`app/Http/Middleware/RollUpPageViews.php`, `App\Console\Commands\Sweep\SweepAnalytics`;
+the admin drill-in reads through `app/Analytics/Admin/`,
 `app/Domain/Analytics/` (the rest of it — velocity, range, breakdown, and
 change value objects), `app/Http/Controllers/Admin/Analytics/`,
 `app/Http/Requests/Admin/Analytics*QueryRequest.php`, and
@@ -567,8 +567,8 @@ issues a query per step or per actor. Each tile links to
 ## Test isolation
 
 `phpunit.xml` sets `ANALYTICS_DATABASE_FILE=:memory:` and
-`ANALYTICS_RETENTION_DAYS=off`, so an ordinary test never has `orders:sweep`
-prune rows out from under it; `SweepOrdersTest` overrides
+`ANALYTICS_RETENTION_DAYS=off`, so an ordinary test never has `sweep:analytics`
+prune rows out from under it; `SweepAnalyticsTest` overrides
 `config(['analytics.retention_days' => …])` per test the way it already
 does for the log store. `Tests\TestCase` lists
 `analytics` in `$connectionsToTransact` alongside the default connection, so
@@ -662,8 +662,8 @@ their own story lines through the ordinary `Log` facade — nothing extra
 was needed for those.
 
 **Retention.** `ANALYTICS_RETENTION_DAYS` ([Retention](#retention) below)
-prunes most of a 92-day seeded run on the next `orders:sweep`, so widen the
-window or set it `off` in local dev first.
+prunes most of a 92-day seeded run on the next `sweep:analytics`, so widen
+the window or set it `off` in local dev first.
 
 ## Retention
 
@@ -675,9 +675,8 @@ usage log into a standing record of who visited what. `ANALYTICS_RETENTION_DAYS`
 whose `occurred_at` and `analytics_visits` rows whose `first_seen_at` are
 before the cutoff, each batched and looped until none change — the same
 shape `App\Logging\LogStore::prune()` uses ([`log-store.md`](log-store.md)) — and
-returns the two tables' combined delete count. `orders:sweep` runs it as a
-third step alongside the stale-order sweep and the log-store prune, each
-independent of the others' success, and prints the combined count
-("N analytics row(s) pruned."). `page_view_counts` carries no personal
+returns the two tables' combined delete count. `sweep:analytics` runs it and
+prints the combined count ("N analytics row(s) pruned."). `page_view_counts`
+carries no personal
 data (a route pattern and a day, never an ip or a session) and is never
 pruned.

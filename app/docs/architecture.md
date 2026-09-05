@@ -133,8 +133,9 @@ that produces it, and every controller calls it.
   `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
   frozen by `travelTo()`, but not handed in.
 - The artisan commands are the other producers, since a console run has no
-  controller: `RunWeeklyPayouts` and `SweepOrders` read `now()` or parse
-  `--as-of`; `SeedActivity` reads `now()`.
+  controller: `RunWeeklyPayouts` and the three `App\Console\Commands\Sweep`
+  commands read `now()` or parse `--as-of` through the shared `ReadsAsOf`
+  trait; `SeedActivity` reads `now()`.
 
 A test freezes time with `travelTo()`/`freezeTime()` and every layer follows,
 because one call per request produces the instant they all read.
@@ -685,8 +686,9 @@ flowchart LR
   `SignOutController::seller`/`customer`/`admin`, and the three
   `LoginController::send` pairs), `App\Domain` and `App\Logging` for enums
   that live beside the concept they model,
-  `App\Console\Commands\RunWeeklyPayouts`, `SweepOrders`, and `SeedActivity`
-  for their artisan command names, `App\Notifications\Channels` for a
+  `App\Console\Commands\RunWeeklyPayouts`, the three
+  `App\Console\Commands\Sweep` commands, and `SeedActivity` for their
+  artisan command names, `App\Notifications\Channels` for a
   delivery channel, and `App\Http\Requests\Shop\ShopRequest`, the abstract
   base whose children hold the rules. Every other controller is held to the
   preset's REST method vocabulary.

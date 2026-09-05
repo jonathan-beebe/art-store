@@ -1,4 +1,4 @@
-.PHONY: help up down build assets shell test smoke coverage lint lint-fix check precommit migrate fresh seed seed-activity routes payouts sweep outbox analyse logs image run-image
+.PHONY: help up down build assets shell test smoke coverage lint lint-fix check precommit migrate fresh seed seed-activity routes payouts sweep sweep-orders sweep-logs sweep-analytics outbox analyse logs image run-image
 
 .DEFAULT_GOAL := help
 
@@ -103,11 +103,24 @@ routes: ## print the route table
 payouts: ## settle the payout week just ended (AS_OF= for an earlier week)
 	docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))
 
-# Cancels the orders a guest never verified once they are older than
-# STALE_ORDER_HOURS (default 24) and hands their stock back. Idempotent: a
-# second run finds nothing.
-sweep: ## cancel stale unverified orders
-	docker compose run --rm app php artisan orders:sweep
+# Three independent commands, run in sequence: cancels the orders a guest
+# never verified once they are older than STALE_ORDER_HOURS (default 24)
+# and hands their stock back, prunes log lines past LOG_RETENTION_DAYS, and
+# prunes analytics events and visits past ANALYTICS_RETENTION_DAYS. Each is
+# idempotent: a second run finds nothing left to do.
+sweep: ## run the three sweeps: stale orders, log retention, analytics retention
+	docker compose run --rm app php artisan sweep:orders
+	docker compose run --rm app php artisan sweep:logs
+	docker compose run --rm app php artisan sweep:analytics
+
+sweep-orders: ## cancel stale unverified orders
+	docker compose run --rm app php artisan sweep:orders
+
+sweep-logs: ## prune log lines past LOG_RETENTION_DAYS
+	docker compose run --rm app php artisan sweep:logs
+
+sweep-analytics: ## prune analytics events and visits past ANALYTICS_RETENTION_DAYS
+	docker compose run --rm app php artisan sweep:analytics
 
 # The app has no outbox: notifications are in-app, rendered from the
 # database channel (app/Notifications/, config/notifications.php).

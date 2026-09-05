@@ -5,7 +5,9 @@ declare(strict_types=1);
 use App\Console\Commands\MintMcpKey;
 use App\Console\Commands\RunWeeklyPayouts;
 use App\Console\Commands\SeedActivity;
-use App\Console\Commands\SweepOrders;
+use App\Console\Commands\Sweep\SweepAnalytics;
+use App\Console\Commands\Sweep\SweepLogs;
+use App\Console\Commands\Sweep\SweepOrders;
 use App\Console\Kernel as AppConsoleKernel;
 use App\Domain\DomainRuleViolation;
 use App\Domain\RateLimiting\RateLimitExceeded;
@@ -32,7 +34,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
     // Named explicitly here, since `App\Console\Kernel` (bound below) turns
     // that scan off, and this is what fills the gap it leaves — see the
     // class's docblock.
-    ->withCommands([RunWeeklyPayouts::class, SweepOrders::class, SeedActivity::class, MintMcpKey::class])
+    ->withCommands([RunWeeklyPayouts::class, SweepOrders::class, SweepLogs::class, SweepAnalytics::class, SeedActivity::class, MintMcpKey::class])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',

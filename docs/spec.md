@@ -271,9 +271,9 @@ never the app's failure.
 
 `LOG_DATABASE_FILE` names the file (default `storage/logs.sqlite3`, `off`
 disables the store). `LOG_RETENTION_DAYS` (default `14`, `off` disables)
-bounds its history: the maintenance sweep prunes stored lines older than the
-window. `docs/logging.md` is the reference definition — schema, ingest
-semantics, retention, and the viewer.
+bounds its history: `sweep:logs` prunes stored lines older than the window.
+`docs/logging.md` is the reference definition — schema, ingest semantics,
+retention, and the viewer.
 
 ### 2.6 Analytics store
 
@@ -350,7 +350,7 @@ channel they belong to.
 An `ip` and a `session_id` are personal data, so the store does not keep
 them forever: `ANALYTICS_RETENTION_DAYS` (default `30`, `off` disables)
 bounds `analytics_events`' and `analytics_visits`' history the way
-`LOG_RETENTION_DAYS` bounds the log store's — the maintenance sweep prunes
+`LOG_RETENTION_DAYS` bounds the log store's — `sweep:analytics` prunes
 `analytics_events` rows whose `occurred_at` and `analytics_visits` rows
 whose `first_seen_at` are older than the window. `page_view_counts` carries
 no personal data and is never pruned.
@@ -414,8 +414,8 @@ pending_verification ─verify─▶ awaiting_payment ─approve─▶ paid
 - Design, not built: an admin cancel records a reason, as decline and
   refund do.
 - The stale sweep cancels `pending_verification` orders strictly older than
-  `STALE_ORDER_HOURS` (default `24`). It runs from `make sweep` (an artisan
-  command) and is idempotent.
+  `STALE_ORDER_HOURS` (default `24`). It runs from `make sweep-orders` (the
+  `sweep:orders` artisan command) and is idempotent.
 
 Fulfillment:
 
@@ -745,7 +745,9 @@ See `app/docs/mcp.md`.
 |                                | activity, local dev only                                                                    |
 | `routes`                       | print the route table                                                                       |
 | `mcp-key`                      | mint an MCP api key for an admin and print it once (`EMAIL=` required, `NAME=` optional)    |
-| `payouts`, `sweep`             | the scheduled jobs, by hand (`AS_OF=` for `payouts`)                                        |
+| `payouts`, `sweep`             | the scheduled jobs, by hand (`AS_OF=` for `payouts`); `sweep` runs           |
+|                                | `sweep-orders`, `sweep-logs`, and `sweep-analytics` in sequence, each also   |
+|                                | runnable alone                                                               |
 | `outbox`                       | prints that the app has no outbox — notifications are in-app, rendered from the database    |
 |                                | channel                                                                                     |
 | `image`, `run-image`           | build the production image (the Dockerfile's `runtime` target); run it standalone on a host |

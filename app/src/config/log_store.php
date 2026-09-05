@@ -14,8 +14,8 @@ use App\Logging\LogSlowQueryMs;
 | mirrored into a queryable SQLite file of its own, separate from the
 | commerce database. LOG_DATABASE_FILE names it, beside the commerce file
 | (the literal "off" disables the store). LOG_RETENTION_DAYS bounds how
-| long a mirrored line survives before the maintenance sweep prunes it
-| ("off" disables pruning). LOG_SLOW_QUERY_MS is the threshold a single
+| long a mirrored line survives before sweep:logs prunes it ("off"
+| disables pruning). LOG_SLOW_QUERY_MS is the threshold a single
 | database query's elapsed time must pass to write a query.exceed line
 | (docs/spec.md §2.3; "off" disables the line). This file loads on
 | every boot, so a malformed value RetentionDays::parse() or

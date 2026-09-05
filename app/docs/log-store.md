@@ -4,7 +4,7 @@ Every JSON line the app logs — server and CLI runs alike — is also
 written to a queryable SQLite store, and the admin site reads it back: a
 filterable time series at `/admin/logs` and a per-request story view. Stdout
 stays exactly as [spec.md](../../docs/spec.md) §2 specifies; the store is a mirror of
-it. Lines older than a retention window are pruned by `orders:sweep`.
+it. Lines older than a retention window are pruned by `sweep:logs`.
 
 Code: `app/Logging/{LogStore,LogLine,LogStoreHandler,LogStoreTap,LogDomain}.php`,
 `app/Domain/Retention/RetentionDays.php`,
@@ -12,7 +12,7 @@ Code: `app/Logging/{LogStore,LogLine,LogStoreHandler,LogStoreTap,LogDomain}.php`
 `app/Logging/Admin/*.php`, `app/Http/Requests/Admin/LogsQueryRequest.php`,
 `app/Http/Controllers/Admin/LogController.php`, `app/Domain/Paging/Page.php`,
 `resources/views/admin/logs/`, `resources/views/components/admin/{log-lines,log-id-chip,log-filter-rail,log-actor,log-ids,pager}.blade.php`,
-`app/Console/Commands/SweepOrders.php`.
+`app/Console/Commands/Sweep/SweepLogs.php`.
 
 Three invariants govern the design:
 
@@ -28,7 +28,7 @@ Three invariants govern the design:
 3. **The store's failure is never the app's failure.** Every public method
    on `App\Logging\LogStore` swallows its own errors rather than throwing
    into the logger it mirrors, except `prune()`, whose caller
-   (`orders:sweep`) is expected to report a failure and carry on regardless.
+   (`sweep:logs`) is expected to report a failure and carry on regardless.
 
 ## The second database
 
@@ -445,17 +445,13 @@ it.
 malformed value refuses the process at boot rather than on the sweep run
 that would have needed it.
 
-The prune runs inside `orders:sweep` (`App\Console\Commands\SweepOrders`),
-beside the stale-order cancellation and the analytics prune, honoring
-`--as-of` (cutoff = as-of minus the retention window). Failure isolation
-runs every direction: a stale-order sweep failure does not skip either
-prune, and a prune failure does not unwind the other steps' completed work —
-`SweepOrders::handle()` runs all three, sets the command's exit code to
-failure if any one failed, and lets each report its own error. `LogStore::prune()`
-itself is the one method that does not swallow its own exceptions — a
-disabled store (`connection === null`) is a silent no-op, but a prune that
-starts and fails throws, and `SweepOrders` decides what that means for the
-exit code. The delete runs in `PRUNE_BATCH` (5,000)-row batches, looped
+The prune runs inside `sweep:logs` (`App\Console\Commands\Sweep\SweepLogs`),
+honoring `--as-of` (cutoff = as-of minus the retention window).
+`LogStore::prune()` itself is the one method that does not swallow its own
+exceptions — a disabled store (`connection === null`) is a silent no-op, but
+a prune that starts and fails throws, and `SweepLogs` catches it and sets
+the command's exit code to failure. The delete runs in `PRUNE_BATCH`
+(5,000)-row batches, looped
 until a batch changes zero rows, so the write lock is held for milliseconds
 per batch and a concurrently flushing process re-buffers at most one flush;
 the sweep ends with `PRAGMA incremental_vacuum(1000)`, which the bootstrap's
@@ -492,9 +488,9 @@ with the ungrouped one, domain/health correlate correctly.
 `LogsQueryRequestTest` covers validation — empty means all, an unrecognised
 value 400s, `value` without `key` 400s, round-tripping through
 `roundTrippedFilters()`. `LogControllerTest` drives `/admin/logs` and the
-story route end to end, signed in as an admin. `SweepOrdersTest` covers the
-retention prune's batching and both directions of failure isolation beside
-the stale-order sweep's own tests. `make coverage` holds the whole suite,
+story route end to end, signed in as an admin. `SweepLogsTest` covers the
+retention prune's batching and its own failure isolation.
+`make coverage` holds the whole suite,
 this code included, to the project's 95%-line coverage gate.
 
 ## Seeded activity
