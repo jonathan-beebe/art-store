@@ -1,7 +1,0 @@
-<tr data-item="<%= item.id %>">
-  <th scope="row" class="px-4 py-2 font-normal">
-    <%= link_to item.title, admin_listing_path(item.listing), class: "underline" %>
-  </th>
-  <td data-cell="quantity" class="px-4 py-2 text-right tabular-nums"><%= item.quantity %></td>
-  <td data-cell="unit_price" class="px-4 py-2 text-right tabular-nums"><%= money(item.unit_price_cents) %></td>
-</tr>

@@ -1,8 +1,8 @@
 # Domain ontology
 
-**Sellers**
+**Seller**
 
-Also *artists*, *makers*.
+Also *artist*, *maker*.
 
 Is: a creative human.
 Is-Not: a brand, a group, a store.
@@ -42,9 +42,13 @@ A storefront visitor who has bought. Platform-wide, every visitor gets a
 customer row; to a seller, a customer is a person with at least one live
 fulfillment with them. Favorites, views, and questions do not make a customer.
 
+Can be anonymous, identified by a `cus_*` id minted for their session.
+Eventually, when they create an account or make a purchase the move to a known 
+customer, associated with a verified email.
+
 **Product**
 
-Also *works*, *goods*, *wares*, *crafts*, or any category-specific name like *ceramics*, *painting*, etc.
+Also *work*, *good*, *ware*, *craft*, or any category-specific name like *ceramic*, *painting*, etc.
 
 Any hand-made art good that a seller has put up for sale.
 
@@ -140,16 +144,9 @@ events, the messages between them.
 Is: a merge over sources, read newest first and filterable by kind.
 Is-Not: a table — nothing writes a feed row.
 
-**Customers**
+**Admin**.
 
-Also *buyers*.
-
-Can be anonymous, identified by a `cus_*` id minted for their session.
-Eventually, when they create an account or make a purchase the move to a known customer, associated with a verified email.
-
-**Admins**.
-
-Also *owners*.
+Also *owner*.
 
 Jonathan Beebe & Anna Schmumk, the founders.
 

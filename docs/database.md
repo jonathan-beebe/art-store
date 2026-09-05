@@ -1,21 +1,16 @@
 # Database
 
-Written 2026-09-01. Every prototype runs SQLite. It is dead simple to operate. 
-The tradeoff is features (no RLS) and speed (write-limited). The natural upgrade is
-to adopt Postgres the day a prototype needs a second app instance, managed backups, or
-row-level security. 
+The app runs SQLite. It is dead simple to operate. The tradeoff is features
+(no RLS) and speed (write-limited). The natural upgrade is to adopt Postgres
+the day the app needs a second instance, managed backups, or row-level
+security.
 
 This document describes the principles by which we work with SQLite so that
 we are using it to its full potential, and we leave the door open to migrating
 to Postgres and making the transition as simple as possible.
 
-Each stack's dialect layer:
-
-| Prototype | Migrations              | Queries                  |
-| --------- | ----------------------- | ------------------------ |
-| node      | Kysely schema builder   | Kysely query builder     |
-| php       | Laravel schema builder  | Eloquent / query builder |
-| rails     | ActiveRecord migrations | ActiveRecord / Arel      |
+Migrations go through the Laravel schema builder; queries go through
+Eloquent or the query builder.
 
 ## 1. Ownership keys
 
@@ -86,9 +81,9 @@ app code and designed into the table schemas.
 For now we keep search simple, and isolate search flows in app code that owns
 the responsibility. 
 
-- All matching and ranking flows through a single search entry point per
-  prototype (php: `ListingSearch` + the `ofSearchTerm` scope). Controllers
-  and views never compose a search predicate.
+- All matching and ranking flows through a single search entry point:
+  `ListingSearch` and the `ofSearchTerm` scope. Controllers and views never
+  compose a search predicate.
 - Upgrading relevance (FTS5 today, `tsvector` after a migration) touches
   that seam and nothing else.
 
@@ -96,12 +91,12 @@ the responsibility.
 
 - **Writes**: one write transaction at a time; WAL mode keeps reads flowing
   during a write. Hundreds of writes per second fit this workload shape.
-- **Reads**: effectively unlimited at prototype scale.
+- **Reads**: effectively unlimited at this scale.
 - **Topology is the real limit.** SQLite pins the app to one instance with
-  a persistent disk: single node, deploys with downtime, backup and
-  point-in-time recovery are on us (snapshots per FEAT-035; Litestream is
-  the researched continuous-backup path). "We need a second instance" or
-  "we need managed backups" arrives before a performance cliff.
+  a persistent disk: single instance, deploys with downtime, backup and
+  point-in-time recovery are on us (snapshots; Litestream is the researched
+  continuous-backup path). "We need a second instance" or "we need managed
+  backups" arrives before a performance cliff.
 - The process is the security boundary. Anything that can open the file
   reads everything, which is why §2 puts authorization in the app and why
   per-tenant isolation with teeth means Postgres RLS or a file per tenant.

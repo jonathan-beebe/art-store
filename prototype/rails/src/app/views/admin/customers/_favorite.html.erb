@@ -1,6 +1,0 @@
-<tr data-favorite="<%= favorite.id %>">
-  <th scope="row" class="px-4 py-2 font-normal">
-    <%= link_to favorite.listing.title, admin_listing_path(favorite.listing), class: "underline" %>
-  </th>
-  <td class="px-4 py-2"><%= favorite.created_at.strftime("%b %-d, %Y") %></td>
-</tr>

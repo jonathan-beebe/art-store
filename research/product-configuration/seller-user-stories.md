@@ -1,7 +1,7 @@
 # Seller user stories — creating and editing a listing
 
 Date: 2026-08-27. Sources: `./etsy-product-configuration.md`
-(research; live listings and case studies) and `prototype/php/docs/item-configurator.md`
+(research; live listings and case studies) and `app/docs/item-configurator.md`
 (design doc). Every story is written entirely from the seller's perspective: the
 seller knows their craft and their customers, and knows nothing about the
 platform's data model or whether the platform supports the need. Each story
@@ -243,7 +243,7 @@ current position. Coverage values: **v1** (mechanism in `docs/item-configurator.
 | C2    | §2.2 candlesticks case                     | v1       | Unit flips to sold in `PlaceOrder`; no cart-time reservation (§9)    |
 | C3    | §2.2 wedding quantity tiers                | v1       | Quantity breaks                                                      |
 | C4    | §2 bead-lot "price is for 100 grams"       | gap      | No unit-of-sale concept; description prose remains                   |
-| C5    | §1.4 per-axis readiness                    | gap      | No fulfillment profile in this prototype's schema                    |
+| C5    | §1.4 per-axis readiness                    | gap      | No fulfillment profile in the app's schema                    |
 | C6    | §2.2 walnut-table case                     | partial  | Linear measurement rate; area-proportional formula deferred (§9)     |
 | C7    | §2.2 walnut-table in-between sizes         | partial  | Measurement modifier covers linear cases                             |
 | C8    | §2.2 pet-portrait "Print file"             | deferred | §9 — no per-variant digital delivery                                 |

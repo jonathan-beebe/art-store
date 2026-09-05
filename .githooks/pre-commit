@@ -1,22 +1,14 @@
 #!/bin/sh
-# Commit gate: every prototype with staged source changes must pass its
-# per-commit gate. Changes limited to a prototype's work/ tickets or docs/
-# do not run it. php runs its fast gate (`precommit`: lint + the ungated
-# suite, one container — IMPRV-021); node and rails still run their full
-# `make check` (lint, assets build, full test suite with coverage gate) per
-# commit until they grow an equivalent fast path.
+# Commit gate: a commit with staged source changes under app/ must pass the
+# per-commit gate (`make -C app precommit`: lint + the ungated suite, one
+# container). Changes limited to app/docs/ or app/README.md do not run it.
+# `make check` (lint, asset build, coverage-gated suite) runs once per branch
+# before a PR opens; CI runs it again on push/PR as the backstop.
 set -eu
 root=$(git rev-parse --show-toplevel)
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
-for p in node php rails; do
-  if printf '%s\n' "$staged" | grep -Eq "^prototype/$p/" \
-     && printf '%s\n' "$staged" | grep -E "^prototype/$p/" | grep -Evq "^prototype/$p/(work|docs)/|^prototype/$p/README\.md$"; then
-    if [ "$p" = "php" ]; then
-      echo "pre-commit: make -C prototype/$p precommit"
-      make -C "$root/prototype/$p" precommit
-    else
-      echo "pre-commit: make -C prototype/$p check"
-      make -C "$root/prototype/$p" check
-    fi
-  fi
-done
+if printf '%s\n' "$staged" | grep -Eq "^app/" \
+   && printf '%s\n' "$staged" | grep -E "^app/" | grep -Evq "^app/docs/|^app/README\.md$"; then
+  echo "pre-commit: make -C app precommit"
+  make -C "$root/app" precommit
+fi

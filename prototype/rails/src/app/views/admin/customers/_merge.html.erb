@@ -1,9 +1,0 @@
-<tr data-merge="<%= merge.other.id %>">
-  <th scope="row" class="px-4 py-2 font-normal">
-    <%= merge.direction == "absorbed" ? "Absorbed a visitor" : "Folded into an account" %>
-  </th>
-  <td class="px-4 py-2">
-    <%= link_to merge.other.display_name, admin_customer_path(merge.other), class: "underline" %>
-  </td>
-  <td class="px-4 py-2"><%= merge.created_at.strftime("%b %-d, %Y") %></td>
-</tr>
