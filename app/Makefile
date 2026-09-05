@@ -84,6 +84,11 @@ seed: ## add the platform admins and demo data
 seed-activity: ## fill the store with a ramp of ninety days of activity (local dev only)
 	docker compose run --rm app php artisan seed:activity
 
+# Mints one MCP api key for an admin and prints it once; the database
+# keeps only its digest. `make mcp-key EMAIL=anna@example.com NAME="laptop"`.
+mcp-key: ## mint an MCP api key for an admin (EMAIL= required, NAME= optional)
+	docker compose run --rm app php artisan mcp:key $(EMAIL) $(if $(NAME),--name="$(NAME)")
+
 # Every route the app answers, printed by Laravel's own introspection.
 routes: ## print the route table
 	docker compose run --rm app php artisan route:list

@@ -202,9 +202,10 @@ row.
 A stored line carries no site field of its own. `?domain=` derives one from
 the line's request: a query correlated on `request_id` against that
 request's opening `http.request` line, prefix-matching `data.path` —
-`/admin*` and `/seller*` claim their site, the storefront claims the
-unprefixed root. The health-probe path (below) is excluded from the storefront bucket by
-name.
+`/admin*` and `/seller*` claim their site, `/mcp` (the MCP endpoint,
+docs/spec.md §5.1) is its own bucket, the storefront claims the unprefixed
+root. The health-probe path (below) and `/mcp` are excluded from the
+storefront bucket by name.
 A line with no `request_id` matches no domain.
 
 ### The health filter

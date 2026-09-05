@@ -190,7 +190,7 @@ layer, rendering the "store unavailable" state instead. Filters, summarized
 live in [`docs/logging.md`](../../docs/logging.md) § "Viewer" and its
 subsections, which this implementation matches:
 
-- `domain` — a select over `LogDomain::cases()` (`shop`, `seller`, `admin`),
+- `domain` — a select over `LogDomain::cases()` (`shop`, `seller`, `admin`, `mcp`),
   derived per row via a correlated `EXISTS` against the request's opening
   `http.request` line's `data.path`.
 - `level`, `phase`, `event` — selects built from the `StoryLevel`,

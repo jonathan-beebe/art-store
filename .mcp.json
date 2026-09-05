@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "art-store": {
+      "type": "http",
+      "url": "${ART_STORE_MCP_URL:-http://localhost:8000/mcp}",
+      "headers": {
+        "Authorization": "Bearer ${ART_STORE_MCP_KEY}"
+      }
+    }
+  }
+}

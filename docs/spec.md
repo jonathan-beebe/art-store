@@ -41,6 +41,7 @@ Prefix table (one prefix per domain table):
 | Table                                     | Prefix |
 | ----------------------------------------- | ------ |
 | admins                                    | `adm`  |
+| api_keys                                  | `key`  |
 | sellers                                   | `sel`  |
 | customers                                 | `cus`  |
 | customer_merges                           | `cmg`  |
@@ -633,8 +634,8 @@ Decisions carried by this table:
   (`data.order_id`); alone it filters for the attribute's existence, with
   `value` for equality on it.
 - `/admin/logs`'s `domain` selects one site's requests — `shop` | `seller` |
-  `admin`, derived from the request's opening line's path at segment
-  boundaries, the shop bucket excluding the health-probe path. The health
+  `admin` | `mcp`, derived from the request's opening line's path at segment
+  boundaries, the shop bucket excluding the health-probe path and `/mcp`. The health
   probe lives at Laravel's built-in `/up`, which the
   viewer names. `group=1` renders one summarized row
   per request and pages count groups. Health-check requests (the probe
@@ -668,6 +669,32 @@ Decisions carried by this table:
   tile's end-to-end conversion is the last step's sessions over visitors,
   "—" rather than a division when the range held no visitors.
 
+### 5.1 MCP endpoint
+
+`POST /mcp` hosts a Model Context Protocol server (`laravel/mcp`) over the
+same readers the admin pages call, read-only: the `/admin/logs` filters as
+`search-logs`, `show-request`, and `tally-logs`; the `/admin/analytics`
+tables as `analytics-events`, `analytics-channels`, `analytics-actors`, and
+`trace-analytics`; and `describe` (also the `artstore://guide` resource),
+which answers every tool and the whole filter vocabulary from the enums that
+validate it. Rules:
+
+- One bearer api key per row of `api_keys` (prefix `key`), owned by an
+  admin; the plaintext is `artstore_` plus forty alphanumerics, stored as
+  its sha256 digest and shown once, when minted (`mcp:key`, `make
+  mcp-key`). A revoked key stays as a record and never authenticates again.
+- The key's admin is the request's actor: signed in on the `admin` guard
+  for the request, named on its log lines. An admin's key reads everything
+  the admin site reads.
+- A missing, malformed, unknown, or revoked key answers 401 as JSON with a
+  bearer challenge; GET and DELETE on the path answer 405. The route sits
+  outside the `web` group: no session, no CSRF.
+- Every call spends `mcp_request` (§3).
+- A tool answers `structuredContent` JSON with the same text in `content`;
+  a value outside the vocabulary answers a tool error naming the field.
+
+See `app/docs/mcp.md`.
+
 ## 6. Workflows
 
 ### 6.1 Make vocabulary
@@ -693,6 +720,7 @@ Decisions carried by this table:
 | `seed-activity`                | fill a `make fresh`-seeded database with a deterministic ninety-plus day ramp of store      |
 |                                | activity, local dev only                                                                    |
 | `routes`                       | print the route table                                                                       |
+| `mcp-key`                      | mint an MCP api key for an admin and print it once (`EMAIL=` required, `NAME=` optional)    |
 | `payouts`, `sweep`             | the scheduled jobs, by hand (`AS_OF=` for `payouts`)                                        |
 | `outbox`                       | prints that the app has no outbox — notifications are in-app, rendered from the database    |
 |                                | channel                                                                                     |

@@ -43,6 +43,10 @@ final readonly class LogRowQuery
      * probe is traffic a founder means by "shop" — excluded by name. */
     private const string SHOP_EXCLUDED_PATH = '/events';
 
+    /** The MCP endpoint (`routes/ai.php`): one POST path, its own domain,
+     * and excluded from `shop` by name the way the events stream is. */
+    private const string MCP_PATH = '/mcp';
+
     /** The columns the any-attribute filter short-circuits to, keyed as a
      * log line names them, so the indexes serve a key that has one. */
     private const array MIRRORED_COLUMNS = [
@@ -317,7 +321,9 @@ final readonly class LogRowQuery
         return match ($domain) {
             LogDomain::Admin => "{$path} = '/admin' OR {$path} LIKE '/admin/%'",
             LogDomain::Seller => "{$path} = '/seller' OR {$path} LIKE '/seller/%'",
+            LogDomain::Mcp => "{$path} = '".self::MCP_PATH."'",
             LogDomain::Shop => "{$path} <> '".self::HEALTH_CHECK_PATH."' AND {$path} <> '".self::SHOP_EXCLUDED_PATH."'
+                AND {$path} <> '".self::MCP_PATH."'
                 AND {$path} <> '/admin' AND {$path} NOT LIKE '/admin/%'
                 AND {$path} <> '/seller' AND {$path} NOT LIKE '/seller/%'",
         };

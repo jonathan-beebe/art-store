@@ -30,6 +30,7 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Http/Requests/Admin',
     '../app/Http/Requests/Seller',
     '../app/Listeners',
+    '../app/Mcp',
     '../app/Models',
     '../app/Notifications',
     '../app/Observers',

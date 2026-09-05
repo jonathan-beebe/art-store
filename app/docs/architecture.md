@@ -359,6 +359,7 @@ which the design-system page frames), `X-Content-Type-Options: nosniff`,
 |               |            | customer cookie                                           |                                                           |
 | Admin site    | `/admin`   | `admin` (session, provider `admins`)                      | Stock Tailwind, system font, tables and forms; the        |
 |               |            |                                                           | platform's back office.                                   |
+| MCP endpoint  | `/mcp`     | an admin's api key (`AuthenticateApiKey`, bearer token)   | None: JSON-RPC for an agent; see `mcp.md`.                 |
 
 Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
 `<x-layouts.shop>`, `<x-layouts.admin>` in

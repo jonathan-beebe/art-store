@@ -55,6 +55,7 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Analytics/Admin/EntityFeedRow.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Analytics/Admin/EntityActivityView.php' => 'value carrier; exercised through EntityActivityTest',
         'app/Logging/Admin/LogRequestGroup.php' => 'plain DTO; built and asserted through LogRowQueryTest',
+        'app/Support/ApiKeys/MintedApiKey.php' => 'value carrier; built and asserted through MintApiKeyTest',
         'app/Support/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
         // Judgment calls under App\Domain/App\Seller the structural rule
         // does not reach: each carries a method beyond its constructor.
