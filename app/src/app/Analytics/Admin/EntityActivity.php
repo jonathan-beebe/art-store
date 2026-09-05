@@ -12,6 +12,7 @@ use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\BarStrip;
 use App\Domain\Analytics\BarStripBar;
+use App\Domain\Analytics\FeedOtherKind;
 use App\Domain\Analytics\FlaggedActorSummary;
 use App\Domain\Support\RelativeTime;
 use App\Models\Customer;
@@ -48,24 +49,12 @@ final class EntityActivity
 
     private const int STRIP_HEIGHT_PX = 72;
 
-    private const string OTHER_ACTOR = 'actor';
-
-    private const string OTHER_LISTING = 'listing';
-
-    private const string OTHER_ORDER = 'order';
-
-    private const string OTHER_CART = 'cart';
-
-    private const string OTHER_STORE = 'store';
-
-    private const string OTHER_HELP_ARTICLE = 'help_article';
-
     public static function forListing(Listing $listing, AnalyticsRange $range, ?AnalyticsEventName $filter): EntityActivityView
     {
         $scope = fn (Builder $query): Builder => $query->where('subject_type', 'listing')->where('subject_id', $listing->id);
 
         $daily = self::dailyCounts($scope, $range);
-        [$feed, $feedTotal] = self::feed($scope, $range, $filter, self::OTHER_ACTOR);
+        [$feed, $feedTotal] = self::feed($scope, $range, $filter, FeedOtherKind::Actor);
         $dayLabels = $range->dayLabels();
 
         return new EntityActivityView(
@@ -91,7 +80,7 @@ final class EntityActivity
         $scope = fn (Builder $query): Builder => $query->where('subject_type', 'store')->where('subject_id', $store->id);
 
         $daily = self::dailyCounts($scope, $range);
-        [$feed, $feedTotal] = self::feed($scope, $range, $filter, self::OTHER_ACTOR);
+        [$feed, $feedTotal] = self::feed($scope, $range, $filter, FeedOtherKind::Actor);
         $dayLabels = $range->dayLabels();
 
         return new EntityActivityView(
@@ -152,7 +141,7 @@ final class EntityActivity
             $stripLast = '23:00';
         }
 
-        [$feed, $feedTotal] = self::feed($scope, $range, $filter, self::OTHER_LISTING);
+        [$feed, $feedTotal] = self::feed($scope, $range, $filter, FeedOtherKind::Listing);
 
         $identity = ActorIdentity::of($customer);
 
@@ -603,7 +592,7 @@ final class EntityActivity
      * @param  callable(Builder): Builder  $scope
      * @return array{0: list<EntityFeedRow>, 1: int}
      */
-    private static function feed(callable $scope, AnalyticsRange $range, ?AnalyticsEventName $filter, string $otherKind): array
+    private static function feed(callable $scope, AnalyticsRange $range, ?AnalyticsEventName $filter, FeedOtherKind $otherKind): array
     {
         $base = fn () => $scope(DB::connection('analytics')->table('analytics_events'))
             ->whereBetween('occurred_at', [SqlInstant::format($range->start), SqlInstant::format($range->end)]);
@@ -617,7 +606,7 @@ final class EntityActivity
 
         $rows = $query->orderByDesc('occurred_at')->orderByDesc('id')->limit(self::FEED_LIMIT)->get();
 
-        $feedRows = $otherKind === self::OTHER_LISTING
+        $feedRows = $otherKind->isListing()
             ? self::feedRowsForActorPage($rows)
             : self::feedRowsWithActorOther($rows);
 
@@ -649,7 +638,7 @@ final class EntityActivity
                 ? ActorIdentity::of($customer)->who
                 : 'Anonymous visitor';
 
-            return self::feedRow($row, $name, $otherLabel, $actorId ?? '', self::OTHER_ACTOR, true, []);
+            return self::feedRow($row, $name, $otherLabel, $actorId ?? '', FeedOtherKind::Actor, true, []);
         })->all();
 
         return array_values($mapped);
@@ -755,7 +744,7 @@ final class EntityActivity
 
         $otherLabel = $listing instanceof Listing ? $listing->title : 'listing no longer exists';
 
-        return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', self::OTHER_LISTING, $listing instanceof Listing, []);
+        return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', FeedOtherKind::Listing, $listing instanceof Listing, []);
     }
 
     /**
@@ -766,7 +755,7 @@ final class EntityActivity
         /** @var string $orderId */
         $orderId = $row->subject_id ?? '';
 
-        return self::feedRow($row, $name, "order {$orderId}", $orderId, self::OTHER_ORDER, true, self::listingTitles($row, $listings));
+        return self::feedRow($row, $name, "order {$orderId}", $orderId, FeedOtherKind::Order, true, self::listingTitles($row, $listings));
     }
 
     /**
@@ -780,7 +769,7 @@ final class EntityActivity
         /** @var string $cartId */
         $cartId = $row->subject_id ?? '';
 
-        return self::feedRow($row, $name, "cart {$cartId}", $cartId, self::OTHER_CART, false, self::listingTitles($row, $listings));
+        return self::feedRow($row, $name, "cart {$cartId}", $cartId, FeedOtherKind::Cart, false, self::listingTitles($row, $listings));
     }
 
     /**
@@ -794,7 +783,7 @@ final class EntityActivity
 
         $otherLabel = $store instanceof StoreProfile ? $store->name : 'store no longer exists';
 
-        return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', self::OTHER_STORE, $store instanceof StoreProfile, []);
+        return self::feedRow($row, $name, $otherLabel, $subjectId ?? '', FeedOtherKind::Store, $store instanceof StoreProfile, []);
     }
 
     /**
@@ -806,7 +795,7 @@ final class EntityActivity
         /** @var string $slug */
         $slug = $row->subject_id ?? '';
 
-        return self::feedRow($row, $name, "article {$slug}", $slug, self::OTHER_HELP_ARTICLE, false, []);
+        return self::feedRow($row, $name, "article {$slug}", $slug, FeedOtherKind::HelpArticle, false, []);
     }
 
     /**
@@ -871,7 +860,7 @@ final class EntityActivity
     /**
      * @param  list<string>  $listingTitles
      */
-    private static function feedRow(stdClass $row, AnalyticsEventName $name, string $otherLabel, string $otherId, string $otherKind, bool $otherExists, array $listingTitles): EntityFeedRow
+    private static function feedRow(stdClass $row, AnalyticsEventName $name, string $otherLabel, string $otherId, FeedOtherKind $otherKind, bool $otherExists, array $listingTitles): EntityFeedRow
     {
         /** @var string $occurredAt */
         $occurredAt = $row->occurred_at;
