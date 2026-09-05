@@ -94,6 +94,15 @@ Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
 `RunWeeklyPayout`), domain enums name states (`OrderStatus`), events are past
 tense (`OrderPaid`).
 
+`tests/Arch.php` pins the direction between the layers. `App\Domain` imports
+nothing outside itself. Every adapter folder imports nothing from `App\Http`,
+`App\Actions`, `App\Console`, `App\Mcp`, or `App\Providers`. `App\Models`
+imports `App\Domain`, `App\Identifiers` (the id mint), and `App\Observers`
+(the observer attribute), and nothing from another adapter folder: a model
+folds its own rows into a domain value (`Listing::pricingConfiguration()`,
+`CartItem::toPlaceableLine()`) and a reader or a view formats the result.
+`App\Mcp` never touches the `DB` facade.
+
 ### Refusals
 
 A rule the core refuses is an `App\Domain\DomainRuleViolation` — an illegal

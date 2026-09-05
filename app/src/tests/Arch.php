@@ -80,6 +80,24 @@ arch('the MCP tools read through the admin readers, never the DB facade')
     ->expect('App\Mcp')
     ->not->toUse('Illuminate\\Support\\Facades\\DB');
 
+arch('models import the core, the id mint, and their observers')
+    ->expect('App\Models')
+    ->not->toUse([
+        'App\Admin',
+        'App\Analytics',
+        'App\Configurator',
+        'App\Logging',
+        'App\Mcp',
+        'App\Notifications',
+        'App\Orders',
+        'App\Paging',
+        'App\RateLimiting',
+        'App\Seller',
+        'App\Shop',
+        'App\Theme',
+        'App\View',
+    ]);
+
 arch('models do not depend on the coordination layer')
     ->expect('App\Models')
     ->not->toUse(['App\Http', 'App\Console', 'App\Actions', 'App\Policies', 'App\Events', 'App\Listeners']);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Configurator\PricedOption;
 use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\OptionValueFactory;
@@ -88,5 +89,13 @@ class OptionValue extends Model
     public function price(): Money
     {
         return Money::fromCents($this->price_cents ?? 0);
+    }
+
+    /**
+     * This value as the pricer reads it, under the axis that prices it.
+     */
+    public function toPriced(OptionAxis $axis): PricedOption
+    {
+        return PricedOption::of($this->id, $axis->name, $this->label, $axis->pricing_mode->isStandalone(), $this->price(), $this->surcharge());
     }
 }

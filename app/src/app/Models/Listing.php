@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Configurator\ConfiguratorPublishValidation;
+use App\Domain\Configurator\PricedModifier;
+use App\Domain\Configurator\PricedOption;
+use App\Domain\Configurator\PricingConfiguration;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\PublishIssue;
+use App\Domain\Configurator\QuantityDiscount;
 use App\Domain\Configurator\StandaloneOptionSnapshot;
 use App\Domain\Configurator\VariantSnapshot;
 use App\Domain\Listings\ListingAvailability;
@@ -26,6 +30,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use LogicException;
 use Override;
 
 /**
@@ -640,5 +645,45 @@ class Listing extends Model
         }
 
         return $counts;
+    }
+
+    /**
+     * The listing's current rows folded into what {@see \App\Domain\Configurator\ConfigurationPricing}
+     * prices: the base price, each selected value with its axis's pricing
+     * mode, the override that wins (a unit's before a variant's), every
+     * modifier with its scope, and the quantity tiers. The cart line and the
+     * configurator page both read through here, so one price change on the
+     * listing reaches both.
+     *
+     * @param  list<OptionValue>  $selectedOptionValues  the buyer's chosen value per axis, empty for an axis-free listing
+     * @param  array<string, string>  $rawAnswers  modifier id => raw answer value
+     */
+    public function pricingConfiguration(array $selectedOptionValues, ?Variant $variant, ?Unit $unit, array $rawAnswers): PricingConfiguration
+    {
+        $this->loadMissing(['modifiers.options', 'modifiers.scopes', 'quantityBreaks', 'optionAxes']);
+
+        $axisById = $this->optionAxes->keyBy('id');
+        $unitOverride = $unit?->price_override_cents === null ? null : Money::fromCents($unit->price_override_cents);
+        $variantOverride = $variant?->price_override_cents === null ? null : Money::fromCents($variant->price_override_cents);
+
+        return PricingConfiguration::of(
+            basePrice: $this->price(),
+            hasStandaloneAxis: $axisById->contains(fn (OptionAxis $axis): bool => $axis->pricing_mode->isStandalone()),
+            selected: array_map(function (OptionValue $value) use ($axisById): PricedOption {
+                // The listing's loaded axes answer first; a value whose axis
+                // is missing there (added since the axes loaded) reads its own.
+                $axis = $axisById->get($value->axis_id);
+
+                if (! $axis instanceof OptionAxis) {
+                    $axis = $value->loadMissing('axis')->axis ?? throw new LogicException('An option value always belongs to an axis.');
+                }
+
+                return $value->toPriced($axis);
+            }, $selectedOptionValues),
+            override: $unitOverride ?? $variantOverride,
+            modifiers: array_values($this->modifiers->map(fn (Modifier $modifier): PricedModifier => $modifier->toPriced())->all()),
+            answers: $rawAnswers,
+            tiers: array_values($this->quantityBreaks->map(fn (QuantityBreak $break): QuantityDiscount => $break->toDomain())->all()),
+        );
     }
 }

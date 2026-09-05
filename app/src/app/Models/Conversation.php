@@ -9,8 +9,8 @@ use App\Domain\Messaging\ConversationKind;
 use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\FaqPrefill;
+use App\Domain\Messaging\ParticipantName;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\View\ActorDisplay;
 use Database\Factories\ConversationFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -248,14 +248,14 @@ class Conversation extends Model
     public function counterpartName(ActorType $viewer): string
     {
         if ($this->kind->isDesk() && $viewer !== ActorType::Admin) {
-            return ActorDisplay::SUPPORT_DESK;
+            return ParticipantName::DESK;
         }
 
         if (! $this->kind->isDesk() && $viewer === ActorType::Admin) {
-            return ActorDisplay::nameOf($this->seller).' ↔ '.ActorDisplay::nameOf($this->customer);
+            return self::nameOf($this->seller).' ↔ '.self::nameOf($this->customer);
         }
 
-        return ActorDisplay::nameOf($this->counterpart($viewer));
+        return self::nameOf($this->counterpart($viewer));
     }
 
     /**
@@ -401,5 +401,10 @@ class Conversation extends Model
         if ($newest !== null) {
             $this->update(['last_message_at' => $newest]);
         }
+    }
+
+    private static function nameOf(Seller|Customer|Admin|null $participant): string
+    {
+        return $participant?->participantName() ?? ParticipantName::DELETED;
     }
 }

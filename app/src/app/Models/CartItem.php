@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Configurator\ConfigurationPricer;
 use App\Domain\Cart\CartLine;
+use App\Domain\Configurator\ConfigurationPricing;
 use App\Domain\Configurator\OptionAvailability;
 use App\Domain\Configurator\PriceBreakdown;
 use App\Models\Concerns\HasPrefixedUlid;
+use App\Models\Concerns\MapsToPlaceableLine;
 use Database\Factories\CartItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -31,6 +32,7 @@ class CartItem extends Model
     use HasFactory;
 
     use HasPrefixedUlid;
+    use MapsToPlaceableLine;
 
     public static function idPrefix(): string
     {
@@ -104,12 +106,8 @@ class CartItem extends Model
             ? []
             : array_values($variant->options->map(fn (VariantOption $option): ?OptionValue => $option->optionValue)->filter()->all());
 
-        return ConfigurationPricer::price(
-            $this->listing,
-            $selectedOptionValues,
-            $variant,
-            $this->currentUnit(),
-            $this->rawAnswers(),
+        return ConfigurationPricing::price(
+            $this->listing->pricingConfiguration($selectedOptionValues, $variant, $this->currentUnit(), $this->rawAnswers()),
             $this->quantity,
         );
     }
@@ -179,5 +177,13 @@ class CartItem extends Model
         }
 
         return $answers;
+    }
+
+    /**
+     * A cart line has no title snapshot yet; it reads the listing's title live.
+     */
+    protected function placeableLineTitle(): string
+    {
+        return $this->listing->title;
     }
 }

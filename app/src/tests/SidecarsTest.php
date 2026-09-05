@@ -59,6 +59,8 @@ it('gives every class under app a sidecar test', function (): void {
         'app/Configurator/ListingConfiguration.php' => 'plain DTO; built from real listings and asserted through ConfiguratorPageResolverTest',
         // Judgment calls under App\Domain/App\Seller the structural rule
         // does not reach: each carries a method beyond its constructor.
+        'app/Domain/Configurator/PricingConfiguration.php' => 'value carrier with a named factory; exercised through ConfigurationPricingTest and ListingTest',
+        'app/Domain/Configurator/PricedModifierOption.php' => 'value carrier with a named factory; exercised through PricedModifierTest and ConfigurationPricingTest',
         'app/Domain/Configurator/AxisDefaults.php' => 'value carrier with a named factory; exercised through AxisSelectionResolverTest and ConfiguratorPageResolverTest',
         'app/Seller/CompletedStep.php' => 'value carrier with a formatting method; built and asserted through OrderDetailTest',
         'app/Domain/Seller/AttentionGroup.php' => 'value carrier with predicate methods; exercised through AttentionQueueTest',

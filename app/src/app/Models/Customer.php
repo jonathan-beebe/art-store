@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Customers\StandingFilter;
+use App\Domain\Messaging\ParticipantName;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -257,5 +258,15 @@ class Customer extends Authenticatable
             StandingFilter::Anonymous => $query->whereNull('email'),
             StandingFilter::Blocked => $query->whereHas('blocks', fn (Builder $blocks): Builder => $blocks->whereNull('lifted_at')),
         };
+    }
+
+    /**
+     * How the other side of a thread names this customer: their given name,
+     * or their id. The address they verified stays with the admin console's
+     * `displayName()`.
+     */
+    public function participantName(): string
+    {
+        return ParticipantName::forCustomer($this->name, $this->id);
     }
 }

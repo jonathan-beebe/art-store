@@ -8,7 +8,6 @@ use App\Domain\Cart\CartLine;
 use App\Domain\Orders\OrderPlacementPlan;
 use App\Domain\Orders\PlaceableLine;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Orders\PlaceableLineBuilder;
 use Database\Factories\CartFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -63,7 +62,7 @@ class Cart extends Model
     public function placementPlan(): OrderPlacementPlan
     {
         return OrderPlacementPlan::for(array_values($this->items->map(
-            fn (CartItem $item): PlaceableLine => PlaceableLineBuilder::for($item),
+            fn (CartItem $item): PlaceableLine => $item->toPlaceableLine(),
         )->all()));
     }
 }

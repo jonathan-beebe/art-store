@@ -9,6 +9,7 @@ use App\Domain\Configurator\PriceBreakdownLine;
 use App\Domain\Money\Money;
 use App\Domain\Orders\FulfillmentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
+use App\Models\Concerns\MapsToPlaceableLine;
 use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -39,6 +40,7 @@ class OrderItem extends Model
     use HasFactory;
 
     use HasPrefixedUlid;
+    use MapsToPlaceableLine;
 
     public static function idPrefix(): string
     {
@@ -113,7 +115,7 @@ class OrderItem extends Model
     /**
      * Narrows to items whose seller could still decline the parcel they ride
      * in on, the one fulfillment transition that reads a variant back onto
-     * the shelf ({@see \App\Orders\StockMovement::release}). Every
+     * the shelf ({@see \App\Orders\StockMovement::release()}). Every
      * later fulfillment status settles the item on its own frozen columns.
      *
      * @param  Builder<self>  $query
@@ -157,5 +159,14 @@ class OrderItem extends Model
     public function lineTotal(): Money
     {
         return $this->hasPricedBreakdown() ? $this->priceBreakdown()->total() : $this->unitPrice()->multiply($this->quantity);
+    }
+
+    /**
+     * An order item's own `title` is the snapshot frozen at placement, so a
+     * later rename leaves what a retry's refusal names unchanged.
+     */
+    protected function placeableLineTitle(): string
+    {
+        return $this->title;
     }
 }
