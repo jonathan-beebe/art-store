@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\Escrow\RunWeeklyPayout;
+use App\Console\Commands\Concerns\ReadsAsOf;
 use App\Domain\Escrow\PayoutPeriod;
 use App\Models\Payout;
-use DateMalformedStringException;
-use DateTimeImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection;
 
 final class RunWeeklyPayouts extends Command
 {
+    use ReadsAsOf;
+
     /** @var string */
     protected $signature = 'payouts:run {--as-of= : Settle as if it were this date, defaults to today}';
 
@@ -22,14 +23,9 @@ final class RunWeeklyPayouts extends Command
 
     public function handle(RunWeeklyPayout $runWeeklyPayout): int
     {
-        $rawAsOf = $this->option('as-of');
-        $asOfInput = is_string($rawAsOf) && $rawAsOf !== '' ? $rawAsOf : null;
+        $asOf = $this->asOf('payouts can settle as of');
 
-        try {
-            $asOf = $asOfInput === null ? now()->toDateTimeImmutable() : new DateTimeImmutable($asOfInput);
-        } catch (DateMalformedStringException) {
-            $this->error("\"{$asOfInput}\" is not a date payouts can settle as of.");
-
+        if ($asOf === null) {
             return self::FAILURE;
         }
 

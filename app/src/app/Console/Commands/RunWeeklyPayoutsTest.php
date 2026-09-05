@@ -63,7 +63,7 @@ it('settles as of the application clock when --as-of is omitted', function () us
         ->assertSuccessful();
 });
 
-it('lets an exception from the payout action escape the command uncaught, unlike orders:sweep', function (): void {
+it('lets an exception from the payout action escape the command uncaught, unlike the sweep commands', function (): void {
     Schema::drop('ledger_entries');
 
     $command = app(RunWeeklyPayouts::class);

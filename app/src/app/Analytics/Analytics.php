@@ -21,8 +21,9 @@ use Throwable;
  * shopper or seller is waiting on ever waits on the analytics connection.
  * {@see flush()} is where the buffer
  * becomes rows — {@see \App\Providers\AnalyticsServiceProvider} is what
- * decides when that happens. {@see prune()} is the maintenance sweep's own
- * entry point, outside the buffer-and-flush path. {@see asRequest()} stands
+ * decides when that happens. {@see prune()} is
+ * {@see \App\Console\Commands\Sweep\SweepAnalytics}'s own entry point,
+ * outside the buffer-and-flush path. {@see asRequest()} stands
  * in for a request outside one, for a console command driving real actions.
  */
 final class Analytics
@@ -211,7 +212,7 @@ final class Analytics
      * through the analytics connection — {@see \App\Logging\LogStore::prune()}'s
      * shape. `page_view_counts` carries no personal data and is never
      * touched here. A failure here reaches the caller —
-     * {@see \App\Console\Commands\SweepOrders} decides what it means for
+     * {@see \App\Console\Commands\Sweep\SweepAnalytics} decides what it means for
      * its exit code.
      */
     public function prune(DateTimeImmutable $cutoff, int $batchSize = self::PRUNE_BATCH): int

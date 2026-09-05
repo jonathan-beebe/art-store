@@ -22,7 +22,7 @@ use Throwable;
  *    already turned the line into a row, malformed lines included).
  * 3. The store's failure is never the app's failure. Every public method
  *    here swallows its own errors, except `prune()`, whose caller
- *    (`orders:sweep`) is expected to report it and carries on regardless.
+ *    (`sweep:logs`) is expected to report it and carries on regardless.
  *
  * PHP serves one request per process, so there is no event loop to schedule
  * a flush on: rows buffer in memory and flush at the row cap or when the
@@ -223,7 +223,7 @@ final class LogStore
      * `$batchSize`-row batches looped until none change, then hands freed
      * pages back with `incremental_vacuum`. A disabled store prunes
      * nothing. Unlike `append()`/`flush()`, a failure here is not
-     * swallowed — `orders:sweep` decides what a failed prune means for its
+     * swallowed — `sweep:logs` decides what a failed prune means for its
      * exit code.
      */
     public function prune(DateTimeImmutable $cutoff, int $batchSize = self::PRUNE_BATCH): int

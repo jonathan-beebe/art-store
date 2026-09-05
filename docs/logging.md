@@ -9,7 +9,7 @@ Every JSON line the app logs — server and CLI runs alike — is also
 written to a queryable SQLite store, and the admin site reads it back: a
 filterable time series at `/admin/logs` and a per-request story view. Stdout
 stays exactly as spec.md §2 specifies; the store is a mirror of it.
-`orders:sweep` (`make sweep`) prunes lines older than the retention window.
+`sweep:logs` (`make sweep-logs`) prunes lines older than the retention window.
 
 Three invariants govern the design:
 
@@ -309,11 +309,10 @@ plain: messages have no detail page of their own.
 ## Retention
 
 `LOG_RETENTION_DAYS` (default `14`, `off` disables, malformed refuses
-boot). The prune runs inside the existing maintenance sweep, beside
-whatever other window-based prune the sweep already performs: silent,
-`--as-of` honoured (cutoff = as-of minus the window), a failure sets the
-exit code and leaves the sweep's other work standing. The delete runs in
-bounded batches —
+boot). The prune runs inside `sweep:logs`, its own scheduled command: silent
+when retention is off or the store is disabled, `--as-of` honoured (cutoff =
+as-of minus the window), a failure sets the command's exit code. The delete
+runs in bounded batches —
 
 ```sql
 DELETE FROM log_lines

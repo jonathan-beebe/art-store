@@ -203,8 +203,9 @@ card was declined.
 
 Question: what stops an abandoned guest checkout from holding stock forever?
 
-`make sweep` runs `orders:sweep` (`App\Console\Commands\SweepOrders`), also
-scheduled hourly in `routes/console.php`. `SweepOrders::handle()` calls
+`make sweep-orders` runs `sweep:orders`
+(`App\Console\Commands\Sweep\SweepOrders`), also scheduled hourly in
+`routes/console.php`. `SweepOrders::handle()` calls
 `App\Actions\Orders\SweepStaleOrders` for the cancelling. It cancels every
 `pending_verification` order whose `placed_at` is older than
 `config('orders.stale_hours')` — `STALE_ORDER_HOURS`, default `24` — through
