@@ -6,6 +6,7 @@ use App\Actions\Store\SaveStoreSection;
 use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
+use Tests\CapturedStory;
 
 it('writes the text a section carries', function (): void {
     $section = StoreSection::factory()->create();
@@ -51,4 +52,21 @@ it('leaves the store holding a picture a gallery no longer places', function ():
 
     expect(StoreImage::find($image->id))->not->toBeNull()
         ->and($section->sectionImages()->count())->toBe(0);
+});
+
+it('tells the story of the save', function (): void {
+    $profile = StoreProfile::factory()->create();
+    $section = StoreSection::factory()->create(['store_profile_id' => $profile->id]);
+    $log = CapturedStory::capture();
+
+    app(SaveStoreSection::class)($section, 'How the Burrow makes things', 'Everything here is made in the kitchen.', []);
+
+    expect($log->values('phase', 'store.section.write'))->toBe(['will', 'did'])
+        ->and($log->line('store.section.write', 'did')['data'])->toMatchArray([
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+            'section_id' => $section->id,
+            'kind' => $section->kind->value,
+            'op' => 'save',
+        ]);
 });

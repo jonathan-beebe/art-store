@@ -6,6 +6,7 @@ use App\Actions\Store\MoveStoreSection;
 use App\Domain\Store\StoreSectionMove;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
+use Tests\CapturedStory;
 
 /**
  * A store page of two sections, a story then a gallery.
@@ -61,4 +62,23 @@ it('ignores another store\'s sections when it looks for a neighbor', function ()
     app(MoveStoreSection::class)($first, StoreSectionMove::Up);
 
     expect($profile->sections()->pluck('id')->all())->toBe([$first->id, $second->id]);
+});
+
+it('tells the story of the move, and no story at all with no neighbor to swap', function () use ($page): void {
+    [$profile, $first, $second] = $page();
+    $log = CapturedStory::capture();
+
+    app(MoveStoreSection::class)($first, StoreSectionMove::Up);
+    expect($log->lines())->toBe([]);
+
+    app(MoveStoreSection::class)($second, StoreSectionMove::Up);
+
+    expect($log->values('phase', 'store.section.write'))->toBe(['will', 'did'])
+        ->and($log->line('store.section.write', 'did')['data'])->toMatchArray([
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+            'section_id' => $second->id,
+            'kind' => $second->kind->value,
+            'op' => 'move',
+        ]);
 });

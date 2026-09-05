@@ -6,6 +6,8 @@ namespace App\Actions\Store;
 
 use App\Domain\Store\StoreDraft;
 use App\Domain\Store\StoreLinkKind;
+use App\Logging\Story;
+use App\Logging\StoryEvent;
 use App\Models\StoreProfile;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
@@ -23,18 +25,30 @@ final readonly class SaveStore
 
     public function __invoke(StoreProfile $profile, StoreDraft $draft, DateTimeImmutable $now): StoreProfile
     {
-        return DB::transaction(function () use ($profile, $draft, $now): StoreProfile {
-            ($this->renameStoreSlug)($profile, $draft->slug, $now);
+        return Story::for(StoryEvent::StoreSave)->tell('saving a store profile', [
+            'seller_id' => $profile->seller_id,
+            'store_profile_id' => $profile->id,
+        ], function (Story $story) use ($profile, $draft, $now): StoreProfile {
+            $saved = DB::transaction(function () use ($profile, $draft, $now): StoreProfile {
+                ($this->renameStoreSlug)($profile, $draft->slug, $now);
 
-            $profile->update($draft->attributes() + [
-                'published_at' => $draft->visibility->isPublished()
-                    ? $profile->published_at ?? $now
-                    : null,
+                $profile->update($draft->attributes() + [
+                    'published_at' => $draft->visibility->isPublished()
+                        ? $profile->published_at ?? $now
+                        : null,
+                ]);
+
+                $this->syncLinks($profile, $draft);
+
+                return $profile;
+            });
+
+            $story->did('saved the store profile', [
+                'seller_id' => $saved->seller_id,
+                'store_profile_id' => $saved->id,
             ]);
 
-            $this->syncLinks($profile, $draft);
-
-            return $profile;
+            return $saved;
         });
     }
 

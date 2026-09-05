@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use App\Actions\Store\StartStore;
+use App\Domain\RateLimiting\RateLimitValue;
 use App\Domain\Store\StoreSectionKind;
 use App\Http\Requests\Seller\StoreSectionRequest;
 use App\Models\Seller;
 use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
+use Illuminate\Support\Facades\Config;
 
 /**
  * A signed-in seller and the store their first visit would mint.
@@ -183,4 +185,17 @@ it('shows the words a seller typed back on the section that refused them', funct
         ->assertOk()
         ->assertSee('A heading worth keeping', false)
         ->assertSee('The studio', false);
+});
+
+it('trips the store-write limit on add, re-rendering the store page with nothing added', function () use ($storekeeper): void {
+    Config::set('rate_limits.store_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_STORE_WRITE'));
+    [$seller, $profile] = $storekeeper();
+    $this->actingAs($seller, 'seller')->post('/seller/store/sections', ['kind' => 'story']);
+
+    $response = $this->actingAs($seller, 'seller')->post('/seller/store/sections', ['kind' => 'gallery']);
+
+    $response->assertStatus(429);
+    $response->assertHeader('Retry-After');
+    $response->assertSee('Too many requests', escape: false);
+    expect($profile->sections()->count())->toBe(1);
 });

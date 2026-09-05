@@ -209,6 +209,8 @@ app emits every event below that its features support.
 | `listing.transition`                                                    |                                                                          |
 | `listing.view`                                                          | the storefront listing page, once per (listing, customer, hour) collapse |
 |                                                                         | — log the collapse as `refused` at `debug`                               |
+| `store.start`, `store.save`, `store.slug.rename`,                       | seller portal's Store screen; `slug.rename` only on an address change,   |
+| `store.section.write`, `store.image.write`                              | `section.write`/`image.write` carry `data.op` naming which write         |
 | `cart.add`, `cart.update`, `cart.remove`                                | storefront                                                               |
 | `order.place`                                                           | checkout; `refused` carries the blocked lines                            |
 | `order.pay`                                                             | card submit; `did` on approval, `refused` on decline with                |
@@ -229,10 +231,10 @@ app emits every event below that its features support.
 | `rate_limit.exceed`                                                     | any limit trip (`warn`), `data` carries `limit`, `key`,                  |
 |                                                                         | `retry_after_seconds`                                                    |
 | `mcp.call`                                                              | every JSON-RPC message `POST /mcp` receives (§5.1): `will` before the    |
-|                                                                         | key is checked, `data` carrying `method`, `rpc_id`, `tool` or           |
+|                                                                         | key is checked, `data` carrying `method`, `rpc_id`, `tool` or            |
 |                                                                         | `resource`, and a tool's `arguments` (redacted per §2.1); `did` with     |
-|                                                                         | `status`, `key_id`, and `outcome` (`ok` \| `tool_error` \| `rpc_error` |
-|                                                                         | \| `streamed` \| `unreadable`); `refused` at `warn` when the key was   |
+|                                                                         | `status`, `key_id`, and `outcome` (`ok` \| `tool_error` \| `rpc_error`   |
+|                                                                         | \| `streamed` \| `unreadable`); `refused` at `warn` when the key was     |
 |                                                                         | missing, malformed, unknown, revoked, or over its limit                  |
 | `query.exceed`                                                          | any DB query slower than `LOG_SLOW_QUERY_MS` (`warn`), `data` carries    |
 |                                                                         | `source`, `duration_ms`, `sql`, `threshold_ms`                           |
@@ -374,6 +376,9 @@ unset. Limits are read at boot; a malformed value refuses to boot.
 | `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | `60/1h`  | seller id                             | every seller write to a listing:       |
 |                      |                                 |          |                                       | create, update, image upload, and      |
 |                      |                                 |          |                                       | every configurator write               |
+| `store_write`        | `RATE_LIMIT_STORE_WRITE`        | `60/1h`  | seller id                             | every seller write to the store:       |
+|                      |                                 |          |                                       | save, section add/save/remove/move,    |
+|                      |                                 |          |                                       | and picture add/remove                 |
 
 Behavior on trip: HTTP 429, `Retry-After: <seconds>` header, the site's own
 HTML page ("Too many requests — try again in N minutes"; for a form, the form

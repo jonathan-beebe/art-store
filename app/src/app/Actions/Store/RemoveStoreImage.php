@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Actions\Store;
 
 use App\Domain\Store\StorePictureRole;
+use App\Logging\Story;
+use App\Logging\StoryEvent;
 use App\Models\StoreImage;
 use App\Models\StoreProfile;
 use Illuminate\Support\Facades\DB;
@@ -20,17 +22,35 @@ final readonly class RemoveStoreImage
 {
     public function __invoke(StoreImage $image): void
     {
-        DB::transaction(function () use ($image): void {
-            $profile = $image->storeProfile;
+        $imageId = $image->id;
+        $sellerId = $image->seller_id;
+        $storeProfileId = $image->store_profile_id;
 
-            if ($profile instanceof StoreProfile) {
-                $this->clearColumnsNaming($profile, $image);
-            }
+        Story::for(StoryEvent::StoreImageWrite)->tell('removing a store picture', [
+            'seller_id' => $sellerId,
+            'store_profile_id' => $storeProfileId,
+            'image_id' => $imageId,
+            'op' => 'remove',
+        ], function (Story $story) use ($image, $imageId, $sellerId, $storeProfileId): void {
+            DB::transaction(function () use ($image): void {
+                $profile = $image->storeProfile;
 
-            $image->delete();
+                if ($profile instanceof StoreProfile) {
+                    $this->clearColumnsNaming($profile, $image);
+                }
+
+                $image->delete();
+            });
+
+            Storage::disk('public')->delete($image->path);
+
+            $story->did('removed the store picture', [
+                'seller_id' => $sellerId,
+                'store_profile_id' => $storeProfileId,
+                'image_id' => $imageId,
+                'op' => 'remove',
+            ]);
         });
-
-        Storage::disk('public')->delete($image->path);
     }
 
     private function clearColumnsNaming(StoreProfile $profile, StoreImage $image): void

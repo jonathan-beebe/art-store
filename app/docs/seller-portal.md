@@ -222,12 +222,31 @@ picture is a copy of one of the seller's listing photos, onto the store's
 own path under a name unique to the store — a store picture never names a
 listing's file, or another store's.
 
-### What the store does not write
+### What the store writes
 
-[`spec.md`](../../docs/spec.md) §2.3 closes the log-event vocabulary and §3 closes the
-rate-limit names. Store writes emit neither: there is no `store.*` event and
-no store limiter until the spec gains them, so the actions here write
-silently; minting a name the spec does not list is what §2.3 forbids.
+[`spec.md`](../../docs/spec.md) §2.3 names five store events. `store.start`
+(`App\Actions\Store\StartStore`) tells its story once, on the visit that
+mints the hidden store; every later visit hands back the existing row and
+tells no story. `store.save` (`SaveStore`) covers the Store screen's one
+save. `store.slug.rename` (`RenameStoreSlug`) fires only when the address
+changes. A save that keeps the address writes no rename line, the
+same way it writes no rename row. `store.section.write`
+(`AddStoreSection`, `SaveStoreSection`, `RemoveStoreSection`,
+`MoveStoreSection`) and `store.image.write` (`AddStoreImage`,
+`RemoveStoreImage`) each cover several actions; `data.op` names which one
+ran (`add`, `save`, `remove`, or `move`; `add` or `remove` for a picture). A
+move with no neighbor to swap writes nothing and tells no story, the same
+rule as an unchanged slug.
+
+Every line's `data` carries `seller_id` and `store_profile_id`; a section
+line adds `section_id` and `kind`; an image line adds `image_id`; the
+rename line adds `slug_from` and `slug_to`.
+
+`RateLimitName::StoreWrite` (`store_write`, §3) guards every write route —
+`StoreController::update`, `StoreSectionController::store/update/destroy`,
+`StoreSectionReorderController`, `StoreImageController::store/destroy` —
+keyed by the seller's id, the same way `listing_write` guards the listing
+routes. The `GET /seller/store` that mints the store spends no budget.
 
 ### The public page
 

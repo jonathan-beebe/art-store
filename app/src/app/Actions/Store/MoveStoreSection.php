@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Actions\Store;
 
 use App\Domain\Store\StoreSectionMove;
+use App\Logging\Story;
+use App\Logging\StoryEvent;
 use App\Models\StoreProfile;
 use App\Models\StoreSection;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 /**
  * Swaps one section with its neighbor one place earlier or later. The swap
@@ -35,16 +38,35 @@ final readonly class MoveStoreSection
             $locked = $section->newQuery()->whereKey($section->getKey())->lockForUpdate()->sole();
             $neighbor = $this->neighbor($locked, $direction);
 
+            // A section already at the edge has no neighbor to swap with,
+            // so nothing is written and the move tells no story.
             if (! $neighbor instanceof StoreSection) {
                 return;
             }
 
-            $sectionPosition = $locked->position;
-            $neighborPosition = $neighbor->position;
+            $profile = $locked->storeProfile ?? throw new RuntimeException('A store section belongs to a store.');
 
-            $locked->update(['position' => self::SENTINEL_POSITION]);
-            $neighbor->update(['position' => $sectionPosition]);
-            $locked->update(['position' => $neighborPosition]);
+            Story::for(StoryEvent::StoreSectionWrite)->tell('moving a store section', [
+                'seller_id' => $profile->seller_id,
+                'store_profile_id' => $profile->id,
+                'section_id' => $locked->id,
+                'op' => 'move',
+            ], function (Story $story) use ($locked, $neighbor, $profile): void {
+                $sectionPosition = $locked->position;
+                $neighborPosition = $neighbor->position;
+
+                $locked->update(['position' => self::SENTINEL_POSITION]);
+                $neighbor->update(['position' => $sectionPosition]);
+                $locked->update(['position' => $neighborPosition]);
+
+                $story->did('moved the store section', [
+                    'seller_id' => $profile->seller_id,
+                    'store_profile_id' => $profile->id,
+                    'section_id' => $locked->id,
+                    'kind' => $locked->kind->value,
+                    'op' => 'move',
+                ]);
+            });
         });
     }
 

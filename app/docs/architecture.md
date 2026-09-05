@@ -233,12 +233,14 @@ the request.
 
 `http.request`, `magic_link.request`, `magic_link.consume`, `customer.merge`,
 `listing.create`, `listing.update`, `listing.publish`, `listing.transition`,
-`listing.view`, `cart.add`, `cart.update`, `cart.remove`, `order.place`,
-`order.pay`, `order.cancel`, `order.sweep`, `fulfillment.ship`,
-`fulfillment.deliver`, `fulfillment.decline`, `refund.issue`, `ledger.write`,
-`payout.run`, `payout.pay`, `conversation.open`, `conversation.resolve`,
-`conversation.reopen`, `message.post`, `faq.publish`, `faq.unpublish`,
-`notification.write`, `notification.deliver`, `moderation.block_customer`,
+`listing.view`, `store.start`, `store.save`, `store.slug.rename`,
+`store.section.write`, `store.image.write`, `cart.add`, `cart.update`,
+`cart.remove`, `order.place`, `order.pay`, `order.cancel`, `order.sweep`,
+`fulfillment.ship`, `fulfillment.deliver`, `fulfillment.decline`,
+`refund.issue`, `ledger.write`, `payout.run`, `payout.pay`,
+`conversation.open`, `conversation.resolve`, `conversation.reopen`,
+`message.post`, `faq.publish`, `faq.unpublish`, `notification.write`,
+`notification.deliver`, `moderation.block_customer`,
 `moderation.lift_customer_block`, `migrate.run`, `migrate.apply`,
 `seed.run`, `app.boot`, `app.shutdown`.
 
@@ -277,7 +279,7 @@ stays readable.
 
 ## Rate limits and security headers
 
-[spec.md](../../docs/spec.md) §3 fixes seven limits, one env variable each, read at boot:
+[spec.md](../../docs/spec.md) §3 fixes eight limits, one env variable each, read at boot:
 `App\Domain\RateLimiting\RateLimitValue::parse()` turns `"<count>/<window>"`
 (or `"off"`) into a budget, and `config/rate_limits.php` calls it once per
 `App\Domain\RateLimiting\RateLimitName` case while the config file loads — a
@@ -318,14 +320,18 @@ action that would otherwise perform it, so a trip leaves no side effect:
 | `checkout`           | `CheckoutController::place()`                                                 | the customer's id                           |
 | `payment_attempt`    | `OrderPaymentController::pay()`                                               | the order's id                              |
 | `listing_write`      | `Seller\ListingController::store()` and `update()`                            | the seller's id                             |
+| `store_write`        | `Seller\StoreController::update()`; `StoreSectionController::store()`,        | the seller's id                             |
+|                      | `update()`, and `destroy()`; `StoreSectionReorderController`;                 |                                             |
+|                      | `StoreImageController::store()` and `destroy()`                               |                                             |
 
 On a trip: HTTP 429, `Retry-After: <seconds>`, one `rate_limit.exceed` line,
 no side effect. The response body splits two ways. A route the visitor
 reached by filling in a field catches `RateLimitExceeded` itself and
 re-renders the page that field sits on — the three sign-ins, checkout, pay,
-the seller's listing create/edit, every message `store()` (shop, seller,
-admin), the admin's two message forms on the seller and customer pages, and
-the storefront's ask-the-seller form. Each flashes the input first, so the
+the seller's listing create/edit, every store write route, every message
+`store()` (shop, seller, admin), the admin's two message forms on the
+seller and customer pages, and the storefront's ask-the-seller form. Each
+flashes the input first, so the
 `body` textarea and every other field come back filled from `old()`, and
 each renders through `Controller::tooManyRequests()`, which shares a
 `ViewErrorBag` holding the sentence under a synthetic key (`errors->any()`
@@ -368,7 +374,7 @@ which the design-system page frames), `X-Content-Type-Options: nosniff`,
 |               |            | customer cookie                                           |                                                           |
 | Admin site    | `/admin`   | `admin` (session, provider `admins`)                      | Stock Tailwind, system font, tables and forms; the        |
 |               |            |                                                           | platform's back office.                                   |
-| MCP endpoint  | `/mcp`     | an admin's api key (`AuthenticateApiKey`, bearer token)   | None: JSON-RPC for an agent; see `mcp.md`.                 |
+| MCP endpoint  | `/mcp`     | an admin's api key (`AuthenticateApiKey`, bearer token)   | None: JSON-RPC for an agent; see `mcp.md`.                |
 
 Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
 `<x-layouts.shop>`, `<x-layouts.admin>` in
@@ -395,18 +401,18 @@ Every route binds its model (`Listing $listing`, `Fulfillment $fulfillment`,
 `DatabaseNotification $notification`, `Order $order`; the storefront listing
 binds by slug) and then authorizes it. `app/Policies` holds the rules:
 
-| Policy                  | Abilities                                            | Actor                            |
-| ----------------------- | ---------------------------------------------------- | -------------------------------- |
-| `ListingPolicy`         | `view`, `update`                                     | `Seller`                         |
-| `FulfillmentPolicy`     | `view`, `update`, `ship`, `completeStep`, `decline`  | `Seller`                         |
-| `FulfillmentPolicy`     | `confirmDelivery`                                    | `Customer`                       |
-| `FulfillmentFlowPolicy` | `view`, `update`                                     | `Seller`                         |
-| `StoreProfilePolicy`    | `view`, `update`                                     | `Seller`                         |
-| `CustomerPolicy`        | `view`                                               | `Seller`                         |
-| `OrderPolicy`           | `view`, `pay`, `cancel`                              | `Customer`                       |
-| `CartItemPolicy`        | `delete`                                             | `Customer`                       |
-| `NotificationPolicy`    | `markRead`                                           | `Seller` or `Customer`           |
-| `ConversationPolicy`    | `view`, `post`, `resolve`, `reopen`                  | `Seller`, `Customer`, or `Admin` |
+| Policy                  | Abilities                                           | Actor                            |
+| ----------------------- | --------------------------------------------------- | -------------------------------- |
+| `ListingPolicy`         | `view`, `update`                                    | `Seller`                         |
+| `FulfillmentPolicy`     | `view`, `update`, `ship`, `completeStep`, `decline` | `Seller`                         |
+| `FulfillmentPolicy`     | `confirmDelivery`                                   | `Customer`                       |
+| `FulfillmentFlowPolicy` | `view`, `update`                                    | `Seller`                         |
+| `StoreProfilePolicy`    | `view`, `update`                                    | `Seller`                         |
+| `CustomerPolicy`        | `view`                                              | `Seller`                         |
+| `OrderPolicy`           | `view`, `pay`, `cancel`                             | `Customer`                       |
+| `CartItemPolicy`        | `delete`                                            | `Customer`                       |
+| `NotificationPolicy`    | `markRead`                                          | `Seller` or `Customer`           |
+| `ConversationPolicy`    | `view`, `post`, `resolve`, `reopen`                 | `Seller`, `Customer`, or `Admin` |
 
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
@@ -767,4 +773,4 @@ art-store/
 | Vitest unit test                       | Pest `it()` in a sidecar file, no app boot                                                                |
 | React Testing Library integration test | Pest `it()` bound to `Tests\CommerceTestCase` or `Tests\StorefrontTestCase`, driving                      |
 |                                        | `$this->get()/post()`                                                                                     |
-| `src/`                                 | `app/src/`                                                                                                 |
+| `src/`                                 | `app/src/`                                                                                                |
