@@ -123,7 +123,7 @@ properties, listing attributes, modifiers, quantity breaks, and description
 sections — in one grouped query per concern across the whole group of
 drafts and sold-out listings the page already loaded, so the group's own
 cost is fixed at any count of drafts. The seller's own publish panel
-(`ListingStatusController`) still calls `Listing::publishIssues()` per
+(`ChangeListingStatus`) still calls `Listing::publishIssues()` per
 listing, one click away, at its own per-listing cost.
 
 ## Store profile

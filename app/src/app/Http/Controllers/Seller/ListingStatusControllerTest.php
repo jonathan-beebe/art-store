@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
+use App\Actions\Listings\ChangeListingStatus;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingStatus;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
@@ -117,7 +118,7 @@ it('refuses a transition the status stopped allowing after the form was validate
 
     $log = CapturedStory::capture();
 
-    expect(fn () => (new ListingStatusController)($request, $listing))
+    expect(fn () => (new ListingStatusController)($request, $listing, app(ChangeListingStatus::class)))
         ->toThrow(DomainRuleViolation::class);
 
     $line = $log->line('listing.transition', 'refused');

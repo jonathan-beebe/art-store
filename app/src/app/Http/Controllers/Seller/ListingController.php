@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Seller;
 
-use App\Actions\Configurator\AddOptionValue;
-use App\Actions\Configurator\CreateOptionAxis;
-use App\Actions\Configurator\GenerateVariants;
-use App\Actions\Listings\CreateListing;
+use App\Actions\Listings\CreateListingWithChoice;
 use App\Actions\Listings\UpdateListing;
 use App\Analytics\AnalyticsReport;
 use App\Configurator\ListingBasicsPageData;
@@ -16,7 +13,6 @@ use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\BarStrip;
 use App\Domain\Analytics\BarStripBar;
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Listings\ListingCreationShape;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
@@ -28,7 +24,6 @@ use App\Http\Requests\Seller\ListingCreateRequest;
 use App\Http\Requests\Seller\ListingRequest;
 use App\Http\Requests\Seller\ListingsQueryRequest;
 use App\Models\Listing;
-use App\Models\OptionAxis;
 use App\Models\OrderItem;
 use App\Paging\ListPaneWindow;
 use App\RateLimiting\RateLimitGate;
@@ -91,14 +86,8 @@ final class ListingController extends SellerController
         return view('seller.listings.create');
     }
 
-    public function store(
-        ListingRequest $request,
-        CreateListing $createListing,
-        CreateOptionAxis $createOptionAxis,
-        AddOptionValue $addOptionValue,
-        GenerateVariants $generateVariants,
-        RateLimitGate $rateLimit,
-    ): RedirectResponse|Response {
+    public function store(ListingRequest $request, CreateListingWithChoice $createListing, RateLimitGate $rateLimit): RedirectResponse|Response
+    {
         try {
             $rateLimit->check(RateLimitName::ListingWrite, (string) $this->seller()->id);
         } catch (RateLimitExceeded $exceeded) {
@@ -107,13 +96,7 @@ final class ListingController extends SellerController
             ]);
         }
 
-        $listing = $createListing($this->seller(), $request->toDraft());
-
-        match ($request->shape()) {
-            ListingCreationShape::OneThing => null,
-            ListingCreationShape::Versions => $this->addVersionsAxis($listing, $request, $createOptionAxis, $addOptionValue, $generateVariants),
-            ListingCreationShape::Extras => $this->addExtraAxisIfAny($listing, $request, $createOptionAxis, $addOptionValue, $generateVariants),
-        };
+        $listing = $createListing($this->seller(), $request->toDraft(), $request->creationChoice());
 
         return redirect()
             ->route('seller.listings.edit', $listing)
@@ -202,61 +185,6 @@ final class ListingController extends SellerController
             ListingCreationShape::Versions => 'seller.listings.create.versions',
             ListingCreationShape::Extras => 'seller.listings.create.extras',
         };
-    }
-
-    /**
-     * The versions ramp: a standalone choice, one option per version row —
-     * every version prices itself, so there is no base price to carry over.
-     * The first row is the default, which is what {@see \App\Configurator\ListingPriceSync}
-     * reads back onto `listings.price_cents`.
-     */
-    private function addVersionsAxis(
-        Listing $listing,
-        ListingRequest $request,
-        CreateOptionAxis $createOptionAxis,
-        AddOptionValue $addOptionValue,
-        GenerateVariants $generateVariants,
-    ): void {
-        $axis = $createOptionAxis($listing, $request->choiceName(), null, 0, PricingMode::Standalone);
-
-        $this->addRows($axis, $request->versionRows(), $addOptionValue);
-
-        $generateVariants($listing);
-    }
-
-    /**
-     * The extras ramp's optional first choice: nothing to do when the seller
-     * skipped it (the "Create with just the price" link, or leaving both the
-     * name and every row blank) — the listing stays a plain, axis-free draft.
-     */
-    private function addExtraAxisIfAny(
-        Listing $listing,
-        ListingRequest $request,
-        CreateOptionAxis $createOptionAxis,
-        AddOptionValue $addOptionValue,
-        GenerateVariants $generateVariants,
-    ): void {
-        $rows = $request->extraOptionRows();
-
-        if ($rows === []) {
-            return;
-        }
-
-        $axis = $createOptionAxis($listing, $request->extraChoiceName(), null, 0, PricingMode::AddOn);
-
-        $this->addRows($axis, $rows, $addOptionValue);
-
-        $generateVariants($listing);
-    }
-
-    /**
-     * @param  list<array{label: string, cents: int}>  $rows
-     */
-    private function addRows(OptionAxis $axis, array $rows, AddOptionValue $addOptionValue): void
-    {
-        foreach ($rows as $index => $row) {
-            $addOptionValue($axis, $row['label'], $row['cents'], $index === 0, $index, null, $axis->pricing_mode->isStandalone() ? $row['cents'] : null);
-        }
     }
 
     /**
