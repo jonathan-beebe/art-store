@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Domain\Analytics\ActorKind;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\ChangeDirection;
@@ -189,7 +190,7 @@ final class EventDetail
         }
 
         $verified = Customer::query()->whereIn('id', $actorIds)->get()
-            ->filter(fn (Customer $customer): bool => ActorIdentity::of($customer)->kind === 'verified')
+            ->filter(fn (Customer $customer): bool => ActorIdentity::of($customer)->kind === ActorKind::Verified)
             ->count();
 
         return ['total' => $actorIds->count(), 'anonymous' => $actorIds->count() - $verified];
@@ -329,12 +330,12 @@ final class EventDetail
             // No matching row means the actor's customer was deleted after it
             // recorded events — read the same as an anonymous visitor who
             // never signed in, the way ActorLeaderboard does.
-            $kind = 'anonymous';
+            $kind = ActorKind::Anonymous->value;
             $who = 'never signed in';
 
             if ($customer instanceof Customer) {
                 $identity = ActorIdentity::of($customer);
-                $kind = $identity->kind;
+                $kind = $identity->kind->value;
                 $who = $identity->who;
             }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Domain\Analytics\ActorKind;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\ActorVelocity;
 use App\Domain\Analytics\AnalyticsRange;
@@ -51,7 +52,7 @@ final class ActorAggregates
             // No matching row means the actor's customer was deleted after
             // it recorded events. It stays on the list, read as an
             // anonymous visitor who never signed in.
-            $actorKind = 'anonymous';
+            $actorKind = ActorKind::Anonymous;
             $actorWho = 'never signed in';
 
             if ($customer instanceof Customer) {
@@ -84,11 +85,7 @@ final class ActorAggregates
 
     private static function matchesKind(ActorSummary $summary, ActorKindFilter $kind): bool
     {
-        return match ($kind) {
-            ActorKindFilter::All => true,
-            ActorKindFilter::Anonymous => $summary->kind === 'anonymous',
-            ActorKindFilter::Verified => $summary->kind === 'verified',
-        };
+        return $kind->admits($summary->kind);
     }
 
     private static function matchesSearch(ActorSummary $summary, ?string $search): bool

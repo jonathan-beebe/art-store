@@ -94,7 +94,7 @@ final class AnalyticsJump
     {
         $identity = ActorIdentity::of($customer);
 
-        return new Jump($customer->id, "{$identity->kind} customer · {$identity->who}", JumpKind::Actor);
+        return new Jump($customer->id, "{$identity->kind->value} customer · {$identity->who}", JumpKind::Actor);
     }
 
     private static function looksLikePrefix(string $q, string $prefix): bool

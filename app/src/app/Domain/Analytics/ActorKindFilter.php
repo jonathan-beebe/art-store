@@ -14,4 +14,13 @@ enum ActorKindFilter: string
     case All = 'all';
     case Anonymous = 'anonymous';
     case Verified = 'verified';
+
+    public function admits(ActorKind $kind): bool
+    {
+        return match ($this) {
+            self::All => true,
+            self::Anonymous => $kind === ActorKind::Anonymous,
+            self::Verified => $kind === ActorKind::Verified,
+        };
+    }
 }

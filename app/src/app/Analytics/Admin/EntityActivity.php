@@ -6,6 +6,7 @@ namespace App\Analytics\Admin;
 
 use App\Analytics\ActorVisitRow;
 use App\Analytics\AnalyticsReport;
+use App\Domain\Analytics\ActorKind;
 use App\Domain\Analytics\ActorVelocity;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
@@ -158,9 +159,9 @@ final class EntityActivity
         $identity = ActorIdentity::of($customer);
 
         return new EntityActivityView(
-            kind: $identity->kind,
+            kind: $identity->kind->value,
             id: $customer->id,
-            title: $identity->kind === 'verified' ? $identity->who : 'Anonymous visitor',
+            title: $identity->kind === ActorKind::Verified ? $identity->who : 'Anonymous visitor',
             facts: self::actorFacts($customer, $range, $visits),
             flagged: $flagged,
             flagText: $flagText,
@@ -580,7 +581,7 @@ final class EntityActivity
         }
 
         $verified = Customer::query()->whereIn('id', $actorIds)->get()
-            ->filter(fn (Customer $customer): bool => ActorIdentity::of($customer)->kind === 'verified')
+            ->filter(fn (Customer $customer): bool => ActorIdentity::of($customer)->kind === ActorKind::Verified)
             ->count();
 
         return ['total' => $actorIds->count(), 'anonymous' => $actorIds->count() - $verified];
@@ -646,7 +647,7 @@ final class EntityActivity
             $actorId = $row->actor_id;
             $customer = $actorId !== null ? $customers->get($actorId) : null;
 
-            $otherLabel = $customer instanceof Customer && ActorIdentity::of($customer)->kind === 'verified'
+            $otherLabel = $customer instanceof Customer && ActorIdentity::of($customer)->kind === ActorKind::Verified
                 ? ActorIdentity::of($customer)->who
                 : 'Anonymous visitor';
 
