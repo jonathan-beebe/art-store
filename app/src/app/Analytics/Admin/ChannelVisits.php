@@ -7,7 +7,7 @@ namespace App\Analytics\Admin;
 use App\Analytics\RowChannel;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\Channel;
-use App\Support\Page;
+use App\Domain\Paging\Page;
 use DateTimeImmutable;
 use DateTimeZone;
 use Illuminate\Support\Facades\DB;

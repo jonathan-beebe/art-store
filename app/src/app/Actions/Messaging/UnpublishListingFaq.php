@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Messaging;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\ListingFaq;
-use App\Support\Story;
 use DateTimeImmutable;
 
 /**

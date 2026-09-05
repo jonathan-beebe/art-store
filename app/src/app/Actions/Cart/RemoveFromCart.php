@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Cart;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\CartItem;
-use App\Support\Story;
 
 final readonly class RemoveFromCart
 {

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\ComboKey;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\Variant;
-use App\Support\Story;
 use Illuminate\Support\Collection;
 
 /**

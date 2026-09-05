@@ -8,7 +8,7 @@ use App\Actions\Messaging\OpenConversation;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Models\Fulfillment;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 
 final class OrderMessageController extends SellerController

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Analytics;
 
 use App\Domain\Analytics\AnalyticsEventName;
-use App\Support\IdMint;
+use App\Identifiers\IdMint;
 use DateTimeImmutable;
 use DateTimeZone;
 

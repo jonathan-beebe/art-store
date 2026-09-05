@@ -6,10 +6,10 @@ namespace App\Actions\Listings;
 
 use App\Domain\DomainRuleViolation;
 use App\Domain\Listings\ListingRemovalKind;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\ListingRemoval;
-use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 
 final readonly class RemoveListing

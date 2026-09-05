@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Shop;
 
+use App\Configurator\ConfiguratorInput;
+use App\Configurator\ConfiguratorPageResolver;
+use App\Configurator\ListingConfiguration;
 use App\Domain\Configurator\ModifierKind;
 use App\Models\Listing;
 use App\Models\Variant;
-use App\Support\Configurator\ConfiguratorInput;
-use App\Support\Configurator\ConfiguratorPageResolver;
-use App\Support\Configurator\ListingConfiguration;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use RuntimeException;

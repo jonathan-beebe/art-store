@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\DescriptionSectionMove;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\DescriptionSection;
-use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 
 /**

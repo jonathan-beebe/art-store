@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Configurator\SetModifierScope;
+use App\Configurator\ModifierIndexPageData;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ModifierScopeRequest;
 use App\Models\Listing;
 use App\Models\Modifier;
-use App\Support\Configurator\ModifierIndexPageData;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

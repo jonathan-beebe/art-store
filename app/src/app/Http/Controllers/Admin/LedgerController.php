@@ -10,7 +10,7 @@ use App\Domain\Escrow\LedgerMovement;
 use App\Http\Controllers\Controller;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 

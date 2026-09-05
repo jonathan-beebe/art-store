@@ -8,7 +8,7 @@ use App\Domain\Cart\CartLine;
 use App\Domain\Orders\OrderPlacementPlan;
 use App\Domain\Orders\PlaceableLine;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Support\Orders\PlaceableLineBuilder;
+use App\Orders\PlaceableLineBuilder;
 use Database\Factories\CartFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

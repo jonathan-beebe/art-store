@@ -7,12 +7,12 @@ namespace App\Actions\Messaging;
 use App\Domain\Auth\ActorType;
 use App\Domain\DomainRuleViolation;
 use App\Domain\Messaging\ConversationStatus;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Admin;
 use App\Models\Conversation;
 use App\Models\Seller;
 use App\Notifications\ConversationResolved as ConversationResolvedNotification;
-use App\Support\Story;
 use DateTimeImmutable;
 
 /**

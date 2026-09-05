@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Configurator\ListingPriceSync;
 use App\Domain\Configurator\ConfiguratorDeletionGuard;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\OptionAxis;
-use App\Support\Configurator\ListingPriceSync;
-use App\Support\Story;
 use LogicException;
 
 final readonly class DeleteOptionAxis

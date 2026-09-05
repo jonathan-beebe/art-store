@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Shop;
 
 use App\Models\Customer;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Illuminate\Foundation\Http\FormRequest;
 use Override;
 use RuntimeException;

@@ -13,7 +13,6 @@ use App\Domain\Seller\FeedIcon;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
 use App\Models\Payment;
-use App\Support\ParcelLine;
 
 /**
  * The money half of the feed: the order the buyer placed, every card attempt

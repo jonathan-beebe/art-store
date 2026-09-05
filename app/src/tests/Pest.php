@@ -36,8 +36,15 @@ pest()->extend(Tests\CommerceTestCase::class)->in(
     '../app/Observers',
     '../app/Policies',
     '../app/Providers',
+    '../app/Configurator',
+    '../app/Identifiers',
+    '../app/Orders',
+    '../app/Paging',
+    '../app/RateLimiting',
     '../app/Seller',
-    '../app/Support',
+    '../app/Shop',
+    '../app/Theme',
+    '../app/View/ActorDisplayTest.php',
     '../app/View/Components',
 );
 

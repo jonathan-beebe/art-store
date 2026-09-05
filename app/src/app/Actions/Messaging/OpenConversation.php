@@ -6,9 +6,9 @@ namespace App\Actions\Messaging;
 
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\ThreadOpening;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Conversation;
-use App\Support\Story;
 use DateTimeImmutable;
 
 /**

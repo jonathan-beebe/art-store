@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Logging\DbActivity;
+use App\Logging\SlowQueryWatch;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
-use App\Support\DbActivity;
-use App\Support\SlowQueryWatch;
-use App\Support\Story;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\MigrationEnded;
 use Illuminate\Database\Events\MigrationsEnded;

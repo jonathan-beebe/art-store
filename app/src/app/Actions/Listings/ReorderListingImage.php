@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Listings;
 
 use App\Domain\Listings\ListingImageMove;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\ListingImage;
-use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 
 /**

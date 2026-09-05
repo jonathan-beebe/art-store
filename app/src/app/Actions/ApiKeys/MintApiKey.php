@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\ApiKeys;
 
+use App\Admin\MintedApiKey;
 use App\Domain\Auth\ApiKeyToken;
 use App\Models\Admin;
 use App\Models\ApiKey;
-use App\Support\ApiKeys\MintedApiKey;
 use Illuminate\Support\Str;
 
 /**

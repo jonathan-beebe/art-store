@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Listings;
 
 use App\Domain\Listings\ListingDraft;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\CategoryProperty;
 use App\Models\Listing;
-use App\Support\Story;
 
 final readonly class UpdateListing
 {

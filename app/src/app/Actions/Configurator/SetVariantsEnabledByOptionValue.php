@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\OptionValue;
-use App\Support\Story;
 use Illuminate\Database\Eloquent\Builder;
 
 /**

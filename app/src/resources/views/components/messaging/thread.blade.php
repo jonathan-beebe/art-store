@@ -16,7 +16,7 @@
     $isResolved = $conversation->status() === \App\Domain\Messaging\ConversationStatus::Resolved;
     $orderId = $conversation->fulfillment?->order_id ?? $conversation->order_id;
     $resolvedByName = $conversation->resolvedBy instanceof \App\Models\Seller || $conversation->resolvedBy instanceof \App\Models\Admin
-        ? \App\Support\ActorDisplay::nameOf($conversation->resolvedBy)
+        ? \App\View\ActorDisplay::nameOf($conversation->resolvedBy)
         : null;
     // Every action on this page — reply, resolve, reopen — returns to this
     // same thread; carrying the pane's current domain onward is what keeps
@@ -42,7 +42,7 @@
                     &middot; <a href="{{ route('admin.sellers.show', $conversation->seller) }}" class="underline">{{ $conversation->seller->displayName() }}</a>
                 @endif
                 @if ($conversation->customer)
-                    &middot; <a href="{{ route('admin.customers.show', $conversation->customer) }}" class="underline">{{ \App\Support\ActorDisplay::nameOf($conversation->customer) }}</a>
+                    &middot; <a href="{{ route('admin.customers.show', $conversation->customer) }}" class="underline">{{ \App\View\ActorDisplay::nameOf($conversation->customer) }}</a>
                 @endif
                 @if ($conversation->fulfillment)
                     &middot; <a href="{{ route('admin.fulfillments.show', $conversation->fulfillment) }}" class="underline">order {{ $conversation->fulfillment->order_id }}</a>
@@ -51,12 +51,12 @@
                     &middot; <a href="{{ route('admin.orders.show', $conversation->order) }}" class="underline">order {{ $conversation->order->id }}</a>
                 @endif
                 @if ($conversation->admin_id !== null)
-                    &middot; handled by <span class="text-stone-900 dark:text-stone-100">{{ \App\Support\ActorDisplay::nameOf($conversation->admin) }}</span>
+                    &middot; handled by <span class="text-stone-900 dark:text-stone-100">{{ \App\View\ActorDisplay::nameOf($conversation->admin) }}</span>
                 @endif
             @else
                 <a href="{{ route('admin.sellers.show', $conversation->seller) }}" class="underline">{{ $conversation->seller->displayName() }}</a>
                 &middot;
-                <a href="{{ route('admin.customers.show', $conversation->customer) }}" class="underline">{{ \App\Support\ActorDisplay::nameOf($conversation->customer) }}</a>
+                <a href="{{ route('admin.customers.show', $conversation->customer) }}" class="underline">{{ \App\View\ActorDisplay::nameOf($conversation->customer) }}</a>
                 <x-messaging.kind-tag :kind="$conversation->kind" />
                 <span>{{ $conversation->kind->topic($orderId, $conversation->listing?->title) }}</span>
             @endif
@@ -95,7 +95,7 @@
                     .'#message-customer-form';
             @endphp
             <a href="{{ $sellerMessageUrl }}" class="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-xs ring-1 ring-inset ring-stone-300 hover:bg-stone-50 dark:bg-white/10 dark:text-white dark:ring-white/10">Message {{ $conversation->seller->displayName() }}</a>
-            <a href="{{ $customerMessageUrl }}" class="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-xs ring-1 ring-inset ring-stone-300 hover:bg-stone-50 dark:bg-white/10 dark:text-white dark:ring-white/10">Message {{ \App\Support\ActorDisplay::nameOf($conversation->customer) }}</a>
+            <a href="{{ $customerMessageUrl }}" class="rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-stone-900 shadow-xs ring-1 ring-inset ring-stone-300 hover:bg-stone-50 dark:bg-white/10 dark:text-white dark:ring-white/10">Message {{ \App\View\ActorDisplay::nameOf($conversation->customer) }}</a>
         </div>
     </div>
 @endcannot

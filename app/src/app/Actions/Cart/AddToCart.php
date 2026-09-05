@@ -11,12 +11,12 @@ use App\Domain\Cart\CartQuantity;
 use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Configurator\ConfiguredCartQuantity;
 use App\Domain\Customers\CustomerStanding;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Listing;
 use App\Models\Variant;
-use App\Support\Story;
 use DateTimeImmutable;
 
 final readonly class AddToCart

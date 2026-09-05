@@ -1,8 +1,8 @@
 @php
     use App\Domain\Configurator\ModifierKind;
-    use App\Support\Configurator\ModifierKindWord;
-    use App\Support\Configurator\PriceDifferenceInput;
-    use App\Support\Configurator\ScopedListingPreview;
+    use App\Configurator\ModifierKindWord;
+    use App\Configurator\PriceDifferenceInput;
+    use App\Configurator\ScopedListingPreview;
 
     $nextModifierPosition = $modifiers->isEmpty() ? 0 : $modifiers->max('position') + 1;
 @endphp

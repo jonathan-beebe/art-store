@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Seller;
-use App\Support\Story;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

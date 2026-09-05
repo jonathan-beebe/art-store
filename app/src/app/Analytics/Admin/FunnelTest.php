@@ -13,8 +13,8 @@ use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\FunnelDefinition;
 use App\Domain\Seeding\Lcg;
 use App\Http\Middleware\LogRequestStory;
+use App\Logging\RequestMarks;
 use App\Models\Order;
-use App\Support\RequestMarks;
 use Illuminate\Http\Request;
 
 /**

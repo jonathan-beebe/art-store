@@ -1,6 +1,6 @@
 @php
     use App\Domain\Money\Money;
-    use App\Support\Configurator\VariantBuyerPrice;
+    use App\Configurator\VariantBuyerPrice;
 
     /** @var \App\Models\Listing $listing */
     /** @var \Illuminate\Support\Collection<int, \App\Models\OptionAxis> $axes */

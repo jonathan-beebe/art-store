@@ -7,7 +7,7 @@ namespace App\Seller;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Seller;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 
 /**
  * Which story a feed tells: everything between one seller and one buyer, or

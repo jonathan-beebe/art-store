@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use App\Domain\Logging\DataRedaction;
 use App\Http\Requests\Shop\ShopRequest;
-use App\Support\DataRedaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 

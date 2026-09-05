@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\LedgerEntry;
-use App\Support\Story;
 
 /**
  * Every ledger entry is logged, and there are three places that write one —

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Orders;
 
 use App\Domain\Orders\OrderStatus;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Order;
-use App\Support\Story;
 use DateTimeImmutable;
 
 /**

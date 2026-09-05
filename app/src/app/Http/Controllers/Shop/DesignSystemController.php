@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Shop;
 
+use App\Configurator\ConfiguratorInput;
+use App\Configurator\ConfiguratorPageResolver;
+use App\Configurator\ListingConfiguration;
 use App\Domain\Configurator\PriceBreakdownLine;
+use App\Domain\Theme\Contrast;
 use App\Models\Listing;
 use App\Models\OrderItem;
-use App\Support\Configurator\ConfiguratorInput;
-use App\Support\Configurator\ConfiguratorPageResolver;
-use App\Support\Configurator\ListingConfiguration;
-use App\Support\Contrast;
-use App\Support\DesignTokens;
-use App\Support\Shop\CategoryBrowse;
-use App\Support\Shop\FeaturedSubject;
-use App\Support\Shop\MediumBrowse;
+use App\Shop\CategoryBrowse;
+use App\Shop\FeaturedSubject;
+use App\Shop\MediumBrowse;
+use App\Theme\DesignTokens;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\UnitState;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Unit;
-use App\Support\Story;
 use LogicException;
 
 final readonly class UpdateUnit

@@ -53,10 +53,10 @@
                     $previewParts[] = "Order {$orderId}";
                 }
                 if ($conversation->latestMessage) {
-                    $previewParts[] = \App\Support\ActorDisplay::nameOf($conversation->latestMessage->sender).': '.str($conversation->latestMessage->body)->limit(80);
+                    $previewParts[] = \App\View\ActorDisplay::nameOf($conversation->latestMessage->sender).': '.str($conversation->latestMessage->body)->limit(80);
                 }
                 if ($conversation->admin_id !== null) {
-                    $previewParts[] = 'handled by '.\App\Support\ActorDisplay::nameOf($conversation->admin);
+                    $previewParts[] = 'handled by '.\App\View\ActorDisplay::nameOf($conversation->admin);
                 }
             @endphp
             <li>

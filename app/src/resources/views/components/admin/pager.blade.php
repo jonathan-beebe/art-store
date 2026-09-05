@@ -1,5 +1,5 @@
 {{-- Total-count-based prev/next pager: query-string `page=N`, current
-     filters carried through both links. `App\Support\Page` does the
+     filters carried through both links. `App\Domain\Paging\Page` does the
      arithmetic; every list page that grows a pager can reuse this. --}}
 @props(['page', 'baseUrl', 'query' => ''])
 

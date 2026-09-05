@@ -17,7 +17,7 @@ use App\Models\FulfillmentEvent;
 use App\Models\FulfillmentFlow;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;

@@ -182,7 +182,7 @@
                                         @endif
                                     </div>
                                 </div>
-                                <time class="flex-none font-mono text-[11px] tabular-nums text-stone-500 dark:text-stone-400" title="{{ $row->occurredAt->format('Y-m-d H:i:s') }} UTC">{{ \App\Domain\Support\RelativeTime::short($row->occurredAt, $now) }}</time>
+                                <time class="flex-none font-mono text-[11px] tabular-nums text-stone-500 dark:text-stone-400" title="{{ $row->occurredAt->format('Y-m-d H:i:s') }} UTC">{{ \App\Domain\Text\RelativeTime::short($row->occurredAt, $now) }}</time>
                             </div>
                         </li>
                     @endforeach

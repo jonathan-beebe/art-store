@@ -39,7 +39,7 @@
                 // carries none.
                 $topic = $conversation->title ?? $conversation->kind->topic($conversation->fulfillment?->order_id, null);
                 $at = $conversation->last_message_at;
-                $relativeTime = $at === null ? '' : \App\Domain\Support\RelativeTime::short($at, now());
+                $relativeTime = $at === null ? '' : \App\Domain\Text\RelativeTime::short($at, now());
 
                 // The preview line's own prefix: the listing a question is
                 // about (the row's title above is the question, not the

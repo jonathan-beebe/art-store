@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\DescriptionSectionKind;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\DescriptionSection;
-use App\Support\Story;
 
 final readonly class UpdateDescriptionSection
 {

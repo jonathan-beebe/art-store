@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Auth;
 use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 
 it('signs a seller out and returns them to the login page', function (): void {
     $this->actingAs(Seller::factory()->create(), 'seller');

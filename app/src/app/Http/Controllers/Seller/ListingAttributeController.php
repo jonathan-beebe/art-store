@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Configurator\SetListingAttributes;
+use App\Configurator\ListingBasicsPageData;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ListingAttributeRequest;
 use App\Models\Listing;
-use App\Support\Configurator\ListingBasicsPageData;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

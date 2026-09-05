@@ -10,7 +10,7 @@ use App\Analytics\AnalyticsEvent;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Seller;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 

@@ -6,12 +6,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Actions\Auth\SendMagicLink;
 use App\Domain\Auth\ActorType;
+use App\Domain\RateLimiting\EmailRateLimitKey;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendMagicLinkRequest;
-use App\Support\RateLimiting\EmailRateLimitKey;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;

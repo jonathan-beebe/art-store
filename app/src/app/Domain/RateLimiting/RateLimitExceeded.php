@@ -7,7 +7,7 @@ namespace App\Domain\RateLimiting;
 use RuntimeException;
 
 /**
- * A budget `App\Support\RateLimiting\RateLimitGate` caught already spent.
+ * A budget `AppRateLimitingRateLimitGate` caught already spent.
  * `key` is already safe to log by the time this is thrown — `RateLimitGate`
  * never hands an email address to it — so a catcher writes it straight into
  * a log line's `data` (docs/spec.md §2.3's `rate_limit.exceed`) without

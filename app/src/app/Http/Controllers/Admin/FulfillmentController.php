@@ -8,7 +8,7 @@ use App\Domain\Orders\FulfillmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Fulfillment;
 use App\Models\Seller;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;

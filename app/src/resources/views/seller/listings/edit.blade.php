@@ -1,6 +1,6 @@
 @php
     use App\Domain\Listings\ListingStatus;
-    use App\Support\Configurator\PublishIssuePresenter;
+    use App\Configurator\PublishIssuePresenter;
 @endphp
 
 <x-layouts.seller-focused :listing="$listing" :title="$listing->title.' — Art Store seller'">

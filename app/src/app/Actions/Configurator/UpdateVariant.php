@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Variant;
-use App\Support\Story;
 
 /**
  * The per-cell edit the variant grid offers on a row already generated or

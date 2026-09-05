@@ -7,7 +7,7 @@ namespace App\Analytics\Admin;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\ActorSort;
 use App\Domain\Analytics\AnalyticsRange;
-use App\Support\Page;
+use App\Domain\Paging\Page;
 
 /**
  * `/admin/analytics/actors`, the drill-in's all-actors page: every actor

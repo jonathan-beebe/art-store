@@ -380,7 +380,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
      * DSGN-002's standalone-pricing archetype: Size is `standalone` — each
      * size carries its own price; none is a "base" — crossed with Frame, an
      * ordinary `add_on` axis. `listings.price_cents` is never set directly
-     * here; {@see \App\Support\Configurator\ListingPriceSync}, run from
+     * here; {@see \App\Configurator\ListingPriceSync}, run from
      * inside {@see AddOptionValue}, derives it from the default (8x10)
      * option's price the moment that option is added.
      */

@@ -19,7 +19,7 @@ use App\Models\Customer;
 use App\Models\Seller;
 use App\Notifications\OrderShipped;
 use App\Policies\NotificationPolicy;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;

@@ -11,7 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Listing;
 use App\Models\OrderItem;
 use App\Models\Seller;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

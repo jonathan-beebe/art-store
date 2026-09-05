@@ -10,8 +10,8 @@ the buffer into rows.
 Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ActorVisitRow,ListingEventCounts,RequestFacts,RowChannel}.php`,
 `app/Domain/Analytics/{AnalyticsEventName,Channel}.php`,
 `app/Providers/AnalyticsServiceProvider.php`, the `analytics` connection in
-`config/database.php`, `config/analytics.php`, `app/Support/RequestMarks.php`,
-`app/Support/RetentionDays.php`, `database/migrations/*_create_analytics_events_table.php`,
+`config/database.php`, `config/analytics.php`, `app/Logging/RequestMarks.php`,
+`app/Domain/Retention/RetentionDays.php`, `database/migrations/*_create_analytics_events_table.php`,
 `database/migrations/*_create_page_view_counts_table.php`,
 `database/migrations/*_create_analytics_visits_table.php`,
 `app/Models/PageViewCount.php`, `app/Domain/Listings/ListingViewCollapse.php`,
@@ -303,7 +303,7 @@ page uses; the whole row taps through to that channel's own visitors.
 (`admin.analytics.channels.show`) is that drill-in:
 `App\Analytics\Admin\ChannelVisits::forRange()` derives every visit in the
 range the way `ChannelTable` does and keeps the ones whose key matches,
-paged the all-actors page's own way (`App\Support\Page`, `x-admin.pager`).
+paged the all-actors page's own way (`App\Domain\Paging\Page`, `x-admin.pager`).
 A channel key names no stored row — "found" means at least one visit in
 the range derives to it, so a key nothing derives to answers 404. Each row
 lists when the visit started, where it landed, and the visitor: the
@@ -516,7 +516,7 @@ A listing view, favorite, or cart add belongs to a listing by
 analytics page already reads it. A checkout, order placement, order
 payment, or order cancellation has no listing subject — its subject is a
 cart or an order — so it belongs to a listing through the `data.listing_ids`
-JSON array `App\Support\Orders\OrderListingIds` and
+JSON array `App\Orders\OrderListingIds` and
 `Shop\CheckoutController::show` write onto it, read back with SQLite's
 `json_each` (`exists (select 1 from json_each(data, '$.listing_ids') where
 value in (…))`) rather than a join, since the two connections are separate

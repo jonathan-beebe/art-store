@@ -12,7 +12,7 @@ Code: `app/Domain/Messaging/`, `app/Actions/Messaging/`,
 `app/Http/Controllers/{Seller,Shop,Admin}/MessageController.php` and the
 per-site open/resolve controllers beside them, `app/Events/MessagePosted.php`,
 `app/Listeners/NotifyOfMessage.php`, `app/Notifications/MessageReceived.php`,
-`app/Notifications/ConversationResolved.php`, `app/Support/ActorDisplay.php`,
+`app/Notifications/ConversationResolved.php`, `app/View/ActorDisplay.php`,
 `app/View/Composers/`, `public/composer.js`. Tables:
 `database/migrations/*_create_messaging_tables.php`.
 

@@ -113,7 +113,7 @@ class OrderItem extends Model
     /**
      * Narrows to items whose seller could still decline the parcel they ride
      * in on, the one fulfillment transition that reads a variant back onto
-     * the shelf ({@see \App\Support\Orders\StockMovement::release}). Every
+     * the shelf ({@see \App\Orders\StockMovement::release}). Every
      * later fulfillment status settles the item on its own frozen columns.
      *
      * @param  Builder<self>  $query

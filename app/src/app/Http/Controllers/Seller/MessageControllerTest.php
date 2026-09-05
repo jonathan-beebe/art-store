@@ -12,7 +12,7 @@ use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Fulfillment;
 use App\Models\Message;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 use Illuminate\Support\Facades\Config;
 use Tests\QueryString;
 

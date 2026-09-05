@@ -319,12 +319,18 @@ app/
     app/Notifications/ what they are told, plus Channels/
     app/Console/       artisan commands: payouts:run, orders:sweep, seed:activity
     app/Seller/        page-shaped readers for the seller portal
+    app/Shop/          storefront readers (browse, medium, featured) and the visitor's CustomerIdentity
+    app/Configurator/  the item configurator's page data, presenters, resolver, and pricer
+    app/Orders/        StockMovement, PlaceableLineBuilder, OrderListingIds
+    app/RateLimiting/  RateLimitGate, the one place a limit is checked and hit
+    app/Identifiers/   IdMint, the shell side of the prefixed-ULID contract
+    app/Paging/        ListPaneWindow, the list/detail pane window over a query
+    app/Theme/         DesignTokens, read from config/theme.php
     app/Admin/         page-shaped readers for the admin site
     app/Analytics/     the Analytics entry point, its rows, and the admin readers
-    app/Logging/       StoryFormatter, StoryEvent, the log store and its tap
-    app/View/Composers/ per-site layout data: cart count, notifications, unread messages
+    app/Logging/       Story, StoryFormatter, StoryEvent, DbActivity, SlowQueryWatch, the log store and its tap
+    app/View/          ActorDisplay; Composers/ per-site layout data: cart count, notifications, unread messages
     app/View/Components/ class-backed Blade components: stat tile, list pane row, bar strip
-    app/Support/       CustomerIdentity, ActorDisplay, PlaceholderImage
     routes/            web.php requires auth.php, shop.php, seller.php, admin.php
     resources/views/   components/layouts/{shop,seller,seller-focused,admin,auth,error}, components/debug-alert,
                        components/messaging/* (shared by admin and seller), components/seller/messaging/*,

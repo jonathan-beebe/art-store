@@ -7,9 +7,9 @@ namespace App\Http\Controllers\Seller;
 use App\Domain\Configurator\ConfiguratorPublishRefused;
 use App\Domain\Listings\ListingStatus;
 use App\Http\Requests\Seller\ChangeListingStatusRequest;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
-use App\Support\Story;
 use Illuminate\Http\RedirectResponse;
 
 final class ListingStatusController extends SellerController

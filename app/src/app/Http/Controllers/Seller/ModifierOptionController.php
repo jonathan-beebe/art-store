@@ -7,14 +7,14 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Configurator\AddModifierOption;
 use App\Actions\Configurator\DeleteModifierOption;
 use App\Actions\Configurator\UpdateModifierOption;
+use App\Configurator\ModifierIndexPageData;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ModifierOptionRequest;
 use App\Models\Listing;
 use App\Models\Modifier;
 use App\Models\ModifierOption;
-use App\Support\Configurator\ModifierIndexPageData;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

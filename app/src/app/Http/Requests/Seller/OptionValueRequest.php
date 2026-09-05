@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Configurator\AbsolutePriceInput;
+use App\Configurator\PriceDifferenceInput;
 use App\Domain\Configurator\PricingMode;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\PropertyValue;
-use App\Support\Configurator\AbsolutePriceInput;
-use App\Support\Configurator\PriceDifferenceInput;
 use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;

@@ -11,7 +11,7 @@ declare(strict_types=1);
 | color is a semantic role: storefront views only ever say `bg-canvas` or
 | `text-ink-muted`, and this file decides what those mean — in light and
 | in dark. Seller and admin views style
-| themselves in raw Tailwind and stay outside this contract. `App\Support\DesignTokens`
+| themselves in raw Tailwind and stay outside this contract. `App\Theme\DesignTokens`
 | turns this file into the CSS custom properties every layout emits
 | (`<x-theme-css />`), and `resources/css/app.css` maps Tailwind utilities
 | onto those properties, so retheming the storefront is editing this file

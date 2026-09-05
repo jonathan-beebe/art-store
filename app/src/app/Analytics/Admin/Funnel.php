@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\DB;
  * `subject_id` the listing's id. A checkout, order placement, order
  * payment, or order cancellation has no listing subject — its subject is
  * the cart or the order — so it belongs to a listing through the
- * `data.listing_ids` JSON array `App\Support\Orders\OrderListingIds` and
+ * `data.listing_ids` JSON array `App\Orders\OrderListingIds` and
  * `Shop\CheckoutController::show` write onto it; this is the one place
  * that array is read back out, via SQLite's `json_each`.
  *

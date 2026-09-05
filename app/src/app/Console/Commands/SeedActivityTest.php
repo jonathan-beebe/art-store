@@ -22,7 +22,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payout;
 use App\Models\Seller;
-use App\Support\Shop\FeaturedSubject;
+use App\Shop\FeaturedSubject;
 use Database\Seeders\DatabaseSeeder;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Artisan;

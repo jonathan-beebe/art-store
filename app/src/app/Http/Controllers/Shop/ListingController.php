@@ -6,12 +6,12 @@ namespace App\Http\Controllers\Shop;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Configurator\ListingPagePresenter;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Listings\ListingViewCollapse;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
-use App\Support\Configurator\ListingPagePresenter;
-use App\Support\Story;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 

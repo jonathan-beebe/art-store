@@ -1,7 +1,7 @@
 @php
-    use App\Support\Configurator\ConfiguratorInput;
-    use App\Support\Configurator\QuantityBreakPercent;
-    use App\Support\Configurator\QuantityBreakUnitPrice;
+    use App\Configurator\ConfiguratorInput;
+    use App\Configurator\QuantityBreakPercent;
+    use App\Configurator\QuantityBreakUnitPrice;
 
     $basePrice = $listing->price();
     $previewQuantity = $quantityBreaks->isEmpty() ? 1 : (int) $quantityBreaks->max('min_qty');

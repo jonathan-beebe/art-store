@@ -14,7 +14,7 @@ use App\Http\Requests\Shop\PostMessageRequest;
 use App\Http\Requests\Shop\ShopMessagesIndexRequest;
 use App\Models\Conversation;
 use App\Models\Message;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;

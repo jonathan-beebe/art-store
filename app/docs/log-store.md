@@ -7,10 +7,10 @@ stays exactly as [spec.md](../../docs/spec.md) §2 specifies; the store is a mir
 it. Lines older than a retention window are pruned by `orders:sweep`.
 
 Code: `app/Logging/{LogStore,LogLine,LogStoreHandler,LogStoreTap,LogDomain}.php`,
-`app/Support/RetentionDays.php`,
+`app/Domain/Retention/RetentionDays.php`,
 `app/Providers/LogStoreServiceProvider.php`, `config/log_store.php`,
 `app/Logging/Admin/*.php`, `app/Http/Requests/Admin/LogsQueryRequest.php`,
-`app/Http/Controllers/Admin/LogController.php`, `app/Support/Page.php`,
+`app/Http/Controllers/Admin/LogController.php`, `app/Domain/Paging/Page.php`,
 `resources/views/admin/logs/`, `resources/views/components/admin/{log-lines,log-id-chip,log-filter-rail,log-actor,log-ids,pager}.blade.php`,
 `app/Console/Commands/SweepOrders.php`.
 
@@ -309,7 +309,7 @@ the event cell truncates the same way, with the full `event`/`phase` pair
 in its own `title`, since a handful of `StoryEvent` values (the
 `moderation.*` ones) run past the column's fixed width.
 
-Pagination is unchanged: `App\Support\Page`, `components/admin/pager.blade.php`,
+Pagination is unchanged: `App\Domain\Paging\Page`, `components/admin/pager.blade.php`,
 total-count-based prev/next over `page=N` with the current filter set
 carried through both links. `Page::of()` clamps an out-of-range page onto
 the nearest real one rather than answering 400.
@@ -440,7 +440,7 @@ it.
 
 ## Retention
 
-`App\Support\RetentionDays::parse()` reads `LOG_RETENTION_DAYS` (default
+`App\Domain\Retention\RetentionDays::parse()` reads `LOG_RETENTION_DAYS` (default
 `14`, `off` disables pruning) while `config/log_store.php` loads, so a
 malformed value refuses the process at boot rather than on the sweep run
 that would have needed it.

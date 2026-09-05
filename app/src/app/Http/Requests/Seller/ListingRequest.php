@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Configurator\AbsolutePriceInput;
+use App\Configurator\PriceDifferenceInput;
 use App\Domain\Listings\ListingCreationShape;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Money\Money;
 use App\Models\Listing;
-use App\Support\Configurator\AbsolutePriceInput;
-use App\Support\Configurator\PriceDifferenceInput;
 use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\Validator;
@@ -105,7 +105,7 @@ final class ListingRequest extends FormRequest
      * at all — the Basics screen never renders them — so the draft keeps
      * whatever the listing already holds; there is no input to parse.
      * `listings.price_cents` may be sync-derived at that point
-     * ({@see \App\Support\Configurator\ListingPriceSync}); reading it back
+     * ({@see \App\Configurator\ListingPriceSync}); reading it back
      * unchanged here is what keeps a Basics save from clobbering it. A
      * create builds its draft from whichever on-ramp shape was submitted
      * instead — none of those fields exist on this path.

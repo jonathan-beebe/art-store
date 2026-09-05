@@ -1,6 +1,6 @@
 @php
     use App\Domain\Configurator\DescriptionSectionKind;
-    use App\Support\Configurator\DescriptionSectionKindWord;
+    use App\Configurator\DescriptionSectionKindWord;
 
     // Two call sites share this markup with two different typographic
     // vocabularies: the seller's compact buyer-preview card, and the real

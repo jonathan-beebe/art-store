@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Domain\Logging\DataRedaction;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
-use App\Support\DataRedaction;
-use App\Support\Story;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

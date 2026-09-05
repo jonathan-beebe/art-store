@@ -26,7 +26,7 @@ use App\Models\PropertyValue;
 use App\Models\QuantityBreak;
 use App\Models\Seller;
 use App\Models\Variant;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use DateTimeImmutable;
 use DOMDocument;
 use DOMNodeList;
@@ -807,7 +807,7 @@ it('a basics save does not clobber the synced price of a listing with a standalo
     $listing = $this->listing($seller, ['title' => 'Old title', 'price_cents' => 999]);
     $axis = OptionAxis::factory()->standalone()->create(['listing_id' => $listing->id]);
     OptionValue::factory()->priced(1800)->create(['axis_id' => $axis->id, 'is_default' => true, 'position' => 0]);
-    \App\Support\Configurator\ListingPriceSync::sync($listing->refresh());
+    \App\Configurator\ListingPriceSync::sync($listing->refresh());
     expect($listing->refresh()->price_cents)->toBe(1800);
 
     $response = $this->actingAs($seller, 'seller')->put("/seller/listings/{$listing->id}", ['title' => 'New title']);

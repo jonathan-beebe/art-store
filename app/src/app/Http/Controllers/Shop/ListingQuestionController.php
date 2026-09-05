@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Actions\Messaging\OpenThread;
+use App\Configurator\ListingPagePresenter;
 use App\Domain\Messaging\ThreadOpening;
 use App\Domain\Messaging\ThreadTitle;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\AskSellerRequest;
 use App\Models\Listing;
-use App\Support\Configurator\ListingPagePresenter;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

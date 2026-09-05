@@ -10,6 +10,8 @@ use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Listings\CreateListing;
 use App\Actions\Listings\UpdateListing;
 use App\Analytics\AnalyticsReport;
+use App\Configurator\ListingBasicsPageData;
+use App\Configurator\ListingEditPageData;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
 use App\Domain\Analytics\BarStrip;
@@ -28,12 +30,10 @@ use App\Http\Requests\Seller\ListingsQueryRequest;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OrderItem;
+use App\Paging\ListPaneWindow;
+use App\RateLimiting\RateLimitGate;
 use App\Seller\ListingsChrome;
 use App\Seller\ListingTable;
-use App\Support\Configurator\ListingBasicsPageData;
-use App\Support\Configurator\ListingEditPageData;
-use App\Support\ListPaneWindow;
-use App\Support\RateLimiting\RateLimitGate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -207,7 +207,7 @@ final class ListingController extends SellerController
     /**
      * The versions ramp: a standalone choice, one option per version row —
      * every version prices itself, so there is no base price to carry over.
-     * The first row is the default, which is what {@see \App\Support\Configurator\ListingPriceSync}
+     * The first row is the default, which is what {@see \App\Configurator\ListingPriceSync}
      * reads back onto `listings.price_cents`.
      */
     private function addVersionsAxis(

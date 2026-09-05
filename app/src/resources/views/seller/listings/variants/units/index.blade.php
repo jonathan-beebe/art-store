@@ -1,6 +1,6 @@
 @php
     use App\Domain\Configurator\UnitState;
-    use App\Support\Configurator\UnitStateWord;
+    use App\Configurator\UnitStateWord;
 @endphp
 
 <x-layouts.seller-focused :listing="$listing" :title="'Individual pieces — '.$listing->title.' — Art Store seller'">

@@ -9,7 +9,7 @@ use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\MagicLink;
 use App\Models\Seller;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Session;

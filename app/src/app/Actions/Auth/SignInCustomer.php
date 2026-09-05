@@ -6,7 +6,7 @@ namespace App\Actions\Auth;
 
 use App\Actions\Customers\ClaimCustomerIdentity;
 use App\Models\Customer;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Auth;
 

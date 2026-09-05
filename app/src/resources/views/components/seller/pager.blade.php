@@ -1,7 +1,7 @@
 {{--
     Total-count-based prev/next pager, seller-indigo styled: `page=N` in
     the query, `query`'s filters carried through both links.
-    `App\Support\Page` does the arithmetic; `routeName` names the route
+    `App\Domain\Paging\Page` does the arithmetic; `routeName` names the route
     every other page of the same list opens.
 --}}
 @props(['page', 'routeName', 'query' => []])

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Seller;
 
+use App\Configurator\PublishIssuePresenter;
 use App\Domain\Auth\ActorType;
 use App\Domain\Configurator\PublishIssue;
 use App\Domain\Fulfillment\LaneFilter;
@@ -15,14 +16,12 @@ use App\Domain\Seller\AttentionRow;
 use App\Domain\Seller\AttentionRows;
 use App\Domain\Seller\Initials;
 use App\Domain\Seller\PayoutEstimate;
-use App\Domain\Support\RelativeTime;
+use App\Domain\Text\RelativeTime;
 use App\Models\Conversation;
 use App\Models\Fulfillment;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\Seller;
-use App\Support\Configurator\PublishIssuePresenter;
-use App\Support\ParcelLine;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Relations\Relation;
 

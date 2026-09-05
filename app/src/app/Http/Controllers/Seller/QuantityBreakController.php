@@ -12,7 +12,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\QuantityBreakRequest;
 use App\Models\Listing;
 use App\Models\QuantityBreak;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
