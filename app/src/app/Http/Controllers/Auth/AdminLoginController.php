@@ -11,6 +11,7 @@ use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\SendAdminMagicLinkRequest;
+use App\Models\Admin;
 use App\RateLimiting\RateLimitGate;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -51,7 +52,7 @@ final class AdminLoginController extends Controller
 
         $redirect = redirect()->route('auth.admin.login')->with('sent_to', $request->email());
 
-        if ($request->admits()) {
+        if (Admin::admitsEmail($request->email())) {
             $sendMagicLink($request->email(), ActorType::Admin, null, $this->now());
 
             return $redirect;

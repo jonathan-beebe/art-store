@@ -293,6 +293,15 @@ command has ended, with a process-exit fallback and an early flush once the
 buffer passes a row cap. A failed flush logs one `warn` line and drops the
 batch — a store outage loses buffered rows, never blocks the request.
 
+A kill between buffering and the flush loses that request's or console run's
+events and writes no line, because nothing runs after a `SIGKILL`. The app
+serves one request per process and ends it in the same hook that flushes, so
+a timed flush would fire mid-request against a buffer that already flushes
+at the request's end; a timer earns a place only under a worker mode that
+keeps one process across requests, and this app runs classic per-request
+mode. `seed:activity` is the one caller whose buffer spans more than one
+request's worth of events, and it flushes at the row cap and again at exit.
+
 `analytics_events` holds one row per occurrence, named from a closed
 vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
 `listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,

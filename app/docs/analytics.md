@@ -123,6 +123,16 @@ owns onto the verified customer they merged into. It never throws — a
 failure logs the same one warning shape `flush()` does, and the merge's
 commerce writes stand regardless.
 
+A kill between buffering and `terminating()` loses that request's or console
+run's events and writes no line, because nothing runs after a `SIGKILL`. The
+process serves one request at a time and ends it by calling `terminating()`,
+so a timed flush would fire inside a request whose end already flushes; a
+timer earns its place only under a worker mode that keeps one process across
+requests, and `app/docker/Caddyfile` runs classic per-request mode instead.
+`seed:activity` is the one caller that holds more than one request's worth
+of events in the buffer at once; it flushes at `Analytics::FLUSH_AT` during
+the run and once more at exit.
+
 ## Schema
 
 `analytics_events`:

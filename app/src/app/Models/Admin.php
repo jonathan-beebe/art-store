@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Auth\EmailNormalizer;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\AdminFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -67,6 +68,17 @@ class Admin extends Authenticatable
     public static function platformAdmin(): ?self
     {
         return self::query()->oldest('created_at')->oldest('id')->first();
+    }
+
+    /**
+     * Whether an admin row exists for the given address. The controller
+     * sends the same "check your email" response either way, so this stays
+     * out of validation — a rule that answered it there would answer a
+     * question a validation error never answers.
+     */
+    public static function admitsEmail(string $email): bool
+    {
+        return self::query()->where('email', EmailNormalizer::normalize($email))->exists();
     }
 
     /**
