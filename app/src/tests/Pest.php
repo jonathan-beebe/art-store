@@ -53,6 +53,7 @@ pest()->extend(Tests\TestCase::class)->in('../app/Logging', '../routes', 'Databa
 
 pest()->extend(Tests\TestCase::class)->use(RefreshDatabase::class)->in(
     '../app/Http/Controllers/Auth',
+    '../app/Http/LoggedRequestBodyTest.php',
     '../app/Http/Middleware',
     '../app/Http/Requests/Auth',
     '../database/seeders',

@@ -172,10 +172,16 @@ carrying `method`, `path`, and — when the URL has one — the query string as
 carries `status` and `duration_ms` in `data`, and also
 `data.db = {queries: <int>, total_ms: <number>}` — how many queries the
 request ran and their summed time in milliseconds (rounded to two decimal
-places), zero of each when none ran. `data.path` stays the bare path, so
+places), zero of each when none ran. A request with a body carries it on
+the `will` line as `data.body`, an object of every field a form or a JSON
+client sent: the framework's `_token` and `_method` left out, the card
+fields (`card_number`, `card_expiry`, `card_cvc`) dropped by name, each
+upload reduced to `{file, bytes}`, and every string value capped at 500
+characters with a trailing `…`. `POST /mcp` carries no body — its
+`mcp.call` line (§2.3) already carries the arguments. `data.path` stays the bare path, so
 path-prefix rules (the log viewer's domain buckets) read one field.
-The §2.1 redaction rule applies to `data.query` the way it applies to every
-`data` field. Every request story closes exactly once, however the connection ends.
+The §2.1 redaction rule applies to `data.query` and `data.body` the way it
+applies to every `data` field. Every request story closes exactly once, however the connection ends.
 
 Example, one checkout:
 
