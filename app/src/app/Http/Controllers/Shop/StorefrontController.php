@@ -14,16 +14,15 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * `/` — an invitation to explore rather than the catalogue itself (DSGN-007):
- * the configured featured subject, the mediums and categories as browse
- * rows, and two curated listing sets (three newest, then the nine after
- * them) — never a paginated "everything", which `/medium/{medium}` and
- * `/browse/{categoryPath}` own. A legacy `q` or `medium` on this URL is a
- * bookmark or shared link from before those pages existed, so it is
- * redirected onto its new home rather than read here. A `medium` riding
- * alongside a `q` is dropped — the two never composed correctly (they
- * narrowed to unrelated result sets under one page) and neither new URL
- * carries the other's axis.
+ * `/` is a curated invitation to explore (DSGN-007): the configured
+ * featured subject, the mediums and categories as browse rows, and two
+ * curated listing sets (three newest, then the nine after them).
+ * `/medium/{medium}` and `/browse/{categoryPath}` own the paginated
+ * "everything" view. A legacy `q` or `medium` on this URL is a bookmark or
+ * shared link from before those pages existed, so it redirects to its new
+ * home. A `medium` riding alongside a `q` is dropped: the two composed
+ * incorrectly, narrowing to unrelated result sets under one page, and each
+ * new URL carries only its own axis.
  */
 final class StorefrontController extends ShopController
 {

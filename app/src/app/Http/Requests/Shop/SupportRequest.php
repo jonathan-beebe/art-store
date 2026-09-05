@@ -37,8 +37,8 @@ final class SupportRequest extends ShopRequest
 
     /**
      * The order this thread is raised over, when the visitor named one that
-     * is actually theirs — an order naming somebody else's, or naming
-     * nothing at all, is ignored rather than refused.
+     * is actually theirs. An order naming somebody else's, or naming
+     * nothing at all, is ignored.
      */
     public function orderId(): ?string
     {

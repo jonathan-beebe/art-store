@@ -48,11 +48,11 @@ final class OptionAxisController extends SellerController
 
         // Catalog choices first (doc §4): a catalog property pre-fills the
         // choice's options from the property's own values — staged as
-        // ordinary, editable/removable rows the seller can adjust before the
-        // choice is put to use, not a JS behavior. A `standalone` choice
-        // skips this: its options need their own price and the catalog has
-        // none to offer, so the axis keeps its catalog link (still
-        // searchable) while the seller adds priced options by hand.
+        // ordinary, editable/removable database rows the seller can adjust
+        // before the choice is put to use. A `standalone` choice skips
+        // this: its options need their own price and the catalog has none
+        // to offer, so the axis keeps its catalog link (still searchable)
+        // while the seller adds priced options by hand.
         if ($property !== null && $axis->pricing_mode !== PricingMode::Standalone) {
             foreach ($property->values()->orderBy('position')->get() as $index => $value) {
                 $addValue($axis, $value->label, 0, $index === 0, $index, $value);

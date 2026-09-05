@@ -30,10 +30,9 @@ final class ListingQuestionController extends ShopController
         try {
             $rateLimit->check(RateLimitName::ConversationOpen, (string) $visitor->id);
         } catch (RateLimitExceeded $exceeded) {
-            // docs/spec.md §3: a form that trips comes back rather than
-            // being replaced by the site's bare 429 page, so the listing the
-            // shopper was reading re-renders with the question still in the
-            // box.
+            // docs/spec.md §3: a form that trips comes back on its own page
+            // at 429, so the listing the shopper was reading re-renders
+            // with the question still in the box.
             $request->flash();
 
             return $this->tooManyRequests($exceeded, 'shop.listing', ListingPagePresenter::forShop($listing, $visitor, $request));

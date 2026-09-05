@@ -23,7 +23,7 @@ use Illuminate\Http\Request;
  * `/design-system` — the theme's living reference: the token registry as
  * paint chips and pairings, and the storefront's real atoms, components,
  * and partials rendered against live data, so the page is a place to see
- * and experiment with actual UI rather than a drawing of it.
+ * and try the actual UI, live.
  */
 final class DesignSystemController extends ShopController
 {
@@ -57,9 +57,9 @@ final class DesignSystemController extends ShopController
             ->orderByDesc('created_at')->orderByDesc('id')->limit(3)->get();
 
         // The same predicate ConfiguratorPageResolver::hasConfigurator()
-        // checks per listing, asked of the database instead: one query for
-        // the first for-sale listing carrying any configurator row, rather
-        // than fetching a page of listings and testing each in PHP.
+        // checks per listing, asked of the database as one query: it finds
+        // the first for-sale listing carrying any configurator row, so no
+        // page of listings is fetched and tested row by row in PHP.
         $configurable = Listing::query()->forSale()->with('seller.storeProfile')
             ->where(function (Builder $query): void {
                 $query->whereHas('optionAxes')
@@ -134,7 +134,7 @@ final class DesignSystemController extends ShopController
      * {@see \App\Actions\Orders\PlaceOrder} freezes a real one. No seeded
      * order carries a configured item — every seeded purchase predates
      * {@see \Database\Seeders\ConfiguratorArchetypeSeeder} — so this is the
-     * specimen's only route to real configurator data rather than none.
+     * specimen's only source of real configurator data.
      */
     private function orderItemPreview(?ListingConfiguration $configuration): ?OrderItem
     {

@@ -36,9 +36,8 @@ final class PostMessageRequest extends ShopRequest
 
     /**
      * The message a "Reply" link quoted, when the hidden field names one
-     * that actually belongs to this thread — a hand-rolled id naming
-     * another thread's message, or nothing at all, is ignored rather than
-     * refused.
+     * that actually belongs to this thread. A hand-rolled id naming
+     * another thread's message, or nothing at all, is ignored.
      */
     public function replyTo(): ?Message
     {

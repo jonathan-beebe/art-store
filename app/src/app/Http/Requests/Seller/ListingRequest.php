@@ -81,7 +81,7 @@ final class ListingRequest extends FormRequest
      * The create path's own cross-field checks — a version or an extra
      * option row is either complete (label and price) or wholly blank (a
      * dropped placeholder row); a shape that needs at least one complete row
-     * says so once, rather than field by field.
+     * reports one error for the whole set.
      */
     public function withValidator(Validator $validator): void
     {
@@ -103,8 +103,8 @@ final class ListingRequest extends FormRequest
     /**
      * A configured listing's Basics save carries no price or quantity field
      * at all — the Basics screen never renders them — so the draft keeps
-     * whatever the listing already holds rather than parsing an absent
-     * input. `listings.price_cents` may be sync-derived at that point
+     * whatever the listing already holds; there is no input to parse.
+     * `listings.price_cents` may be sync-derived at that point
      * ({@see \App\Support\Configurator\ListingPriceSync}); reading it back
      * unchanged here is what keeps a Basics save from clobbering it. A
      * create builds its draft from whichever on-ramp shape was submitted
@@ -205,7 +205,7 @@ final class ListingRequest extends FormRequest
             'fulfillment_flow_id' => ['nullable', 'string', Rule::exists('fulfillment_flows', 'id')->where('seller_id', $listing->seller_id)],
             // `image` and `mimes` both read the declared type, which an upload
             // controls. `dimensions` decodes the file, so a text file renamed
-            // .jpg is rejected here rather than served as a broken listing image.
+            // .jpg is rejected here, never served as a broken listing image.
             'image' => ['nullable', 'file', 'image', 'mimes:jpeg,png,webp,gif', 'dimensions:min_width=1,min_height=1', 'max:'.self::MAX_IMAGE_KILOBYTES],
         ];
     }

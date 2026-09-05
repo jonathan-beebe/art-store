@@ -23,8 +23,9 @@ final class SignOutController extends Controller
     public function customer(Request $request): RedirectResponse
     {
         Auth::guard('customer')->logout();
-        // Dropping the cookie hands the browser a clean anonymous identity on
-        // its next storefront request rather than the account it just left.
+        // Dropping the cookie hands the browser a clean anonymous identity
+        // for its next storefront request, clearing the account it just
+        // left.
         CustomerIdentity::forgetCookie();
         $this->endSession($request);
 

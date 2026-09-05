@@ -41,12 +41,11 @@ abstract class Controller
         $message = "Too many requests — try again in {$exceeded->retryAfterMinutes()} minutes.";
 
         // A view reads `$errors` as the `ViewErrorBag` the session-errors
-        // middleware normally shares — a bare `MessageBag` answers `any()`
-        // and `all()` the same way, but not `getBag()`, which a form the
-        // validator has ever failed also calls. Shared rather than handed
-        // to `view()` as data: the layout that renders the banner is a
-        // component the page renders inside itself, and a component reads
-        // the shared pool rather than its parent view's own variables.
+        // middleware normally shares. A bare `MessageBag` matches `any()`
+        // and `all()`; `getBag()` needs the full `ViewErrorBag`, which a
+        // form the validator has already failed also calls. This shares
+        // `$errors` because the banner renders as a component nested
+        // inside the page, and a component reads only the shared pool.
         $errors = new ViewErrorBag;
         $errors->put('default', new MessageBag(['rate_limit' => [$message]]));
         ViewFacade::share('errors', $errors);

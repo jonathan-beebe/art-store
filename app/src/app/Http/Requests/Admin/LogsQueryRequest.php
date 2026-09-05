@@ -13,8 +13,8 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 /**
  * The `/admin/logs` query string (docs/spec.md §5): every filter
  * `LogFilterInput` names, plus the viewer's own three switches and its
- * page. A value outside the vocabulary answers 400 rather than a redirect
- * with errors, since there is no form to land back on.
+ * page. A value outside the vocabulary answers 400: there is no form to
+ * land back on for a redirect with errors.
  */
 final class LogsQueryRequest extends FormRequest
 {

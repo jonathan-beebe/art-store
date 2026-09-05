@@ -15,10 +15,9 @@ use Illuminate\Validation\Rule;
 use RuntimeException;
 
 /**
- * One form for every {@see ModifierKind} — a text prompt, a select with its
- * own options screen, or a measurement with a rate — rather than three, since
- * only the pricing fields a kind actually reads differ, and each is nullable
- * either way.
+ * One form serves every {@see ModifierKind} — a text prompt, a select with
+ * its own options screen, or a measurement with a rate. Only the pricing
+ * fields a kind actually reads differ, and each is nullable either way.
  */
 final class ModifierRequest extends FormRequest
 {

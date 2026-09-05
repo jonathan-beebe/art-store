@@ -17,11 +17,11 @@ use RuntimeException;
 
 /**
  * The ≤10-tier cap is enforced here, on a new tier only, so the seller sees
- * the refusal before typing an 11th row rather than only at publish —
- * the same cap `ConfiguratorPublishValidation::MAX_QUANTITY_TIERS` judges,
- * read from there rather than repeated as a second magic number. The seller
- * types a percent; {@see QuantityBreakPercent} converts it to the
- * `discount_bps` the frozen add/update actions store.
+ * the refusal while typing the row, ahead of publish. This reads the same
+ * cap `ConfiguratorPublishValidation::MAX_QUANTITY_TIERS` judges, so no
+ * second magic number exists. The seller types a percent;
+ * {@see QuantityBreakPercent} converts it to the `discount_bps` the frozen
+ * add/update actions store.
  */
 final class QuantityBreakRequest extends FormRequest
 {

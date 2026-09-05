@@ -14,8 +14,7 @@ use Illuminate\Validation\Rule;
  * `/admin/analytics/channels/{key}`'s query parameters — docs/spec.md
  * §5: an empty value means "all", an unrecognised one answers 400. `page`
  * validates as a positive integer when present; a value past the end of
- * the list is {@see App\Support\Page::of()}'s own concern to clamp, not
- * this class's to refuse.
+ * the list is {@see App\Support\Page::of()}'s own concern to clamp.
  */
 final class AnalyticsChannelVisitsQueryRequest extends FormRequest
 {
@@ -45,8 +44,9 @@ final class AnalyticsChannelVisitsQueryRequest extends FormRequest
         $this->merge($blanked);
     }
 
-    /** docs/spec.md §5: an unrecognised filter value answers 400 —
-     * not the framework's default redirect back with flashed errors. */
+    /** docs/spec.md §5: an unrecognised filter value answers a bare 400.
+     * The framework's default redirect back with flashed errors never
+     * fires. */
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response('', 400));
