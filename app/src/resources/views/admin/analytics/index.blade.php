@@ -214,7 +214,7 @@
                                 </th>
                                 <td class="relative px-4 py-2">
                                     <div class="flex items-center gap-2">
-                                        <x-admin.status-badge :tint="$actor->kind === 'verified' ? 'ok' : 'neutral'">{{ $actor->kind }}</x-admin.status-badge>
+                                        <x-admin.status-badge :tint="$actor->kind === \App\Domain\Analytics\ActorKind::Verified ? 'ok' : 'neutral'">{{ $actor->kind->label() }}</x-admin.status-badge>
                                         <span class="text-stone-600 dark:text-stone-400">{{ $actor->who }}</span>
                                     </div>
                                     <x-admin.analytics.stretched-link :href="$actorHref" />
@@ -257,7 +257,7 @@
                             <span class="{{ $actor->flagged ? 'font-bold text-red-700 dark:text-red-500' : 'text-stone-900 dark:text-white' }}">{{ number_format($actor->peakPerHour) }}/h</span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <x-admin.status-badge :tint="$actor->kind === 'verified' ? 'ok' : 'neutral'">{{ $actor->kind }}</x-admin.status-badge>
+                            <x-admin.status-badge :tint="$actor->kind === \App\Domain\Analytics\ActorKind::Verified ? 'ok' : 'neutral'">{{ $actor->kind->label() }}</x-admin.status-badge>
                             <span class="text-stone-600 dark:text-stone-400">{{ $actor->who }}</span>
                         </div>
                         <div class="flex items-center justify-between text-stone-600 dark:text-stone-400">

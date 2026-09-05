@@ -6,6 +6,7 @@ namespace App\Analytics\Admin;
 
 use App\Analytics\Analytics;
 use App\Analytics\AnalyticsEvent;
+use App\Domain\Analytics\ActorKind;
 use App\Domain\Analytics\ActorKindFilter;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
@@ -67,10 +68,10 @@ it('fills in kind, who, and flags a peak past the velocity threshold', function 
     assert($verifiedRow instanceof ActorSummary);
     assert($anonymousRow instanceof ActorSummary);
 
-    expect($verifiedRow->kind)->toBe('verified')
+    expect($verifiedRow->kind)->toBe(ActorKind::Verified)
         ->and($verifiedRow->who)->toBe($verified->email)
         ->and($verifiedRow->flagged)->toBeFalse()
-        ->and($anonymousRow->kind)->toBe('anonymous')
+        ->and($anonymousRow->kind)->toBe(ActorKind::Anonymous)
         ->and($anonymousRow->who)->toBe('never signed in')
         ->and($anonymousRow->peakPerHour)->toBe(100)
         ->and($anonymousRow->flagged)->toBeTrue();
