@@ -32,6 +32,19 @@ it('says the application finished', function (): void {
     expect($log->linesFor('app.shutdown'))->toHaveCount(1);
 });
 
+it('leaves a request\'s lifecycle to its http.request pair', function (): void {
+    $log = CapturedStory::capture();
+    (fn () => $this->isRunningInConsole = false)->call($this->app);
+
+    (new LoggingServiceProvider($this->app))->boot();
+    $this->app->terminate();
+
+    // The one shutdown line is the test bootstrap's own provider, which
+    // booted in console; the provider booted here registered none.
+    expect($log->linesFor('app.boot'))->toBeEmpty()
+        ->and($log->linesFor('app.shutdown'))->toHaveCount(1);
+});
+
 it('tells the story of a migration run, with each migration under it', function (): void {
     $log = CapturedStory::capture();
 

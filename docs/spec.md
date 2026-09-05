@@ -237,7 +237,7 @@ app emits every event below that its features support.
 | `query.exceed`                                                          | any DB query slower than `LOG_SLOW_QUERY_MS` (`warn`), `data` carries    |
 |                                                                         | `source`, `duration_ms`, `sql`, `threshold_ms`                           |
 | `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
-| `app.boot`, `app.shutdown`                                              | process lifecycle                                                        |
+| `app.boot`, `app.shutdown`                                              | console process lifecycle; a request's is its `http.request` pair        |
 
 The vocabulary is closed. To add an event, agree the name with the user,
 then add it here and to `StoryEvent`.

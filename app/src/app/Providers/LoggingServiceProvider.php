@@ -39,13 +39,16 @@ class LoggingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Story::for(StoryEvent::AppBoot)->did('the application booted', [
-            'env' => $this->app->environment(),
-        ]);
-
-        // PHP's server runs one request per process, so a request's story
-        // opens and closes between these two lines.
-        $this->app->terminating(fn () => Story::for(StoryEvent::AppShutdown)->did('the application finished'));
+        // PHP serves one request per process, and a request's lifecycle is
+        // its `http.request` pair (`App\Http\Middleware\LogRequestStory`).
+        // The process pair is for console runs, where nothing else marks the
+        // start and the end.
+        if ($this->app->runningInConsole()) {
+            Story::for(StoryEvent::AppBoot)->did('the application booted', [
+                'env' => $this->app->environment(),
+            ]);
+            $this->app->terminating(fn () => Story::for(StoryEvent::AppShutdown)->did('the application finished'));
+        }
 
         $this->announceMigrations();
         $this->announceNotifications();
