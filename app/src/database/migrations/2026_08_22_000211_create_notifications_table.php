@@ -14,9 +14,8 @@ return new class extends Migration
             $table->string('id', 30)->primary();
             $table->string('type');
             // The recipient is a seller or a customer, named by the morph map
-            // in AppServiceProvider rather than by a class string. The columns
-            // are written out rather than taken from `morphs()`, which sizes
-            // its id column for an autoincrement key.
+            // in AppServiceProvider. The columns are written out by hand,
+            // since `morphs()` sizes its id column for an autoincrement key.
             $table->string('notifiable_type');
             $table->string('notifiable_id', 30);
             $table->json('data');

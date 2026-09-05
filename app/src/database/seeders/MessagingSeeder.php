@@ -153,7 +153,7 @@ class MessagingSeeder extends Seeder
     /**
      * A seller's payout question, answered and marked resolved — the desk's
      * queue reads a resolved thread as done, and the seller's own inbox
-     * shows the title rather than a bare "Support".
+     * shows the title on this thread.
      */
     private function seedResolvedSellerSupportThread(Admin $admin, Seller $sybill): void
     {

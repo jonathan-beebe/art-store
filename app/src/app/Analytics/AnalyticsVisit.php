@@ -35,9 +35,9 @@ final readonly class AnalyticsVisit
     ) {}
 
     /**
-     * A visit built from known facts, with no request to read them off —
-     * a console command driving a scripted visitor, for instance, where
-     * the session id, landing path, and channel all come from the script.
+     * A visit built from known facts — a console command driving a
+     * scripted visitor, for instance, where the session id, landing path,
+     * and channel all come from the script.
      * `$utm` carries whichever of `source`, `medium`, `campaign`,
      * `content`, and `term` the visit names; a key it omits, or names null,
      * leaves that field null. Every capped value goes through the same

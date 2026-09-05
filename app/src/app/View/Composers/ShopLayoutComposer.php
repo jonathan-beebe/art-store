@@ -13,10 +13,10 @@ use Illuminate\View\View;
  * The three counts the storefront header carries on every page. Bound to the
  * shop layout, so a page renders them without its controller passing them.
  *
- * All three read as scalar subqueries of one row, rather than one query
- * apiece — the cart sum through `cartItems()` (so a visitor with no cart
- * yet costs no lookup or find-or-create), and the two unread counts beside
- * it, one round trip to the database instead of three.
+ * All three read as scalar subqueries of one row — the cart sum through
+ * `cartItems()` (so a visitor who has not created a cart costs no lookup
+ * or find-or-create), and the two unread counts beside it — one round
+ * trip to the database for all three.
  */
 final readonly class ShopLayoutComposer
 {

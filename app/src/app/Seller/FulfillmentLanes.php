@@ -151,7 +151,7 @@ final readonly class FulfillmentLanes
 
     /**
      * The newest unread customer message per fulfillment, one grouped query
-     * over a join to its thread rather than the whole backlog.
+     * over a join to its thread, narrowed away from the whole backlog.
      *
      * @param  list<string>  $fulfillmentIds
      * @return array<string, string>

@@ -217,8 +217,8 @@ final class SeedActivity extends Command
     }
 
     /**
-     * `ActivityPlan` schedules every moment against the calendar day alone,
-     * with no notion of what time within "today" this command runs at —
+     * `ActivityPlan` schedules every moment against the calendar day alone;
+     * it does not know what time within "today" this command runs at —
      * a session or a listing publication drawn for later today
      * would otherwise land in the future relative to the run. A session's
      * last step (or its own start, carrying no steps) and a listing
@@ -270,8 +270,8 @@ final class SeedActivity extends Command
      *
      * `Story::asRequest()` binds this session's own request id, session id,
      * and actor for exactly one step and clears them once it ends, so a
-     * step that fails partway, or a session with no steps at all, leaves
-     * nothing behind for the next session — or for the fulfillment and
+     * step that fails partway, or an empty session, leaves nothing behind
+     * for the next session — or for the fulfillment and
      * payout sweeps once every session here has run — to inherit.
      *
      * @param  list<array{name: string, email: string}>  $roster
@@ -313,9 +313,9 @@ final class SeedActivity extends Command
                 $this->logStepRequest($logStore, $step, $listings, $requestId, $session->sessionId, $customer->id, $analytics);
             } catch (Throwable) {
                 // A drawn step can collide with real store state — see this
-                // class's own docblock. Skipped, not fatal — and no
-                // request line either, the same as a browser whose click
-                // never reached the server.
+                // class's own docblock. Skipped, without failing the run —
+                // and no request line either, the same as a browser whose
+                // click never reached the server.
             }
         }
     }
@@ -687,8 +687,7 @@ final class SeedActivity extends Command
      * that person's existing signup through `MergeAnonymousCustomer`,
      * since the email already names a verified customer by the time any
      * `ReturningVerify` session is drawn. Bound to a request of its own —
-     * the anonymous visitor's click on the link — rather than whatever
-     * request came before it in this run.
+     * the anonymous visitor's click on the link.
      *
      * @param  array{name: string, email: string}  $person
      */

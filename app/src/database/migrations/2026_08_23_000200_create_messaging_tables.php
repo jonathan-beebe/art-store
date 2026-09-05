@@ -18,17 +18,18 @@ return new class extends Migration
             // thread carries none — it is named by its order everywhere it
             // appears.
             $table->string('title')->nullable();
-            // Uniquely names what a fulfillment thread is about, the one kind
-            // that finds rather than opens. A composite unique index over the
-            // nullable id columns below would not stop a duplicate row,
+            // Uniquely names what a fulfillment thread is about — reused by
+            // this key on every later look-up, never opened fresh again. A
+            // composite unique index over the nullable id columns below
+            // would not stop a duplicate row,
             // because SQL treats null as distinct from null; the other three
             // kinds leave this null, which the unique index ignores.
             $table->string('subject_key')->nullable();
             $table->foreignUlid('seller_id', 30)->nullable()->constrained();
             $table->foreignUlid('customer_id', 30)->nullable()->constrained();
-            // Who first answered on a desk thread ("handled by"), not a
-            // gate: every admin is the desk, collectively, on the two
-            // support kinds. Null until an admin replies.
+            // Who first answered on a desk thread ("handled by"): every
+            // admin is the desk, collectively, on the two support kinds.
+            // Null until an admin replies.
             $table->foreignUlid('admin_id', 30)->nullable()->constrained();
             $table->foreignUlid('listing_id', 30)->nullable()->constrained();
             $table->foreignUlid('fulfillment_id', 30)->nullable()->constrained();
@@ -48,8 +49,8 @@ return new class extends Migration
         Schema::create('messages', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->foreignUlid('conversation_id', 30)->constrained()->cascadeOnDelete();
-            // The morph alias (seller / customer / admin) AppServiceProvider
-            // enforces, not a class string.
+            // The morph alias (seller / customer / admin) AppServiceProvider's
+            // morph map enforces.
             $table->string('sender_type');
             $table->string('sender_id', 30);
             // The message this one answers, when the reader followed a
@@ -62,7 +63,7 @@ return new class extends Migration
             $table->timestamps();
 
             // A thread reads in the order it was sent, so the index that
-            // serves it is keyed by the instant rather than by the id.
+            // serves it is keyed by the instant.
             $table->index(['conversation_id', 'sent_at'], 'messages_thread_index');
             $table->index(['conversation_id', 'read_at'], 'messages_unread_index');
         });

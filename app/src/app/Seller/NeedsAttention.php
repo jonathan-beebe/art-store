@@ -67,7 +67,7 @@ final readonly class NeedsAttention
      * Parcels nobody has started, oldest first — the one keeping a buyer
      * waiting longest leads. Oldest is the day the order was placed, the
      * same fact the row's age and its urgency are read from, so the order
-     * of the rows and the red on them can never disagree.
+     * of the rows and the red on them always agree.
      */
     private static function toShip(Seller $seller, DateTimeImmutable $now): AttentionRows
     {

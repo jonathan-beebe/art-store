@@ -80,8 +80,8 @@ final class Analytics
     }
 
     /**
-     * Buffers one event. An event built with no ip or session of its own
-     * takes on the request behind it — {@see asRequest()}'s facts, inside
+     * Buffers one event. An event missing its own ip or session takes on
+     * the request behind it — {@see asRequest()}'s facts, inside
      * that scope, or {@see RequestFacts::current()} otherwise — so every
      * caller can hand over what happened and let this fill in where it came
      * from; an event a caller already gave explicit facts to is buffered
@@ -210,9 +210,9 @@ final class Analytics
      * `$cutoff`, each in `$batchSize`-row batches looped until none change,
      * through the analytics connection — {@see \App\Logging\LogStore::prune()}'s
      * shape. `page_view_counts` carries no personal data and is never
-     * touched here. Unlike {@see flush()}/{@see reassignActor()}, a failure
-     * is not swallowed — {@see \App\Console\Commands\SweepOrders} decides
-     * what it means for its exit code.
+     * touched here. A failure here reaches the caller —
+     * {@see \App\Console\Commands\SweepOrders} decides what it means for
+     * its exit code.
      */
     public function prune(DateTimeImmutable $cutoff, int $batchSize = self::PRUNE_BATCH): int
     {

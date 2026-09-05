@@ -21,8 +21,8 @@ return new class extends Migration
             $table->index(['seller_id', 'is_default']);
         });
 
-        // One default flow per seller, held by the database rather than by
-        // the action that writes it. Blueprint has no partial unique index.
+        // One default flow per seller, held by the database itself.
+        // Blueprint has no partial unique index.
         // The bare column as the predicate is what SQLite, which the app
         // develops and tests on, and Postgres both read as
         // "true" — Postgres has no `boolean = integer`, so `= 1` fails

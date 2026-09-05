@@ -303,7 +303,7 @@ final class Funnel
      * listing, favorite, or cart-add row naming one of them as its
      * subject, or a checkout or order row whose `data.listing_ids` JSON
      * array contains one of them. `null` leaves the query unscoped. An
-     * empty list — a seller with no listings — matches nothing.
+     * empty list — a seller lacking listings — matches nothing.
      *
      * @param  list<string>|null  $listingIds
      */

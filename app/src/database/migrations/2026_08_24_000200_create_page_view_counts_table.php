@@ -27,8 +27,8 @@ return new class extends Migration
         Schema::connection('analytics')->create('page_view_counts', function (Blueprint $table): void {
             $table->string('id', 30)->primary();
             $table->string('site', 20);
-            // A route's pattern (`admin/orders/{order}`), not the concrete
-            // URL, so a thousand listing pages share one row.
+            // A route's pattern (`admin/orders/{order}`), so a thousand
+            // listing pages share one row.
             $table->string('path_pattern');
             $table->date('day');
             $table->unsignedInteger('count')->default(1);

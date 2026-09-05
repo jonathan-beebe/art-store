@@ -13,8 +13,8 @@ use App\Domain\RateLimiting\RateLimitValue;
 | docs/spec.md §3: one budget per limit, `<count>/<window>` (window
 | `<n>s`, `<n>m`, or `<n>h`), `"off"` to disable it, the default when its
 | env variable is unset. This file loads on every boot, so a value
-| `RateLimitValue::parse()` cannot read refuses the process before it
-| answers a request rather than on the request that would have needed it.
+| `RateLimitValue::parse()` cannot read refuses the process at boot,
+| before any request needs it.
 |
 */
 

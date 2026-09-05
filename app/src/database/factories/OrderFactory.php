@@ -11,9 +11,9 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 use Override;
 
 /**
- * A bare order row for tests that need one to hang other rows off, not a
- * checked-out cart. A test that exercises the checkout flow itself walks it
- * through `Tests\CommerceTestCase::orderFor()` instead.
+ * A bare order row for tests that need one to hang other rows off. A test
+ * that exercises the checkout flow itself walks it through
+ * `Tests\CommerceTestCase::orderFor()`.
  *
  * @extends Factory<Order>
  */

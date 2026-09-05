@@ -11,10 +11,10 @@ use Throwable;
 
 /**
  * The ip, session, and request id of the request behind one analytics
- * event. {@see Analytics::recordEvent()} reads one fresh per event, rather
- * than once for the process, so a long-buffered event never carries a
- * later request's facts. All three are null together for anything that is
- * not a real HTTP request: a seeder, an artisan command, the synthetic
+ * event. {@see Analytics::recordEvent()} reads one fresh per event, so a
+ * long-buffered event never carries a later request's facts. All three
+ * are null together for anything that is not a real HTTP request: a
+ * seeder, an artisan command, the synthetic
  * request the console kernel binds for one — none of them ever reach
  * `App\Http\Middleware\LogRequestStory`, so none of them carry the id it
  * stamps under {@see RequestMarks::REQUEST_ID_ATTRIBUTE}.

@@ -43,7 +43,7 @@ use Illuminate\Support\Facades\DB;
  * unpaged, for the callers that need a row per buyer.
  * {@see tallyFor()} is what the tiles above the customers table read
  * instead: the same buyers folded to five figures in one query, so
- * counting them costs one round trip rather than five.
+ * counting them costs one round trip for all five figures.
  * {@see pageForSeller()} is the table's own source: one segment, sorted
  * and paged, entirely in the query.
  */
@@ -120,9 +120,9 @@ final class SellerCustomers
      * never costs reading the rows either side of it. The aggregate
      * wraps in `fromSub()` before it sorts: the inner query joins
      * `fulfillments`, `orders`, and `customers`, so a bare column name
-     * in `ORDER BY` (`orders`, `name`) would resolve against those
-     * joined tables instead of the aggregate's own columns; wrapping
-     * makes the aggregate's column list the only thing in scope.
+     * in `ORDER BY` (`orders`, `name`) could resolve against any of
+     * those joined tables. Wrapping narrows resolution to the
+     * aggregate's own column list.
      *
      * @return list<CustomerRow>
      */

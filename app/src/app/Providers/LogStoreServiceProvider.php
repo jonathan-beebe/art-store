@@ -13,8 +13,7 @@ use Illuminate\Support\ServiceProvider;
  * the first time a line logs — against `config('log_store.database_file')`.
  * One handle per process is what lets the ingest path
  * (`App\Logging\LogStoreTap`) and the retention prune
- * (`App\Console\Commands\SweepOrders`) share a connection rather than open
- * the file twice.
+ * (`App\Console\Commands\SweepOrders`) share one connection.
  */
 final class LogStoreServiceProvider extends ServiceProvider
 {

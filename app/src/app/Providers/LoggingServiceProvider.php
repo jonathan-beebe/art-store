@@ -116,8 +116,8 @@ class LoggingServiceProvider extends ServiceProvider
     }
 
     /**
-     * A notification addressed to an address rather than a row — a sign-in
-     * link — has no id to name, and the address itself never reaches a line.
+     * A notification addressed to a bare address — a sign-in link — has no
+     * row and so no id to name; the address itself never reaches a line.
      */
     private function notifiableId(NotificationSent $event): ?string
     {

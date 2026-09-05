@@ -134,8 +134,8 @@ final readonly class AnalyticsEvent
      * request that produced it. `Analytics::recordEvent()` calls this once
      * per event, with whatever {@see RequestFacts::current()} found; a CLI
      * run's facts are all null and leave the event as recorded. The request
-     * id folds into `data` rather than taking its own field — it is a
-     * cross-link to the log store, never something a reader filters on.
+     * id folds into `data`. It is a cross-link to the log store, never
+     * something a reader filters on.
      */
     public function withRequestFacts(RequestFacts $facts): self
     {

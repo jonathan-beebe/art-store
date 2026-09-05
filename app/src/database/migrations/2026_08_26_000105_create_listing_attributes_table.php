@@ -20,7 +20,7 @@ return new class extends Migration
 
             // A property allowed to hold more than one value on a listing
             // (`category_properties.multivalued`) is one row per value, so
-            // uniqueness spans all three rather than just the pair.
+            // uniqueness spans all three columns.
             $table->unique(['listing_id', 'property_id', 'property_value_id'], 'listing_attributes_unique');
             $table->index('listing_id');
             $table->index('seller_id');

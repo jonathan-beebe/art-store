@@ -13,8 +13,8 @@ use App\Domain\Seller\TableSort;
  * The listings header every view shares: the view switch, and, on table
  * and grid, the sort select and the table's own column headers. Built
  * once per request from the round-tripped filters and the current view
- * and sort, so the controller and the views read one object instead of
- * rebuilding enums out of parallel arrays.
+ * and sort, so the controller and the views share one object built from
+ * the same enums.
  */
 final readonly class ListingsChrome
 {
