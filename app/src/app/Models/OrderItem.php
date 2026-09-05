@@ -149,10 +149,10 @@ class OrderItem extends Model
     }
 
     /**
-     * A line that froze a breakdown totals that breakdown — surcharges,
-     * answer add-ons, and the quantity discount already folded in — rather
-     * than `unit_price_cents * quantity`, which is only a representative
-     * per-unit figure once a breakdown exists (see `PlaceOrder`).
+     * A line that froze a breakdown totals that breakdown: surcharges,
+     * answer add-ons, and the quantity discount already folded in. Once a
+     * breakdown exists, `unit_price_cents * quantity` is only a
+     * representative per-unit figure (see `PlaceOrder`).
      */
     public function lineTotal(): Money
     {

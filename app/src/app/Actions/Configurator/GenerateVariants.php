@@ -15,10 +15,10 @@ use Illuminate\Support\Collection;
 
 /**
  * The full cross product of a listing's option axes, one variant per
- * combination — the grid a seller with no reason to go sparse fills in one
- * step. Idempotent: a combination that already has a variant is left alone,
- * so calling this again after hand-adding one sparse cell fills in the rest
- * without duplicating it.
+ * combination — the grid a seller lacking any reason to go sparse fills in
+ * one step. Idempotent: a combination that already has a variant is left
+ * alone, so calling this again after hand-adding one sparse cell fills in
+ * the rest without duplicating it.
  */
 final readonly class GenerateVariants
 {
@@ -33,8 +33,8 @@ final readonly class GenerateVariants
             $axes = $listing->optionAxes()->with('optionValues')->orderBy('position')->get();
 
             // Zero axes has no combination to generate: the legacy, axis-free
-            // path keeps its zero rows rather than gaining one variant for
-            // the empty combo key.
+            // path keeps its zero rows. It never gains one variant for the
+            // empty combo key.
             if ($axes->isEmpty()) {
                 $story->did('no axes to generate variants from', [
                     'listing_id' => $listing->id,

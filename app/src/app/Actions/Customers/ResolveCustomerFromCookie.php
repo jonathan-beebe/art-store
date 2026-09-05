@@ -28,7 +28,7 @@ final readonly class ResolveCustomerFromCookie
      * Walks recorded merges forward until a customer id nothing else points
      * at is reached. `$seen` stops a cycle from looping forever; none forms
      * through the ordinary merge flow, but a chain reaching further than one
-     * hop of stale data should still resolve rather than stop early.
+     * hop of stale data should still resolve.
      *
      * @param  list<string>  $seen
      */

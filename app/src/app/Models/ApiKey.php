@@ -33,8 +33,8 @@ class ApiKey extends Model
     use HasPrefixedUlid;
 
     /**
-     * `last_used_at` is written at most this often, so a burst of tool
-     * calls costs one UPDATE rather than one per call.
+     * `last_used_at` is written at most this often. A burst of tool calls
+     * costs at most one UPDATE.
      */
     public const int USED_AT_GRAIN_SECONDS = 60;
 

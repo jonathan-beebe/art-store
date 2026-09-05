@@ -42,9 +42,9 @@ final readonly class RefundFulfillment
         ], function (Story $story) use ($fulfillment, $admin, $reason, $now): Fulfillment {
             $refund = DB::transaction(function () use ($fulfillment, $admin, $reason, $now): Refund {
                 // Judged inside the transaction that writes, against a row
-                // held for update (docs/spec.md §4.1), so a fulfillment
-                // refunded from two consoles is refused the second time
-                // rather than breaking on `refunds.unique(fulfillment_id)`.
+                // held for update (docs/spec.md §4.1), so the second
+                // console's refund is refused by the status check before it
+                // can reach `refunds.unique(fulfillment_id)`.
                 $status = $fulfillment->takeForTransition()->status->transitionTo(FulfillmentStatus::Refunded);
 
                 $fulfillment->update(['status' => $status]);

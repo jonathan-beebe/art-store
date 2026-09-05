@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
  * `(store_profile_id, position)` and SQLite enforces that as each statement
  * runs, so the row being moved parks somewhere free while its neighbor
  * takes its place. `StoreSection::MAX_PER_PROFILE` caps how many sections a
- * store holds at once, not the position values themselves —
+ * store holds at once; the position values keep climbing on their own —
  * {@see AddStoreSection}'s `max(position) + 1` climbs with every section
  * ever added. The sentinel sits inside the unsigned range the column
  * holds, well clear of where that climb reaches in practice.
@@ -27,9 +27,9 @@ final readonly class MoveStoreSection
     public function __invoke(StoreSection $section, StoreSectionMove $direction): void
     {
         DB::transaction(function () use ($section, $direction): void {
-            // Locks the same row AddStoreSection locks, so the two writers
-            // exclude each other rather than each reading a position the
-            // other is about to change.
+            // Locks the same row AddStoreSection locks, serializing the two
+            // writers: each one reads the position the other already
+            // committed.
             StoreProfile::query()->whereKey($section->store_profile_id)->lockForUpdate()->sole();
 
             $locked = $section->newQuery()->whereKey($section->getKey())->lockForUpdate()->sole();

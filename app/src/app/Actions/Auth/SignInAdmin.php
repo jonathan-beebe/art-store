@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\Auth;
 final readonly class SignInAdmin
 {
     /**
-     * Admins are seeded, never signed up. An address with no admin row has no
-     * account to sign into, so a link that outlives the row it was issued for
-     * answers 404 rather than creating one.
+     * Admins are seeded, never signed up. An email lacking an admin row has
+     * no account to sign into, so a link that outlives the row it was
+     * issued for answers 404. It never creates one.
      *
      * @throws ModelNotFoundException<Admin>
      */

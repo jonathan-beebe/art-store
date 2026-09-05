@@ -22,7 +22,7 @@ final readonly class SendMagicLink
     public function __invoke(string $email, ActorType $actorType, ?string $redirectTo, DateTimeImmutable $now): void
     {
         // The address and the token are both credentials, so the story names
-        // the row rather than either of them.
+        // only the row.
         Story::for(StoryEvent::MagicLinkRequest)->tell('issuing a sign-in link', [
             'actor_type' => $actorType->value,
         ], function (Story $story) use ($email, $actorType, $redirectTo, $now): void {
@@ -38,8 +38,9 @@ final readonly class SendMagicLink
                 'expires_at' => $now->add(new DateInterval("PT{$expiryMinutes}M")),
             ]);
 
-            // The recipient is an address, not a row: a link can be the first
-            // thing a seller or a customer ever receives.
+            // The recipient is a bare address: a link can be the first thing
+            // a seller or a customer ever receives, before any row for them
+            // exists.
             Notification::route(MagicLinkIssued::channel(), $address)
                 ->notify(new MagicLinkIssued(route('auth.magic.verify', $token)));
 

@@ -49,9 +49,9 @@ final readonly class IssueRefund
             'issued_by_id' => $issuerId,
         ]);
 
-        // The seller keeps neither the sale nor the platform's cut of it: the
-        // entry runs the whole net back out of wherever that fulfillment's
-        // money is sitting, and the fee is forgone rather than collected.
+        // The refund reverses everything the fulfillment moved: the sale and
+        // the platform's cut both go back out, from wherever that money is
+        // sitting. The platform forgoes its fee on a refund.
         $movement = LedgerMovement::refund($fulfillment->net());
 
         LedgerEntry::create([

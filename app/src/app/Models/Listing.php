@@ -157,11 +157,11 @@ class Listing extends Model
     }
 
     /**
-     * A fresh read rather than the loaded relation, so a caller that never
-     * eager-loaded `activeRemoval` still gets an answer under strict mode —
-     * load-bearing for a caller that checks, writes a removal, then checks
-     * this same instance again in the same request (moderation actions and
-     * their tests both do).
+     * Queries `activeRemoval` fresh on every call, so a caller that never
+     * eager-loaded it still gets an answer under strict mode. A caller that
+     * checks, writes a removal, then checks this same instance again in the
+     * same request needs this: a loaded relation would still show the old
+     * state. Moderation actions and their tests both do this.
      */
     public function currentRemoval(): ?ListingRemoval
     {
@@ -197,12 +197,12 @@ class Listing extends Model
     }
 
     /**
-     * Whether this listing still prices and stocks itself, rather than
-     * handing that job to the choices or combinations screens — true until
-     * it either offers an option choice or breaks into serialized,
-     * one-of-a-kind pieces. A modifier or a quantity discount alone leaves
-     * this true: neither replaces the listing's own price and stock count,
-     * only adjusts or discounts it.
+     * Whether this listing computes its own price and stock, before the
+     * choices or combinations screens take over that job. True until the
+     * listing either offers an option choice or breaks into serialized,
+     * one-of-a-kind pieces. A modifier or a quantity discount adjusts the
+     * listing's own price and stock count; the listing keeps computing them
+     * itself, so this stays true.
      */
     public function hasOwnPriceAndStock(): bool
     {
@@ -234,13 +234,13 @@ class Listing extends Model
     }
 
     /**
-     * The same transitions {@see self::availableTransitions()} computes, but
-     * read off an eager-loaded `activeRemoval` relation instead of a fresh
-     * `hasActiveRemoval()` query — for a caller rendering many rows at once
-     * (the seller listings index) that already eager-loaded the relation
-     * across the whole set. Falls back to the fresh check when the relation
-     * was not eager-loaded, so a caller that skips the eager load still gets
-     * a correct answer, just without the saving.
+     * The same transitions {@see self::availableTransitions()} computes,
+     * read off an eager-loaded `activeRemoval` relation. This serves a
+     * caller rendering many rows at once (the seller listings index) that
+     * already eager-loaded the relation across the whole set, sparing each
+     * row its own `hasActiveRemoval()` query. It falls back to the fresh
+     * check when the relation was not eager-loaded, so a caller that skips
+     * the eager load still gets a correct answer — just slower.
      *
      * @return list<ListingStatus>
      */
@@ -370,9 +370,8 @@ class Listing extends Model
      * The cover — the lowest-position row in `images` — or a placeholder
      * drawn from the title when the listing carries no image yet. A caller
      * that eager-loaded `images` ordered by `position` is read from that
-     * loaded collection rather than issuing a fresh query; a caller that
-     * never eager-loaded it still gets an answer, via a query of its own,
-     * under strict mode.
+     * loaded collection. A caller that never eager-loaded it gets an answer
+     * through a query of its own, under strict mode.
      */
     public function imageUrl(): string
     {
@@ -435,8 +434,8 @@ class Listing extends Model
      * plan, and the second `UPDATE` overwrites the first with its own stale
      * arithmetic. In id order, so two carts holding the same listings ask for
      * them in the same order. SQLite, which the app develops and tests
-     * on, has no row lock and serialises writers instead; its grammar compiles
-     * the clause away.
+     * on, serialises writers with a database-level lock; its grammar
+     * compiles the clause away.
      *
      * @param  Builder<$this>  $query
      */
@@ -448,12 +447,12 @@ class Listing extends Model
 
     /**
      * Takes the rows a moderation decision is judged against for update. A
-     * removal is refused when one already stands, and that check reads the
-     * `listing_removals` table rather than this row, so nothing there keeps
-     * two admins apart: both read no active removal and both insert one. The
+     * removal is refused when one already stands, and that check queries the
+     * `listing_removals` table alone; locking this row does not guard it, so
+     * both admins can read no active removal and both insert one. The
      * listing row they each have to take first is what serialises them.
-     * SQLite, which the app develops and tests on, has no row lock and
-     * serialises writers instead; its grammar compiles the clause away.
+     * SQLite, which the app develops and tests on, serialises writers with a
+     * database-level lock; its grammar compiles the clause away.
      *
      * @param  Builder<$this>  $query
      */
@@ -491,8 +490,8 @@ class Listing extends Model
     }
 
     /**
-     * The same list narrowed to one seller. A seller id naming nobody selects
-     * nothing rather than everything.
+     * The same list narrowed to one seller. A seller id naming nobody still
+     * adds the `where` clause, so this returns zero rows.
      *
      * @param  Builder<$this>  $query
      */
@@ -508,9 +507,10 @@ class Listing extends Model
      * The storefront media filter (FEAT-030): a listing carrying a Medium
      * attribute whose label matches the URL's lowercase value (Ceramic →
      * `medium=ceramic`). Null adds no clause, the same "empty means all"
-     * idiom `ofStatus` and `ofSeller` hold; a value nothing carries keeps
-     * this scope to zero rows rather than falling back to no filter — the
-     * same emptiness an unrecognised legacy medium produced.
+     * idiom `ofStatus` and `ofSeller` hold. A medium value nothing carries
+     * still runs the `whereHas` clause against an empty value set, keeping
+     * this scope to zero rows — the same emptiness an unrecognised legacy
+     * medium produced.
      *
      * @param  Builder<$this>  $query
      */
@@ -532,11 +532,11 @@ class Listing extends Model
 
     /**
      * The storefront search filter (/search): a listing whose title,
-     * description, or Medium attribute label matches the given LIKE pattern
-     * — {@see \App\Domain\Shop\ListingSearch::likePattern()} builds it, so
-     * this scope takes the pattern rather than the raw term and stays free
-     * of the wildcard-escaping rule the domain owns. Null adds no clause,
-     * the same "empty means all" idiom `ofMediumAttribute` holds.
+     * description, or Medium attribute label matches the given LIKE
+     * pattern. {@see \App\Domain\Shop\ListingSearch::likePattern()} builds
+     * the pattern, so this scope takes the built pattern and leaves the
+     * wildcard-escaping rule inside the domain that owns it. Null adds no
+     * clause, the same "empty means all" idiom `ofMediumAttribute` holds.
      *
      * @param  Builder<$this>  $query
      */
@@ -557,12 +557,12 @@ class Listing extends Model
 
     /**
      * The storefront category filter (/browse/{categoryPath}): a listing
-     * placed in the given category or one of its descendants. Categories are
-     * matched in PHP rather than a SQL LIKE, the same idiom `ofMediumAttribute`
-     * holds for medium labels — `path` is a materialized path
-     * (`/jewelry/rings/`) and a descendant's starts with its ancestor's, so
-     * `str_starts_with` reads the tree without walking `parent_id`. Null adds
-     * no clause, the same "empty means all" idiom every `of*` scope holds.
+     * placed in the given category or one of its descendants. `path` is a
+     * materialized path (`/jewelry/rings/`): a descendant's path starts
+     * with its ancestor's. PHP's `str_starts_with` reads the tree directly,
+     * skipping `parent_id`, so this scope needs no LIKE pattern or
+     * wildcard-escaping. Null adds no clause, the same "empty means all"
+     * idiom every `of*` scope holds.
      *
      * @param  Builder<$this>  $query
      */

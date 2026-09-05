@@ -12,10 +12,11 @@ use App\Support\Story;
 
 /**
  * The scope picker's "show this question only when…" screen: replaces a
- * modifier's whole scope with the option values just checked, rather than
- * adding to it — an unchecked value stops gating the modifier instead of
- * gating it forever. An empty selection clears every scope, so the modifier
- * shows for every configuration, same as a modifier that was never scoped.
+ * modifier's whole scope with the option values just checked. Unchecking a
+ * value removes it from the scope immediately, so it stops gating the
+ * modifier right away. An empty selection clears every scope, so the
+ * modifier shows for every configuration, same as a modifier that was
+ * never scoped.
  */
 final readonly class SetModifierScope
 {

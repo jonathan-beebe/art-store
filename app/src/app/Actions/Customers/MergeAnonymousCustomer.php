@@ -60,10 +60,10 @@ final readonly class MergeAnonymousCustomer
                 $this->foldCart($anonymous, $verified, $plan);
                 $this->foldFavorites($anonymous, $verified, $plan);
 
-                // The anonymous row survives the merge so a cookie still holding its
-                // id resolves forward instead of starting the visitor over.
+                // The anonymous row survives the merge, so a cookie still holding its
+                // id resolves forward to the verified customer.
                 // `anonymous_customer_id` is unique, so merging the same anonymous
-                // customer again finds the row it already wrote instead of failing.
+                // customer again finds the row it already wrote.
                 CustomerMerge::firstOrCreate(
                     ['anonymous_customer_id' => $anonymous->id],
                     ['customer_id' => $verified->id],
@@ -198,9 +198,9 @@ final readonly class MergeAnonymousCustomer
 
     /**
      * Applies the favorites half of the plan with updates and deletes only,
-     * never an insert — the same discipline the table-driven re-point above
-     * keeps, so this needs no knowledge of the `favorites` table beyond the
-     * two columns the plan already judged.
+     * never an insert. This keeps the same discipline the table-driven
+     * re-point above holds. It needs no knowledge of the `favorites` table
+     * beyond the two columns the plan already judged.
      */
     private function foldFavorites(Customer $anonymous, Customer $verified, CustomerMergePlan $plan): void
     {

@@ -41,10 +41,10 @@ final readonly class CreateVariant
             // `CreateVariantRequest`'s combination rule catches this first;
             // this is the backstop for a race between two requests and for
             // the non-HTTP caller (a console command, a test) that skips the
-            // request layer entirely. Without it the insert below refuses
-            // with a raw `UniqueConstraintViolationException` instead of a
-            // `DomainRuleViolation` the global handler turns into form
-            // feedback.
+            // request layer entirely. Without it, the insert below throws a
+            // raw `UniqueConstraintViolationException`. This check raises a
+            // `DomainRuleViolation`, which the global handler turns into
+            // form feedback.
             if ($listing->variants()->where('combo_key', $comboKey->value)->exists()) {
                 $label = $optionValues === [] ? 'This combination' : implode(' / ', array_map(fn (OptionValue $value): string => $value->label, $optionValues));
 

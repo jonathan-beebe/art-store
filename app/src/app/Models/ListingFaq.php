@@ -14,8 +14,8 @@ use Override;
 
 /**
  * A published answer to a shopper's question about a listing. The row exists
- * only while it is published — there is no draft state — so `published_at`
- * is never null and unpublishing deletes the row rather than clearing it.
+ * only while it is published; there is no draft state, so `published_at`
+ * is never null. Unpublishing deletes the row outright.
  *
  * @property-read Listing $listing
  */

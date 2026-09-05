@@ -15,8 +15,8 @@ use Override;
 
 /**
  * One typed slice of a listing's description (specs, a size chart, care
- * instructions, …), so "How to Order" and "What's Included" can render from
- * data rather than pasted prose.
+ * instructions, …). Storing each kind separately lets "How to Order" and
+ * "What's Included" each render as their own piece.
  *
  * @property-read array<int|string, mixed>|null $body_json
  */

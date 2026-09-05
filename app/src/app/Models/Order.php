@@ -124,7 +124,7 @@ class Order extends Model
     /**
      * The shipping address as a parcel label prints it, one line per row,
      * with the lines this order left empty dropped. A blank city drops
-     * straight to the region and postal code, with no leading comma.
+     * straight to the region and postal code, without a leading comma.
      *
      * @return list<string>
      */
@@ -150,9 +150,9 @@ class Order extends Model
     /**
      * How placement judges this order's items against the listings behind
      * them, as the rows stand right now. A retry after a decline calls this
-     * before it retakes stock — against rows it holds for update — so an item
-     * that went stale while the card sat declined is refused rather than sold
-     * a second time out from under someone else.
+     * before it retakes stock, against rows it holds for update. A stale
+     * item — one that changed while the card sat declined — is refused
+     * before it sells a second time out from under someone else.
      */
     public function placementPlan(): OrderPlacementPlan
     {
@@ -264,9 +264,9 @@ class Order extends Model
     }
 
     /**
-     * Nothing has been charged yet, so ending the order is still cancelling
-     * rather than refunding. It is what the customer's and the admin's cancel
-     * controls are shown by.
+     * Nothing has been charged yet, so ending the order is a cancellation.
+     * The customer's and the admin's controls show cancel before a charge
+     * lands and refund after.
      */
     public function isCancellable(): bool
     {
