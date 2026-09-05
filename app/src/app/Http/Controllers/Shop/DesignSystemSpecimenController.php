@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Models\Listing;
-use App\Support\Shop\MediumBrowse;
+use App\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\Relation;
 

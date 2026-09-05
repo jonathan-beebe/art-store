@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Support\IdMint;
+use App\Identifiers\IdMint;
 use Illuminate\Notifications\Notification;
 
 /**

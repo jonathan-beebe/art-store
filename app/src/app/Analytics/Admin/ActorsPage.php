@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
-use App\Support\Page;
+use App\Domain\Paging\Page;
 
 /**
  * One page of the all-actors table — {@see ActorList::forRange()}'s

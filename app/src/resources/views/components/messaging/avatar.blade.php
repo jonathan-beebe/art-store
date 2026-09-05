@@ -15,4 +15,4 @@
     };
 @endphp
 
-<span aria-hidden="true" {{ $attributes->merge(['class' => 'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold '.$classes]) }}>{{ \App\Support\ActorDisplay::initialsOf($actor) }}</span>
+<span aria-hidden="true" {{ $attributes->merge(['class' => 'flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold '.$classes]) }}>{{ \App\View\ActorDisplay::initialsOf($actor) }}</span>

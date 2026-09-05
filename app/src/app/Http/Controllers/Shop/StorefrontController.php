@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Shop;
 
 use App\Models\Listing;
-use App\Support\Shop\CategoryBrowse;
-use App\Support\Shop\FeaturedSubject;
-use App\Support\Shop\MediumBrowse;
+use App\Shop\CategoryBrowse;
+use App\Shop\FeaturedSubject;
+use App\Shop\MediumBrowse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\RedirectResponse;

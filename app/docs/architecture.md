@@ -42,7 +42,7 @@ flowchart TD
     entry["Entry: routes/*.php, app/Providers"] --> coord
     coord["Coordination: app/Http/Controllers, app/Actions, app/Console"] --> core
     coord --> adapters
-    adapters["Adapters: app/Models (Eloquent), app/Seller, app/Admin, app/Analytics, app/Logging, app/Observers, app/Support, app/Notifications, app/View, resources/views"] --> core
+    adapters["Adapters: app/Models (Eloquent), app/Seller, app/Shop, app/Admin, app/Configurator, app/Orders, app/Analytics, app/Logging, app/RateLimiting, app/Identifiers, app/Paging, app/Theme, app/Observers, app/Notifications, app/View, resources/views"] --> core
     core["Core: app/Domain/** — pure PHP, no I/O, no clock, no random"]
 ```
 
@@ -57,11 +57,11 @@ flowchart TD
 |              |                                                                  | `OrderStatus::awaitsPayment()`, `label()`) rather than being     |
 |              |                                                                  | read from outside. Receives time/ids as parameters. Unit tested  |
 |              |                                                                  | without doubles.                                                 |
-| Adapters     | `app/Models/`, `app/Seller/`, `app/Admin/`, `app/Analytics/`,    | Eloquent models own their relations, casts, scopes, and the      |
-|              | `app/Logging/`, `app/Observers/`, `app/Notifications/`,          | writes that keep their own invariants — a model method applies a |
-|              | `app/Support/`, `app/View/Composers/`, `app/View/Components/`,   | decision the core made and writes the row (`Listing::sell()`,    |
-|              | `resources/views/`                                                | `Listing::changeStatusTo()`). Counts and sums a page shows are   |
-|              |                                                                  | grouped in SQL by a scope or a model method                      |
+| Adapters     | `app/Models/`, `app/Seller/`, `app/Shop/`, `app/Admin/`,         | Eloquent models own their relations, casts, scopes, and the      |
+|              | `app/Configurator/`, `app/Orders/`, `app/Analytics/`,            | writes that keep their own invariants — a model method applies a |
+|              | `app/Logging/`, `app/RateLimiting/`, `app/Identifiers/`,         | decision the core made and writes the row (`Listing::sell()`,    |
+|              | `app/Paging/`, `app/Theme/`, `app/Observers/`,                   | `Listing::changeStatusTo()`). Counts and sums a page shows are   |
+|              | `app/Notifications/`, `app/View/`, `resources/views/`            | grouped in SQL by a scope or a model method                      |
 |              |                                                                  | (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`,  |
 |              |                                                                  | `Seller::escrowBalance()`), and the domain folds the rows that   |
 |              |                                                                  | come back. `app/Seller` and `app/Admin` hold the page-shaped     |
@@ -154,7 +154,7 @@ is the Monolog formatter that spells the payload.
 
 ### The phases
 
-`App\Support\Story` writes them. A unit of work opens with `will` and ends
+`App\Logging\Story` writes them. A unit of work opens with `will` and ends
 exactly once — `did` when it happened, `refused` when the core turned it down
 and the world is unchanged (`info`, because a rule held), `failed` when
 something nobody planned for escaped it (`error`, carrying the exception).
@@ -218,7 +218,7 @@ the request.
   line written before that story ends carries it — the action's own, and the
   ledger entries and notifications that fall out of it. A request is not a unit
   of work, so `http.request` carries none. All three are minted by
-  `App\Support\IdMint`, the same value object every row's key comes from.
+  `App\Identifiers\IdMint`, the same value object every row's key comes from.
 
 ### What the app emits
 
@@ -234,7 +234,7 @@ the request.
 `seed.run`, `app.boot`, `app.shutdown`.
 
 `rate_limit.exceed` comes from `RateLimitGate` at `warn`; `query.exceed`
-comes from `App\Support\SlowQueryWatch`;
+comes from `App\Logging\SlowQueryWatch`;
 `moderation.remove_listing` and `moderation.lift_listing_removal` come from
 the two actions behind the admin's removal routes.
 
@@ -275,7 +275,7 @@ stays readable.
 malformed value throws there, before the process ever answers a request.
 Both are pure: no `Illuminate`, no clock, no random.
 
-`App\Support\RateLimiting\RateLimitGate` is the one place a limit is checked
+`AppRateLimitingRateLimitGate` is the one place a limit is checked
 and, if it holds, hit: it wraps `Illuminate\Cache\RateLimiter` over the
 default cache store (`database`, so a count survives a restart the way an
 in-memory one would not), and `checkEach()` looks at every key before
@@ -632,7 +632,9 @@ flowchart LR
   `app/Http/Controllers/Admin`, `app/Http/Controllers/Seller`,
   `app/Http/Requests/Admin`, `app/Http/Requests/Seller`, `app/Listeners`,
   `app/Models`, `app/Notifications`, `app/Observers`, `app/Policies`,
-  `app/Providers`, `app/Seller`, `app/Support`, and `app/View/Components`;
+  `app/Providers`, `app/Seller`, `app/Shop`, `app/Configurator`, `app/Orders`,
+  `app/RateLimiting`, `app/Identifiers`, `app/Paging`, `app/Theme`,
+  `app/View/Components`, and `app/View/ActorDisplayTest.php`;
   `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
   `app/View/Composers`, `tests/SmokeTest.php`, and

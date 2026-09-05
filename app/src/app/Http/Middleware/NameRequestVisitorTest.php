@@ -8,7 +8,7 @@ use App\Domain\Identifiers\PrefixedId;
 use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Tests\CapturedStory;
 
 it('mints the session cookie on the first response a browser gets', function (): void {

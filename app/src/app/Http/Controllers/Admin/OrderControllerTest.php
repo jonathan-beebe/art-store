@@ -14,7 +14,7 @@ use App\Actions\Orders\PlaceOrder;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Variant;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 
 it('lists every order with its customer', function (): void {
     $customer = Customer::factory()->create(['name' => 'Ada Painter']);

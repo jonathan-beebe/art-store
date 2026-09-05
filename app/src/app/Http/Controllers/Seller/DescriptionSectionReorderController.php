@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Configurator\ReorderDescriptionSection;
+use App\Configurator\DescriptionSectionIndexPageData;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ReorderDescriptionSectionRequest;
 use App\Models\DescriptionSection;
 use App\Models\Listing;
-use App\Support\Configurator\DescriptionSectionIndexPageData;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

@@ -8,7 +8,7 @@ use App\Domain\Auth\ActorType;
 use App\Domain\Messaging\ConversationKind;
 use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Messaging\ConversationSubject;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 
 it('opens a fulfillment conversation for a subject not seen before', function (): void {
     $seller = $this->seller();

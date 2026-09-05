@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Customers\StandingFilter;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

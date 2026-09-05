@@ -15,7 +15,7 @@ return [
     | `/browse/{categoryPath}` path, without slashes). When the value names a
     | listing no longer for sale, or a category that no longer exists, is not
     | browsable, or carries no for-sale listing, the band renders nothing —
-    | {@see \App\Support\Shop\FeaturedSubject::resolve()} answers null and the
+    | {@see \App\Shop\FeaturedSubject::resolve()} answers null and the
     | page shows no broken card and no substitute.
     |
     */

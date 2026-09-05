@@ -9,7 +9,7 @@ use App\Analytics\AnalyticsEvent;
 use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Http\Middleware\LogRequestStory;
-use App\Support\RequestMarks;
+use App\Logging\RequestMarks;
 use Illuminate\Http\Request;
 
 /**

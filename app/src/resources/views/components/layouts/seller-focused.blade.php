@@ -2,8 +2,8 @@
 
 @php
     use App\Domain\Listings\ListingStatus;
-    use App\Support\Configurator\ConfiguratorSectionNav;
-    use App\Support\Configurator\PublishIssuePresenter;
+    use App\Configurator\ConfiguratorSectionNav;
+    use App\Configurator\PublishIssuePresenter;
 
     $seller = auth('seller')->user();
 
@@ -19,7 +19,7 @@
         : '';
 
     // A published listing has nothing left to publish, and its issues are
-    // never computed for it — {@see \App\Support\Configurator\ListingEditPageData}
+    // never computed for it — {@see \App\Configurator\ListingEditPageData}
     // draws the same line.
     $issues = $listing->status === ListingStatus::Draft ? $listing->publishIssues() : [];
     $sections = ConfiguratorSectionNav::sections();

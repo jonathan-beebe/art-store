@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Configurator\ConfigurationPricer;
 use App\Domain\Cart\CartLine;
 use App\Domain\Configurator\OptionAvailability;
 use App\Domain\Configurator\PriceBreakdown;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Support\Configurator\ConfigurationPricer;
 use Database\Factories\CartItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

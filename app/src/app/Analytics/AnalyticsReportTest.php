@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Analytics;
 
 use App\Domain\Analytics\AnalyticsEventName;
-use App\Support\RequestMarks;
+use App\Logging\RequestMarks;
 use DateTimeImmutable;
 use Illuminate\Http\Request;
 

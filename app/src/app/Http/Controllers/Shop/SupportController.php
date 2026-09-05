@@ -13,7 +13,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Shop\SupportRequest;
 use App\Models\Conversation;
 use App\Models\Customer;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;

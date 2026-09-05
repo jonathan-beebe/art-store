@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Unit;
 use App\Models\Variant;
-use App\Support\Story;
 
 final readonly class AddUnit
 {

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\CategoryProperty;
 use App\Models\Listing;
 use App\Models\ListingAttribute;
 use App\Models\PropertyValue;
-use App\Support\Story;
 use Illuminate\Support\Collection;
 
 /**

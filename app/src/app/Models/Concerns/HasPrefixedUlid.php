@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Concerns;
 
 use App\Domain\Identifiers\PrefixedId;
-use App\Support\IdMint;
+use App\Identifiers\IdMint;
 use Illuminate\Database\Eloquent\Concerns\HasUniqueStringIds;
 
 /**

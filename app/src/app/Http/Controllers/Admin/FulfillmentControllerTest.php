@@ -7,7 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Actions\Fulfillment\RefundFulfillment;
 use App\Models\Customer;
 use App\Models\Fulfillment;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 
 it('lists every fulfillment with its order and seller', function (): void {
     $fulfillment = $this->shippedFulfillmentFor($this->seller('Blue Kiln Studio'));

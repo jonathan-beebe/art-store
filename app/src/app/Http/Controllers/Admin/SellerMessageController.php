@@ -15,8 +15,8 @@ use App\Domain\Reports\ListingStatusTally;
 use App\Http\Requests\Admin\OpenSellerThreadRequest;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
-use App\Support\ListPaneWindow;
-use App\Support\RateLimiting\RateLimitGate;
+use App\Paging\ListPaneWindow;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

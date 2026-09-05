@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Domain\Retention\RetentionDays;
 use App\Logging\LogSlowQueryMs;
-use App\Support\RetentionDays;
 
 /*
 |--------------------------------------------------------------------------

@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
  * empty value means "all" (or, for `sort`, the page's default), an
  * unrecognised one answers 400. `page` validates as a positive integer
  * when present; a value past the end of the list is
- * {@see App\Support\Page::of()}'s own concern to clamp.
+ * {@see App\Domain\Paging\Page::of()}'s own concern to clamp.
  */
 final class AnalyticsActorsQueryRequest extends FormRequest
 {

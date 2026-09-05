@@ -7,15 +7,15 @@ namespace App\Http\Controllers\Seller;
 use App\Actions\Configurator\AddOptionValue;
 use App\Actions\Configurator\DeleteOptionValue;
 use App\Actions\Configurator\UpdateOptionValue;
+use App\Configurator\AxisPropertyOptions;
+use App\Configurator\ListingConfiguratorSummaries;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\OptionValueRequest;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
-use App\Support\Configurator\AxisPropertyOptions;
-use App\Support\Configurator\ListingConfiguratorSummaries;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

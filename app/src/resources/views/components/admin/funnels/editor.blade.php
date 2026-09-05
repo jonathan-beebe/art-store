@@ -2,7 +2,7 @@
      posts — no JavaScript. Every button beyond "Save" carries its own
      `op` and posts back to the same `$action`; the controller reads it as
      an editor action and re-renders this same form with the step list
-     `App\Support\Admin\FunnelStepListOp` produces.
+     `App\Domain\Analytics\FunnelStepListOp` produces.
      `$name`/`$steps` are the form's current values; `$eventNames` is
      `AnalyticsEventName::cases()`. --}}
 @props(['action', 'method', 'name', 'steps', 'eventNames', 'submitLabel'])

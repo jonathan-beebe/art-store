@@ -1,5 +1,5 @@
 @php
-    use App\Support\DesignTokens;
+    use App\Theme\DesignTokens;
 
     $fonts = DesignTokens::fonts();
 @endphp

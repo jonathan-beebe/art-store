@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Models\LedgerEntry;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 
 it('renders no list pane — a full-content section, not list+detail', function (): void {
     $response = $this->actingAs($this->admin(), 'admin')->get('/admin/ledger');

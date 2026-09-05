@@ -6,10 +6,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\FunnelDefinition;
+use App\Domain\Analytics\FunnelStepListOp;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\FunnelRequest;
 use App\Models\Funnel;
-use App\Support\Admin\FunnelStepListOp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 

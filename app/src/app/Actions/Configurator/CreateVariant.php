@@ -6,11 +6,11 @@ namespace App\Actions\Configurator;
 
 use App\Domain\Configurator\ComboKey;
 use App\Domain\DomainRuleViolation;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\OptionValue;
 use App\Models\Variant;
-use App\Support\Story;
 
 /**
  * One sparse cell: the sole way the walnut table's hand-priced dimension

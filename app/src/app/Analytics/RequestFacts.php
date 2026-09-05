@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics;
 
-use App\Support\RequestMarks;
+use App\Logging\RequestMarks;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Throwable;

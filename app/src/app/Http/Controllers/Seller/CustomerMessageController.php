@@ -10,7 +10,7 @@ use App\Domain\RateLimiting\RateLimitName;
 use App\Models\Conversation;
 use App\Models\Customer;
 use App\Models\Seller;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 
 /**

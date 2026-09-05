@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Configurator\QuantityBreakPercent;
 use App\Domain\Configurator\ConfiguratorPublishValidation;
 use App\Models\Listing;
 use App\Models\QuantityBreak;
-use App\Support\Configurator\QuantityBreakPercent;
 use Closure;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\Validator;

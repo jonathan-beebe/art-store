@@ -14,7 +14,7 @@ use App\Domain\Listings\ListingRemovalKind;
 use App\Domain\Listings\ListingStatus;
 use App\Models\Favorite;
 use App\Models\Listing;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 
 it('lists listings across every seller', function (): void {
     $this->listing($this->seller('Blue Kiln Studio'), ['title' => 'Nine Herons']);

@@ -11,8 +11,8 @@ use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\PageViewSite;
 use App\Http\Middleware\LogRequestStory;
+use App\Logging\RequestMarks;
 use App\Models\Funnel;
-use App\Support\RequestMarks;
 use Illuminate\Http\Request;
 
 /**

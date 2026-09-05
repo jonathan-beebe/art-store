@@ -7,10 +7,10 @@ namespace App\Actions\Listings;
 use App\Domain\Listings\ListingDraft;
 use App\Domain\Listings\ListingSlug;
 use App\Domain\Listings\ListingStatus;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\Seller;
-use App\Support\Story;
 use Illuminate\Http\UploadedFile;
 
 final readonly class CreateListing

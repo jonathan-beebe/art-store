@@ -41,7 +41,7 @@
 
 /* Semantic utilities over the theme's custom properties. The values live
    in config/theme.php and reach the page as `--ui-*` variables through
-   `<x-theme-css />` (App\Support\DesignTokens::css()), so `bg-canvas` or
+   `<x-theme-css />` (App\Theme\DesignTokens::css()), so `bg-canvas` or
    `text-ink` re-resolve at runtime when the theme or mode changes —
    nothing here names a real color. */
 @theme inline {

@@ -6,7 +6,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Customer;
 use App\Models\CustomerMerge;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;

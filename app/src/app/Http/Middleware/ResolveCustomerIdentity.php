@@ -6,9 +6,9 @@ namespace App\Http\Middleware;
 
 use App\Actions\Customers\ResolveCustomerFromCookie;
 use App\Domain\Auth\ActorType;
+use App\Logging\Story;
 use App\Models\Customer;
-use App\Support\CustomerIdentity;
-use App\Support\Story;
+use App\Shop\CustomerIdentity;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;

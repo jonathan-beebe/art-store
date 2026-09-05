@@ -13,7 +13,7 @@ use InvalidArgumentException;
 
 /**
  * Backs both `admin.funnels.store` and `.update`. The submitted `op`
- * ("save", or an editor action {@see \App\Support\Admin\FunnelStepListOp}
+ * ("save", or an editor action {@see \App\Domain\Analytics\FunnelStepListOp}
  * reads) decides how much of the form the request enforces: an editor
  * action carries the same fields but needs none of them to be a complete,
  * valid funnel yet, since the controller only rebuilds the working step

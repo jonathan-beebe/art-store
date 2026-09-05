@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Seller;
 
+use App\Domain\Paging\Page;
 use App\Domain\Seller\ActivityKind;
 use App\Domain\Seller\CustomerRow;
 use App\Domain\Seller\CustomerSegment;
@@ -11,7 +12,6 @@ use App\Domain\Seller\CustomerSortColumn;
 use App\Domain\Seller\SortDirection;
 use App\Domain\Seller\TableSort;
 use App\Models\Customer;
-use App\Support\Page;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Support\Facades\Gate;

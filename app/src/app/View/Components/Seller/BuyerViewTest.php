@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\View\Components\Seller;
 
 use App\Actions\Configurator\CreateVariant;
+use App\Configurator\ConfiguratorInput;
 use App\Models\Modifier;
 use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\QuantityBreak;
-use App\Support\Configurator\ConfiguratorInput;
 use Illuminate\Support\Facades\Blade;
 
 it('renders a priced options price difference and the breakdown total', function (): void {

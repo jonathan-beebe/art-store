@@ -7,7 +7,7 @@
     column, the same way `<header>` already sits full width with its own
     content centered inside it — so the photograph reaches both edges
     without a CSS bleed trick. `$subject` is a resolved
-    {@see \App\Support\Shop\FeaturedSubject}; the caller renders this
+    {@see \App\Shop\FeaturedSubject}; the caller renders this
     component only when one exists.
 --}}
 <section aria-labelledby="featured-heading" class="border-b border-line bg-surface">

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Modifier;
 use App\Models\ModifierScope;
 use App\Models\OptionValue;
-use App\Support\Story;
 
 /**
  * The scope picker's "show this question only when…" screen: replaces a

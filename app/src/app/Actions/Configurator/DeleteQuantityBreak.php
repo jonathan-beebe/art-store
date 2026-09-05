@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Actions\Configurator;
 
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\QuantityBreak;
-use App\Support\Story;
 
 final readonly class DeleteQuantityBreak
 {

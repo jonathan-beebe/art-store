@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\View\Composers;
 
 use App\Models\Message;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 

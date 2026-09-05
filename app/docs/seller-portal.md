@@ -434,7 +434,7 @@ the buyer, the scan line, the badge and the day, a row carries one note:
 **what the buyer asked and nobody answered**, else **the last step the
 seller marked done** ("Label printed") — both from one query each across
 the whole window, never per row. The scan line and its picture come from
-`App\Support\ParcelLine::label()`/`imageUrl()`, read by every row and feed
+`App\Seller\ParcelLine::label()`/`imageUrl()`, read by every row and feed
 adapter that shows a parcel; both require `order.items` eager-loaded and
 refuse a caller that has not.
 

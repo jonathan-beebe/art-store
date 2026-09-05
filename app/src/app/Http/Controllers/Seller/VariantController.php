@@ -13,7 +13,7 @@ use App\Http\Requests\Seller\CreateVariantRequest;
 use App\Http\Requests\Seller\UpdateVariantRequest;
 use App\Models\Listing;
 use App\Models\Variant;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\View\View;

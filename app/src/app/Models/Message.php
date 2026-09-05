@@ -6,7 +6,7 @@ namespace App\Models;
 
 use App\Domain\Auth\ActorType;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 use Database\Factories\MessageFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;

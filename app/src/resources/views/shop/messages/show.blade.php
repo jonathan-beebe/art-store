@@ -2,8 +2,8 @@
     use App\Domain\Auth\ActorType;
     use App\Domain\Messaging\ConversationStatus;
     use App\Domain\Messaging\MessageBody;
-    use App\Support\ActorDisplay;
-    use App\Support\Shop\ConversationKindLabel;
+    use App\View\ActorDisplay;
+    use App\Shop\ConversationKindLabel;
     use Illuminate\Support\Str;
 
     $isDesk = $conversation->kind->isDesk();

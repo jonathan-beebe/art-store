@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Seller;
 
 use App\Actions\Listings\ReorderListingImage;
+use App\Configurator\ListingImageIndexPageData;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ReorderListingImageRequest;
 use App\Models\Listing;
 use App\Models\ListingImage;
-use App\Support\Configurator\ListingImageIndexPageData;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 

@@ -6,11 +6,11 @@ namespace App\Actions\Messaging;
 
 use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Messaging\FaqDraft;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Listing;
 use App\Models\ListingFaq;
 use App\Models\Message;
-use App\Support\Story;
 use DateTimeImmutable;
 
 final readonly class PublishListingFaq

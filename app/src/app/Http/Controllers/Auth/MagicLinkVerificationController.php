@@ -13,11 +13,11 @@ use App\Domain\Auth\LocalRedirect;
 use App\Domain\Auth\MagicLinkStatus;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Controllers\Controller;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\MagicLink;
-use App\Support\CustomerIdentity;
-use App\Support\RateLimiting\RateLimitGate;
-use App\Support\Story;
+use App\RateLimiting\RateLimitGate;
+use App\Shop\CustomerIdentity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 

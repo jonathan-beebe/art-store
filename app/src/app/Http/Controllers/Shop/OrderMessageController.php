@@ -9,7 +9,7 @@ use App\Domain\Messaging\ConversationSubject;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Models\Fulfillment;
 use App\Models\Order;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 
 final class OrderMessageController extends ShopController

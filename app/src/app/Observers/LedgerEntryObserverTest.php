@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Observers;
 
 use App\Domain\Escrow\LedgerEntryType;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\LedgerEntry;
-use App\Support\Story;
 use Tests\CapturedStory;
 
 it('logs every ledger entry as it is written', function (): void {

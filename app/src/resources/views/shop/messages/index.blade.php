@@ -1,6 +1,6 @@
 @php
-    use App\Support\ActorDisplay;
-    use App\Support\Shop\ConversationKindLabel;
+    use App\View\ActorDisplay;
+    use App\Shop\ConversationKindLabel;
 
     $filterHref = fn (string $value) => route('shop.messages.index', ['filter' => $value, 'status' => $statusValue]);
     $statusHref = fn (string $value) => route('shop.messages.index', ['filter' => $filter, 'status' => $value]);

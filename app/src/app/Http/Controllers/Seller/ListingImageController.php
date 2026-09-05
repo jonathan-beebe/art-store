@@ -6,13 +6,13 @@ namespace App\Http\Controllers\Seller;
 
 use App\Actions\Listings\AddListingImage;
 use App\Actions\Listings\RemoveListingImage;
+use App\Configurator\ListingImageIndexPageData;
 use App\Domain\RateLimiting\RateLimitExceeded;
 use App\Domain\RateLimiting\RateLimitName;
 use App\Http\Requests\Seller\ListingImageRequest;
 use App\Models\Listing;
 use App\Models\ListingImage;
-use App\Support\Configurator\ListingImageIndexPageData;
-use App\Support\RateLimiting\RateLimitGate;
+use App\RateLimiting\RateLimitGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response;
 use Illuminate\View\View;

@@ -21,7 +21,7 @@ use App\Models\Customer;
 use App\Models\Seller;
 use App\Policies\ApiKeyPolicy;
 use App\Policies\NotificationPolicy;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use App\View\Composers\AdminLayoutComposer;
 use App\View\Composers\SellerLayoutComposer;
 use App\View\Composers\ShopLayoutComposer;

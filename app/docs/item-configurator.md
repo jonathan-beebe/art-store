@@ -387,7 +387,7 @@ option's `surcharge_cents`). The same rule renders the buyer dropdown: a
 signed delta (`"Black frame (+$32.00)"`).
 
 **`listings.price_cents` is derived, not seller-edited, once a standalone
-axis exists.** `App\Support\Configurator\ListingPriceSync` runs after every
+axis exists.** `App\Configurator\ListingPriceSync` runs after every
 option-axis and option-value write (add, update, remove — wired from the
 Actions in `App\Actions\Configurator`, not the controllers, so a seeder or a
 console command gets the same guarantee an HTTP request does) and sets

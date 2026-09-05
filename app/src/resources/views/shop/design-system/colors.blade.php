@@ -1,5 +1,5 @@
 @php
-    use App\Support\DesignTokens;
+    use App\Theme\DesignTokens;
 
     // Chip strips like a hardware store's paint cards: the bands are pure
     // color (inline `var(--ui-*)`, so they follow the live theme and flip

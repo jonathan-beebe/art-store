@@ -10,7 +10,7 @@ use App\Domain\Messaging\ConversationStatus;
 use App\Domain\Messaging\ConversationSubject;
 use App\Domain\Messaging\FaqPrefill;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 use Database\Factories\ConversationFactory;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;

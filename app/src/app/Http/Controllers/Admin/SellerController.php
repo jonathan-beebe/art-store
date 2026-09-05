@@ -11,7 +11,7 @@ use App\Domain\Reports\ListingStatusTally;
 use App\Http\Controllers\Controller;
 use App\Models\LedgerEntry;
 use App\Models\Seller;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\View\View;
 

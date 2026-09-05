@@ -1,7 +1,7 @@
 @php
     use App\Domain\Configurator\PricingMode;
-    use App\Support\Configurator\OptionBuyerPrice;
-    use App\Support\Configurator\PriceDifferenceInput;
+    use App\Configurator\OptionBuyerPrice;
+    use App\Configurator\PriceDifferenceInput;
 
     // The custom-name form shows whenever there is nothing to catalog-lead
     // with, or the seller asked for it via "Something else…".

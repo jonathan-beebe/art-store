@@ -9,7 +9,7 @@ use App\Actions\Customers\BlockCustomer;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
-use App\Support\ListPaneWindow;
+use App\Paging\ListPaneWindow;
 
 it('lists every customer with their standing', function (): void {
     $blocked = Customer::factory()->create(['name' => 'Ada Painter']);

@@ -9,7 +9,7 @@ use App\Analytics\AnalyticsVisit;
 use App\Analytics\RequestFacts;
 use App\Domain\Analytics\PageViewCountability;
 use App\Domain\Analytics\PageViewSite;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 use Closure;
 use DateTimeImmutable;
 use Illuminate\Http\Request;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\View\Components\Seller;
 
+use App\Configurator\ConfiguratorInput;
+use App\Configurator\ConfiguratorPageResolver;
+use App\Configurator\ListingConfiguration;
 use App\Models\Listing;
-use App\Support\Configurator\ConfiguratorInput;
-use App\Support\Configurator\ConfiguratorPageResolver;
-use App\Support\Configurator\ListingConfiguration;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\View\Component;

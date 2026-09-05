@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
-use App\Support\Page;
+use App\Domain\Paging\Page;
 
 /**
  * One channel's visits for a range, paged — {@see ChannelVisits::forRange()}'s

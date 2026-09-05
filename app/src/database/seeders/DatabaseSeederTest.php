@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Analytics\Analytics;
+use App\Configurator\ListingHighlights;
 use App\Domain\Escrow\LedgerEntryType;
 use App\Domain\Listings\ListingStatus;
 use App\Domain\Orders\FulfillmentStatus;
@@ -26,7 +27,6 @@ use App\Models\Payment;
 use App\Models\Payout;
 use App\Models\Property;
 use App\Models\Seller;
-use App\Support\Configurator\ListingHighlights;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;

@@ -8,6 +8,7 @@ use App\Analytics\Analytics;
 use App\Domain\Customers\CustomerCartLine;
 use App\Domain\Customers\CustomerMergePlan;
 use App\Domain\Customers\CustomerOwnedTables;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Cart;
 use App\Models\CartItem;
@@ -16,7 +17,6 @@ use App\Models\Customer;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
 use App\Models\Listing;
-use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 

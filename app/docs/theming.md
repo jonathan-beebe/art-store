@@ -6,7 +6,7 @@ truth and three consumers.
 ```mermaid
 flowchart LR
     config["config/theme.php\n(colors · fonts · radii)"]
-    tokens["App\\Support\\DesignTokens"]
+    tokens["App\\Theme\\DesignTokens"]
     css["&lt;x-theme-css /&gt;\n:root { --ui-* } + dark block"]
     tw["resources/css/app.css\n@theme inline → bg-canvas, text-ink, …"]
     views["Blade views\n(semantic utilities only)"]
@@ -26,7 +26,7 @@ flowchart LR
   `line-strong`, the `accent` family, `danger`/`success`/`notice`
   families, `tint-1..5`/`on-tint`, `on-photo`/`photo-scrim`), each with
   a light and a dark value, plus the two font stacks and the two radii.
-- `App\Support\DesignTokens` renders that registry as CSS custom
+- `App\Theme\DesignTokens` renders that registry as CSS custom
   properties. Every layout's `<head>` includes `<x-theme-css />`, which
   emits light values on `:root` and dark values inside
   `@media (prefers-color-scheme: dark) { .supports-dark { … } }` — the
@@ -61,21 +61,21 @@ tokens with their dark values, so views need no `dark:` variants.
   `<x-wayfinding-footer>` render into the shop layout's `beforeMain`
   and `afterMain` slots (full viewport width, outside `<main>`'s
   centered column — set by whichever page needs them, unset elsewhere).
-  `App\Support\Shop\FeaturedSubject::resolve()` reads
+  `App\Shop\FeaturedSubject::resolve()` reads
   `config('storefront.featured')` — a listing slug or a `/browse`
   category path, set by hand — and answers null (no band, no broken
   card, no substitute) when what it names is missing or no longer for
-  sale. `App\Support\Shop\CategoryBrowse` carries a `coverUrl` per
+  sale. `App\Shop\CategoryBrowse` carries a `coverUrl` per
   category the same way `MediumBrowse` does, nullable since a category
   can be genuinely empty.
-- `App\Support\DesignTokensTest` enforces WCAG AA (4.5:1) on every
+- `App\Theme\DesignTokensTest` enforces WCAG AA (4.5:1) on every
   promised text/background pairing in both modes, so a palette edit
   that breaks readability fails the suite.
 
 ## The living reference
 
 `/design-system` renders the registry as paint-chip strips, rated
-pairings (contrast computed by `App\Support\Contrast` from the same
+pairings (contrast computed by `App\Domain\Theme\Contrast` from the same
 config), type specimens, the atoms, and the storefront's real
 components — listing cards, category tiles, and the configurator in
 live preview mode — against real catalog data.

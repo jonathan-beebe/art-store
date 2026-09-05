@@ -354,7 +354,7 @@ admin filter does (the Pages table above):
 - `sort=active|recent` — the all-actors page, most events in the range or
   most recently seen.
 - `page=` — the all-actors and channel-visits pages, a positive integer; an
-  out-of-range value clamps to the nearest real page (`App\Support\Page::of()`).
+  out-of-range value clamps to the nearest real page (`App\Domain\Paging\Page::of()`).
 - `event=` — the listing and actor pages' event-name filter on their own feed.
 
 Caveats: `App\Analytics\Admin\EntityActivity::forListing()`/`forActor()`
@@ -418,7 +418,7 @@ order. The editor is server-rendered with no JavaScript — "Add step",
 "Remove", "Move up", and "Move down" are all submit buttons that post
 back to the same `store`/`update` route with an `op` naming the action;
 the controller applies it to the working step list
-(`App\Support\Admin\FunnelStepListOp`) and re-renders the form rather
+(`App\Domain\Analytics\FunnelStepListOp`) and re-renders the form rather
 than saving, so only the "Save" button (`op=save`) runs
 `FunnelDefinition` and persists. An unknown or repeated step name, or a
 slug already used by another funnel, is a validation error on the form.
@@ -637,7 +637,7 @@ the tab would exclude it.
 
 **The list is windowed, not paginated.** Sellers/customers/listings/orders/
 fulfillments/messages have no pagination today; each section's query is
-capped at `App\Support\ListPaneWindow::SIZE` (50) rows instead of an
+capped at `App\Paging\ListPaneWindow::SIZE` (50) rows instead of an
 unbounded `->get()` — real pagination across six controllers was still
 judged more than this follow-up asked for. `ListPaneWindow::of()` runs the query twice, once for
 a `count()` and once `limit()`-ed for the rows, and — on a show route —

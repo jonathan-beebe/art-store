@@ -1,8 +1,8 @@
 @php
     use App\Domain\Configurator\DescriptionSectionKind;
-    use App\Support\Configurator\DescriptionSectionKindWord;
-    use App\Support\Configurator\DescriptionSectionRows;
-    use App\Support\Ordinal;
+    use App\Configurator\DescriptionSectionKindWord;
+    use App\Configurator\DescriptionSectionRows;
+    use App\Domain\Text\Ordinal;
 @endphp
 
 <x-layouts.seller-focused :listing="$listing" :title="'Listing page sections — '.$listing->title.' — Art Store seller'">

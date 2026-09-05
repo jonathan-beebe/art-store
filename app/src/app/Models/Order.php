@@ -10,7 +10,7 @@ use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\PlaceableLine;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Support\Orders\PlaceableLineBuilder;
+use App\Orders\PlaceableLineBuilder;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;

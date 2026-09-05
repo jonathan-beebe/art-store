@@ -11,7 +11,7 @@ use App\Domain\Seller\FeedEvent;
 use App\Domain\Seller\FeedIcon;
 use App\Models\Fulfillment;
 use App\Models\FulfillmentEvent;
-use App\Support\ActorDisplay;
+use App\View\ActorDisplay;
 
 /**
  * The shipping half of the feed, read from `fulfillment_events` — every step

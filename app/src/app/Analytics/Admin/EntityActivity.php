@@ -14,7 +14,7 @@ use App\Domain\Analytics\BarStrip;
 use App\Domain\Analytics\BarStripBar;
 use App\Domain\Analytics\FeedOtherKind;
 use App\Domain\Analytics\FlaggedActorSummary;
-use App\Domain\Support\RelativeTime;
+use App\Domain\Text\RelativeTime;
 use App\Models\Customer;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;

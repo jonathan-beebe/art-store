@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Actions\Customers;
 
 use App\Domain\DomainRuleViolation;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
-use App\Support\Story;
 use Illuminate\Support\Facades\DB;
 
 final readonly class BlockCustomer

@@ -24,7 +24,14 @@ arch('the domain core stays pure')
         'App\Analytics',
         'App\Console',
         'App\Seller',
-        'App\Support',
+        'App\Shop',
+        'App\Orders',
+        'App\Configurator',
+        'App\RateLimiting',
+        'App\Identifiers',
+        'App\Paging',
+        'App\Theme',
+        'App\View',
         'Illuminate\Database',
         'Illuminate\Support\Facades',
         'now',
@@ -48,6 +55,30 @@ arch('actions are final, single-purpose commands')
 arch('controllers do not reach around Eloquent with the DB facade')
     ->expect('App\Http\Controllers')
     ->not->toUse('Illuminate\Support\Facades\DB');
+
+arch('adapters do not depend on the coordination or entry layers')
+    ->expect([
+        'App\Admin',
+        'App\Analytics',
+        'App\Configurator',
+        'App\Identifiers',
+        'App\Logging',
+        'App\Models',
+        'App\Notifications',
+        'App\Observers',
+        'App\Orders',
+        'App\Paging',
+        'App\RateLimiting',
+        'App\Seller',
+        'App\Shop',
+        'App\Theme',
+        'App\View',
+    ])
+    ->not->toUse(['App\Http', 'App\Actions', 'App\Console', 'App\Mcp', 'App\Providers']);
+
+arch('the MCP tools read through the admin readers, never the DB facade')
+    ->expect('App\Mcp')
+    ->not->toUse('Illuminate\\Support\\Facades\\DB');
 
 arch('models do not depend on the coordination layer')
     ->expect('App\Models')

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests;
 
 use App\Models\Customer;
-use App\Support\CustomerIdentity;
+use App\Shop\CustomerIdentity;
 
 /**
  * Base for the storefront HTTP tests. The identity cookie is what ties a

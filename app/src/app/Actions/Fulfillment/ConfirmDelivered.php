@@ -10,10 +10,10 @@ use App\Domain\Escrow\LedgerMovement;
 use App\Domain\Fulfillment\FulfillmentEventKind;
 use App\Domain\Fulfillment\NewFulfillmentEvent;
 use App\Domain\Orders\FulfillmentStatus;
+use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Fulfillment;
 use App\Models\LedgerEntry;
-use App\Support\Story;
 use DateTimeImmutable;
 use Illuminate\Support\Facades\DB;
 

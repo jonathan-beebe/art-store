@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Support\RetentionDays;
+use App\Domain\Retention\RetentionDays;
 
 /*
 |--------------------------------------------------------------------------
