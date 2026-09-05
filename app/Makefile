@@ -59,14 +59,19 @@ analyse: ## PHPStan alone
 # The per-commit gate: style + static analysis, then the ungated suite, in
 # one container spawn — no asset build, no coverage instrumentation, no HTML
 # report. `.githooks/pre-commit` runs this on every commit that touches app/
-# outside docs/; `check` (below) still runs once before a PR, and CI
-# (.github/workflows/check.yml) runs `check` again on push/PR as the backstop.
+# outside docs/; `check` (below) still runs once before a PR.
 precommit: ## the commit gate: lint + ungated tests, one container
 	docker compose run --rm app sh -c "composer lint:all && composer test"
 
+# What CI (.github/workflows/check.yml) runs on every push and PR: lint,
+# then the ungated suite — the asset build happens in the entrypoint on the
+# way in. No coverage: the floor is checked locally by `check`, once per
+# branch, since instrumenting the suite is the slowest step of the gate.
+ci: lint test ## lint -> ungated tests; what CI runs
+
 # The full gate, run once per branch before a PR opens rather than per
 # commit: lint, then the asset build, then the coverage-gated suite.
-check: lint assets coverage ## lint -> assets -> coverage; the pre-PR gate
+check: lint assets coverage ## lint -> assets -> coverage; the pre-PR gate, run locally
 
 migrate: ## apply pending migrations
 	docker compose run --rm app php artisan migrate

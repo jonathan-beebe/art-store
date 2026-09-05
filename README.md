@@ -35,6 +35,6 @@ deployment.
 `make hooks` at the root installs the commit gate. Each commit that touches
 `app/` outside `app/docs/` and `app/README.md` runs lint and the test suite;
 `make check` runs the full gate (lint, assets, coverage-gated tests) once
-before a PR opens, and CI runs it again.
+before a PR opens; CI runs lint and the tests, without coverage.
 `CLAUDE.md` holds the working rules, including that nothing runs on the
 host outside Docker.
