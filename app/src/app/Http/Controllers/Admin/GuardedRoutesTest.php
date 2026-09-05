@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Route as RouteFacade;
+use Tests\CommerceTestCase;
 
 /**
  * @return array<int, Route>
@@ -43,40 +46,25 @@ $requestFor = function (Route $route): array {
  * rather than one test per controller, so a new admin-guarded route is
  * covered automatically.
  */
-it('sends a guest to admin sign-in for every admin-guarded route', function () use ($adminGuardedRoutes, $requestFor): void {
+it('sends every actor to admin sign-in, not the page, for every admin-guarded route', function (Closure $actor) use ($adminGuardedRoutes, $requestFor): void {
     $routes = $adminGuardedRoutes();
 
     expect($routes)->not->toBeEmpty();
+
+    /** @var array{0: Authenticatable, 1: string}|null $party */
+    $party = $actor($this);
+    if ($party !== null) {
+        [$user, $guard] = $party;
+        $this->actingAs($user, $guard);
+    }
 
     foreach ($routes as $route) {
         [$method, $uri] = $requestFor($route);
 
         $this->call($method, $uri)->assertRedirect(route('auth.admin.login'));
     }
-});
-
-it('sends a signed-in seller to admin sign-in, not the page, for every admin-guarded route', function () use ($adminGuardedRoutes, $requestFor): void {
-    $routes = $adminGuardedRoutes();
-
-    expect($routes)->not->toBeEmpty();
-
-    foreach ($routes as $route) {
-        [$method, $uri] = $requestFor($route);
-
-        $this->actingAs($this->seller(), 'seller')->call($method, $uri)
-            ->assertRedirect(route('auth.admin.login'));
-    }
-});
-
-it('sends a signed-in customer to admin sign-in, not the page, for every admin-guarded route', function () use ($adminGuardedRoutes, $requestFor): void {
-    $routes = $adminGuardedRoutes();
-
-    expect($routes)->not->toBeEmpty();
-
-    foreach ($routes as $route) {
-        [$method, $uri] = $requestFor($route);
-
-        $this->actingAs($this->verifiedCustomer(), 'customer')->call($method, $uri)
-            ->assertRedirect(route('auth.admin.login'));
-    }
-});
+})->with([
+    'guest' => [fn (CommerceTestCase $test): ?array => null],
+    'seller' => [fn (CommerceTestCase $test): array => [$test->seller(), 'seller']],
+    'customer' => [fn (CommerceTestCase $test): array => [$test->verifiedCustomer(), 'customer']],
+]);
