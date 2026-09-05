@@ -8,16 +8,23 @@ use App\Actions\Cart\AddToCart;
 use App\Actions\Cart\RemoveFromCart;
 use App\Domain\Cart\CartTotals;
 use App\Http\Requests\Shop\AddToCartRequest;
+use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Listing;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 
 final class CartController extends ShopController
 {
+    /**
+     * `cartOrNull()` reads without minting one: a visitor who never added
+     * anything, saved or not, sees an empty cart rather than a fresh row.
+     */
     public function show(): View
     {
-        $cart = $this->visitor()->cart()->load('items.listing.seller', 'items.variant.options.optionValue', 'items.unit');
+        $cart = $this->visitor()->cartOrNull()?->load('items.listing.seller', 'items.variant.options.optionValue', 'items.unit')
+            ?? (new Cart)->setRelation('items', new Collection);
 
         return view('shop.cart', [
             'cart' => $cart,
@@ -31,7 +38,7 @@ final class CartController extends ShopController
         $configuration = $request->configuration();
 
         $addToCart(
-            $this->visitor()->cart(),
+            $this->knownVisitor()->cart(),
             $listing,
             $request->quantity(),
             $this->now(),

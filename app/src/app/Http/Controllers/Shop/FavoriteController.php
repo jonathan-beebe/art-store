@@ -30,7 +30,7 @@ final class FavoriteController extends ShopController
 
     public function toggle(Listing $listing, ToggleFavorite $toggleFavorite): RedirectResponse
     {
-        $toggleFavorite($this->visitor(), $listing, $this->now());
+        $toggleFavorite($this->knownVisitor(), $listing, $this->now());
 
         return back();
     }

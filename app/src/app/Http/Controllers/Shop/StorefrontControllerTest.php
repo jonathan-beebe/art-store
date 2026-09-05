@@ -182,8 +182,10 @@ it('runs a query count that holds steady as the categories, mediums, and listing
 
     // A fixed ceiling. Fifteen categories and fifteen mediums at even one
     // query apiece already exceeds it, so a per-item read anywhere in the
-    // page trips this. The actual count at this seed size is 29.
-    expect($queries)->toBeLessThan(35);
+    // page trips this. The actual count at this seed size is 26 — down
+    // from 29 now that an uncookied visit resolves no customer row and
+    // ShopLayoutComposer runs no query for one.
+    expect($queries)->toBeLessThan(32);
 });
 
 it('shows a flashed magic link in the debug alert', function (): void {

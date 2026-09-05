@@ -8,6 +8,7 @@ use App\Actions\Cart\AddToCart;
 use App\Domain\Customers\StandingFilter;
 use Illuminate\Database\Query\Grammars\MySqlGrammar;
 use Illuminate\Support\Facades\DB;
+use LogicException;
 
 it('is anonymous only when it has no email', function (?string $email, bool $expected): void {
     expect((new Customer(['email' => $email]))->isAnonymous())->toBe($expected);
@@ -40,6 +41,29 @@ it('reads the customer\'s existing cart rather than creating another', function 
 
     expect($customer->cart()->id)->toBe($existing->id)
         ->and(Cart::count())->toBe(1);
+});
+
+it('refuses to mint a cart for an unsaved customer', function (): void {
+    (new Customer)->cart();
+})->throws(LogicException::class, 'An unsaved customer has no cart to hold.');
+
+it('reads no cart for an unsaved customer, without creating one', function (): void {
+    expect((new Customer)->cartOrNull())->toBeNull()
+        ->and(Cart::count())->toBe(0);
+});
+
+it('reads null rather than creating a cart for a saved customer with none yet', function (): void {
+    $customer = $this->anonymousCustomer();
+
+    expect($customer->cartOrNull())->toBeNull()
+        ->and(Cart::count())->toBe(0);
+});
+
+it('reads the existing cart through cartOrNull', function (): void {
+    $customer = $this->verifiedCustomer();
+    $existing = $this->cartFor($customer);
+
+    expect($customer->cartOrNull()?->id)->toBe($existing->id);
 });
 
 it('can shop with no active block', function (): void {

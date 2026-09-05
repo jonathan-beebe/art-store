@@ -21,7 +21,7 @@ final class OrderMessageController extends ShopController
     public function __invoke(Order $order, Fulfillment $fulfillment, OpenConversation $openConversation, RateLimitGate $rateLimit): RedirectResponse
     {
         $this->authorizeVisitor('view', $order);
-        $rateLimit->check(RateLimitName::ConversationOpen, (string) $this->visitor()->id);
+        $rateLimit->check(RateLimitName::ConversationOpen, (string) $this->knownVisitor()->id);
 
         $conversation = $openConversation(
             ConversationSubject::fulfillment($fulfillment->seller_id, $order->customer_id, $fulfillment->id),

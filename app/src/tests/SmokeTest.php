@@ -113,12 +113,14 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     };
 
     /**
-     * The storefront hands a first-time visitor an anonymous customer row and
-     * an identity cookie; the test client does not keep the one the middleware
-     * queues, so the walk pins its visitor up front.
+     * The home page is browse-only and hands a first-time visitor no row.
+     * Viewing the listing is the event that mints one, with an identity
+     * cookie behind it; the test client does not keep the one the
+     * middleware queues, so the walk pins its visitor up front.
      */
-    $arriveAsAnonymousVisitor = function (): Customer {
+    $arriveAsAnonymousVisitor = function (Listing $listing): Customer {
         $this->get('/')->assertOk()->assertSee(SMOKE_LISTING_TITLE);
+        $this->get("/art/{$listing->slug}")->assertOk();
 
         $visitor = Customer::sole();
         expect($visitor->email)->toBeNull();
@@ -331,7 +333,7 @@ it('carries a listing from seller sign-in to weekly payout', function () use ($p
     $listing = $createListing();
     $markForSale($listing);
 
-    $visitor = $arriveAsAnonymousVisitor();
+    $visitor = $arriveAsAnonymousVisitor($listing);
     $viewListing($listing);
 
     $favoriteListing($listing);

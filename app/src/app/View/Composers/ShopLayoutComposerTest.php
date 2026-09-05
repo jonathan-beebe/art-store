@@ -7,6 +7,7 @@ namespace App\View\Composers;
 use App\Actions\Cart\AddToCart;
 use App\Actions\Messaging\MarkConversationRead;
 use App\Models\Conversation;
+use App\Models\Customer;
 use App\Models\Message;
 use App\Notifications\OrderShipped;
 use Illuminate\Database\Events\QueryExecuted;
@@ -104,6 +105,21 @@ it('reads the counts in one query even for a visitor with no cart yet', function
 
     $response->assertOk()->assertSee('Cart (0)');
     expect($composerQueries)->toBe(1);
+});
+
+it('gives zero counts and runs no query for an unsaved visitor', function (): void {
+    $composerQueries = 0;
+    DB::listen(function (QueryExecuted $query) use (&$composerQueries): void {
+        $composerQueries += str_contains($query->sql, 'cart_items')
+            || str_contains($query->sql, 'notifications')
+            || str_contains($query->sql, 'messages') ? 1 : 0;
+    });
+
+    $response = $this->get('/');
+
+    $response->assertOk()->assertSee('Cart (0)');
+    expect($composerQueries)->toBe(0)
+        ->and(Customer::count())->toBe(0);
 });
 
 it('renders a page with no storefront visitor without the counts', function (): void {

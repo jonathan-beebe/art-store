@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\Favorite;
 use App\Models\ListingRemoval;
+use App\Shop\CustomerIdentity;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -24,6 +25,14 @@ it('says an empty favorites page is empty', function (): void {
     $response->assertDontSee('<article', escape: false);
 });
 
+it('shows an empty favorites page to an uncookied visitor, minting no row', function (): void {
+    $response = $this->get('/favorites');
+
+    $response->assertOk();
+    $response->assertSee('Nothing saved yet. Tap Favorite on any piece you want to come back to.');
+    expect(Customer::count())->toBe(0);
+});
+
 it('favorites a listing and records the event', function (): void {
     $visitor = $this->visitor();
     $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
@@ -35,6 +44,19 @@ it('favorites a listing and records the event', function (): void {
     expect($favorite->listing_id)->toBe($listing->id)
         ->and($favorite->customer_id)->toBe($visitor->id)
         ->and(AnalyticsReport::countsForListing($listing->id)->favorites)->toBe(1);
+});
+
+it('mints the visitor a row when an uncookied browser favorites a listing', function (): void {
+    $listing = $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->post('/art/harbour-at-dawn/favorite');
+
+    $response->assertRedirect();
+    $customer = Customer::sole();
+    expect($customer->isAnonymous())->toBeTrue()
+        ->and(Favorite::sole()->customer_id)->toBe($customer->id)
+        ->and(Favorite::sole()->listing_id)->toBe($listing->id);
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $customer->id);
 });
 
 it('favorites a listing while blocked', function (): void {

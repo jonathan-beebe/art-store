@@ -19,6 +19,7 @@ use App\Models\CartItem;
 use App\Models\Customer;
 use App\Models\CustomerBlock;
 use App\Models\ListingRemoval;
+use App\Shop\CustomerIdentity;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,18 @@ it('adds a listing to the cart and records the event', function (): void {
         ->and($item->quantity)->toBe(1)
         ->and($item->cart->customer_id)->toBe($visitor->id)
         ->and(AnalyticsReport::countsForListing($listing->id)->cartAdds)->toBe(1);
+});
+
+it('mints the visitor a row when an uncookied browser adds to the cart', function (): void {
+    $this->listing($this->seller(), ['slug' => 'harbour-at-dawn']);
+
+    $response = $this->post('/cart/harbour-at-dawn');
+
+    $response->assertRedirect(route('shop.cart'));
+    $customer = Customer::sole();
+    expect($customer->isAnonymous())->toBeTrue()
+        ->and(CartItem::sole()->cart->customer_id)->toBe($customer->id);
+    $response->assertCookie(CustomerIdentity::COOKIE, (string) $customer->id);
 });
 
 it('sends a blocked customer back with the reason instead of adding to the cart', function (): void {
@@ -78,6 +91,14 @@ it('shows the lines and the subtotal', function (): void {
     $response->assertSee('Harbour at Dawn');
     $response->assertSee('Winter Elm');
     $response->assertSee('$300.00');
+});
+
+it('shows an empty cart for an uncookied visitor, minting no row', function (): void {
+    $response = $this->get('/cart');
+
+    $response->assertOk();
+    $response->assertSee('Your cart is empty.');
+    expect(Customer::count())->toBe(0);
 });
 
 it('removes a line', function (): void {

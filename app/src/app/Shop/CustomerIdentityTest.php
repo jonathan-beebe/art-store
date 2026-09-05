@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shop;
 
 use App\Actions\Customers\ResolveCustomerFromCookie;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 
@@ -49,6 +50,25 @@ it('has no current customer when nothing was attached', function (): void {
     app()->instance('request', Request::create('/'));
 
     expect(CustomerIdentity::current())->toBeNull();
+});
+
+it('commits an unsaved customer: saves it, queues the cookie, and names the actor', function (): void {
+    $visitor = new Customer;
+
+    $committed = CustomerIdentity::commit($visitor);
+
+    expect($committed->exists)->toBeTrue()
+        ->and($committed->id)->not->toBeNull()
+        ->and(Cookie::queued(CustomerIdentity::COOKIE)?->getValue())->toBe((string) $committed->id);
+});
+
+it('returns an already saved customer unchanged, queuing no cookie', function (): void {
+    $visitor = $this->anonymousCustomer();
+
+    $committed = CustomerIdentity::commit($visitor);
+
+    expect($committed)->toBe($visitor)
+        ->and(Cookie::queued(CustomerIdentity::COOKIE))->toBeNull();
 });
 
 it('resolves the cookie once and answers every later ask from the request', function (): void {

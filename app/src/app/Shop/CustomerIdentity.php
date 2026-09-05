@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Shop;
 
+use App\Domain\Auth\ActorType;
+use App\Logging\Story;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -11,7 +13,8 @@ use Illuminate\Support\Facades\Cookie;
 /**
  * Carries the storefront visitor's identity: the encrypted cookie that
  * survives between visits, and the request attribute that `current()` reads
- * during one.
+ * during one. A visitor nothing has resolved yet holds an unsaved row until
+ * `commit()` gives it one — see `App\Http\Controllers\Shop\ShopController::knownVisitor()`.
  */
 final class CustomerIdentity
 {
@@ -58,6 +61,27 @@ final class CustomerIdentity
         $resolved = $request->attributes->get(self::RESOLVED_ATTRIBUTE);
 
         return $resolved instanceof Customer ? $resolved : null;
+    }
+
+    /**
+     * Turns an unsaved visitor into a row worth remembering: saved, put in
+     * the cookie, and named as the request's actor. A page that only reads
+     * never calls this, so a crawler or a browser with cookies off that
+     * never triggers a write leaves no row behind. A row already saved —
+     * signed in, or resolved from an earlier visit's cookie — comes back
+     * unchanged; committing it twice in one request costs nothing.
+     */
+    public static function commit(Customer $visitor): Customer
+    {
+        if ($visitor->exists) {
+            return $visitor;
+        }
+
+        $visitor->save();
+        self::rememberInCookie($visitor);
+        Story::actorIs(ActorType::Customer, (string) $visitor->id);
+
+        return $visitor;
     }
 
     public static function rememberInCookie(Customer $customer): void

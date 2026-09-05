@@ -21,7 +21,9 @@ final class ListingController extends ShopController
     {
         abort_unless($listing->isOnStorefront(), 404);
 
-        $visitor = $this->visitor();
+        // A listing view is an event worth an id (docs/spec.md §4.1), so this
+        // page is where a first-time visitor's row gets minted.
+        $visitor = $this->knownVisitor();
         $now = $this->now();
 
         $analytics->recordEvent(AnalyticsEvent::forListing(

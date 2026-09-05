@@ -23,3 +23,8 @@ Schedule::command('sweep:orders')->hourly();
 // prunes ahead of either window closing.
 Schedule::command('sweep:logs')->dailyAt('03:00');
 Schedule::command('sweep:analytics')->dailyAt('03:00');
+
+// Runs after the other daily sweeps, since an anonymous customer's own
+// history — a favorite, an order, a conversation — is what keeps it out of
+// this one's reach.
+Schedule::command('sweep:customers')->dailyAt('03:30');

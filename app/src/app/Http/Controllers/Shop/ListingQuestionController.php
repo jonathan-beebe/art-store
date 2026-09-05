@@ -24,7 +24,7 @@ final class ListingQuestionController extends ShopController
         OpenThread $ask,
         RateLimitGate $rateLimit,
     ): RedirectResponse|Response {
-        $visitor = $this->visitor();
+        $visitor = $this->knownVisitor();
         $body = $request->body();
 
         try {

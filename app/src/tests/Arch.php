@@ -201,12 +201,13 @@ arch()->preset()->laravel()
         'App\Domain',
         'App\Logging',
         // Named for the artisan command each registers (`payouts:run`,
-        // `sweep:orders`, `sweep:logs`, `sweep:analytics`, `seed:activity`,
-        // `mcp:key`), not suffixed `Command`.
+        // `sweep:orders`, `sweep:logs`, `sweep:analytics`, `sweep:customers`,
+        // `seed:activity`, `mcp:key`), not suffixed `Command`.
         'App\Console\Commands\RunWeeklyPayouts',
         'App\Console\Commands\Sweep\SweepOrders',
         'App\Console\Commands\Sweep\SweepLogs',
         'App\Console\Commands\Sweep\SweepAnalytics',
+        'App\Console\Commands\Sweep\SweepCustomers',
         'App\Console\Commands\SeedActivity',
         'App\Console\Commands\MintMcpKey',
         // A delivery channel is not a notification, and Laravel's own docs

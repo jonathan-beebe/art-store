@@ -216,6 +216,8 @@ app emits every event below that its features support.
 | `order.cancel`                                                          | customer cancel, admin cancel, and the stale sweep (`actor_type` says    |
 |                                                                         | which)                                                                   |
 | `order.sweep`                                                           | the stale-order sweep run (`doing` per order, `did` with the count)      |
+| `customer.sweep`                                                        | the anonymous-customer retention sweep run (`will` with the cutoff,      |
+|                                                                         | `did` with the count)                                                    |
 | `fulfillment.ship`, `fulfillment.deliver`, `fulfillment.decline`        | seller / customer / seller                                               |
 | `refund.issue`                                                          | seller decline and admin refund; `data` names `refund_id`,               |
 |                                                                         | `fulfillment_id`, `amount_cents`, `reason`                               |
@@ -416,6 +418,13 @@ pending_verification ─verify─▶ awaiting_payment ─approve─▶ paid
 - The stale sweep cancels `pending_verification` orders strictly older than
   `STALE_ORDER_HOURS` (default `24`). It runs from `make sweep-orders` (the
   `sweep:orders` artisan command) and is idempotent.
+- Placing an order as a guest, like a listing view, a store view, a cart add,
+  or a favorite, is an event tracked under the visitor's own id: an anonymous
+  visitor gets a `customers` row the first time one of these happens under
+  them. A read-only visit mints none. `sweep:customers`
+  deletes an anonymous row that owns none of these — and no conversation,
+  notification, `customer_blocks`, or `customer_merges` row either — once it
+  is older than `ANONYMOUS_CUSTOMER_RETENTION_DAYS` (default `30`).
 
 Fulfillment:
 
@@ -746,8 +755,8 @@ See `app/docs/mcp.md`.
 | `routes`                       | print the route table                                                                       |
 | `mcp-key`                      | mint an MCP api key for an admin and print it once (`EMAIL=` required, `NAME=` optional)    |
 | `payouts`, `sweep`             | the scheduled jobs, by hand (`AS_OF=` for `payouts`); `sweep` runs           |
-|                                | `sweep-orders`, `sweep-logs`, and `sweep-analytics` in sequence, each also   |
-|                                | runnable alone                                                               |
+|                                | `sweep-orders`, `sweep-logs`, `sweep-analytics`, and `sweep-customers` in    |
+|                                | sequence, each also runnable alone                                          |
 | `outbox`                       | prints that the app has no outbox — notifications are in-app, rendered from the database    |
 |                                | channel                                                                                     |
 | `image`, `run-image`           | build the production image (the Dockerfile's `runtime` target); run it standalone on a host |
