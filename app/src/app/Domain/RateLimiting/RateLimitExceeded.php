@@ -13,11 +13,10 @@ use RuntimeException;
  * a log line's `data` (docs/spec.md §2.3's `rate_limit.exceed`) without
  * redacting anything further.
  *
- * A plain `RuntimeException` rather than `DomainRuleViolation`: a trip is
- * not a rule the core turned down, it is a budget the shell measured before
- * the core was ever asked, so bootstrap/app.php renders it on its own
- * instead of through the `back()->withErrors()` every `DomainRuleViolation`
- * shares.
+ * A trip is a budget the shell measures before the core is ever asked.
+ * `RateLimitExceeded` extends `RuntimeException` for that reason.
+ * `bootstrap/app.php` gives it its own render step. `back()->withErrors()`
+ * renders every `DomainRuleViolation`.
  */
 final class RateLimitExceeded extends RuntimeException
 {

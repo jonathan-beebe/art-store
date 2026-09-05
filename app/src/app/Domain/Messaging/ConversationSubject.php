@@ -9,10 +9,10 @@ use InvalidArgumentException;
 /**
  * What a fulfillment thread is about: the seller, the customer, and the
  * order it is on. `subjectKey()` folds this into the one string
- * `conversations_subject_key_unique` guards, so asking for the same
- * fulfillment's thread twice finds the row the first ask opened rather than
- * opening a second one. Fulfillment is the one kind that finds rather than
- * opens fresh — the other three build a `ThreadOpening` instead.
+ * `conversations_subject_key_unique` guards. Asking for the same
+ * fulfillment's thread twice finds the row the first ask opened.
+ * Fulfillment is the one kind that finds an existing thread. The other
+ * three kinds build a `ThreadOpening`.
  */
 final readonly class ConversationSubject
 {

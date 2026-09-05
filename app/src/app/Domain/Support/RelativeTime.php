@@ -8,15 +8,16 @@ use DateTimeImmutable;
 use DateTimeInterface;
 
 /**
- * How long ago something happened, in two shapes. {@see short()} is the
- * way an inbox row reads a timestamp: exact enough to matter within the
- * last day ("now", "5m", "3h"), a calendar landmark ("Yesterday") just
- * after, and a bare date once neither elapsed time nor "yesterday" says
- * anything useful. {@see long()} is the same span spelled out ("2 days
- * ago"), which a sentence reads better than an abbreviation. Pure — every
- * case a caller sees is decided by the two instants passed in, nothing
- * else — which is why it sits in the core beside the objects that read
- * it, rather than in the shell.
+ * How long ago something happened, in two shapes.
+ * {@see short()} is the way an inbox row reads a timestamp. It shows an
+ * elapsed count within the last day: "now", "5m", "3h". It shows
+ * "Yesterday" for the day just before today. It falls back to a bare
+ * date once elapsed time and "yesterday" both stop applying.
+ * {@see long()} spells out the same span in words: "2 days ago". A full
+ * word reads more clearly in a sentence than an abbreviation does.
+ * The method is pure: the two instants passed in decide every case a
+ * caller sees. This is why it sits in the core beside the objects that
+ * read it.
  */
 final class RelativeTime
 {

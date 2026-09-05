@@ -9,9 +9,9 @@ use App\Domain\DomainRuleViolation;
 
 /**
  * The full list of reasons a listing's configurator state is not ready to
- * publish, carried together rather than one at a time — `getMessage()` reads
- * as one sentence, `refusalData()` carries every issue into the `refused` log
- * line's `data` (docs/spec.md §2.3).
+ * publish, carried together. `getMessage()` reads as one sentence.
+ * `refusalData()` carries every issue into the `refused` log line's `data`
+ * (docs/spec.md §2.3).
  */
 final class ConfiguratorPublishRefused extends DomainRuleViolation implements CarriesRefusalData
 {

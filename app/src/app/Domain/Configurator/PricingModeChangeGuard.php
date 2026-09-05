@@ -11,8 +11,7 @@ use App\Domain\DomainRuleViolation;
  * (`docs/item-configurator.md` §3) — changing it once the choice has options
  * would leave those options' prices ambiguous (an `add_on` "+$18.00" option
  * does not obviously become a `standalone` "$18.00" or a "$0.00"). Refused
- * here rather than silently reinterpreted; removing the options first is the
- * escape hatch.
+ * here. Removing the options first is the escape hatch.
  */
 final class PricingModeChangeGuard
 {

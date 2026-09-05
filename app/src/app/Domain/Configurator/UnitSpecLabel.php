@@ -7,9 +7,8 @@ namespace App\Domain\Configurator;
 /**
  * Humanizes one `specs_json` entry for display — `height_mm: 205` becomes
  * "Height: 205 mm". A trailing segment that names a known unit is split off
- * and shown after the value; everything else falls back to a title-cased key
- * with no unit, so an unanticipated spec still reads as English rather than
- * a raw column name.
+ * and shown after the value. Everything else falls back to a title-cased
+ * key alone, so an unanticipated spec still reads as English.
  */
 final class UnitSpecLabel
 {

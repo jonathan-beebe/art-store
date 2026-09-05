@@ -22,9 +22,9 @@ enum EventBreakdown: string
     /** The event name the `page.view` roll-up is recorded under. */
     public const string PAGE_VIEW_EVENT_NAME = 'page.view';
 
-    /** Event names whose subject is a cart or an order rather than a
-     * listing — checkout and the order steps a shopper causes on the way
-     * through the funnel — so the only breakdown they offer is by actor.
+    /** Event names whose subject is a cart or an order: checkout and the
+     * order steps a shopper causes on the way through the funnel. Actor is
+     * the only breakdown they offer.
      *
      * @var list<string>
      */

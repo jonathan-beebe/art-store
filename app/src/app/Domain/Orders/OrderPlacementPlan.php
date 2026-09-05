@@ -67,11 +67,11 @@ final readonly class OrderPlacementPlan
     }
 
     /**
-     * A removal outranks whatever the listing status says; nothing left to
-     * sell reads as sold out rather than short of stock. A configured line
-     * reads its availability off the variant (and, if serialized, the
-     * specific unit) it resolved to instead of the listing's own quantity —
-     * `docs/item-configurator.md` §3.
+     * A removal outranks whatever the listing status says. Nothing left to
+     * sell reads as sold out. A configured line reads its availability off
+     * the variant (and, if serialized, the specific unit) it resolved to
+     * instead of the listing's own quantity — `docs/item-configurator.md`
+     * §3.
      */
     private static function unavailableReason(PlaceableLine $line): ?UnavailableReason
     {

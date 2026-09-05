@@ -71,13 +71,12 @@ final readonly class LedgerBalance
     }
 
     /**
-     * Several balances added together, field by field. Valid because each
-     * one already folded its own fulfillments: a fulfillment belongs to
-     * exactly one seller, so grouping by fulfillment across every seller at
-     * once (`from()` on the whole ledger) partitions into the same groups as
-     * folding each seller alone and adding the results — which is what lets
-     * a platform total be built from balances a page already computed
-     * rather than a second read of the ledger.
+     * Several balances added together, field by field. Each one already
+     * folded its own fulfillments, and a fulfillment belongs to exactly one
+     * seller. Grouping by fulfillment across every seller at once (`from()`
+     * on the whole ledger) partitions into the same groups as folding each
+     * seller alone and adding the results. A platform total reuses balances
+     * a page already computed. The ledger is read once.
      *
      * @param  list<self>  $balances
      */

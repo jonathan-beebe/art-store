@@ -57,7 +57,7 @@ return [
         // its own SQLite file, so an analytics write (page views, analytics
         // events) contends with nothing the commerce connection above
         // does. `synchronous = off` risks losing a count on a crash.
-        // `busy_timeout` is a fifth of the commerce connection's, so a
+        // `busy_timeout` is a twentieth of the commerce connection's, so a
         // contended flush fails fast and no request waits behind it
         // (App\Analytics\Analytics::flush() catches that failure and
         // writes it as one log line). Foreign keys are off — the store's
