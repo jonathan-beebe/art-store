@@ -7,14 +7,14 @@ namespace App\Domain\Configurator;
 use App\Domain\Money\Money;
 
 /**
- * A combination's price: base plus the surcharges its `add_on` option values
- * carry, with a per-variant override for the cells where price is a function
- * of the whole combination (the walnut table's hand-priced dimension matrix)
- * rather than a sum of its parts. When the combination carries at least one
- * `standalone` option value, that option's own price replaces the listing's
- * base price instead of adding to it (`docs/item-configurator.md` §3) — more
- * than one `standalone` selection (multiple standalone axes) sums their
- * prices together as the replacement base.
+ * A combination's price: base plus the surcharges its `add_on` option
+ * values carry. A per-variant override sets one price for the whole
+ * combination instead of composing it from parts (the walnut table's
+ * hand-priced dimension matrix). When the combination carries at least one
+ * `standalone` option value, that option's own price replaces the
+ * listing's base price instead of adding to it (`docs/item-configurator.md`
+ * §3) — more than one `standalone` selection (multiple standalone axes)
+ * sums their prices together as the replacement base.
  */
 final readonly class VariantPrice
 {

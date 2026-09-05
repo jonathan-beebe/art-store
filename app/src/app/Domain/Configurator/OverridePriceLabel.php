@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Configurator;
 
 /**
- * Names the first breakdown line for a variant or unit priced by override —
- * a flat dollar amount rather than base-plus-surcharges, so "Base price"
- * would misdescribe what is actually priced. Names the selected combination
- * instead (`"48 in / 30 in"`); an axis-free listing (a serialized unit with
- * no axes, priced on its own) has no combination to name and keeps
+ * Names the first breakdown line for a variant or unit priced by override.
+ * An override is one flat dollar amount that replaces the
+ * base-plus-surcharges price, so "Base price" would misdescribe what is
+ * actually priced. Names the selected combination instead
+ * (`"48 in / 30 in"`); an axis-free listing (a serialized unit with no
+ * axes, priced on its own) has no combination to name and keeps
  * "Base price".
  */
 final class OverridePriceLabel

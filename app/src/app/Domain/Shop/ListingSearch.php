@@ -36,7 +36,7 @@ final readonly class ListingSearch
         }
 
         // SQLite LIKE has no escape character unless the query names one, so a
-        // wildcard a visitor typed is dropped rather than escaped.
+        // wildcard a visitor typed is dropped.
         $literal = preg_replace('/\s+/', ' ', str_replace(['%', '_'], ' ', $this->term));
 
         return '%'.trim((string) $literal).'%';

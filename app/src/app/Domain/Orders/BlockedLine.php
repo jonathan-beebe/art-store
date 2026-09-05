@@ -6,8 +6,7 @@ namespace App\Domain\Orders;
 
 /**
  * One line placement refused, named so every reason reaches the shopper
- * beside the piece it is about rather than as a single message covering the
- * whole cart.
+ * beside the piece it is about.
  */
 final readonly class BlockedLine
 {

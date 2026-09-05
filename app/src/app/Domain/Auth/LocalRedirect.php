@@ -25,9 +25,9 @@ final class LocalRedirect
     }
 
     /**
-     * A destination reaches us through a form field and rides on a magic link,
-     * so anything that could send the visitor off this site — or split the
-     * response header — is dropped rather than carried.
+     * A destination reaches us through a form field and rides on a magic
+     * link. Anything that could send the visitor off this site, or split
+     * the response header, is dropped.
      *
      * @return string|null null when the target does not stay on this site
      */

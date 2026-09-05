@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Listings;
 
 /**
- * How long a removal stands. A temporary removal is a hold pending review and
- * lifts back to whatever status the listing already carried; a permanent one
- * never lifts, so raising a temporary removal to permanent is done by lifting
- * it and removing again — one reason for the seller to read rather than two
- * standing at once.
+ * How long a removal stands. A temporary removal is a hold pending review
+ * and lifts back to whatever status the listing already carried. A
+ * permanent one never lifts. Raising a temporary removal to permanent
+ * means lifting it and removing again, so the seller reads one status at
+ * a time.
  */
 enum ListingRemovalKind: string
 {

@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Configurator;
 
 /**
- * A variant's combination, named by the option values it holds rather than by
- * a compound label string — the primitive that replaces "Gold - Inside" and
- * "3 US - 4mm". Sorted so the same combination always names itself the same
- * way regardless of the order its axes were chosen in, which is what lets
- * `variants.combo_key` carry a UNIQUE index. An axis-free listing's one
- * variant (the legacy path) holds the empty key.
+ * A variant's combination, named by the option values it holds: the
+ * primitive that replaces "Gold - Inside" and "3 US - 4mm". Sorted so the
+ * same combination always names itself the same way regardless of the
+ * order its axes were chosen in, which is what lets `variants.combo_key`
+ * carry a UNIQUE index. An axis-free listing's one variant (the legacy
+ * path) holds the empty key.
  */
 final readonly class ComboKey
 {

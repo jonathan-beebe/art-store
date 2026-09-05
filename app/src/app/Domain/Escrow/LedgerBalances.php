@@ -7,8 +7,7 @@ namespace App\Domain\Escrow;
 /**
  * Every seller's balance at once, folded from movements the caller read in
  * one go. A page that lists sellers reads the ledger once and asks this for
- * each row it renders, rather than asking each seller for a balance of its
- * own; a seller with no entries answers zero without a read at all.
+ * each row it renders. `of()` defaults an absent seller's balance to zero.
  */
 final readonly class LedgerBalances
 {

@@ -8,8 +8,8 @@ use App\Domain\Auth\ActorType;
 use DateTimeInterface;
 
 /**
- * Read from `resolved_at` rather than stored twice: a thread is resolved
- * exactly when that column is set.
+ * Derived from `resolved_at`: a thread is resolved exactly when that
+ * column is set.
  */
 enum ConversationStatus: string
 {

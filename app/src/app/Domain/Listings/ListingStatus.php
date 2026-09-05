@@ -57,8 +57,8 @@ enum ListingStatus: string
     /**
      * The four states a seller's own screens read a listing as: Live,
      * Draft, Sold out, or Removed. An active admin removal outranks the
-     * status itself; an archived listing reads the same way, since the
-     * seller took it down on their own account.
+     * status. An archived listing also reads as Removed, since the seller
+     * took it down on their own account.
      */
     public function sellerBadgeLabel(bool $hasActiveRemoval): string
     {
