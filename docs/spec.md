@@ -100,8 +100,9 @@ a `HasPrefixedUlid` trait on the base model. One function parses
 `"<prefix>_<ulid>"` and refuses the wrong prefix; routes use it at the
 boundary.
 
-No data migration: the app rebuilds with `make fresh`. Migrations may be
-rewritten in place.
+Temporary: as we prototype we can skip data migration: the app rebuilds 
+with `make fresh`. Migrations may be rewritten in place. This rule will be
+removed once we have durable data we need to protect.
 
 ## 2. Logging
 
@@ -224,11 +225,9 @@ app emits every event below that its features support.
 | `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
 | `app.boot`, `app.shutdown`                                              | process lifecycle                                                        |
 
-The vocabulary is closed: a write with no event above stays silent rather
-than minting an ad hoc name. Reserved for a future round: `favorite.toggle`,
-`conversation.read`, `faq.update`, `session.start`, `fulfillment.step` (a
-seller completing one step of their own flow, §4.5 — the appended
-`fulfillment_events` row is the record instead).
+The vocabulary is closed: if it looks like a new event is emerging as you develop
+the app, work with the user to define the new event type and add it to the official
+event vocab here and in the code. 
 
 ### 2.4 Emoji prefixes
 
@@ -361,7 +360,7 @@ unset. Limits are read at boot; a malformed value refuses to boot.
 | `payment_attempt`    | `RATE_LIMIT_PAYMENT_ATTEMPT`    | `5/15m`  | order id                              | POST pay                               |
 | `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | `60/1h`  | seller id                             | listing create/update/upload           |
 
-Behaviour on trip: HTTP 429, `Retry-After: <seconds>` header, the site's own
+Behavior on trip: HTTP 429, `Retry-After: <seconds>` header, the site's own
 HTML page ("Too many requests — try again in N minutes"; for a form, the form
 re-renders with that sentence as a field-less error), one `rate_limit.exceed`
 log line, no side effect performed. A POST that came from a form re-renders
@@ -383,9 +382,9 @@ Order:
 ```
 pending_verification ─verify─▶ awaiting_payment ─approve─▶ paid
         │                          │  ▲                     │
-        │                     decline  retry                 ├─▶ partially_shipped ─▶ shipped ─▶ delivered
+        │                     decline  retry                ├─▶ partially_shipped ─▶ shipped ─▶ delivered
         │                          ▼  │                     │
-        │                     payment_failed                 └─▶ refunded  (every fulfillment declined or refunded)
+        │                     payment_failed                └─▶ refunded  (every fulfillment declined or refunded)
         └──────────── cancel ──────┴─────────▶ cancelled
 ```
 

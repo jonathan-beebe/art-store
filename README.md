@@ -1,17 +1,11 @@
 # Art Store
 
-An online marketplace where artists sell their handmade art and buyers find
-and purchase it. One Laravel application serves three sites from one server:
-the storefront at `/`, the seller portal at `/seller`, and the admin site at
-`/admin`. Every page works with JavaScript off.
+An online marketplace where artists sell their handmade art and buyers. One 
+Laravel application serves three sites from one server:
 
-## Layout
-
-| Path        | Holds                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------- |
-| `app/`      | The application: Dockerfile, compose stack, Makefile, `src/` (Laravel), `docs/`        |
-| `docs/`     | Product and design decisions: principles, ontology, the spec, routing, logging, data   |
-| `research/` | Market and product research that informed the decisions                                |
+- the storefront at `/`
+- the seller portal at `/seller`
+- and the admin site at `/admin`. 
 
 ## Running it
 
@@ -43,8 +37,3 @@ deployment.
 assets, coverage-gated tests) once before a PR opens, and CI runs it again.
 `CLAUDE.md` holds the working rules, including that nothing runs on the
 host outside Docker.
-
-## History
-
-The tag `2026-09-04-prototypes` marks the last commit that held the three
-prototypes (Node, PHP, Rails) this app was chosen from.

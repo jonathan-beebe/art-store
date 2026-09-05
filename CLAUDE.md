@@ -19,15 +19,8 @@ The app is containerized so that nothing is installed on the host. The rule:
 - Agents and subagents follow the same rule. A worker that needs to run the
   suite uses `make test` from `app/`.
 
-Why it matters beyond cleanliness: the bind-mounted `src/vendor` and
-`src/node_modules` hold platform-specific binaries. A host install on macOS
-leaves darwin binaries in the directory the Linux container reads, the
-entrypoint skips its own install because the directory looks fresh, and the
-container crashes on a missing `linux-*` native module.
-
-If a host install has already happened, delete the installed directory
-(`rm -rf app/src/vendor app/src/node_modules`) and `make up` again so the
-container installs for itself.
+If it appears that a host install occurred, let the user know so they can
+clean it up.
 
 ## Port
 
@@ -35,9 +28,8 @@ The app serves on host port 8000.
 
 ## Git worktrees
 
-Create every worktree under the repository root's `.claude/worktrees/`
-directory (`git worktree add .claude/worktrees/<branch> <base>`), never as a
-sibling of the repository.
+Create every worktree under the repository root's `worktrees/`
+directory (`git worktree add worktrees/<branch> <base>`).
 
 `app/Makefile` names the compose project after the checkout directory plus
 `app` (`art-store-app` in the main checkout), so a worktree gets its own
