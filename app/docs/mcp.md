@@ -74,9 +74,13 @@ minute per key (`ApiKey::USED_AT_GRAIN_SECONDS`), so a burst of tool
 calls costs one UPDATE. A revoked row stays as the record of the key
 and never authenticates again.
 
-Minting is `make mcp-key EMAIL=<admin address> NAME="<what for>"`
-(`mcp:key`), which prints the plaintext once. The admin settings page
-that mints and revokes keys in the browser is the next slice.
+An admin mints and revokes their own keys on `/admin/settings/api-keys`
+(`Admin\ApiKeyController`, `Admin\RevokeApiKeyController`,
+`ApiKeyPolicy`): the mint form takes a name, the redirect carries the
+plaintext in the session under `ApiKeyController::MINTED_KEY`, and the
+page that follows shows it once. Another admin's key answers 404, the
+site's one ownership refusal. `make mcp-key EMAIL=<admin address>
+NAME="<what for>"` (`mcp:key`) mints one from the CLI the same way.
 
 Every call spends the `mcp_request` limit (docs/spec.md §3, default
 `600/1h`, keyed by the key's id); a trip answers 429 as JSON with
@@ -126,8 +130,6 @@ container) opens the MCP Inspector against the running server.
 
 ## Next
 
-- The admin settings screen: list an admin's keys, mint one and show
-  it once, revoke.
 - A read-only SQL tool over the three SQLite files — engine read-only,
   an authorizer (ext/sqlite3, not in the image today), and a row cap.
 - An `mcp.call` log event naming the tool per call, a vocabulary

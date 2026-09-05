@@ -613,6 +613,9 @@ edit write no log line; the appended row is the record.
 |                                                                         | viewer's own requests hidden by default; a visit with no query string    |
 |                                                                         | redirects to `?domain=shop&group=1`                                      |
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
+| `/admin/settings/api-keys`, `POST /admin/settings/api-keys`,            | the signed-in admin's own MCP api keys, newest first; mint one by name   |
+| `POST /admin/settings/api-keys/:id/revoke`                              | (the plaintext shown once, on the page after the redirect); revoke one   |
+|                                                                         | (another admin's answers 404)                                            |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
 | `/admin/messages`, `/admin/messages/:id`, `.../resolve`, `.../reopen`,  | shared desk: every admin sees every thread, filtered by `domain=`        |
@@ -683,8 +686,10 @@ validate it. Rules:
 
 - One bearer api key per row of `api_keys` (prefix `key`), owned by an
   admin; the plaintext is `artstore_` plus forty alphanumerics, stored as
-  its sha256 digest and shown once, when minted (`mcp:key`, `make
-  mcp-key`). A revoked key stays as a record and never authenticates again.
+  its sha256 digest and shown once, when minted — on `/admin/settings/api-keys`
+  by the admin themself, or by `mcp:key` (`make mcp-key`) from the CLI. An
+  admin sees and revokes their own keys alone. A revoked key stays as a
+  record and never authenticates again.
 - The key's admin is the request's actor: signed in on the `admin` guard
   for the request, named on its log lines. An admin's key reads everything
   the admin site reads.

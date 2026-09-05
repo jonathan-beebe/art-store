@@ -33,6 +33,8 @@ sign in through the same magic link sellers and customers use
 |                                                                         | cart-line counts                                                         |
 | `GET /admin/customers/{customer}`                                       | orders, favorites, cart, block history, merge history, and the block /   |
 |                                                                         | lift form                                                                |
+| `GET /admin/settings/api-keys`                                          | the signed-in admin's own MCP api keys, the mint form, and the plaintext |
+|                                                                         | of a key minted on the request before (once); see `mcp.md`               |
 | `GET /admin/listings?status=&seller=&removed=any\|removed\|visible`     | every listing across every seller                                        |
 | `GET /admin/listings/{listing}`                                         | the listing, its active removal and removal history, its view / favorite |
 |                                                                         | / cart-add counts, and every order line it sold on                       |
