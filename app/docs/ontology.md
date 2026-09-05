@@ -6,20 +6,23 @@ at checkout but held in escrow per seller until the customer confirms
 delivery, then settled into a weekly payout.
 
 Question: what are the entities in the product, and how does value move
-between them at the concept level? (Table-level shape: `docs/data-model.md`.
-Sequence and state detail: `docs/orders.md`, `docs/escrow.md`,
-`docs/identity.md`.)
+between them at the concept level? (Table-level shape:
+[`data-model.md`](data-model.md). Sequence and state detail:
+[`orders.md`](orders.md), [`escrow.md`](escrow.md),
+[`identity.md`](identity.md).)
 
 ```mermaid
 flowchart LR
     subgraph sellerSide["Seller side"]
         seller["Seller"]
         listing["Listing"]
+        config["Catalog configuration"]
     end
     subgraph customerSide["Customer side"]
         customer["Customer"]
         cart["Cart"]
         order["Order"]
+        analytics["Analytics"]
     end
     subgraph moneySide["Money"]
         platform["Platform"]
@@ -31,6 +34,8 @@ flowchart LR
     end
 
     seller -->|"lists"| listing
+    config -->|"shapes"| listing
+    customer -->|"browsing recorded as"| analytics
     listing -->|"added to"| cart
     customer -->|"holds"| cart
     cart -->|"becomes"| order
@@ -46,18 +51,20 @@ flowchart LR
     payout -->|"pays"| seller
 ```
 
-Smaller catalog and identity concepts (listing event, favorite, cart item,
-order item, magic link, customer merge, notification) sit off this diagram —
-they support the entities shown rather than carrying their own flow. So do
-the seller's own: the store profile and its sections, the fulfillment flow
-and its steps, the fulfillment event log, and the activity feed. Each gets
-its own section below.
+Smaller catalog and identity concepts (favorite, cart item, order item,
+magic link, customer merge, notification) sit off this diagram — they
+support the entities shown. So do the seller's own: the store profile and
+its sections, the fulfillment flow and its steps, the fulfillment event
+log, and the activity feed. "Catalog configuration" stands for the sixteen
+tables behind a listing's options, stock, and content; "Analytics" stands
+for the analytics event, the visit, and the funnel. Each gets its own
+section below.
 
 ## Roles
 
 ### Seller
 
-**Who/what.** A person or studio who lists art for sale and gets paid out.
+**Who/what.** A human who lists art for sale and gets paid out.
 
 **Why it exists.** Supplies the catalog; the platform's other side of the
 marketplace.
@@ -88,7 +95,7 @@ conditions: anonymous (`email` null) → guest with an unverified address
 `Customer::isAnonymous()` reads the first.
 
 **Relates to.**
-- has Favorites, a Cart, and Listing events
+- has Favorites, a Cart, and Analytics events
 - places Orders
 - receives Notifications
 - may be the source or the target of a Customer merge
@@ -115,7 +122,7 @@ merge).
 
 **Relates to.**
 - is a Customer
-- resolved per request by `ResolveCustomerIdentity` (see `docs/identity.md`)
+- resolved per request by `ResolveCustomerIdentity` (see [`identity.md`](identity.md))
 
 **In code.** No separate model or enum — `Customer::isAnonymous()`,
 `App\Domain\Customers\CustomerIdentityPlan`.
@@ -171,12 +178,13 @@ browsing.
 
 **Lifecycle.** `draft → for_sale → sold`, plus `archived` from `draft` or
 `for_sale`, plus `sold → for_sale` (a declined charge restores the stock it
-took). Only `for_sale` listings appear on the storefront; `sold` ones keep
-their page. See "sold" in Vocabulary notes.
+took). Only `for_sale` listings appear in browse and search; a `sold`
+listing keeps its page (`isOnStorefront()` is true for both). See "sold" in
+Vocabulary notes.
 
 **Relates to.**
 - belongs to one Seller
-- records Listing events
+- records Analytics events
 - favorited by Customers via Favorite
 - held in Cart items, sold as Order items
 
@@ -186,9 +194,10 @@ their page. See "sold" in Vocabulary notes.
 
 ### Analytics event
 
-**Who/what.** One recorded interaction, one of nine names: a listing
+**Who/what.** One recorded interaction, one of eleven names: a listing
 viewed, favorited, unfavorited, or cart-added; a checkout opened; an order
-placed, paid, or cancelled; a store's public page viewed.
+placed, paid, or cancelled; a store's public page viewed; a help article
+marked answered or unanswered.
 
 **Why it exists.** Feeds the seller's per-listing activity numbers, the
 dashboard's daily activity timeline, the storefront funnel, and the admin
@@ -200,17 +209,63 @@ recording only appends to an in-memory buffer, which a later flush turns
 into rows.
 
 **Relates to.**
-- belongs to one Listing, Order, Cart, or Store, named by
-  `subject_type`/`subject_id` (nullable — a listing view names one, a
-  checkout-open does not)
+- belongs to one Listing, Order, Cart, Store, or help article, named by
+  `subject_type`/`subject_id`
 - optionally attributed to one Customer (`actor_id` nullable)
 
 **In code.** `App\Analytics\Analytics` (the one writer),
 `App\Analytics\AnalyticsEvent`, `App\Domain\Analytics\AnalyticsEventName`
 (enum: `listing.view` | `listing.favorite` | `listing.unfavorite` |
 `listing.cart_add` | `checkout.open` | `order.place` | `order.pay` |
-`order.cancel` | `store.view`), `App\Analytics\AnalyticsReport` (the
-reader) (table `analytics_events`). See [`analytics.md`](analytics.md).
+`order.cancel` | `store.view` | `help.answered` | `help.unanswered`),
+`App\Analytics\AnalyticsReport` (the reader) (table `analytics_events`).
+See [`analytics.md`](analytics.md).
+
+### Visit
+
+**Who/what.** The first-touch facts of one browser session: when it
+started, where it landed, the `Referer` host, the five `utm_*` values, and
+the Customer when the request already carried one.
+
+**Why it exists.** Says which channel brought a session, so the session's
+later events group by origin (`Channel::derive()`).
+
+**Lifecycle.** Write-once: `session_id` is the primary key and the flush
+writes `INSERT OR IGNORE`, so only a session's first request lands. Pruned
+with Analytics events after `ANALYTICS_RETENTION_DAYS`.
+
+**Relates to.**
+- keyed by the `sid` cookie, the same `session_id` an Analytics event
+  carries
+- optionally attributed to one Customer (`actor_id`, no FK)
+- read by the admin channel report and the actor page
+
+**In code.** `App\Analytics\AnalyticsVisit`, `App\Analytics\ActorVisitRow`,
+`App\Domain\Analytics\Channel` (table `analytics_visits` in the analytics
+store; no Eloquent model). See [`analytics.md`](analytics.md) § "Schema".
+
+### Funnel
+
+**Who/what.** An admin-defined path through the analytics vocabulary: a
+name, a unique slug, an ordered `steps` list of event names, and a
+`position` among the tiles on the analytics home.
+
+**Why it exists.** Shows where sessions drop between one event and the
+next, for the whole store, one listing, or one seller.
+
+**Lifecycle.** None — created, edited, reordered, and removed at
+`/admin/funnels`. `FunnelSeeder` seeds the "Storefront" funnel on every
+`make fresh` and every deploy. Visitors is every funnel's implied first
+step and is never stored.
+
+**Relates to.**
+- names Analytics event names as its steps; `FunnelDefinition` validates
+  the list (two or more names, each known, none repeated)
+- read by `App\Analytics\Admin\Funnel` and `FunnelTiles`
+
+**In code.** `App\Models\Funnel`, `App\Domain\Analytics\FunnelDefinition`
+(table `funnels` in the app database). See [`analytics.md`](analytics.md)
+§ "The funnel".
 
 ### Listing removal
 
@@ -244,10 +299,305 @@ them to the cart.
 
 **Relates to.**
 - belongs to one Customer and one Listing
-- toggling one also records a Listing event (`favorite`/`unfavorite`)
+- toggling one also records an Analytics event (`favorite`/`unfavorite`)
 
 **In code.** `App\Models\Favorite`, `App\Domain\Favorites\FavoriteChange`
 (enum: `Added` | `Removed`) (table `favorites`).
+
+## Catalog configuration
+
+The sixteen tables behind a listing's options, stock, and content. The
+taxonomy layer (Category, Property, Property value, Category property) is
+platform data every listing reads; every other row belongs to one Listing
+and carries `seller_id` beside `listing_id`. `App\Models\Listing` reaches
+them through `category()`, `optionAxes()`, `variants()`, `modifiers()`,
+`quantityBreaks()`, `descriptionSections()`, and `images()`. The full
+shape, the price and availability resolution, and the seller and customer
+flows are in [`item-configurator.md`](item-configurator.md).
+
+### Category
+
+**Who/what.** One node in the taxonomy tree a seller places a listing in.
+`path` is the materialized path (`/jewelry/rings/`); `browsable` says
+whether a browse page lists it.
+
+**Why it exists.** Grants Properties to the listings placed in it, through
+Category properties.
+
+**Lifecycle.** None.
+
+**Relates to.**
+- has one parent Category and many children
+- grants Properties through Category properties
+- placed on Listings (`listings.category_id`, nullable)
+
+**In code.** `App\Models\Category` (table `categories`, prefix `cat`).
+See [`item-configurator.md`](item-configurator.md) §2.1.
+
+### Property
+
+**Who/what.** One catalog property (Metal, Ring Size, Paper Stock) with a
+`data_type` (`PropertyDataType`: `enum` | `text` | `number`).
+
+**Why it exists.** Named once, granted to many Categories.
+
+**Lifecycle.** None.
+
+**Relates to.**
+- has Property values, ordered by position
+- granted by Category properties
+
+**In code.** `App\Models\Property`,
+`App\Domain\Configurator\PropertyDataType` (table `properties`, prefix
+`prp`). See [`item-configurator.md`](item-configurator.md) §2.1.
+
+### Property value
+
+**Who/what.** One enumerated value of a Property (Gold, Silver for Metal).
+
+**Why it exists.** The value a Listing attribute and an Option value point
+at, so a facet and a choice share one label.
+
+**Lifecycle.** None.
+
+**Relates to.**
+- belongs to one Property
+- named by Listing attributes and Option values
+
+**In code.** `App\Models\PropertyValue` (table `property_values`, prefix
+`pvl`). See [`item-configurator.md`](item-configurator.md) §2.1.
+
+### Category property
+
+**Who/what.** One grant: a Category allows a Property on the listings
+placed in it, and how — `usable_as_attribute`, `usable_as_axis`,
+`required`, `multivalued`.
+
+**Why it exists.** One tree serves the seller's form and the buyer's
+facets; the grant says which use a property has in which category.
+
+**Lifecycle.** None. Unique per (category, property).
+
+**Relates to.**
+- belongs to one Category and one Property
+
+**In code.** `App\Models\CategoryProperty` (table `category_properties`,
+prefix `cpr`). See [`item-configurator.md`](item-configurator.md) §2.1.
+
+### Listing attribute
+
+**Who/what.** One search-facet fact about a listing: a Property paired
+with one of its values (Metal: Gold).
+
+**Why it exists.** The row a facet filter reads.
+
+**Lifecycle.** None. Unique per (listing, property, value); a
+`multivalued` property holds more than one row on a listing.
+
+**Relates to.**
+- belongs to one Listing and one Seller
+- names one Property and one Property value
+
+**In code.** `App\Models\ListingAttribute` (table `listing_attributes`,
+prefix `lat`). See [`item-configurator.md`](item-configurator.md) §2.1.
+
+### Option axis
+
+**Who/what.** One buyer-facing choice a listing offers (Metal, Size):
+a catalog Property, or a custom label-only axis when `property_id` is
+null. `pricing_mode` (`PricingMode`: `add_on` | `standalone`) is chosen
+at creation.
+
+**Why it exists.** The dimension a Variant is a combination of.
+
+**Lifecycle.** None — added, renamed, reordered, removed from the
+configurator.
+
+**Relates to.**
+- belongs to one Listing and one Seller
+- may name one Property
+- has Option values
+
+**In code.** `App\Models\OptionAxis`, `App\Domain\Configurator\PricingMode`
+(table `option_axes`, prefix `axs`). See
+[`item-configurator.md`](item-configurator.md) §2.2.
+
+### Option value
+
+**Who/what.** One choice on an Option axis (Gold, Silver): a label, a
+`surcharge_cents` on an `add_on` axis or a `price_cents` on a `standalone`
+one, and `is_default`.
+
+**Why it exists.** The price delta a choice adds, and the value a Variant
+option and a Modifier scope point at.
+
+**Lifecycle.** None. At most one default per axis, enforced by the action.
+
+**Relates to.**
+- belongs to one Option axis and one Seller
+- may name one Property value
+- chosen by Variant options
+- gates Modifiers through Modifier scopes
+
+**In code.** `App\Models\OptionValue` (table `option_values`, prefix
+`ovl`). See [`item-configurator.md`](item-configurator.md) §2.2.
+
+### Variant
+
+**Who/what.** One sellable combination of a listing's option values, with
+a sku, a price override, a `quantity` (null when serialized), `is_serialized`,
+and `enabled`. `combo_key` is the sorted, `/`-joined option-value ids;
+`''` for an axis-free listing.
+
+**Why it exists.** A sparse row: the seller creates only the combinations
+that sell.
+
+**Lifecycle.** None. Unique per (listing, combo_key).
+
+**Relates to.**
+- belongs to one Listing and one Seller
+- has Variant options, one per axis
+- has Units when serialized
+
+**In code.** `App\Models\Variant` (table `variants`, prefix `vrt`). See
+[`item-configurator.md`](item-configurator.md) §2.2.
+
+### Variant option
+
+**Who/what.** One axis's chosen value within a Variant.
+
+**Why it exists.** The row that says which cell of the cross product a
+Variant is.
+
+**Lifecycle.** None. Unique per (variant, axis).
+
+**Relates to.**
+- belongs to one Variant and one Seller
+- names one Option axis and one Option value
+
+**In code.** `App\Models\VariantOption` (table `variant_options`, prefix
+`vop`). See [`item-configurator.md`](item-configurator.md) §2.2.
+
+### Unit
+
+**Who/what.** One serialized, one-of-a-kind piece of stock behind a
+Variant: a label, a `state`, a condition note, specs, and a price override.
+
+**Why it exists.** Replaces a numbered-lot axis with one row per piece.
+
+**Lifecycle.** `UnitState`: `available` → `sold`. `reserved` is a case
+nothing writes. Unique per (variant, label).
+
+**Relates to.**
+- belongs to one Variant and one Seller
+
+**In code.** `App\Models\Unit`, `App\Domain\Configurator\UnitState`
+(table `units`, prefix `unt`). See
+[`item-configurator.md`](item-configurator.md) §2.2.
+
+### Modifier
+
+**Who/what.** One order-line question a listing asks: a `kind`
+(`ModifierKind`: `text` | `select` | `measurement`), a prompt,
+instructions, `required`, and its price — `add_on_price_cents` for text,
+`rate_cents_per_unit` between `min_value` and `max_value` for measurement,
+per option for select.
+
+**Why it exists.** Inventory stays on the Variant; the answer attaches to
+the order line.
+
+**Lifecycle.** None — added, edited, reordered, removed from the
+configurator.
+
+**Relates to.**
+- belongs to one Listing and one Seller
+- has Modifier options when `select`
+- shown for the Option values its Modifier scopes name
+
+**In code.** `App\Models\Modifier`, `App\Domain\Configurator\ModifierKind`
+(table `modifiers`, prefix `mdf`). See
+[`item-configurator.md`](item-configurator.md) §2.2.
+
+### Modifier option
+
+**Who/what.** One choice on a `select` Modifier (a font, a paper stock)
+with its own `add_on_price_cents`.
+
+**Why it exists.** A select modifier prices per chosen option.
+
+**Lifecycle.** None.
+
+**Relates to.**
+- belongs to one Modifier and one Seller
+
+**In code.** `App\Models\ModifierOption` (table `modifier_options`, prefix
+`mdo`). See [`item-configurator.md`](item-configurator.md) §2.2.
+
+### Modifier scope
+
+**Who/what.** One Option value a Modifier shows for.
+
+**Why it exists.** Gates a question to the choices it applies to; zero
+rows for a modifier means it shows product-wide.
+
+**Lifecycle.** None. Unique per (modifier, option value).
+
+**Relates to.**
+- belongs to one Modifier and one Seller
+- names one Option value
+
+**In code.** `App\Models\ModifierScope` (table `modifier_scopes`, prefix
+`mds`). See [`item-configurator.md`](item-configurator.md) §2.2.
+
+### Quantity break
+
+**Who/what.** One tier: at `min_qty` or more, the resolved unit price
+carries a `discount_bps` discount.
+
+**Why it exists.** Volume pricing on a listing.
+
+**Lifecycle.** None. Unique per (listing, min_qty).
+
+**Relates to.**
+- belongs to one Listing and one Seller
+
+**In code.** `App\Models\QuantityBreak` (table `quantity_breaks`, prefix
+`qbk`). See [`item-configurator.md`](item-configurator.md) §2.2.
+
+### Description section
+
+**Who/what.** One typed slice of a listing's description: a `kind`
+(`DescriptionSectionKind`: `text` | `specs` | `size_chart` | `faq` |
+`care` | `disclaimer`), a title, and a `body_md` or a `body_json`.
+
+**Why it exists.** A size chart or a care sheet renders from data.
+
+**Lifecycle.** None. Unique position per listing.
+
+**Relates to.**
+- belongs to one Listing and one Seller
+
+**In code.** `App\Models\DescriptionSection`,
+`App\Domain\Configurator\DescriptionSectionKind` (table
+`description_sections`, prefix `dsc`). See
+[`item-configurator.md`](item-configurator.md) §2.3.
+
+### Listing image
+
+**Who/what.** One photo on a listing, ordered by `position`.
+
+**Why it exists.** The lowest position is the cover every surface renders
+through `Listing::imageUrl()`.
+
+**Lifecycle.** None — added, reordered, removed on the Images screen.
+Unique per (listing, position).
+
+**Relates to.**
+- belongs to one Listing and one Seller
+
+**In code.** `App\Models\ListingImage`,
+`App\Domain\Listings\ListingImageMove` (table `listing_images`, prefix
+`img`). See [`item-configurator.md`](item-configurator.md) §2.3.
 
 ## Store
 
@@ -353,7 +703,7 @@ delivery; the parent of the per-seller Fulfillments.
 customer, an admin, or the stale sweep; `refunded` is reached once every
 Fulfillment is declined or refunded. A multi-seller order's status rolls up
 from its **live** Fulfillments (`OrderStatus::fromFulfillments()`). Full
-diagram: `docs/orders.md`.
+diagram: [`orders.md`](orders.md).
 
 **Relates to.**
 - placed by one Customer
@@ -434,7 +784,7 @@ tracked per (order, seller) pair rather than per order.
 **Lifecycle.** `awaiting_shipment → shipped → delivered`, with `declined`
 (the seller turning it down before it ships, stock restored) and `refunded`
 (an admin settling it, stock unchanged) as the two settled endings. Full
-diagram: `docs/orders.md`.
+diagram: [`orders.md`](orders.md).
 
 **Relates to.**
 - belongs to one Order and one Seller
@@ -458,7 +808,9 @@ paid for and being shipped.
 ink. The Fulfillment status is the platform's contract and is the same for
 everyone; the flow is where a seller's own method is written down.
 
-**Lifecycle.** A seller's first flow is seeded as their default; `/seller/workflows`
+**Lifecycle.** A seller's first flow is their default: `FulfillmentFlowSeeder`
+marks it for a seeded seller, and `CreateFulfillmentFlow` marks the first
+flow any seller creates. `/seller/workflows`
 adds, edits, and removes flows after that (index, create, edit, make-default,
 destroy). One default per seller is a partial unique index, `(seller_id)
 where is_default`; the default flow itself cannot be removed, and neither can
@@ -469,7 +821,9 @@ first.
 - belongs to one Seller
 - orders many Flow steps
 - may be named by a Listing (`listings.fulfillment_flow_id`); a listing that
-  names none ships by its seller's default (`Fulfillment::flowInEffect()`)
+  names none ships by its seller's default. `PlaceOrder` stamps the answer
+  on `fulfillments.fulfillment_flow_id`, and
+  `App\Seller\FulfillmentFlowReader::read()` reads it
 
 **In code.** `App\Models\FulfillmentFlow`,
 `App\Domain\Fulfillment\DefaultFlow`,
@@ -526,7 +880,7 @@ step.
 **In code.** `App\Models\FulfillmentEvent`,
 `App\Domain\Fulfillment\{FulfillmentEventKind,NewFulfillmentEvent,FulfillmentProgress,FulfillmentLane}`,
 `App\Actions\Fulfillment\AppendFulfillmentEvent` (the one writer) (table
-`fulfillment_events`). See `docs/orders.md` § "The fulfillment event log and
+`fulfillment_events`). See [`orders.md`](orders.md) § "The fulfillment event log and
 the seller's flow".
 
 ### Activity feed
@@ -543,7 +897,7 @@ row told twice.
 from a scope.
 
 **Relates to.**
-- reads Listing events from the analytics store, Orders / Payments / Ledger
+- reads Analytics events from the analytics store, Orders / Payments / Ledger
   entries / Refunds, Fulfillment events, and Messages
 - is scoped to one Fulfillment or to one (seller, customer) pair
 - filters by kind: `browse`, `order`, `shipping`, `messages`
@@ -601,7 +955,7 @@ rather than a single mutable balance column.
 negative amount), `paid_out` (included in a payout run — negative amount). A
 seller's balance is the fold of all their entries, grouped by fulfillment so a
 refund nets against its own sale (`LedgerBalance::from()`). Flowchart:
-`docs/escrow.md`.
+[`escrow.md`](escrow.md).
 
 **Relates to.**
 - belongs to one Seller
@@ -658,7 +1012,7 @@ without a password.
 customers.
 
 **Lifecycle.** `Usable` → `Expired` (past `expires_at`) or `Consumed` (used
-once). Sequence diagrams: `docs/identity.md`.
+once). Sequence diagrams: [`identity.md`](identity.md).
 
 **Relates to.**
 - matched to a Seller or a Customer by `email` string, not a foreign key
@@ -686,9 +1040,13 @@ resolves to `MergeAnonymousInto`; never undone.
 
 **Relates to.**
 - points one anonymous Customer at the verified Customer it merged into
-- triggers re-pointing of that customer's Favorites, Cart, Orders, and
-  Listing events (`CustomerOwnedTables::all()`), plus the Notifications
-  addressed to it, which move through the morph relation
+- moves what the anonymous customer owned by four paths: Orders, Order
+  items, Fulfillments, Payments, Refunds, and Customer blocks by one column
+  write (`CustomerOwnedTables::all()`); Favorites and the Cart by a fold
+  (`CustomerMergePlan`); Analytics events by `Analytics::reassignActor()`
+  after the commerce transaction commits; Conversations by
+  `Conversation::moveCustomer()`
+- moves the Notifications addressed to it through the morph relation
 
 **In code.** `App\Models\CustomerMerge`,
 `App\Domain\Customers\CustomerIdentityPlan`, `CustomerIdentityAction`,
@@ -728,7 +1086,7 @@ reopen or on a reply from the side that could not have resolved it. Only the
 `fulfillment` kind is found rather than opened, by a `subject_key` unique
 index; the other three open a fresh, titled thread on every ask. A thread and
 its first message are written in one transaction, so a refused first post
-leaves no thread behind. See `docs/messaging.md` § "Open and resolved".
+leaves no thread behind. See [`messaging.md`](messaging.md) § "Open and resolved".
 
 **Relates to.**
 - names its participants (a Seller, a Customer, or the desk) and, on the
@@ -736,7 +1094,7 @@ leaves no thread behind. See `docs/messaging.md` § "Open and resolved".
 - holds many Messages
 - one `fulfillment` thread per (seller, customer, fulfillment), held by a
   unique index on `subject_key`; the other three kinds hold no such index
-- resolved by a Seller or the desk, never by a Customer (see `docs/messaging.md`)
+- resolved by a Seller or the desk, never by a Customer (see [`messaging.md`](messaging.md))
 
 **In code.** `App\Models\Conversation`,
 `App\Domain\Messaging\ConversationKind`,
@@ -786,7 +1144,8 @@ when it is still open; edited; unpublished (the row is deleted).
 ### Notification
 
 **Who/what.** A message shown in a seller's or a customer's header: "Item
-sold" or "Order shipped."
+sold", "Order shipped", "Purchase cancelled", and the rest of the eight
+below.
 
 **Why it exists.** Tells each side of a transaction when the other side has
 acted. The in-app inbox is the only channel today; the same message
@@ -796,12 +1155,20 @@ goes out by email the day `config/notifications.php` names `mail`.
 
 **Relates to.**
 - is addressed to exactly one Seller or one Customer, by morph type and id
-- raised by the `OrderPaid` event (seller) or the `FulfillmentShipped` event
-  (customer), each carried to its recipient by a listener
+- seven are raised by five events, each carried to its recipient by one
+  listener: `OrderPaid` → `ItemSold` (each seller, `NotifySellerOfSale`);
+  `FulfillmentShipped` → `OrderShipped` (customer,
+  `NotifyCustomerOfShipment`); `OrderCancelled` → `PurchaseCancelled`
+  (customer) and `SaleCancelled` (each seller, `NotifyOfCancellation`);
+  `RefundIssued` → `PurchaseRefunded` (customer) and `SaleRefunded`
+  (seller, `NotifyOfRefund`); `MessagePosted` → `MessageReceived` (the
+  other side, `NotifyOfMessage`)
+- the eighth, `ConversationResolved`, is sent by
+  `App\Actions\Messaging\ResolveConversation` directly
 
 **In code.** `Illuminate\Notifications\DatabaseNotification` (table
-`notifications`), written by `App\Notifications\ItemSold` and
-`App\Notifications\OrderShipped`; the words a row carries come from
+`notifications`), written by the eight classes under
+`App\Notifications\`; the words a row carries come from
 `App\Domain\Notifications\NotificationMessage`, and the recipient kinds are
 `App\Domain\Auth\ActorType` (enum), whose values are the morph aliases stored
 in `notifiable_type`.
@@ -819,8 +1186,8 @@ one upsert and no read.
 
 **Relates to.**
 - belongs to no one — it counts requests, not people
-- a Listing event of type `view` is the per-listing counterpart, collapsed to
-  at most one per (listing, customer, UTC hour)
+- a `listing.view` Analytics event is the per-listing counterpart, collapsed
+  to at most one per (listing, customer, UTC hour)
 
 **In code.** `App\Models\PageViewCount`, `App\Domain\Analytics\*`,
 `App\Http\Middleware\RollUpPageViews`, `App\Analytics\Analytics` (the one
@@ -881,8 +1248,8 @@ refunded fulfillment no longer holds the order back.
   (`OrderStatus::PendingVerification`); the order is not finalized (charged)
   until that customer verifies an email via magic link.
 - "Sold" on a listing = `quantity` reached 0, not "no longer listed" — a
-  `sold` listing keeps its storefront page; only `draft` and `archived`
-  listings are unreachable.
+  `sold` listing keeps its storefront page; only `draft`, `archived`, and
+  removed listings are unreachable.
 - "Seller net" / a Fulfillment's `net_cents` = subtotal minus the Platform
   fee; this is the amount that moves through escrow (`held` → `released` →
   `paid_out`), not the sale's subtotal.

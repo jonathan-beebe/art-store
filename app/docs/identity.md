@@ -124,7 +124,7 @@ sequenceDiagram
     SignIn->>Claim: __invoke(email, anonymous)
     Claim->>Claim: CustomerIdentityPlan::decide(anonymousId, ownerId)
     alt address unowned
-        Claim->>Claim: create verified customer
+        Claim->>Claim: claim: write email, email_verified_at onto the anonymous row
     else address owned by a different customer
         Claim->>Merge: __invoke(anonymous, owner)
         Merge->>Merge: re-point CustomerOwnedTables rows\n(orders, customer_blocks, ...)
@@ -159,16 +159,15 @@ and id the way a notification names its recipient, so
 the verified customer sent must not read as unread to them afterwards.
 **Conversations**' `subject_key` names the participants as well as the
 `customer_id` column does, so `Conversation::moveCustomer()` writes both
-together — see `docs/messaging.md` § "The merge" for what happens when the
+together — see [messaging.md](messaging.md) § "The merge" for what happens when the
 verified customer already holds the thread for a subject the anonymous row
 also asked about (the moved thread folds into the existing one instead of
 leaving a duplicate).
 
-**The cart and favorites are folded, not re-pointed** — writing
-`carts.customer_id` the way `CustomerOwnedTables` does for a simple table
-would leave the verified customer with two carts, and a unique index is what
-used to swallow a duplicated favorite rather than a decision the merge made
-itself. `App\Domain\Customers\CustomerMergePlan` (pure — no database, no
+**The cart and favorites are folded.** Writing `carts.customer_id` the way
+`CustomerOwnedTables` does for a simple table would leave the verified
+customer with two carts. A unique index used to swallow a duplicated
+favorite; the plan now decides it. `App\Domain\Customers\CustomerMergePlan` (pure — no database, no
 Eloquent, tested with its own Pest dataset) takes both customers' cart lines,
 their favorites, and the stock behind whatever listings either cart names,
 and works out: cart quantities summed per listing, clamped to stock, with
@@ -182,10 +181,8 @@ insert. A removed listing is not special-cased by the fold: its row still
 carries the stock it held before removal, so a line for it survives at that
 quantity, the same as it would sitting untouched in a single cart across a
 removal, and `OrderPlacementPlan` is what blocks it when checkout is
-attempted. `Customer::cart()` reads the one cart a customer now ever holds —
-before this fold, a merged customer could hold two, and `currentCart()`
-picked between them by which held more items; that heuristic no longer has
-anything to pick between.
+attempted. `Customer::cart()` reads the one cart a customer holds. The
+earlier `currentCart()` is removed.
 
 The anonymous row is never deleted — the
 `customer_merges` row lets a stale cookie on a second device resolve forward
@@ -222,6 +219,7 @@ flowchart TD
 
 Caveats: this is `App\Http\Middleware\ResolveCustomerIdentity`, wrapping
 every route in `routes/shop.php`. It never runs on `/auth/magic/{token}`,
-`/login`, or `/logout` — those read the cookie directly through
-`ResolveCustomerFromCookie` so a seller clicking a seller link cannot
-accidentally create a customer row.
+`/login`, or `/logout`. `MagicLinkVerificationController` reads the cookie
+through `ResolveCustomerFromCookie`. `/login` never reads it. `/logout`
+calls `CustomerIdentity::forgetCookie()`. A seller clicking a seller link
+therefore creates no customer row.

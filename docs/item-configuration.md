@@ -54,8 +54,8 @@ stateDiagram-v2
   units, so its own row stays `for_sale` even with every variant exhausted.
 
 **The publish gate.** `draft → for_sale` is refused until every gate
-passes, and a refusal lists every failing gate at once, each linking to the
-screen that owns it — the same shape as `OrderPlacementRefused` (story E2):
+passes. A refusal lists every failing gate, each linked to the screen that
+owns it, the shape `OrderPlacementRefused` uses (story E2):
 
 - every required attribute grant (`required && usable_as_attribute`) has a
   value on the listing;
@@ -74,9 +74,9 @@ stateDiagram-v2
     sold --> available : order cancelled or fulfillment declined
 ```
 
-A unit stays `available` until an order places — carts hold no reservation.
-Two shoppers can cart the same unit; placement resolves who claims it (see
-Open items).
+A unit stays `available` until an order places. No action reserves a unit;
+the `reserved` case in `UnitState` is unused. Two shoppers can cart the same
+unit; placement resolves who claims it (see Open items).
 
 ### Option-axis pricing mode
 
@@ -166,7 +166,7 @@ erDiagram
         bool enabled
     }
     units {
-        string state "available | sold"
+        string state "available | reserved | sold — reserved is unused"
         string condition_note
         int price_override_cents "nullable"
     }
@@ -185,8 +185,9 @@ erDiagram
 
 - Variants are sparse: the seller creates only the combinations they make,
   one row at a time (stories A3, A5). A variant is available when it is
-  enabled and — serialized — holds an `available` unit, or — counted — has
-  `quantity` null (made to order) or above zero (A6, A7).
+  enabled and, for a serialized variant, it holds an `available` unit; for
+  a counted variant, `quantity` is null (made to order) or above zero (A6,
+  A7).
 - A modifier with zero scope rows is always shown; each scope row names an
   option value that must be selected for it to appear (B6).
 
@@ -212,13 +213,12 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
 
 ## Structural UI/UX decisions
 
-1. **The editor is a hub of rows.** Each concern — Your item, Images,
-   Choices, Combinations & Stock, Individual Pieces, Questions, Quantity
-   Discounts, Listing Page Sections — is a row with a summary and its own
-   Edit affordance; an empty row reads as an invitation ("Comes in more
-   than one version? Offer choices"). This retired the flat form that used
-   to sit above the rows: its price and quantity fields lost their meaning
-   the moment a listing grew choices.
+1. **The editor is a hub of rows.** Each concern — Basics, Photos,
+   Pricing & options, Combinations, Questions, Quantity discounts,
+   Description sections, FAQs — is a row with a summary and its own Edit
+   affordance; an empty row reads as an invitation ("Comes in more than
+   one version? Offer choices"). The hub replaced a flat form whose price
+   and quantity fields had no meaning once a listing had options.
 2. **A live buyer preview sits beside the hub**, built from the same view
    model and partials `/art/{slug}` uses. It is a working form — changing
    an option re-renders availability and total — with add-to-cart inert.
@@ -243,8 +243,8 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
    unchecked with a blank count is a validation error.
 7. **Catalog axes are offered ahead of custom ones.** The axes screen leads
    with the category's `usable_as_axis` grants, and a catalog-backed add-on
-   axis pre-fills its options from the property's values — the nudge toward
-   search-meaningful axes the research called for (D5).
+   axis pre-fills its options from the property's values, so sellers pick
+   axes that search can index (D5).
 8. **The variant grid is the contract.** Each sparse row shows its derived
    price beside the override cell, so the seller sees what the buyer pays
    before typing; bulk actions work by axis value (A3, A5, A8).
@@ -265,14 +265,19 @@ untouched, and the itemized panel the buyer saw is the one the order keeps.
 
 ## Open items
 
-- **Rollout.** Beta.
-- **Cart-time reservation.** Units have zero `reserved` state; two shoppers
-  can cart one piece and placement decides. Held as a product decision.
-- **Deferred by design** (`item-configurator.md` §9): cross-scale size
-  equivalence, digital delivery, linked add-on products, bespoke
-  post-checkout workflow, `file_upload`/`date` modifier kinds, property
-  facets beyond Medium, property-value hierarchy, private quotes, formula
-  pricing. Bulk repricing beyond by-axis-value actions (A8) stays partial.
+- **Rollout.** No flag gates the configurator; every seller has it.
+- **Cart-time reservation.** No action reserves a unit; the `reserved` case
+  in `UnitState` is unused. Two shoppers can cart one piece and placement
+  decides. Held as a product decision.
+- **Deferred by design**
+  ([app/docs/item-configurator.md](../app/docs/item-configurator.md) §9):
+  cross-scale size equivalence, digital delivery, linked add-on products,
+  `file_upload`/`date` modifier kinds, property facets beyond Medium,
+  property-value hierarchy, private quotes, formula pricing. Seller
+  fulfillment flows ([spec.md](spec.md) §4.5) cover the seller's steps
+  between paid and shipped; per-order-line intake, proof, and approval
+  stay deferred. Bulk repricing beyond by-axis-value actions (A8) stays
+  partial.
 
 ## Design docs and records
 

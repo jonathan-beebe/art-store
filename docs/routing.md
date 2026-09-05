@@ -8,8 +8,10 @@ miss behavior.
 ## Three sites, one prefix each
 
 One server serves three sites, split by path prefix. Each site has its own
-authentication guard, applied once to the whole route group, its own layout,
-and its own theme.
+authentication guard, its own layout, and its own theme. The seller and
+admin sites apply their guard once to the whole route group. The storefront
+applies `customer.identity` to the whole group and `auth.customer` to the
+signed-in sub-group.
 
 ```mermaid
 flowchart LR
@@ -22,9 +24,10 @@ flowchart LR
 
 - The guard lives on the route group. A per-route check is one the next page
   added forgets.
-- A sign-in link minted for one actor works only on that actor's site: a
-  customer's or seller's magic link followed to `/admin` is refused, and the
-  reverse. Admins are seeded; the admin site has no sign-up.
+- One endpoint, `/auth/magic/{token}`, verifies every link. The link row
+  names its actor; the sign-in lands on that actor's guard, so a customer's
+  link never opens an admin session. Admins are seeded; the admin site has
+  no sign-up.
 - The orchestrator's health probe lives at Laravel's built-in `/up`. It is a
   system path: the log viewer's `domain=shop` bucket excludes it by name ([logging.md](logging.md)).
 
@@ -33,7 +36,8 @@ flowchart LR
 [spec.md](spec.md) §1 fixes this; summarized:
 
 - URLs carry the full prefixed id: `/orders/ord_…`, `/admin/customers/cus_…`.
-- Storefront listing pages are the one slug route: `/art/{slug}`.
+- Two storefront routes take a slug: `/art/{slug}` (a listing) and
+  `/s/{slug}` (a store).
 - A wrong prefix, a bare ULID, and an unknown id all answer the same 404.
 
 ## Storefront browse and search: one dimension, one path prefix
@@ -58,9 +62,9 @@ flowchart TD
   `/browse/jewelry/rings`). Lists the category's and its descendants'
   for-sale listings, links only `browsable` children; an unknown path or a
   category with `browsable = false` 404s.
-- Search stands alone. `q` combined with a browse dimension redirects to
-  `/search?q=` with the dimension dropped, and the browse pages build their
-  links without carrying `q` — the composed state is unrepresentable.
+- Search stands alone. `/medium` and `/browse` ignore `q`, and the browse
+  pages build their links without `q`. Only `/?q=` redirects to
+  `/search?q=`.
 - `/` takes zero filter parameters; it renders browse rows leading into the
   pages above. Legacy `/?q=` redirects to `/search?q=`; legacy `/?medium=`
   redirects to `/medium/{medium}`.
@@ -71,8 +75,9 @@ Query parameters hold state within a page; paths hold the dimension.
 
 - Pagination is `?page=N`, with the current filter set carried through every
   pager link.
-- On admin filter routes, an empty filter value means "all" and an
-  unrecognised value answers 400 (spec.md §5). The full admin filter
+- On admin filter routes, an empty filter value means "all". spec.md §5
+  says an unrecognised value answers 400. Today `/admin/logs` and the admin
+  inbox do; the other admin lists treat it as absent. The full admin filter
   vocabulary lives in the §5 table.
 - Every `http.request` log line carries `data.query` (spec.md §2.2), so
   any parameter is queryable after the fact:
@@ -91,8 +96,8 @@ Query parameters hold state within a page; paths hold the dimension.
 
 ## Open items
 
-- The admin filter routes outside `/admin/logs` still treat an unrecognised
-  value as absent; §5 says 400.
+- The admin filter routes outside `/admin/logs` and the admin inbox still
+  treat an unrecognised value as absent; §5 says 400.
 
 ## References
 

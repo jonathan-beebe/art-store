@@ -101,7 +101,7 @@ transaction rather than whatever the caller loaded before it.
 reads as one sentence, and `refusalData()` (the `App\Domain\CarriesRefusalData`
 contract) hands `Story::tell()` a `blocked` array — `listing_id`, `title`,
 `reason` per line — that lands in the `order.place` or `order.pay` `refused`
-log line's `data` (docs/spec.md §2.3) without `Story` knowing what kind
+log line's `data` ([spec.md](../../docs/spec.md) §2.3) without `Story` knowing what kind
 of refusal it caught.
 
 `CheckoutController::place` catches `OrderPlacementRefused` separately from
@@ -204,7 +204,8 @@ card was declined.
 Question: what stops an abandoned guest checkout from holding stock forever?
 
 `make sweep` runs `orders:sweep` (`App\Console\Commands\SweepOrders`), also
-scheduled hourly in `routes/console.php`. It cancels every
+scheduled hourly in `routes/console.php`. `SweepOrders::handle()` calls
+`App\Actions\Orders\SweepStaleOrders` for the cancelling. It cancels every
 `pending_verification` order whose `placed_at` is older than
 `config('orders.stale_hours')` — `STALE_ORDER_HOURS`, default `24` — through
 the same `CancelOrder` every other cancel path uses, so the stock comes back
@@ -215,7 +216,7 @@ It is idempotent by construction: it selects `pending_verification` and leaves
 touches `awaiting_payment` — a verified customer still has a card form open —
 and never anything younger than the cutoff. `SweepStaleOrders` calls
 `Story::asSystem()` first, so its `order.sweep` lines and the `order.cancel`
-each order writes carry `actor_type: system` (docs/spec.md §2.1).
+each order writes carry `actor_type: system` ([spec.md](../../docs/spec.md) §2.1).
 
 ## Fulfillment status (per order × seller)
 
@@ -239,7 +240,7 @@ Source of truth: `App\Domain\Orders\FulfillmentStatus::transitions()`,
 verified by `FulfillmentStatusTest`. `MarkShipped` rolls the order status up
 and dispatches `FulfillmentShipped`, which `NotifyCustomerOfShipment` turns
 into the customer's "Order shipped" notification after the commit; `ConfirmDelivered` releases
-the fulfillment's held escrow (see `docs/escrow.md`) and rolls the order
+the fulfillment's held escrow (see [escrow.md](escrow.md)) and rolls the order
 status up. Delivery confirmation is the customer clicking a button on the
 order page — a stand-in for carrier tracking. Every one of
 these transitions also appends its row to the fulfillment's event log, below.
@@ -249,7 +250,7 @@ these transitions also appends its row to the fulfillment's event log, below.
 Question: `fulfillments.status` says a parcel is awaiting shipment — what
 does the seller know that the column does not, and where is it written?
 
-`docs/spec.md` §4.5 owns the flow diagram, the lane table, the two
+[spec.md](../../docs/spec.md) §4.5 owns the flow diagram, the lane table, the two
 kinds of writer, and the closed-vocabulary consequence. This section is the
 app's realization: the classes, the sequence, and the two mechanisms the
 spec leaves to the stack.
@@ -261,7 +262,7 @@ the seller gave it, a `position` unique inside the flow, and a
 printable label page. `FulfillmentFlowSeeder` gives every seller one default
 flow, *Label printed* then *Packed*. A listing may name a flow
 (`listings.fulfillment_flow_id`), set from the Basics screen's Workflow
-picker (`docs/seller-portal.md`'s Workflows section); a listing that names
+picker ([seller-portal.md](seller-portal.md) § Workflows); a listing that names
 none ships by its seller's default.
 
 Which flow a parcel ships by is decided once, at placement, and kept:
@@ -279,8 +280,8 @@ table. The transitions (`MarkShipped`, `ConfirmDelivered`,
 `DeclineFulfillment`, `RefundFulfillment`) call it inside the transaction
 that writes `fulfillments.status`; `FulfillmentEventKind::forStatus()` names
 the kind. `CompleteFlowStep` calls it for a step, appending `step_completed`
-with the step id, and with the carrier and tracking number when the step
-prints a label.
+with the step id. When the step prints a label, the row also carries the
+carrier and the tracking number.
 
 One default flow per seller is a partial unique index, `(seller_id) where
 is_default` — the bare column is what SQLite and Postgres both read as
@@ -297,8 +298,8 @@ rows — which name no step — are outside the constraint. The row also copies
 log still saying what they did, and the foreign key nulls out rather than
 cascading the history away. The panel on the order page draws the flow as it
 stands now; the log keeps each step's words as they were, so a step renamed
-after the fact reads one way in the panel and another in the feed, which is
-what a record is for. `FulfillmentEvent::stepLabel()` refuses a completion
+after the fact reads one way in the panel and another in the feed.
+`FulfillmentEvent::stepLabel()` refuses a completion
 that kept no words.
 
 Whether a parcel has started is read from the completions, not from the
@@ -335,7 +336,7 @@ answers which steps are behind the parcel, which is next, and whether the
 flow is done; it reads the flow **as it stands now**, so an event naming a
 step the seller has since removed leaves the rest of the order untouched.
 `FulfillmentLane::of(status, progress)` sorts the parcel onto the desk —
-`docs/spec.md` §4.5 has the lane table.
+[spec.md](../../docs/spec.md) §4.5 has the lane table.
 
 Caveats: a step is completed only from `awaiting_shipment`, only when it is
 the one in front, and only by the seller who owns the fulfillment — another
@@ -343,11 +344,11 @@ seller's fulfillment or another seller's step answers 404, and the other two
 are `DomainRuleViolation`s judged inside the transaction that appends, the
 way every fulfillment transition is. `SaveFulfillmentFlow` writes the whole
 flow from the seller's form in one transaction, keeping the rows the form
-names by id (a rename keeps the events pointing at them) and parking
-surviving positions above the range a flow ever holds while it refills the
-range from zero — `position` is an unsigned column, and
-`(fulfillment_flow_id, position)` is unique, which SQLite judges row by
-row.
+names by id (a rename keeps the events pointing at them). `position` is an
+unsigned column, and `(fulfillment_flow_id, position)` is unique, which
+SQLite judges row by row. The action first parks every surviving row at
+`PARKED_POSITION` (`9999`) plus its index, then refills the range from
+zero.
 
 ## Decline and refund
 
@@ -363,8 +364,8 @@ flowchart TD
     issue --> row["refunds row (rfd_): order, fulfillment,\napproved payment, subtotal, reason, issuer"]
     issue --> ledger["ledger_entries: refunded, -net_cents"]
     issue --> total["orders.refunded_cents += subtotal"]
-    issue --> event["RefundIssued -> NotifyOfRefund"]
-    event --> rollup["RollUpOrderStatus over the live fulfillments"]
+    issue --> rollup["RollUpOrderStatus over the live fulfillments\n(called by the action, inside the transaction)"]
+    issue --> event["RefundIssued -> NotifyOfRefund\n(after commit)"]
 ```
 
 Caveats: both actions re-read the fulfillment's status **inside** the

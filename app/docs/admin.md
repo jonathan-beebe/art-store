@@ -1,14 +1,19 @@
 # Admin site
 
-What a platform operator does: read every seller, customer, listing, order and
-fulfillment on the platform, moderate a listing or a customer they need to
-stop, settle the money — cancel an unpaid order, refund a fulfillment, run the
-weekly payout — and read what the platform's state, money, and traffic look
-like from the front door.
+What a platform operator does:
+
+- read every seller, customer, listing, order, and fulfillment on the
+  platform;
+- moderate a listing or a customer they need to stop;
+- settle the money: cancel an unpaid order, refund a fulfillment, run the
+  weekly payout;
+- read the platform's state, money, and traffic from the front door.
+
 Code: `app/Http/Controllers/Admin/`, `routes/admin.php`,
 `resources/views/admin/`, `resources/views/components/admin/`,
-`app/View/Composers/AdminLayoutComposer.php`, `app/Http/Middleware/
-RollUpPageViews.php`, `app/Analytics/`, `app/Domain/Analytics/`.
+`app/View/Composers/AdminLayoutComposer.php`,
+`app/Http/Middleware/RollUpPageViews.php`, `app/Analytics/`,
+`app/Domain/Analytics/`.
 
 Admins are seeded, never created — `database/seeders/AdminSeeder.php` — and
 sign in through the same magic link sellers and customers use
@@ -58,6 +63,8 @@ sign in through the same magic link sellers and customers use
 |                                                                         | log viewer, and the block form                                           |
 | `GET /admin/analytics/listings/{listing}?range=&event=`                 | the listing's identity, range tiles, its own funnel, a daily strip, and  |
 |                                                                         | its event feed newest first, with a link to the listing                  |
+| `GET /admin/analytics/stores/{store}?range=&event=`                     | the store's identity, range tiles, a daily strip, and its event feed     |
+|                                                                         | newest first; linked from the seller page and from a feed row's store    |
 | `GET /admin/analytics/funnels/{funnel}?range=`                          | one funnel's own steps, drawn by `x-admin.analytics.funnel`, with the    |
 |                                                                         | range control; linked from its tile on the entry page and from          |
 |                                                                         | `/admin/funnels`                                                        |
@@ -67,8 +74,8 @@ sign in through the same magic link sellers and customers use
 | `GET /admin/funnels`, `GET /admin/funnels/create`,                      | admin-defined funnels: a name and an ordered list of event names, two    |
 | `POST /admin/funnels`, `GET /admin/funnels/{funnel}/edit`,              | or more, validated through `FunnelDefinition`; the editor is a plain     |
 | `PUT /admin/funnels/{funnel}`, `DELETE /admin/funnels/{funnel}`         | form — add, remove, and reorder steps all post back and re-render        |
-| `GET\|POST /admin/messages`, `/admin/messages/{conversation}`,          | the shared desk: every admin sees every thread; `filter=`/`status=`      |
-| `.../resolve`, `.../reopen`                                             | queues; oversight (seller ↔ customer) threads read-only                  |
+| `GET\|POST /admin/messages?domain=all\|sellers\|customers`,             | the shared desk: every admin sees every thread; `domain=` picks the      |
+| `/admin/messages/{conversation}`, `.../resolve`, `.../reopen`           | tab; oversight (seller ↔ customer) threads read-only                     |
 |                                                                         | ([`messaging.md`](messaging.md))                                         |
 | `POST /admin/orders/{order}/cancel`                                     | cancel an order nothing has been charged for; the stock goes back on the |
 |                                                                         | storefront                                                               |
@@ -78,7 +85,7 @@ sign in through the same magic link sellers and customers use
 | `POST /admin/customers/{customer}/blocks`, `.../blocks/lift`            | block with a reason; lift it                                             |
 | `POST /admin/sellers/{seller}/messages`,                                | open a fresh, titled thread from the directory, optionally naming an     |
 | `POST /admin/customers/{customer}/messages`                             | order                                                                    |
-| `GET /admin/logs?domain=&level=&phase=&event=&request=&txn=&session=&actor=&msg=&from=&to=&key=&value=&group=&health=` | the log store's time series, newest first, with the level/domain stat    |
+| `GET /admin/logs?domain=&level=&phase=&event=&request=&txn=&session=&actor=&msg=&from=&to=&key=&value=&group=&health=&viewer=&page=` | the log store's time series, newest first, with the level/domain stat    |
 |                                                                         | tiles ([`log-store.md`](log-store.md))                                   |
 | `GET /admin/logs/requests/{requestId}`                                  | one request's whole story, oldest first ([`log-store.md`](log-store.md)) |
 
@@ -134,8 +141,8 @@ sequenceDiagram
     participant View as admin/sellers/index.blade.php
 
     Page->>Entry: balancesBySeller()
-    Entry->>DB: select seller_id, type, sum(amount_cents) group by seller_id, type
-    DB-->>Entry: three rows per seller at most
+    Entry->>DB: select seller_id, fulfillment_id, type, sum(amount_cents) group by seller_id, fulfillment_id, type
+    DB-->>Entry: one row per (seller, fulfillment, type)
     Entry->>Fold: LedgerBalances::from(movements by seller)
     Fold-->>Page: one LedgerBalance per seller
     loop each row on the page
@@ -144,8 +151,9 @@ sequenceDiagram
     end
 ```
 
-Caveats: the database sums each `(seller, type)` pair, so the fold sees three
-rows per seller rather than the whole table, and the page costs one ledger read
+Caveats: the database sums each `(seller, fulfillment, type)` triple
+(`LedgerEntry::totalledByType()`), so the fold sees one row per triple
+rather than the whole table, and the page costs one ledger read
 whatever the seller count — `SellerControllerTest` counts the reads and holds
 it to one. `LedgerBalances::of()` answers a zero balance for a seller with no
 entries at all, which is what keeps the page from asking. The per-seller
@@ -178,8 +186,9 @@ names the owner is noise on the owner's own page.
 
 ## Tallies with nothing hidden
 
-`/admin`'s listing, order, and fulfillment tallies come from `*::platformCountsByStatus()`
-(`Listing`, `Order`, `Fulfillment`), each a `group by status` folded through
+`/admin`'s listing, order, and fulfillment tallies come from
+`Listing::platformCountsByStatus()`, `Order::platformCountsByStatus()`, and
+`App\Admin\PlatformFulfillmentReader::countsByStatus()`, each a `group by status` folded through
 `*StatusTally::from()` (`App\Domain\Reports`) against the enum's full
 `cases()`. A `group by` only answers for the statuses that have rows, and a
 dashboard that hid `payment_failed` because nobody has hit it yet would be
@@ -191,8 +200,9 @@ money sections follow the same rule.
 Platform money — held, available, paid out, fees earned, fees refunded,
 refunded — is `App\Domain\Escrow\PlatformMoney`, built from
 `LedgerEntry::balancesBySeller()->total()` (every seller's balance folded
-into one, free of a second ledger read — see `LedgerBalance::combine()`
-below) and `Fulfillment::platformFees()` (`App\Domain\Escrow\PlatformFees`:
+into one, free of a second ledger read — `LedgerBalance::combine()` in
+`app/Domain/Escrow/LedgerBalance.php`) and
+`App\Admin\PlatformFulfillmentReader::fees()` (`App\Domain\Escrow\PlatformFees`:
 `isLive()` fulfillments have earned their fee, a declined or refunded one
 forwent it). `/admin` and `/admin/accounting`'s totals row read the same
 object. `/admin/ledger`'s totals are different on purpose: `LedgerBalance::from()`
@@ -277,7 +287,7 @@ sequenceDiagram
     Note over Events: a repeat view inside the same hour collides on the\nunique index and is silently ignored
 ```
 
-Caveats: `favorite`, `unfavorite`, and `cart_add` never carry a dedupe key —
+Caveats: `listing.favorite`, `listing.unfavorite`, and `listing.cart_add` never carry a dedupe key —
 each is a deliberate click, recorded every time. `ListingViewCollapse::dedupeKey()`
 folds the listing, the customer (or `anonymous`), and the UTC hour into one
 string; `ListingViewCollapse::windowStart()` floors to the top of the hour,
@@ -292,7 +302,7 @@ its event was kept.
 ## Analytics drill-in
 
 Question: from "what happened in this range" to "who did it" to "everything
-that one did" — how do the eight analytics pages reach each other?
+that one did" — how do the nine analytics pages reach each other?
 
 ```mermaid
 flowchart LR
@@ -300,6 +310,7 @@ flowchart LR
     event["/admin/analytics/events/:name<br/>range tiles + breakdown"]
     actors["/admin/analytics/actors<br/>every actor, paged"]
     listing["/admin/analytics/listings/:listing<br/>identity + feed"]
+    store["/admin/analytics/stores/:store<br/>identity + feed"]
     actor["/admin/analytics/actors/:customer<br/>identity + feed + visits"]
     channels["/admin/analytics/channels<br/>every channel, ordered by visitors"]
     channel["/admin/analytics/channels/:key<br/>one channel's visits, paged"]
@@ -317,6 +328,8 @@ flowchart LR
     event -->|"by-actor row"| actor
     listing -->|"feed row's actor"| actor
     actor -->|"feed row's listing"| listing
+    actor -->|"feed row's store"| store
+    store -->|"feed row's actor"| actor
     channels -->|"row"| channel
     channel -->|"visit's actor"| actor
 ```
@@ -332,8 +345,10 @@ admin filter does (the Pages table above):
   page's actor rows, and — entry page only — a pasted `lst_`/`cus_` id or an
   ip a single actor used, which jumps straight to that listing's or actor's
   page; any other value filters the two tables.
-- `by=listing|actor|pattern` — the event page's breakdown; `page.view` offers
-  only `pattern`, since the roll-up carries no listing or actor of its own.
+- `by=listing|actor|pattern|article` — the event page's breakdown; `page.view`
+  offers only `pattern`, since the roll-up carries no listing or actor of its
+  own; `help.answered` and `help.unanswered` offer only `article`
+  (`EventBreakdown::allowedFor()`).
 - `sort=active|recent` — the all-actors page, most events in the range or
   most recently seen.
 - `page=` — the all-actors and channel-visits pages, a positive integer; an
@@ -355,12 +370,12 @@ only to the listing itself; an actor links to the customer record, to
 `/admin/logs?actor=` filtered to it, and to the customer page's own block
 form — the block flow itself lives only there, never duplicated on the
 analytics page. An actor's own page also carries a "Visits" panel between
-the identity card and the tiles (`docs/analytics.md` § "Channels") and the
+the identity card and the tiles ([`analytics.md`](analytics.md) § "Channels") and the
 identity card's own "First channel" fact; a listing carries neither, since
 a visit belongs to a session, not to a listing.
 
 **Channels.** `App\Analytics\Admin\ChannelTable` and `ChannelVisits`
-(`docs/analytics.md` § "Channels") back the two channel pages: the first
+([`analytics.md`](analytics.md) § "Channels") back the two channel pages: the first
 lists every channel a visit in the range derives to, ordered by visitors,
 each row's whole width tapping through to the second — that channel's own
 visits, paged. A channel key names no stored row, so a key nothing in the
@@ -370,7 +385,7 @@ row uses for a pasted id.
 **Funnels.** A funnel is admin data — `/admin/funnels` (below) — a name and
 an ordered list of event names `App\Domain\Analytics\FunnelDefinition`
 validates, seeded with one built-in "Storefront" funnel. `App\Analytics\Admin\Funnel`
-(`docs/analytics.md` § "The funnel") reads any funnel's steps — visitors
+([`analytics.md`](analytics.md) § "The funnel") reads any funnel's steps — visitors
 through its last named step — for a range, a listing, or a seller.
 The listing and seller pages always render the storefront funnel as a
 shared-borders grid (`x-admin.analytics.funnel`): the listing page below
@@ -484,7 +499,7 @@ platform action. The full sequence and the re-run rule are in
 ## Small-screen conventions
 
 Question: one Blade template renders both a 390px phone and a desktop — how,
-with the nav menu JS-off and no second template per page?
+with one nav drawer and no second template per page?
 
 Every admin page is server-rendered once; Tailwind's `sm:` prefix is the only
 thing that picks which markup a viewport shows. The base (unprefixed) classes
@@ -497,20 +512,22 @@ regardless of which breakpoint's markup carries it.
 flowchart LR
     blade["Blade view (one template)"] --> html["one HTML response"]
     html --> css{"Tailwind sm: breakpoint"}
-    css -->|"< 640px"| mobile["base classes: cards, Menu disclosure, back link"]
+    css -->|"< 640px"| mobile["base classes: cards, nav drawer button, back link"]
     css -->|">= 640px"| desktop["sm: classes: today's table, inline nav, All-X link"]
 ```
 
 **Shell nav** (`resources/views/components/layouts/admin.blade.php`): the
-route/label pairs every admin page links to are declared once in a `$navLinks`
-array and rendered twice — the `sm:flex` inline nav (today's, unchanged) and a
-`<details class="relative sm:hidden">` disclosure whose panel is
-`fixed inset-x-0 top-16`, the same JS-free popover mechanic the logs page's
-More-filters button already uses (`resources/views/admin/logs/index.blade.php`)
-and the same reason: native `<details>`/`<summary>` needs no script, and
-`fixed` positioning lets the panel span the viewport without fighting the
-header row's own width. `<main>` drops `max-w-6xl` below `sm`, restoring it
-(or the `:full-width` opt-out's `w-full px-6`) at `sm` and up.
+nav groups every admin page links to are rendered twice from one partial
+(`components.layouts.partials.admin-nav-items`) — the `hidden lg:flex` rail
+and an off-canvas drawer below `lg`. The drawer is a native
+`<dialog id="admin-nav-drawer" data-nav-drawer … lg:hidden>`. The header's
+`data-drawer-open` button opens it through `public/nav-drawer.js`; Escape
+closes it natively; the drawer's own `data-drawer-close` button and the
+`flex-1` filler button over the backdrop close it through the same script.
+The logs page's More-filters button keeps its own script-free
+`<details>` popover (`resources/views/admin/logs/index.blade.php`).
+`<main>` drops `max-w-6xl` below `sm`, restoring it (or `content-wide`'s
+`w-full sm:px-6`) at `sm` and up.
 
 **Tables → cards.** Two small presentational components,
 `x-admin.card-list` (the bordered/divided outer wrapper a table's own wrapper
@@ -564,16 +581,16 @@ the tap falls through to the native `<details>` toggle, the same in-place
 expansion `sm:` and up already gives every row. Both affordances are always
 in the response; only the `sm:` breakpoint decides which one a tap reaches.
 
-## The `xl`-and-up shell: rail, list, and detail panes
+## The `lg`-and-up shell: rail, list, and detail panes
 
-Question: at `xl` (1280px) and up, how does one Blade layout become a nav
+Question: at `lg` (1024px) and up, how does one Blade layout become a nav
 rail plus either a list-and-detail pair or a single content pane, while
-staying pixel-identical to the phone-and-desktop rendering below `xl`?
+staying pixel-identical to the phone-and-desktop rendering below `lg`?
 
 `x-layouts.admin`'s `mode` prop is the one switch, replacing the old
 `full-width` boolean rather than sitting beside it as a second mechanism:
 
-| `mode`         | Below `xl`                                         | `xl` and up                                                       |
+| `mode`         | Below `lg`                                         | `lg` and up                                                       |
 | -------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
 | `content`      | today's `max-w-6xl` column (default)               | one content pane, full remaining width                            |
 | `content-wide` | today's full-width column (old `full-width: true`) | one content pane, full remaining width                            |
@@ -581,14 +598,13 @@ staying pixel-identical to the phone-and-desktop rendering below `xl`?
 | `detail`       | the show route's content, unchanged                | the same content, now the detail pane, beside a `cells` list pane |
 
 `list` and `detail` both take a `cells` named slot — the section's compact,
-two-line rows for the `xl`-and-up list pane. It is never rendered below `xl`
+two-line rows for the `lg`-and-up list pane. It is never rendered below `lg`
 (the existing table and `x-admin.card-list` cards carry that breakpoint,
 untouched) and it is the same content on both an index and a show page for
 one section, because both call the same `x-admin.<section>-cells` component.
-The below-`xl` header (brand, inline nav, Menu disclosure) gets `xl:hidden`
-in full — nothing inside it changed, so it stays pixel-identical — and its
-brand, section links, and sign-out move into a new `xl:flex` rail sibling
-that has no below-`xl` counterpart to match.
+The header's hamburger button and the drawer get `lg:hidden`; the section
+links and sign-out render again in the `hidden lg:flex` rail sibling, which
+has no below-`lg` counterpart to match.
 
 ```mermaid
 flowchart TD
@@ -611,11 +627,11 @@ never collides with the singular model the rest of the page reads. The list
 a show page's pane carries is the same default, unfiltered list the index
 route opens with — a show URL carries no query string to filter it by, so
 an item deep in a filtered list will not show highlighted if the
-seller/status filters were never applied to begin with. Messages is the one
-exception: its index route's own default is already filtered
-(`needs-reply`, `open`), so `show()` and `store()` read `filter=all&status=all`
-instead of the index's default — an oversight thread and a resolved one
-still need somewhere to sit in their own pane.
+seller/status filters were never applied to begin with. Messages carries
+its one filter through: `show()` and `store()` read the `domain=` the
+linking inbox row carried (`Admin\MessagesQueryRequest`, default `all`)
+and build the pane for that tab, with the open thread included even when
+the tab would exclude it.
 
 **The list is windowed, not paginated.** Sellers/customers/listings/orders/
 fulfillments/messages have no pagination today; each section's query is
@@ -630,14 +646,14 @@ exceeds the window says so in its pane: the header count reads the true
 total, and `x-admin.cell-footer` renders "Showing 50 of 312" beneath the
 list, linking back to the section's own index; a section that fits inside
 the window renders neither. Index and show routes for a section share one
-query, so the below-`xl` table/cards the pane sits beside inherit the same
+query, so the below-`lg` table/cards the pane sits beside inherit the same
 cap — the "unchanged" in the table above holds structurally (same markup,
 same components) but no longer means every row past the first fifty.
 
 **The cell hierarchy** every `x-admin.<section>-cells` component follows:
 line 1 is identity (the human-readable name, e.g. the customer on an order
-cell — never a prefixed id) plus when, right-aligned in mono
-(`x-admin.cell-time`, the clock for today or the date otherwise); line 2 is
+cell — never a prefixed id) plus when, right-aligned (the date, `M j`);
+line 2 is
 state — a status pill (`x-admin.status-badge`, one of `ok`/`warn`/`bad`/the
 default neutral gray), one supporting fact, and the number that matters,
 right-aligned in mono. An anonymous customer has no name, so the id steps

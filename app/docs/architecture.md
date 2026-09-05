@@ -4,9 +4,9 @@ A two-sided art marketplace, served from three sites: a **seller portal**
 (back office), a **customer storefront**, and an **admin site** (the
 platform's own back office, for support and moderation). One Laravel
 deployable, three SQLite files: commerce, the log store, and the analytics
-store. Every page works with JavaScript off; the few
-inline scripts in the seller views are progressive enhancement. Every agent working in `app/` reads
-this doc first and follows the conventions in it.
+store. Every page works with JavaScript off; the seven scripts under
+`public/`, loaded by the layouts, are progressive enhancement. Every agent
+working in `app/` reads this doc first and follows the conventions in it.
 
 ## Deployables
 
@@ -31,7 +31,7 @@ flowchart LR
 
 One container (`app`) holds PHP, Composer, Node (for the Tailwind build), and
 the three SQLite files. Nothing is installed on the host. The unread badge is a
-server-rendered count on each page load (`docs/messaging.md` § "Unread counts").
+server-rendered count on each page load ([messaging.md](messaging.md) § "Unread counts").
 
 ## Layers inside the deployable
 
@@ -42,7 +42,7 @@ flowchart TD
     entry["Entry: routes/*.php, app/Providers"] --> coord
     coord["Coordination: app/Http/Controllers, app/Actions, app/Console"] --> core
     coord --> adapters
-    adapters["Adapters: app/Models (Eloquent), app/Seller, app/Admin, app/Support, app/Notifications, resources/views"] --> core
+    adapters["Adapters: app/Models (Eloquent), app/Seller, app/Admin, app/Analytics, app/Logging, app/Observers, app/Support, app/Notifications, app/View, resources/views"] --> core
     core["Core: app/Domain/** — pure PHP, no I/O, no clock, no random"]
 ```
 
@@ -57,10 +57,10 @@ flowchart TD
 |              |                                                                  | `OrderStatus::awaitsPayment()`, `label()`) rather than being     |
 |              |                                                                  | read from outside. Receives time/ids as parameters. Unit tested  |
 |              |                                                                  | without doubles.                                                 |
-| Adapters     | `app/Models/`, `app/Seller/`, `app/Admin/`, `app/Notifications/`, | Eloquent models own their relations, casts, scopes, and the      |
-|              | `app/Support/`, `app/View/Composers/`, `resources/views/`         | writes that keep their own invariants — a model method applies a |
-|              |                                                                  | decision the core made and writes the row (`Listing::sell()`,    |
-|              |                                                                  | `Listing::changeStatusTo()`). Counts and sums a page shows are   |
+| Adapters     | `app/Models/`, `app/Seller/`, `app/Admin/`, `app/Analytics/`,    | Eloquent models own their relations, casts, scopes, and the      |
+|              | `app/Logging/`, `app/Observers/`, `app/Notifications/`,          | writes that keep their own invariants — a model method applies a |
+|              | `app/Support/`, `app/View/Composers/`, `app/View/Components/`,   | decision the core made and writes the row (`Listing::sell()`,    |
+|              | `resources/views/`                                                | `Listing::changeStatusTo()`). Counts and sums a page shows are   |
 |              |                                                                  | grouped in SQL by a scope or a model method                      |
 |              |                                                                  | (`Listing::countedByStatus()`, `LedgerEntry::totalledByType()`,  |
 |              |                                                                  | `Seller::escrowBalance()`), and the domain folds the rows that   |
@@ -80,7 +80,7 @@ flowchart TD
 |              | `routes/shop.php`, `routes/admin.php`; `routes/console.php`;     | `Model::shouldBeStrict()` outside production (a lazy load, a     |
 |              | `app/Providers`                                                  | discarded attribute, or a read of an unselected column raises),  |
 |              |                                                                  | enforces the notification morph map, registers                   |
-|              |                                                                  | `NotificationPolicy` for `DatabaseNotification` and the two      |
+|              |                                                                  | `NotificationPolicy` for `DatabaseNotification` and the five     |
 |              |                                                                  | event/listener pairs, binds `ShopLayoutComposer` to              |
 |              |                                                                  | `components.layouts.shop`, `SellerLayoutComposer` to             |
 |              |                                                                  | `components.layouts.seller`, and `AdminLayoutComposer` to        |
@@ -91,8 +91,8 @@ flowchart TD
 |              |                                                                  | schedule.                                                        |
 
 Naming follows the `naming` skill: actions are verb phrases (`PlaceOrder`,
-`ReleaseEscrow`), domain enums name states (`OrderStatus`), events are past
-tense (`OrderPlaced`).
+`RunWeeklyPayout`), domain enums name states (`OrderStatus`), events are past
+tense (`OrderPaid`).
 
 ### Refusals
 
@@ -101,8 +101,8 @@ status transition (`ListingStatus`, `OrderStatus`, `FulfillmentStatus`), a sale
 the stock cannot cover (`ListingStock`), a cart line the listing no longer
 supports (`CartQuantity`), an order with no items (`CartTotals`). Its message
 is written for the person who tripped it. `bootstrap/app.php` maps it once, for
-every route, to `back()->withInput()->withErrors(...)`, and all three layouts
-render `$errors`; controllers therefore carry no pre-flight copy of a guard the action
+every route, to `back()->withInput()->withErrors(...)`, and every layout
+except `error` renders `$errors`; controllers therefore carry no pre-flight copy of a guard the action
 already holds. `CheckoutController::place` is the one route that overrides the
 destination: it sends the shopper to the cart, where the line the message names
 is marked unavailable. Ownership stays separate — a row that is not the
@@ -123,18 +123,16 @@ that produces it, and every controller calls it.
   `MagicLink::statusAt($now)`. The exception is the framework's
   `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
   frozen by `travelTo()`, but not handed in.
-- `RunWeeklyPayouts` (the artisan command) is a second producer: a console run
-  has no controller, so it reads `now()` or parses `--as-of`.
+- The artisan commands are the other producers, since a console run has no
+  controller: `RunWeeklyPayouts` and `SweepOrders` read `now()` or parse
+  `--as-of`; `SeedActivity` reads `now()`.
 
 A test freezes time with `travelTo()`/`freezeTime()` and every layer follows,
-because one call per request produces the instant they all read. A stream is
-the exception a test drives with `Sleep::fake(syncWithCarbon: true)`, which
-advances the frozen clock by each faked sleep so the loop reaches its deadline
-without waiting.
+because one call per request produces the instant they all read.
 
 ## Logging
 
-`docs/spec.md` §2 is the contract. Every log line is one JSON object on
+[spec.md](../../docs/spec.md) §2 is the contract. Every log line is one JSON object on
 stdout, in every environment: `config/logging.php` has one channel that writes
 lines, `stdout`, and it is the default everywhere. `App\Logging\StoryFormatter`
 is the Monolog formatter that spells the payload.
@@ -189,7 +187,7 @@ sequenceDiagram
     M-->>B: 302 + X-Request-Id
 ```
 
-### Two middlewares, not one
+### Two request middlewares
 
 `LogRequestStory` is the outermost middleware in the application, ahead of
 every group. A request that matches no route and one the forgery guard
@@ -229,19 +227,21 @@ the request.
 `listing.view`, `cart.add`, `cart.update`, `cart.remove`, `order.place`,
 `order.pay`, `order.cancel`, `order.sweep`, `fulfillment.ship`,
 `fulfillment.deliver`, `fulfillment.decline`, `refund.issue`, `ledger.write`,
-`payout.run`, `payout.pay`, `conversation.open`, `message.post`,
-`faq.publish`, `faq.unpublish`, `notification.write`, `notification.deliver`,
-`moderation.block_customer`, `moderation.lift_customer_block`, `migrate.run`,
-`migrate.apply`, `seed.run`, `app.boot`, `app.shutdown`.
+`payout.run`, `payout.pay`, `conversation.open`, `conversation.resolve`,
+`conversation.reopen`, `message.post`, `faq.publish`, `faq.unpublish`,
+`notification.write`, `notification.deliver`, `moderation.block_customer`,
+`moderation.lift_customer_block`, `migrate.run`, `migrate.apply`,
+`seed.run`, `app.boot`, `app.shutdown`.
 
-`rate_limit.exceed` comes from `RateLimitGate` at `warn`;
+`rate_limit.exceed` comes from `RateLimitGate` at `warn`; `query.exceed`
+comes from `App\Support\SlowQueryWatch`;
 `moderation.remove_listing` and `moderation.lift_listing_removal` come from
 the two actions behind the admin's removal routes.
 
-Domain events are emitted by the action that does the work. Three are not:
-`ledger.write` comes from `LedgerEntryObserver`, so all three writers of a
-ledger entry are covered by one place; `app.boot`, `app.shutdown`,
-`migrate.run`, `migrate.apply`, `notification.write`, and
+Domain events are emitted by the action that does the work. Seven are
+emitted elsewhere: `ledger.write` comes from `LedgerEntryObserver`, so every
+writer of a ledger entry is covered by one place; `app.boot`,
+`app.shutdown`, `migrate.run`, `migrate.apply`, `notification.write`, and
 `notification.deliver` come from `LoggingServiceProvider`, which listens for
 the framework events that already announce them.
 
@@ -268,7 +268,7 @@ stays readable.
 
 ## Rate limits and security headers
 
-docs/spec.md §3 fixes seven limits, one env variable each, read at boot:
+[spec.md](../../docs/spec.md) §3 fixes seven limits, one env variable each, read at boot:
 `App\Domain\RateLimiting\RateLimitValue::parse()` turns `"<count>/<window>"`
 (or `"off"`) into a budget, and `config/rate_limits.php` calls it once per
 `App\Domain\RateLimiting\RateLimitName` case while the config file loads — a
@@ -292,7 +292,7 @@ A limit's key never reaches the log as an email address: the caller hashes
 it first (`'email:'.hash('sha256', EmailNormalizer::normalize($email))`)
 before it ever reaches the gate, so the gate has nothing to redact and the
 cache key and the logged key are the same hash. Every other key — a
-prefixed id, an ip — is already safe to log under docs/spec.md §2.1.
+prefixed id, an ip — is already safe to log under [spec.md](../../docs/spec.md) §2.1.
 
 Where each limit is checked runs ahead of the write it guards, inside the
 action that would otherwise perform it, so a trip leaves no side effect:
@@ -341,8 +341,11 @@ would poison every generated URL, magic links included.
 (not the `web` group — a route that matches nothing still needs to answer
 with these, the way `LogRequestStory` is global for the same reason) and
 sets, on every response: `Content-Security-Policy` (`default-src 'self'`,
-`img-src 'self' data:` for a listing's inline SVG placeholder, `form-action
-'self'`, `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`,
+`img-src 'self' data:` for a listing's inline SVG placeholder, `style-src
+'self' 'unsafe-inline'` for the inline `<x-theme-css />` block and the
+category pickers' `style` attributes, `form-action 'self'`,
+`frame-ancestors 'none'` — `'self'` on the design-system specimen routes,
+which the design-system page frames), `X-Content-Type-Options: nosniff`,
 `Referrer-Policy: strict-origin-when-cross-origin`, and, in production only,
 `Strict-Transport-Security`.
 
@@ -359,9 +362,11 @@ sets, on every response: `Content-Security-Policy` (`default-src 'self'`,
 
 Each site has its own Blade layout, an anonymous component (`<x-layouts.seller>`,
 `<x-layouts.shop>`, `<x-layouts.admin>` in
-`resources/views/components/layouts/`), and its own route file. All three
-layouts render the `<x-debug-alert>` component that shows any magic link
-flashed to the session.
+`resources/views/components/layouts/`), and its own route file. Three more
+layouts sit beside them: `seller-focused` (the configurator, bound to
+`SellerLayoutComposer` the same as `seller`), `auth`, and `error`. Every
+layout except `error` renders the `<x-debug-alert>` component that shows any
+magic link flashed to the session.
 
 `admins` rows are seeded, never signed up: `/admin/login` issues a link only
 for an address that already has one, and answers a submitted address the same
@@ -372,7 +377,7 @@ blocks a customer with a reason (`customer_blocks`); `Customer::canShop()` is
 the predicate `AddToCart`, `PlaceOrder`, and `FinalizeOrder` read through
 `App\Domain\Customers\CustomerStanding`, so a blocked shopper lands back on
 the page they submitted from with the reason while browsing, searching, and
-favoriting stay open. See `docs/messaging.md` § "What a block does".
+favoriting stay open. See [messaging.md](messaging.md) § "What a block does".
 
 ### Authorization
 
@@ -380,14 +385,18 @@ Every route binds its model (`Listing $listing`, `Fulfillment $fulfillment`,
 `DatabaseNotification $notification`, `Order $order`; the storefront listing
 binds by slug) and then authorizes it. `app/Policies` holds the rules:
 
-| Policy               | Abilities                           | Actor                            |
-| -------------------- | ----------------------------------- | -------------------------------- |
-| `ListingPolicy`      | `view`, `update`                    | `Seller`                         |
-| `FulfillmentPolicy`  | `view`, `update`, `ship`            | `Seller`                         |
-| `FulfillmentPolicy`  | `confirmDelivery`                   | `Customer`                       |
-| `OrderPolicy`        | `view`, `pay`                       | `Customer`                       |
-| `NotificationPolicy` | `markRead`                          | `Seller` or `Customer`           |
-| `ConversationPolicy` | `view`, `post`, `resolve`, `reopen` | `Seller`, `Customer`, or `Admin` |
+| Policy                  | Abilities                                            | Actor                            |
+| ----------------------- | ---------------------------------------------------- | -------------------------------- |
+| `ListingPolicy`         | `view`, `update`                                     | `Seller`                         |
+| `FulfillmentPolicy`     | `view`, `update`, `ship`, `completeStep`, `decline`  | `Seller`                         |
+| `FulfillmentPolicy`     | `confirmDelivery`                                    | `Customer`                       |
+| `FulfillmentFlowPolicy` | `view`, `update`                                     | `Seller`                         |
+| `StoreProfilePolicy`    | `view`, `update`                                     | `Seller`                         |
+| `CustomerPolicy`        | `view`                                               | `Seller`                         |
+| `OrderPolicy`           | `view`, `pay`, `cancel`                              | `Customer`                       |
+| `CartItemPolicy`        | `delete`                                             | `Customer`                       |
+| `NotificationPolicy`    | `markRead`                                           | `Seller` or `Customer`           |
+| `ConversationPolicy`    | `view`, `post`, `resolve`, `reopen`                  | `Seller`, `Customer`, or `Admin` |
 
 Ownership denials are `Response::denyAsNotFound()`: a row that is not the
 actor's answers 404, so an id outside their own is never confirmed to exist.
@@ -435,7 +444,7 @@ All of them extend `App\Http\Controllers\Controller`, which holds the clock
   `AnonymousNotifiable`) because the person may have no row yet.
   `config/magic_links.php` names the channel: `session` is
   `App\Notifications\Channels\SessionFlashChannel`, which flashes the URL so
-  all three layouts print it in a debug alert; `mail` is the framework's mail
+  every layout except `error` prints it in a debug alert; `mail` is the framework's mail
   channel, which sends `MagicLinkIssued::toMail()`. An unknown channel raises.
 - Customers: every visitor gets a `customers` row with `email = null`, id stored
   in an encrypted cookie `customer_id`. Verifying an email either claims that
@@ -450,7 +459,7 @@ All of them extend `App\Http\Controllers\Controller`, which holds the clock
   request — it is collected on `/orders/{order}/pay`, which the guest reaches
   by following the magic link's `redirect_to`. A verified customer collects
   the card in the same `/checkout` request instead.
-- See `docs/identity.md` for the sign-in and verification-with-merge sequence
+- See [identity.md](identity.md) for the sign-in and verification-with-merge sequence
   diagrams and the `ResolveCustomerIdentity` flowchart.
 
 ## Commerce domain
@@ -483,10 +492,10 @@ foreign key to `sellers` or `customers`. A magic link matches on an `email`
 string plus `actor_type`; a notification names its recipient with a morph type
 and id. `analytics_events` lives in the analytics store
 (`storage/analytics.sqlite3`, see **Deployables** and §2.6 of
-`docs/spec.md`), written by `App\Analytics\Analytics` after the request
+[spec.md](../../docs/spec.md)), written by `App\Analytics\Analytics` after the request
 that triggers it has already answered; its relationship line above is dotted
 because it is logical only — no foreign key crosses the two files. Full
-column list and both `customer_merges` foreign keys: `docs/data-model.md`.
+column list and both `customer_merges` foreign keys: [data-model.md](data-model.md).
 See [`analytics.md`](analytics.md) for the write path.
 
 ### Listing status
@@ -503,18 +512,20 @@ it and `sold` is reached at 0. Source of truth:
 ### Order status and fulfillment status
 
 State diagrams, the checkout-to-notification sequence, and a worked
-walkthrough of `OrderStatus::fromFulfillments()` roll-up: `docs/orders.md`.
+walkthrough of `OrderStatus::fromFulfillments()` roll-up: [orders.md](orders.md).
 In short: every order starts at `pending_verification` (guest) or
 `awaiting_payment` (verified customer) — neither status skips straight to
 `paid` — then moves through `paid`/`payment_failed` to
-`partially_shipped`/`shipped`/`delivered`. A fulfillment (order × seller)
-moves `awaiting_shipment → shipped → delivered`.
+`partially_shipped`/`shipped`/`delivered`, with `cancelled` and `refunded`
+as the terminal states off that path. A fulfillment (order × seller)
+moves `awaiting_shipment → shipped → delivered`, or ends at `declined` or
+`refunded`. The full transition tables: [orders.md](orders.md).
 
 ### Escrow and payouts
 
 - `ledger_entries` per seller: `held` (+amount on paid), `released` (on
   delivered; moves the amount from held to available), `paid_out` (−amount when
-  included in a payout).
+  included in a payout), `refunded` (−amount when a fulfillment is refunded).
 - Platform fee: 10% of item subtotal, taken at `held`. Seller net = subtotal −
   fee.
 - Payout period = Monday–Sunday. `php artisan payouts:run {--as-of=}` creates
@@ -529,7 +540,7 @@ moves `awaiting_shipment → shipped → delivered`.
   summed movements. The payout run bounds it by `occurred_at <= period.end`;
   `Seller::escrowBalance()` leaves it unbounded.
 - Ledger flowchart, `payouts:run` sequence diagram, and a worked $100 example:
-  `docs/escrow.md`.
+  [escrow.md](escrow.md).
 
 ### Fake payment
 
@@ -553,21 +564,41 @@ notification:
 flowchart LR
     finalize["FinalizeOrder"] -- "OrderPaid" --> sale["NotifySellerOfSale"]
     ship["MarkShipped"] -- "FulfillmentShipped" --> shipment["NotifyCustomerOfShipment"]
+    cancel["CancelOrder"] -- "OrderCancelled" --> cancellation["NotifyOfCancellation"]
+    refund["IssueRefund"] -- "RefundIssued" --> refunded["NotifyOfRefund"]
+    post["PostMessage"] -- "MessagePosted" --> message["NotifyOfMessage"]
     sale -- "ItemSold" --> seller["Seller (Notifiable)"]
     shipment -- "OrderShipped" --> customer["Customer (Notifiable)"]
+    cancellation -- "SaleCancelled" --> seller
+    cancellation -- "PurchaseCancelled" --> customer
+    refunded -- "SaleRefunded" --> seller
+    refunded -- "PurchaseRefunded" --> customer
+    message -- "MessageReceived" --> seller
+    message -- "MessageReceived" --> customer
+    message -- "MessageReceived" --> admin["Admin (Notifiable)"]
     seller --> inbox[("notifications")]
     customer --> inbox
+    admin --> inbox
 ```
 
-- Events (`App\Events\OrderPaid`, `App\Events\FulfillmentShipped`) are
-  `final readonly`, carry the model plus the instant, and are dispatched from
-  inside the action's transaction.
+- Events (`App\Events\OrderPaid`, `App\Events\FulfillmentShipped`,
+  `App\Events\OrderCancelled`, `App\Events\RefundIssued`,
+  `App\Events\MessagePosted`) are `final readonly`, carry the model plus the
+  instant, and are dispatched from inside the action's transaction.
 - Listeners (`App\Listeners\NotifySellerOfSale`,
-  `App\Listeners\NotifyCustomerOfShipment`) implement
+  `App\Listeners\NotifyCustomerOfShipment`,
+  `App\Listeners\NotifyOfCancellation`, `App\Listeners\NotifyOfRefund`,
+  `App\Listeners\NotifyOfMessage`) implement
   `ShouldHandleEventsAfterCommit`, so a rolled-back transaction tells nobody
   and no delivery runs with the transaction still open.
+  `AppServiceProvider::boot()` registers the five pairs.
 - Notifications (`App\Notifications\ItemSold`,
-  `App\Notifications\OrderShipped`, `App\Notifications\MessageReceived`)
+  `App\Notifications\OrderShipped`, `App\Notifications\SaleCancelled`,
+  `App\Notifications\PurchaseCancelled`, `App\Notifications\SaleRefunded`,
+  `App\Notifications\PurchaseRefunded`,
+  `App\Notifications\MessageReceived`,
+  `App\Notifications\ConversationResolved` — the last sent by
+  `ResolveConversation` directly, with no event between)
   extend `App\Notifications\PrefixedUlidNotification`, which gives each one a `ntf_`
   id before it is sent so the row carries the platform's id shape rather than
   the framework's UUID. `via()` reads
@@ -595,16 +626,18 @@ flowchart LR
   `database/seeders/`) and lists `tests/Arch.php` by name, since the layer
   rules carry no `Test.php` suffix. `tests/TestCase.php` stays as the Laravel base.
 - `tests/Pest.php` binds each sidecar directory to the base class its test
-  files need: `Tests\CommerceTestCase` for `app/Actions`,
-  `app/Console/Commands`, `app/Events`, `app/Http/Controllers/Admin`,
-  `app/Http/Controllers/Seller`, `app/Http/Requests/Admin`,
-  `app/Http/Requests/Seller`, `app/Listeners`, `app/Models`,
-  `app/Notifications`, `app/Policies`, `app/Providers`, and `app/Support`;
+  files need: `Tests\CommerceTestCase` for `app/Actions`, `app/Admin`,
+  `app/Analytics`, `app/Console/Commands`, `app/Events`,
+  `app/Http/Controllers/Admin`, `app/Http/Controllers/Seller`,
+  `app/Http/Requests/Admin`, `app/Http/Requests/Seller`, `app/Listeners`,
+  `app/Models`, `app/Notifications`, `app/Observers`, `app/Policies`,
+  `app/Providers`, `app/Seller`, `app/Support`, and `app/View/Components`;
   `Tests\StorefrontTestCase` for
   `app/Http/Controllers/Shop`, `app/Http/Requests/Shop`,
   `app/View/Composers`, `tests/SmokeTest.php`, and
   `tests/ConfiguratorSmokeTest.php`;
-  `Tests\TestCase` alone for `routes/`;
+  `Tests\TestCase` alone for `app/Logging`, `routes/`, and
+  `tests/DatabaseConfigTest.php`;
   `Tests\TestCase` + `RefreshDatabase` for `app/Http/Controllers/Auth`,
   `app/Http/Middleware`, `app/Http/Requests/Auth`, and `database/seeders`.
 - Every model under `app/Models` has a factory under `database/factories`,
@@ -637,13 +670,13 @@ flowchart LR
   `OrderPaymentController::pay`, `AccountController::readNotification`,
   `NotificationController::markRead`,
   `SignOutController::seller`/`customer`/`admin`, and the three
-  `LoginController::send` pairs), `App\Domain` for enums that live
-  beside the concept they model, `App\Console\Commands\RunWeeklyPayouts` for
-  its artisan command name, `App\Notifications\Channels` for a delivery
-  channel, which is not itself a notification, and
-  `App\Http\Requests\Shop\ShopRequest`, the abstract base whose children
-  hold the rules. Every other controller is held to the preset's REST method
-  vocabulary.
+  `LoginController::send` pairs), `App\Domain` and `App\Logging` for enums
+  that live beside the concept they model,
+  `App\Console\Commands\RunWeeklyPayouts`, `SweepOrders`, and `SeedActivity`
+  for their artisan command names, `App\Notifications\Channels` for a
+  delivery channel, and `App\Http\Requests\Shop\ShopRequest`, the abstract
+  base whose children hold the rules. Every other controller is held to the
+  preset's REST method vocabulary.
 - `tests/SidecarsTest.php` asserts every non-abstract, non-interface,
   non-enum, non-trait class under `app/` has a sidecar, against a maintained
   list of exceptions (classes covered by another file's tests, or with no
@@ -678,8 +711,11 @@ flowchart LR
   against the file tree only (`--no-deps`, no web server). `assets` builds
   the Tailwind CSS. `coverage` runs the full Pest suite under pcov, gated at
   95% of lines (`--min=95`). `make analyse` runs PHPStan alone.
-- Sidecar tests are analysed at the same level as the code they cover: there
-  are no `excludePaths`, no `ignoreErrors`, and no baseline. Pest reaches the
+- Sidecar tests are analysed at the same level as the code they cover, with
+  no `excludePaths` and no `ignoreErrors`. `phpstan-baseline.neon` holds the
+  cognitive-complexity debt (`class: 50`, `function: 8`, from the
+  `cognitive-complexity` extension); it is empty today and only shrinks,
+  since PHPStan fails on an entry that no longer matches. Pest reaches the
   test case, the custom expectations, and the arch DSL through traits and
   `expect()->extend()`, none of which static analysis can follow, so
   `src/phpstan/*.stub` declares them: `Pest\PendingCalls\TestCall` and

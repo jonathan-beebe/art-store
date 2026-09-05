@@ -1,6 +1,6 @@
 # Database
 
-The app runs SQLite. It is dead simple to operate. The tradeoff is features
+The app runs SQLite. It is one file to operate. The tradeoff is features
 (no RLS) and speed (write-limited). The natural upgrade is to adopt Postgres
 the day the app needs a second instance, managed backups, or row-level
 security.
@@ -22,8 +22,8 @@ Eloquent or the query builder.
   derivable through a join (a variant's seller, a cart item's customer).
 - Orders span sellers — an order is customer-owned, and seller ownership
   lives on `order_items` and `fulfillments`.
-- A test enforces the invariant across models, so a new owned table cannot
-  omit the column.
+- `tests/OwnershipTest.php` checks every model on its two lists. Add a new
+  owned model to the list.
 
 This gives a complete ownership model today, enforced in app code. And it
 makes an eventual Postgres migration easy: the RLS policy per table is
@@ -50,24 +50,34 @@ how we use SQLite, and make an eventual migration simpler.
 
 - **DDL through the migration DSL only.** The framework emits correct DDL
   for both engines. No raw `CREATE TABLE`, no engine pragmas in migrations.
+  The one exception: `create_fulfillment_flows_table` runs a raw
+  `DB::statement` for the partial unique index on the default flow, which
+  Blueprint cannot express.
 - **Queries through the builder/ORM.** Raw SQL, where a query needs it,
   lives behind a named scope or repository method so it is findable and
   swappable. Raw fragments never appear inline in controllers or views.
-- **`LIKE` is a trap.** SQLite's `LIKE` is case-insensitive for ASCII;
+- **`LIKE` differs by engine.** SQLite's `LIKE` is case-insensitive for ASCII;
   Postgres's is case-sensitive. Any case-insensitive match normalizes both
   sides (`lower(column) like lower(pattern)`) or lives behind the search
-  seam of §4. Favor case-insensitive searches everywhere.
+  seam of §4. Product rule: every search ignores case. The one exception:
+  `Analytics/Admin/AnalyticsJump.php` matches an id prefix with `like` and
+  no `lower()`; ULIDs are upper case, so a lower-case paste misses on
+  Postgres.
 - **Types are declared and enforced in the app.** SQLite stores whatever it
   is handed; Postgres rejects what the column type forbids. Casts and
   request validation are the guard — bad data that SQLite tolerates
   surfaces as a failed import on migration day.
   - Datetimes are UTC. 
   - Booleans go through casts. 
-  - JSON columns are declared as JSON and queried through the builder's 
-    JSON operators.
+  - JSON columns are queried through the builder's JSON operators.
+    `units.specs_json` is declared `json`;
+    `order_items.{configuration,answers,price_breakdown}_json` are declared
+    `text`.
 - **No engine-specific features in application code**: no `rowid`, no
-  SQLite-flavored `INSERT OR REPLACE`, no `strftime`. Upserts go through
-  the builder's upsert API.
+  SQLite-flavored `INSERT OR REPLACE`. `strftime` appears in three
+  `selectRaw` hour buckets, in `Analytics/Admin/EntityActivity.php` and
+  `Analytics/Admin/ActorAggregates.php`. Upserts go through the builder's
+  upsert API.
 
 ## 4. Search
 
@@ -84,7 +94,7 @@ the responsibility.
 - All matching and ranking flows through a single search entry point:
   `ListingSearch` and the `ofSearchTerm` scope. Controllers and views never
   compose a search predicate.
-- Upgrading relevance (FTS5 today, `tsvector` after a migration) touches
+- Upgrading relevance (`LIKE` today, FTS5 or `tsvector` after) touches
   that seam and nothing else.
 
 ## 5. Operating SQLite
@@ -92,11 +102,10 @@ the responsibility.
 - **Writes**: one write transaction at a time; WAL mode keeps reads flowing
   during a write. Hundreds of writes per second fit this workload shape.
 - **Reads**: effectively unlimited at this scale.
-- **Topology is the real limit.** SQLite pins the app to one instance with
-  a persistent disk: single instance, deploys with downtime, backup and
-  point-in-time recovery are on us (snapshots; Litestream is the researched
-  continuous-backup path). "We need a second instance" or "we need managed
-  backups" arrives before a performance cliff.
+- **Topology is the limit.** SQLite pins the app to one instance with a
+  persistent disk: single instance, deploys with downtime, and we own backup
+  and point-in-time recovery. The need for a second instance or managed
+  backups comes before the need for more throughput.
 - The process is the security boundary. Anything that can open the file
   reads everything, which is why §2 puts authorization in the app and why
-  per-tenant isolation with teeth means Postgres RLS or a file per tenant.
+  enforced per-tenant isolation means Postgres RLS or a file per tenant.

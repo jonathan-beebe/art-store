@@ -82,7 +82,6 @@ Prefix table (one prefix per domain table):
 | conversations                             | `cnv`  |
 | messages                                  | `msg`  |
 | notifications                             | `ntf`  |
-| outbox_messages                           | `obx`  |
 | funnels                                   | `fnl`  |
 | store_profiles                            | `sto`  |
 | store_slugs                               | `ssl`  |
@@ -91,18 +90,20 @@ Prefix table (one prefix per domain table):
 | store_section_images                      | `ssi`  |
 | store_links                               | `slk`  |
 | page_view_counts                          | `pvc`  |
-| rate_limit_windows                        | `rlw`  |
+| seed_runs                                 | `sdr`  |
+| requests (the `request_id` log field, §2) | `req`  |
 | sessions (the `sid` cookie value, §2)     | `ses`  |
 | transactions (the `txn_id` log field, §2) | `txn`  |
 
 Generation: `Str::ulid()` (Symfony Uid ships with Laravel) with a prefix, via
-a `HasPrefixedUlid` trait on the base model. One function parses
-`"<prefix>_<ulid>"` and refuses the wrong prefix; routes use it at the
-boundary.
+the `HasPrefixedUlid` trait. Every model uses the trait and declares
+`idPrefix()`. One function parses `"<prefix>_<ulid>"` and refuses the wrong
+prefix; routes use it at the boundary.
 
-Temporary: as we prototype we can skip data migration: the app rebuilds 
-with `make fresh`. Migrations may be rewritten in place. This rule will be
-removed once we have durable data we need to protect.
+Migrations: until the app has a live seller, edit migrations in place;
+`make fresh` rebuilds the database. Keep one migration file per table so
+the schema stays readable. Once the app has a live seller, migrations are
+immutable and append-only.
 
 ## 2. Logging
 
@@ -225,9 +226,8 @@ app emits every event below that its features support.
 | `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
 | `app.boot`, `app.shutdown`                                              | process lifecycle                                                        |
 
-The vocabulary is closed: if it looks like a new event is emerging as you develop
-the app, work with the user to define the new event type and add it to the official
-event vocab here and in the code. 
+The vocabulary is closed. To add an event, agree the name with the user,
+then add it here and to `StoryEvent`.
 
 ### 2.4 Emoji prefixes
 
@@ -252,9 +252,9 @@ its own, separate from the commerce database. Stdout stays exactly as this
 section specifies; the store is a mirror of it. The §2.1 payload fields map
 to same-named columns, with `data` and `error` stored as JSON text and the
 verbatim line beside them as `raw`. The store's primary key is the integer
-rowid — log rows are telemetry nothing references, an exception to §1 the
-way the `request_id` already is. A store failure degrades to stdout-only
-logging; the store's failure is never the app's failure.
+rowid: log rows are telemetry that nothing references, an exception to §1.
+A store failure degrades to stdout-only logging; the store's failure is
+never the app's failure.
 
 `LOG_DATABASE_FILE` names the file (default `storage/logs.sqlite3`, `off`
 disables the store). `LOG_RETENTION_DAYS` (default `14`, `off` disables)
@@ -283,7 +283,8 @@ batch — a store outage loses buffered rows, never blocks the request.
 `analytics_events` holds one row per occurrence, named from a closed
 vocabulary (today: `listing.view`, `listing.favorite`, `listing.unfavorite`,
 `listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
-`order.cancel`, `store.view`), with a nullable `dedupe_key` unique index. A
+`order.cancel`, `store.view`, `help.answered`, `help.unanswered`), with a
+nullable `dedupe_key` unique index. A
 listing view collapses to one row per (listing, customer, UTC hour) by
 expressing that window as a dedupe key and inserting with `INSERT OR
 IGNORE` — no read happens in the request to decide whether the write is a
@@ -313,7 +314,7 @@ current when it is called; a CLI run (a seeder, an artisan command) carries
 none of them, and the columns stay null.
 
 A store failure never fails the request: a write that cannot commit logs one
-`warn` line and the response completes regardless. Readers (§5 admin stats
+`warn` line and the response completes regardless. Readers (§5 admin analytics
 and dashboard, seller and admin listing detail) query the store directly and
 are unguarded — an unavailable store surfaces there as an error, the way any
 missing data source would.
@@ -354,11 +355,12 @@ unset. Limits are read at boot; a malformed value refuses to boot.
 |                      |                                 |          | separately, client ip                 | and guest checkout's implicit link     |
 | `magic_link_consume` | `RATE_LIMIT_MAGIC_LINK_CONSUME` | `20/15m` | client ip                             | the verification GET                   |
 | `message_post`       | `RATE_LIMIT_MESSAGE_POST`       | `30/1h`  | actor id                              | every message POST                     |
-| `conversation_open`  | `RATE_LIMIT_CONVERSATION_OPEN`  | `10/1h`  | actor id                              | listing question, support, fulfillment |
-|                      |                                 |          |                                       | thread opens                           |
+| `conversation_open`  | `RATE_LIMIT_CONVERSATION_OPEN`  | `10/1h`  | actor id                              | every thread open                      |
 | `checkout`           | `RATE_LIMIT_CHECKOUT`           | `10/1h`  | customer id                           | POST checkout                          |
 | `payment_attempt`    | `RATE_LIMIT_PAYMENT_ATTEMPT`    | `5/15m`  | order id                              | POST pay                               |
-| `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | `60/1h`  | seller id                             | listing create/update/upload           |
+| `listing_write`      | `RATE_LIMIT_LISTING_WRITE`      | `60/1h`  | seller id                             | every seller write to a listing:       |
+|                      |                                 |          |                                       | create, update, image upload, and      |
+|                      |                                 |          |                                       | every configurator write               |
 
 Behavior on trip: HTTP 429, `Retry-After: <seconds>` header, the site's own
 HTML page ("Too many requests — try again in N minutes"; for a form, the form
@@ -396,7 +398,8 @@ pending_verification ─verify─▶ awaiting_payment ─approve─▶ paid
   live fulfillments only: `paid` / `partially_shipped` / `shipped` /
   `delivered` are computed over fulfillments that are neither declined nor
   refunded. `orders.refunded_cents` carries the sum of its refunds.
-- An admin cancel records a reason, like decline and refund.
+- Design, not built: an admin cancel records a reason, as decline and
+  refund do.
 - The stale sweep cancels `pending_verification` orders strictly older than
   `STALE_ORDER_HOURS` (default `24`). It runs from `make sweep` (an artisan
   command) and is idempotent.
@@ -443,8 +446,9 @@ line refunds in this cut).
 
 Entry types: `held`, `released`, `paid_out`, `refunded`. The balance is still a
 fold, and the fold groups by `(fulfillment_id, entry_type)` — a flat per-type
-fold cannot reproduce the timings below. "Refund after release" is decided by
-whether that fulfillment's `released` entry exists, not by its status. A `refunded` entry carries `-net_cents` for the fulfillment:
+fold cannot reproduce the timings below. "Refund after release" means that
+fulfillment's `released` entry exists. A `refunded` entry carries
+`-net_cents` for the fulfillment:
 
 - Refund before release: `held` +net, `refunded` −net → the seller's held
   balance returns to zero for that fulfillment; nothing releases.
@@ -455,9 +459,11 @@ whether that fulfillment's `released` entry exists, not by its status. A `refund
   period settles the negative (a payout of ≤ 0 writes no `paid_out` row and
   the negative carries forward).
 
-The platform fee on a refunded fulfillment is forgone: accounting reports
-`fees_earned_cents` over fulfillments that are not declined/refunded, and a
-`fees_refunded_cents` total beside it.
+The platform fee on a refunded fulfillment is forgone. `PlatformMoney`
+carries `feesEarned`, the fee summed over live fulfillments, and
+`feesRefunded`, the fee summed over declined and refunded fulfillments.
+`/admin` and `/admin/accounting` show them as "Fees earned" and "Fees
+refunded".
 
 ### 4.3 Sad paths covered by tests
 
@@ -579,8 +585,9 @@ edit write no log line; the appended row is the record.
 |                                                                         | it, a daily bar strip, distinct subject/actor counts, and the actors     |
 |                                                                         | with the highest events-per-hour peak; `q` narrows both tables and a     |
 |                                                                         | pasted listing or customer id or a shared ip jumps straight to it        |
-| `/admin/analytics/events/:name?range=&by=listing\|actor\|pattern`       | one event name's range tiles, daily bars, and a breakdown by listing,    |
-|                                                                         | actor, or — for `page.view` — route pattern                              |
+| `/admin/analytics/events/:name?range=&by=listing\|actor\|pattern\|article` | one event name's range tiles, daily bars, and a breakdown by listing,    |
+|                                                                         | actor, route pattern (`page.view` only), or help article                 |
+|                                                                         | (`help.answered` and `help.unanswered` only)                             |
 | `/admin/analytics/actors?range=&sort=active\|recent&actors=&q=&page=`   | every actor that carried an event in the range, paged, sorted by most    |
 |                                                                         | active or most recent                                                    |
 | `/admin/analytics/actors/:customer?range=&event=`                       | the actor's identity, range tiles, a daily or (once flagged) hourly      |
@@ -589,6 +596,8 @@ edit write no log line; the appended row is the record.
 |                                                                         | form                                                                     |
 | `/admin/analytics/listings/:listing?range=&event=`                      | the listing's identity, range tiles, a daily strip, and its event feed   |
 |                                                                         | newest first; links to the listing                                       |
+| `/admin/analytics/stores/:store?range=&event=`                          | the store's identity, range tiles, a daily strip, and its event feed     |
+|                                                                         | newest first; links to the seller                                        |
 | `/admin/analytics/funnels/:funnel?range=`                               | one funnel's own steps (visitors through its last named step), the       |
 |                                                                         | range control; linked from its tile above and from `/admin/funnels`      |
 | `/admin/analytics/channels?range=`                                      | every channel — visitors, listing views, cart adds, orders placed, and   |
@@ -600,7 +609,8 @@ edit write no log line; the appended row is the record.
 | `/admin/logs?domain=&level=&phase=&event=&request=&txn=&session=`       | every stored log line, newest first, with level tallies and filters;     |
 | `&actor=&msg=&key=&value=&from=&to=&group=&health=&viewer=`             | `key`/`value` filters on any attribute of the stored line; `group=1`     |
 |                                                                         | collapses to one summarized row per request; health checks and the       |
-|                                                                         | viewer's own requests hidden by default                                  |
+|                                                                         | viewer's own requests hidden by default; a visit with no query string    |
+|                                                                         | redirects to `?domain=shop&group=1`                                      |
 | `/admin/logs/requests/:requestId`                                       | one request's lines in `ts` order — the story view                       |
 | `POST /admin/listings/:id/removals`, `…/removals/lift`                  | temporary / permanent removal with reason; lift refused for permanent    |
 | `POST /admin/customers/:id/blocks`, `…/blocks/lift`                     | block with reason; block removes cart add, checkout, pay, message post   |
@@ -704,7 +714,6 @@ at the root installs it. `make check` — lint → assets → the coverage-gated
 suite — runs once per branch instead, at PR time: whoever opens the PR runs
 `make check` by hand or lets CI run it.
 
-CI (`.github/workflows/check.yml`) runs `make check` on push and pull
-request, unconditionally of what the pre-commit hook did locally — this is
-what actually enforces the full gate before merge, since the hook only runs
-`precommit`. A red test suite blocks a commit either way.
+CI (`.github/workflows/check.yml`) runs `make check` on every push and
+pull request. The hook runs `precommit` only, so CI is the full gate before
+merge. A red test suite blocks a commit either way.

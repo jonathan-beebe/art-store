@@ -1,13 +1,13 @@
 # Analytics store
 
-Page views and listing interactions (views, favorites, unfavorites, cart
-adds) are counted in a SQLite file of their own, separate from the commerce
-database, so analytics load can never make a shopper's or seller's page
-slower. `App\Analytics\Analytics` is the one entry point: every recording
-call appends to an in-memory buffer and does no I/O; a later flush is what
-turns the buffer into rows.
+The analytics store is a SQLite file of its own, separate from the commerce
+database. It counts page views and listing interactions (views, favorites,
+unfavorites, cart adds). Analytics load never slows a shopper's or seller's
+page. `App\Analytics\Analytics` is the one entry point: every recording
+call appends to an in-memory buffer and does no I/O; a later flush turns
+the buffer into rows.
 
-Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ActorVisitRow,ListingEventCounts,RequestFacts}.php`,
+Code: `app/Analytics/{Analytics,AnalyticsEvent,AnalyticsEventRow,AnalyticsReport,AnalyticsVisit,ActorVisitRow,ListingEventCounts,RequestFacts,RowChannel}.php`,
 `app/Domain/Analytics/{AnalyticsEventName,Channel}.php`,
 `app/Providers/AnalyticsServiceProvider.php`, the `analytics` connection in
 `config/database.php`, `config/analytics.php`, `app/Support/RequestMarks.php`,
@@ -45,12 +45,12 @@ The store is its own SQLite file: the `analytics` connection in
 `config/database.php`, named by `ANALYTICS_DATABASE_FILE` (default
 `storage/analytics.sqlite3`, beside the log store). WAL, `synchronous =
 off` (losing a buffered count on a crash is acceptable), `busy_timeout =
-250` (a fifth of the commerce connection's, so a contended flush fails fast
-rather than stalling the request behind it), and foreign keys off — the
+250` (a twentieth of the commerce connection's 5000, so a contended flush
+fails fast and no request waits behind it), and foreign keys off — the
 store's rows reference commerce rows by id only, across two separate SQLite
 files.
 
-The two tables' migrations run on the `analytics` connection and drop their
+The three tables' migrations run on the `analytics` connection and drop their
 table before creating it: the migrations ledger lives in the app database,
 so rebuilding it (`make fresh`, a deleted `database.sqlite`) re-runs every
 migration, including these, against an analytics file that may still hold
@@ -132,8 +132,8 @@ commerce writes stand regardless.
 | `id`           | text(30) PK              | prefix `aev`                                                  |
 | `name`         | string                   | closed vocabulary — see below                                 |
 | `occurred_at`  | timestamp                | UTC; the instant recorded, not the instant written            |
-| `subject_type` | string, nullable         | `listing`, `cart`, or `order`                                 |
-| `subject_id`   | text(30), nullable       | references e.g. `listings.id`, `carts.id`, `orders.id`, no FK |
+| `subject_type` | string, nullable         | `listing`, `cart`, `order`, `store`, or `help_article`        |
+| `subject_id`   | text(30), nullable       | `listings.id`, `carts.id`, `orders.id`, `store_profiles.id`, or a help article's slug; no FK |
 | `actor_id`     | text(30), nullable       | references e.g. `customers.id`, no FK                         |
 | `ip`           | string(45), nullable     | the request's ip; null for a CLI run                          |
 | `session_id`   | string, nullable         | the `sid` cookie's value; null for a CLI run                  |
@@ -142,8 +142,8 @@ commerce writes stand regardless.
 
 Indexes: `(subject_id, name)`, `(name, occurred_at)`, `actor_id`, `ip`, `session_id`.
 
-`page_view_counts` is unchanged by this ticket: `id` (prefix `pvc`), `site`,
-`path_pattern`, `day`, `count`, unique on `(site, path_pattern, day)`.
+`page_view_counts` holds `id` (prefix `pvc`), `site`, `path_pattern`,
+`day`, and `count`, unique on `(site, path_pattern, day)`.
 
 `analytics_visits`:
 
@@ -191,8 +191,8 @@ the id it was just given.
 `App\Domain\Analytics\AnalyticsEventName` is the closed enum every `recordEvent()`
 call names: `listing.view`, `listing.favorite`, `listing.unfavorite`,
 `listing.cart_add`, `checkout.open`, `order.place`, `order.pay`,
-`order.cancel`. A reader greps this one file for every name the store
-accepts.
+`order.cancel`, `store.view`, `help.answered`, `help.unanswered`. A reader
+greps this one file for every name the store accepts.
 
 A `listing.view` carries a `dedupe_key`
 (`listing:{listingId}:customer:{customerId|"anonymous"}:hour:{UTC hour}`,
@@ -206,7 +206,8 @@ every time; each is a deliberate click, not a page load.
 
 The four steps beyond the cart carry no dedupe key either and are recorded
 by the code that already announces each step in the story
-(`docs/logging.md`), each through a constructor-injected `Analytics`:
+([`architecture.md`](architecture.md) § "The phases"), each through a
+constructor-injected `Analytics`:
 `Shop\CheckoutController::show` records `checkout.open` once per request,
 `subject_type = 'cart'`, `subject_id` the visitor's cart id, `data.listing_ids`
 the listings the cart holds. `App\Actions\Orders\PlaceOrder` records
@@ -229,8 +230,9 @@ A seller's "Did this answer it?" click on a help article records
 'help_article'`, `subject_id` the article's slug, `actor_id` null,
 `data.seller_id` the seller. Every `App\Analytics\Admin` actor reader
 resolves `actor_id` against `customers`, and a seller is never a customer,
-so the seller identity travels in `data` instead — docs/seller-portal.md's
-Support section has the routes and the redirect shape. The dedupe key is
+so the seller identity travels in `data` instead —
+[`seller-portal.md`](seller-portal.md)'s Support section has the routes and
+the redirect shape. The dedupe key is
 a UTC day and folds in the event name, so a Yes and a later No the same
 day each get their own row (`App\Domain\Seller\HelpArticleFeedbackCollapse`).
 The event page's own breakdown for these two names is `App\Domain\Analytics\EventBreakdown::Article`
@@ -330,8 +332,8 @@ holds at most one row.
 
 ## Reading the store: the admin drill-in
 
-`/admin/analytics` and the four pages under it (`docs/admin.md` § "Analytics
-drill-in") read `analytics_events` and `page_view_counts` through a second
+`/admin/analytics` and the eight pages under it ([`admin.md`](admin.md)
+§ "Analytics drill-in") read `analytics_events` and `page_view_counts` through a second
 query layer, `App\Analytics\Admin\`, kept apart from `AnalyticsReport` the
 way the log viewer keeps `App\Logging\Admin\` apart from `App\Logging\LogStore`.
 Every class in it is a static, stateless reader — no writer lives here.
@@ -420,14 +422,14 @@ case, so the very first event a new visitor causes carries the session id
 they were just given; without the fallback it lands null, a gap on an
 actor's own feed.
 
-**Query-count tests.** Each of the five pages carries a test that seeds a
+**Query-count tests.** Each of the eight pages carries a test that seeds a
 growing number of actors, listings, or feed events and asserts a fixed query
 count on both the default and the analytics connections, so none of them
 regresses into a query per row:
 
 | Page                                 | Fixture                 | Default | Analytics |
 | ------------------------------------ | ----------------------- | ------- | --------- |
-| `/admin/analytics`                   | 12 actors               | 2       | 12        |
+| `/admin/analytics`                   | 12 actors               | 3       | 14        |
 | `/admin/analytics/events/:name`      | 8 listings (by-listing) | 4       | 5         |
 | `/admin/analytics/actors`            | 15 actors               | 2       | 4         |
 | `/admin/analytics/actors/:customer`  | 15 feed events          | 4       | 12        |
@@ -440,14 +442,7 @@ Every row's own analytics-connection count carries one statement no page
 here reads on purpose: `App\Http\Middleware\RollUpPageViews` upserts
 `page_view_counts` for every countable admin hit the same way it does for
 the storefront, so every page in this table pays one write on top of its
-own reads. The entry and listing pages' analytics-connection count also
-each carry two statements for the funnel (`Funnel::forRange()` /
-`forListing()`, below) on top of the total the row named before it
-shipped. The entry page's own total also carries `ChannelTable::forRange()`'s
-two statements (the channels section's top-three summary), and the actor
-page's own total carries one more for `AnalyticsReport::visitsForActor()`
-(the visits panel and the identity card's "First channel" fact). The two
-channel pages' own default count is one lower than every other page here:
+own reads. The two channel pages' own default count is one lower than every other page here:
 neither resolves a `Customer` or `Listing` row by id, so their one
 default-connection query is the admin chrome's own tallies, with no
 identity lookup added on top.
@@ -470,7 +465,7 @@ funnel by `Database\Seeders\FunnelSeeder`, which runs unconditionally
 alongside `AdminSeeder` so the row exists on every `make fresh` and every
 deploy, not only a freshly seeded demo database. Admins create, edit,
 reorder, and remove funnels at `/admin/funnels`
-(`docs/admin.md` § "Analytics drill-in").
+([`admin.md`](admin.md) § "Analytics drill-in").
 
 `App\Analytics\Admin\Funnel::forRange()`/`forListing()`/`forSeller()` take
 a `FunnelDefinition` and a range (`forListing()`/`forSeller()` also the
@@ -549,11 +544,11 @@ agree with the app database's.
 as a shared-borders grid, one cell per step, each with two stacked bars
 (this range's share of the first step, the previous range's own share
 beneath it) and the "largest drop" badge on the one step `isLargestDrop`
-marks — see `docs/admin.md` § "Analytics drill-in" for where it is
+marks — see [`admin.md`](admin.md) § "Analytics drill-in" for where it is
 mounted: the listing and seller pages always render the storefront funnel
 this way; the analytics home shows a small tile per funnel instead
 (below) and links each one to its own detail page, drawn by this same
-component, with a range control. `docs/funnel.md` fixes the boundary
+component, with a range control. [`funnel.md`](funnel.md) fixes the boundary
 between this query and that component — the step contract `FunnelStep`
 carries and the drawing rules the component follows.
 
@@ -593,7 +588,7 @@ on the guarded-failure branch (`AnalyticsTest`, `MergeAnonymousCustomerTest`,
 
 Every event also carries the request that produced it: `ip` and
 `session_id` as their own indexed columns, and the request id folded into
-`data.request_id` — a cross-link to the log store (`docs/logging.md`),
+`data.request_id` — a cross-link to the log store ([`log-store.md`](log-store.md)),
 never a filter on its own. `App\Analytics\RequestFacts::current()` reads
 all three from whatever request is current in the container, and
 `Analytics::recordEvent()` calls it once per event before buffering — the
@@ -623,7 +618,7 @@ roughly 115 overall — while anonymous visitors carry most of the traffic
 in every month. Daily listing views read in the tens early on and climb
 into the hundreds by the end of the window — a visibly rising strip of
 daily bars at `/admin/analytics?range=90`. Listing creation ramps the
-same way, so the catalog itself grows from `make fresh`'s 37 listings to
+same way, so the catalog itself grows from `make fresh`'s 46 listings to
 upward of 150 by the third month.
 
 **Two bad actors.** Scripted once per plan, outside the day-by-day ramp,
@@ -661,16 +656,14 @@ scraper's and prober's own, the magic-link request and consume a sign-up
 or a returning visitor's verification would have produced — gets the
 `http.request` will/did pair a real request would have written
 (`App\Logging\LogLine::parse()` via `LogStore::append()` directly, the
-exact shape `docs/log-store.md` documents). The real domain actions this
+exact shape [`log-store.md`](log-store.md) documents). The real domain actions this
 command drives (`AddToCart`, `PlaceOrder`, and the rest) already write
 their own story lines through the ordinary `Log` facade — nothing extra
 was needed for those.
 
-**Retention.** `ANALYTICS_RETENTION_DAYS` (30 by default) prunes
-`analytics_events`/`analytics_visits` rows older than the cutoff on the
-next `orders:sweep` — enough to delete roughly two thirds of a 92-day
-seeded run's history. Widen the window (or set it `off`) in local dev
-before running `orders:sweep` if the seeded season needs to survive it.
+**Retention.** `ANALYTICS_RETENTION_DAYS` ([Retention](#retention) below)
+prunes most of a 92-day seeded run on the next `orders:sweep`, so widen the
+window or set it `off` in local dev first.
 
 ## Retention
 
@@ -681,7 +674,7 @@ usage log into a standing record of who visited what. `ANALYTICS_RETENTION_DAYS`
 `App\Analytics\Analytics::prune($cutoff)` deletes `analytics_events` rows
 whose `occurred_at` and `analytics_visits` rows whose `first_seen_at` are
 before the cutoff, each batched and looped until none change — the same
-shape `App\Logging\LogStore::prune()` uses (`docs/log-store.md`) — and
+shape `App\Logging\LogStore::prune()` uses ([`log-store.md`](log-store.md)) — and
 returns the two tables' combined delete count. `orders:sweep` runs it as a
 third step alongside the stale-order sweep and the log-store prune, each
 independent of the others' success, and prints the combined count

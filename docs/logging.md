@@ -9,7 +9,7 @@ Every JSON line the app logs — server and CLI runs alike — is also
 written to a queryable SQLite store, and the admin site reads it back: a
 filterable time series at `/admin/logs` and a per-request story view. Stdout
 stays exactly as spec.md §2 specifies; the store is a mirror of it.
-Lines older than a retention window are pruned by the maintenance sweep.
+`orders:sweep` (`make sweep`) prunes lines older than the retention window.
 
 Three invariants govern the design:
 
@@ -31,25 +31,22 @@ beside the commerce file; `off` disables the store). Two hazards make the
 separate file load-bearing:
 
 - A log INSERT issued on the commerce connection inside a business
-  transaction joins that transaction — a rollback would erase the very
+  transaction joins that transaction — a rollback would erase the
   `failed` line that explains it.
 - Rebuilding the commerce database (`make fresh`) must not erase log
   history. Retention is the one sanctioned way log rows die.
 
-Schema creation is ensure-on-open, versioned by a stored schema number of
-its own — the commerce database's migrator owns nothing here — inside an
-exclusive transaction guarded by `IF NOT EXISTS`, so a server process and a
-CLI process racing to bootstrap the file at startup stay safe: one
-bootstraps, the other waits out a short busy timeout and finds the schema
-already there. A file whose schema version is ahead of the code, or any
-open failure (missing directory, disk full, corrupt file), disables the
-store for that process: the app boots, one warning line goes to stdout, and
-logging becomes stdout-only for that process's life. Reference tuning: a
-write-ahead journal, a short busy-timeout so a contended flush fails fast
-and re-buffers instead of stalling the request, and incremental
-auto-vacuum so retention's deletes hand pages back — illustrative values a
-stack adapts to its own driver's equivalents, in service of the behavior
-they produce.
+Schema creation is ensure-on-open, versioned by `PRAGMA user_version`. The
+commerce migrator owns nothing here. `BEGIN IMMEDIATE` plus `IF NOT EXISTS`
+makes two processes racing to bootstrap safe: one bootstraps, the other
+waits out the busy timeout and finds the schema present. A file whose
+version is ahead of the code, or any open failure (missing directory, disk
+full, corrupt file), disables the store for that process: the app boots,
+one warning goes to stdout, and logging is stdout-only for the process's
+life. The store sets four pragmas at open: `journal_mode = WAL`;
+`busy_timeout = 250` (milliseconds), so a contended flush fails fast and
+re-buffers; `auto_vacuum = INCREMENTAL`, so the retention prune hands pages
+back; `synchronous = NORMAL`.
 
 ## Table
 
@@ -95,8 +92,7 @@ application of invariant 2:
 - **Rowid primary key.** Log rows are telemetry: nothing references them,
   no URL carries their id (the story view keys on `request_id`), and the
   rowid gives `ORDER BY ts, id` its tiebreak with zero minting on the write
-  path. Stated exception to spec.md §1, the way §1 already excepts
-  the `request_id` value.
+  path. Stated exception to spec.md §1.
 - **No CHECK constraints from the vocabularies.** A CHECK would refuse —
   lose — the first line of any event added to §2.3 before this DDL catches
   up. The viewer's filters still answer 400 for an unrecognised filter
@@ -115,27 +111,29 @@ flowchart LR
   app["application logger\n(server + every CLI)"] -->|"write(line)"| tee["tee / mirror seam"]
   tee -->|"1. verbatim, first"| stdout["stdout"]
   tee -->|"2. parse + buffer"| buffer["in-memory buffer"]
-  buffer -->|"batched flush,\noff the request path"| db[("logs.sqlite3\nlog_lines")]
+  buffer -->|"batched flush,\n256 lines or process exit"| db[("logs.sqlite3\nlog_lines")]
   db --> admin["/admin/logs"]
 ```
 
 The store taps the logger's single destination — one seam every server and
 CLI line flows through, so one integration point covers the server and
-every CLI. Writing a line, in order, guarded so a store failure never
-reaches the logger: the chunk goes to stdout verbatim, first, per
-invariant 1; it is split on newlines, a trailing partial carried forward;
-each line is parsed and its column values pushed onto a buffer, a parse
-failure pushing the malformed-line row instead; the buffer flushes off the
-request path, in batches of 256 lines, scheduled when it goes from empty to
-non-empty and forced early at the batch size.
+every CLI. A store failure never reaches the logger. Writing a line, in
+order:
+
+1. The chunk goes to stdout verbatim, per invariant 1.
+2. The store splits the chunk on newlines and carries a trailing partial
+   forward.
+3. The store parses each line and pushes its column values onto a buffer.
+   A parse failure pushes the malformed-line row instead.
+4. The buffer flushes when it reaches 256 lines and when the process exits.
 
 The flush is one transaction, one prepared multi-row INSERT — one durable
 write per batch. A logger call happens synchronously inside a request, so
 an unbatched insert per line would put database work, worst case a full
 busy-timeout stall, inside every request; batching bounds that to one
-small insert per tick. 256 rows also keeps one multi-row INSERT's bound
+small insert per flush. 256 rows also keeps one multi-row INSERT's bound
 parameters under SQLite's variable limit. A flush failure re-buffers the
-batch for the next tick. Past the buffer's cap of 10,000 lines, new lines
+batch for the next flush. Past the buffer's cap of 10,000 lines, new lines
 are dropped from the store while stdout still carries them, and one notice
 goes to stderr.
 
@@ -154,8 +152,9 @@ inside the store would only make the mirror disagree with stdout.
 
 Two routes, behind the admin site's existing authentication guard.
 `GET /admin/logs` — the time series, newest first, paginated at 50 rows,
-filters carried through the pager. Empty value means all; unrecognised
-value answers 400. Filters:
+filters carried through the pager. A visit with no query string redirects
+to `?domain=shop&group=1`. Empty value means all; unrecognised value
+answers 400. Filters:
 
 - `domain` — a select, placed first, over the three sites (`shop`,
   `seller`, `admin`);
@@ -183,9 +182,9 @@ transaction, session, actor — are filter links: tapping one applies that
 filter, carrying the other current filters and landing on page 1; ids the
 row itself has no column for sit as the same links in the row's
 disclosure. A compact chevron beside the request id opens the story view,
-and an actor whose prefix has a detail page gets the same chevron
-treatment to the record, its accessible name naming the actor ("View
-customer <id>", "View seller <id>"). A row whose
+and a `sel` or `cus` actor gets the same chevron to the record, its
+accessible name naming the actor ("View customer <id>", "View seller
+<id>"); an `adm` actor has no detail page. A row whose
 `data` or `error` is present discloses it in a collapsible block — the
 page works with JavaScript absent, like every admin page.
 
@@ -195,9 +194,8 @@ A log row tints yellow when its line is `warn` level, red when it is a
 `failed` line (error level). A request is a conversation: the `group=1`
 group row and the story view's header tint from the worst line the request
 contains — yellow when any line in the request warns, red when any line
-fails, red winning over yellow. The tint is the scanning aid: a founder
-skimming the list or the grouped view sees trouble without opening
-anything.
+fails, red winning over yellow. The tint marks trouble without opening a
+row.
 
 ### The domain filter
 
@@ -275,9 +273,9 @@ Path and value are bound parameters, giving one code path for `data.*`,
 without `value` is an existence filter — every line naming a
 `data.refund_id`, say. A numeric-looking value matches both a JSON number
 and a matching string, since JSON extraction is typed; booleans compare as
-`1`/`0`. The filter scans within whatever the other filters bound, cheap
-at a retention-bounded table's size; a hot path's escape hatch is a stored
-generated column plus index.
+`1`/`0`. The filter scans within whatever the other filters bound. The
+scan is bounded by retention. A hot key can get a generated column and
+index.
 
 ### The story view
 
@@ -296,8 +294,8 @@ Two rules govern id links. A line's own ids — request, transaction,
 session, actor — are filter links, per the list view's rule above, with
 the actor's record chevron beside them. Prefixed ids inside a
 disclosed `data` or `error` block link where a detail page exists — an
-order, customer, seller, listing, fulfillment, outbox message, or
-conversation id alike; a transaction or session id there links back into
+order, customer, seller, listing, fulfillment, or conversation id
+alike; a transaction or session id there links back into
 `/admin/logs` as a filter — one mapping from prefix to route, drawn from
 the admin site's own page table so a link never 404s. A message id renders
 plain: messages have no detail page of their own.
@@ -317,21 +315,20 @@ WHERE id IN (SELECT id FROM log_lines WHERE ts < ? LIMIT 5000)
 ```
 
 — looped until no rows change, so the write lock is held for milliseconds
-per batch and a concurrently flushing process re-buffers at most one tick.
-A stack whose store supports incremental vacuuming reclaims pages at the
-end of the sweep. The schema's upgrade path follows from the same fact
+per batch and a concurrently flushing process re-buffers at most one
+flush. After the last batch the store runs `PRAGMA incremental_vacuum(1000)`. The schema's upgrade path follows from the same fact
 that governs retention — every row is expendable by design — so evolving
 the DDL means bumping the stored schema version, and the escape hatch for
 a mismatched file is deleting it.
 
 ## Testing
 
-The ingest path tests in-process against an in-memory store: passthrough
+The ingest path tests in-process against a temporary SQLite file: passthrough
 order (stdout before parsing, and on every failure), the §2.1 field
 mapping, the malformed-line row, batched flush and flush-on-exit,
 re-buffer on a write failure, bootstrap idempotence, and the
 disabled-store degradations. The viewer tests exercise `/admin/logs` and
-the story route against an in-memory store shared by writer and reader,
+the story route against a temporary SQLite file shared by writer and reader,
 signed in as an admin, with a filter matrix asserting each filter narrows
 the result set, round-trips through the form and pager, and 400s on an
 unrecognised value. Retention tests sit beside the app's existing prune

@@ -1,16 +1,19 @@
 # Item configurator
 
-This doc translates a platform-agnostic product-configuration design into the
-app's schema and vocabulary — **listing** where the source says product,
+Status: built.
+
+This doc states the product-configuration schema and vocabulary the app
+holds. The research note behind it is
+`__local__/item-configuration/etsy-product-configuration.md`, a local,
+git-ignored file; this doc says **listing** where the note says product,
 **seller** where it says shop, **customer** where it says buyer.
 
-A listing with no option axes behaves exactly as it does today: one price,
-one quantity, add-to-cart with no configurator screen. Everything below is
-additive.
+A listing with no option axes has one price, one quantity, and an
+add-to-cart button with no configurator screen.
 
 ## 1. Design principles
 
-Kept from the source doc, in this platform's terms:
+Kept from the research note, in this platform's terms:
 
 1. **Every customer-facing choice is a first-class primitive.** Option axes,
    modifiers, serialized units, and quantity tiers each have their own table.
@@ -26,10 +29,13 @@ Kept from the source doc, in this platform's terms:
 
 ## 2. Data model
 
-Four groups, layered the way `docs/data-model.md` layers the commerce
-tables: **taxonomy → configuration → content → cart and order**. Every new
-table's primary key is a 30-character prefixed ULID (`docs/spec.md` §1);
-every foreign key holds the referenced table's id.
+Four groups: **taxonomy → configuration → content → cart and order**.
+[`data-model.md`](data-model.md) draws the commerce tables these join.
+Every table's primary key is a 30-character prefixed ULID
+([`spec.md`](../../docs/spec.md) §1); every foreign key holds the
+referenced table's id. Every listing-scoped table below (`listing_attributes`
+and every table in §2.2 and §2.3) carries a `seller_id FK`, the listing's
+seller copied down, indexed; the diagrams omit that column.
 
 | Table                 | Prefix | Table               | Prefix |
 | ---------------------- | ------ | -------------------- | ------ |
@@ -43,8 +49,8 @@ every foreign key holds the referenced table's id.
 | variants               | `vrt`  |                      |        |
 | variant_options        | `vop`  |                      |        |
 
-`listings` gains a nullable `category_id`. `cart_items` and `order_items` gain
-the columns in §2.4.
+`listings` carries a nullable `category_id`. `cart_items` and `order_items`
+carry the columns in §2.4.
 
 ### 2.1 Taxonomy layer
 
@@ -88,8 +94,9 @@ erDiagram
     listing_attributes {
         text id PK
         text listing_id FK
+        text seller_id FK "indexed"
         text property_id FK
-        text property_value_id FK
+        text property_value_id FK "unique with listing_id and property_id"
     }
 ```
 
@@ -184,7 +191,7 @@ erDiagram
         text id PK
         text variant_id FK
         string label "unique with variant_id"
-        string state "available | sold"
+        string state "available | reserved | sold; reserved is never written, rendered as on hold"
         text condition_note "nullable"
         text specs_json "nullable"
         int price_override_cents "nullable"
@@ -321,15 +328,14 @@ erDiagram
     }
 ```
 
-- `cart_items` today is unique on `(cart_id, listing_id)`; the configurator
-  widens that to `(cart_id, listing_id, fingerprint)`, where `fingerprint` is
-  a hash of the selected variant, unit, and answers. Two lines for the same
-  listing with the same configuration merge quantities into one row, the same
-  way an unconfigured line does today; two different configurations of the
-  same listing now sit in the cart as separate lines. A cart line's price is
-  never stored — it re-resolves from `variant_id`/`answers_json` against
-  live listing data on every render, same as today's unconfigured line reads
-  `listings.price_cents` live.
+- `cart_items` is unique on `(cart_id, listing_id, fingerprint)`, where
+  `fingerprint` is a hash of the selected variant, unit, and answers
+  (`CartLineFingerprint::of()`). Two lines for the same listing with the
+  same configuration merge quantities into one row; two different
+  configurations of the same listing sit in the cart as separate lines. A
+  cart line's price is never stored — it re-resolves from
+  `variant_id`/`answers_json` against live listing data on every render, the
+  way an unconfigured line reads `listings.price_cents` live.
 - `order_items` freezes `configuration_json`, `answers_json`, and
   `price_breakdown_json` at placement, the same way it already freezes
   `title` and `unit_price_cents` — a later edit to the listing's axes or
@@ -338,13 +344,14 @@ erDiagram
   alongside the listing-quantity decrement it already performs. Cancel and
   seller decline restore a unit to `available` the same way they already
   restore listing quantity; a variant's own `quantity` (non-serialized case)
-  decrements and restores identically. There is no `reserved` state in v1 —
-  see §7.
+  decrements and restores identically. `UnitState` carries a `reserved`
+  case that nothing writes; `UnitStateWord` renders it as "on hold" — see
+  §9.
 
 ## 3. Price and availability resolution
 
 Pure domain code, `app/Domain` — no query, no clock, no random, unit tested
-without a database (`docs/architecture.md`'s Core layer).
+without a database ([`architecture.md`](architecture.md)'s Core layer).
 
 ```
 standalone_sum = Σ over selected options on standalone axes: price_cents
@@ -526,7 +533,7 @@ Screen notes:
 ## 5. Customer flow
 
 `GET /art/{slug}` renders the configurator server-side; every choice is a GET
-param, so the page works with JavaScript off (`docs/architecture.md`'s
+param, so the page works with JavaScript off ([`architecture.md`](architecture.md)'s
 platform constraint). Any script on the page is progressive enhancement only.
 
 ```mermaid
@@ -561,8 +568,9 @@ Behavior this enforces:
 
 ## 6. Publish validation
 
-The draft → `for_sale` transition (`ListingStatus::transitions()`) gains
-gates when the listing has configurator data:
+The draft → `for_sale` transition (`ListingStatus::transitions()`) holds
+these gates (`App\Domain\Configurator\ConfiguratorPublishValidation`) when
+the listing has configurator data:
 
 - Every `required` `category_properties` grant that is `usable_as_attribute`
   has a matching `listing_attributes` row (an axis-only grant can never hold
@@ -580,7 +588,7 @@ gates when the listing has configurator data:
 
 A failing gate refuses the transition with every issue listed, each linking
 to the seller-edit screen that owns it — the same shape `OrderPlacementRefused`
-already uses for "list every blocked line, not just the first" (`docs/orders.md`).
+already uses for "list every blocked line, not just the first" ([`orders.md`](orders.md)).
 
 ## 7. Limits
 
@@ -590,15 +598,14 @@ already uses for "list every blocked line, not just the first" (`docs/orders.md`
 | Options per axis                | 70          |
 | Enabled variants per listing    | 500         |
 | Modifiers per listing           | 5           |
-| Modifier text answer length     | 1024 chars  |
-| Modifier select options         | 30          |
+| Modifier text answer length     | 1024 chars, or the modifier's own `char_limit` (`AddToCartRequest`) |
 | Quantity-break tiers            | 10          |
 | Description sections           | 15          |
 | Images per listing              | 8           |
 
 ## 8. Traceability: observed hack → mechanism here
 
-From the research doc §2.1.
+From the research note's §2.1.
 
 | Observed hack (Etsy)                                         | Mechanism here                                                                        |
 | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
@@ -629,9 +636,10 @@ From the research doc §2.1.
 - **`file_upload` and `date` modifiers.** Modifier `kind` is `text | select |
   measurement`; no file intake on an order line, and no date-typed answer —
   none of the eight archetypes asks for one.
-- **Cart-time unit reservation.** `units` has no `reserved` state — a unit
-  stays `available` until an order actually places, so two shoppers can add
-  the same unit to their carts before checkout resolves who claims it.
+- **Cart-time unit reservation.** `UnitState` carries a `reserved` case;
+  nothing writes it, and `UnitStateWord` renders it as "on hold". A unit
+  stays `available` until an order places, so two shoppers can add the same
+  unit to their carts before checkout resolves who claims it.
 - **Search and facets.** The storefront's media filter, search, and listing
   display read `listing_attributes`' Medium property exclusively — the legacy
   `listings.medium` column is gone; no other property drives a facet or
@@ -645,11 +653,11 @@ From the research doc §2.1.
 
 ## 10. Platform integration
 
-- **Ids**: every new table's primary key is a 30-character prefixed ULID via
-  `HasPrefixedUlid`, minted from the application clock (`docs/spec.md`
-  §1). A row addressed by the wrong prefix answers 404 at route-model
+- **Ids**: every table's primary key is a 30-character prefixed ULID via
+  `HasPrefixedUlid`, minted from the application clock
+  ([`spec.md`](../../docs/spec.md) §1). A row addressed by the wrong prefix answers 404 at route-model
   binding, same as every existing table.
-- **Logging**: the event vocabulary is closed (`docs/spec.md` §2.3) — no
+- **Logging**: the event vocabulary is closed ([`spec.md`](../../docs/spec.md) §2.3) — no
   new event names. Seller writes to axes, variants, units, modifiers, or
   description sections log the existing `listing.update` / `listing.create`
   / `listing.publish` events; customer writes (add-to-cart with a
@@ -657,8 +665,8 @@ From the research doc §2.1.
   `order.place` events. `data` carries the ids involved (`variant_id`,
   `unit_id`), which are already prefixed ids and need no redaction.
 - **Rate limits**: seller configurator writes reuse `listing_write`
-  (`docs/spec.md` §3); no new limit name.
+  ([`spec.md`](../../docs/spec.md) §3); no new limit name.
 - **Authorization**: ownership is `ListingPolicy` all the way down — an axis,
   variant, unit, modifier, or description section not belonging to the
   signed-in seller's listing answers 404 through the same policy the listing
-  itself is checked against, never a 403 (`docs/architecture.md` §Authorization).
+  itself is checked against, never a 403 ([`architecture.md`](architecture.md) §Authorization).
