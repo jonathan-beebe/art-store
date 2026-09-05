@@ -14,6 +14,40 @@ use App\Actions\Configurator\GenerateVariants;
 use App\Actions\Configurator\SetModifierScope;
 use App\Domain\Configurator\ModifierKind;
 use App\Models\CartItem;
+use App\Models\Modifier;
+use App\Models\ModifierOption;
+use App\Models\OptionAxis;
+use App\Models\OptionValue;
+
+/**
+ * A mug listing with a Personalization axis and a required text modifier scoped to it.
+ *
+ * @return array{OptionAxis, OptionValue, Modifier}
+ */
+$personalizedMug = function (): array {
+    $listing = test()->listing(test()->seller(), ['slug' => 'mug']);
+    $personalization = app(CreateOptionAxis::class)($listing, 'Personalization');
+    app(AddOptionValue::class)($personalization, 'Blank', 0, isDefault: true);
+    $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
+    app(GenerateVariants::class)($listing);
+    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
+    app(SetModifierScope::class)($text, [$personalized]);
+
+    return [$personalization, $personalized, $text];
+};
+
+/**
+ * A ring listing with a required select modifier and one option.
+ *
+ * @return array{Modifier, ModifierOption}
+ */
+$requiredFontModifier = function (): array {
+    $listing = test()->listing(test()->seller(), ['slug' => 'ring']);
+    $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Font', required: true);
+    $block = app(AddModifierOption::class)($font, 'Block', 0, 0);
+
+    return [$font, $block];
+};
 
 it('takes one of the listing when the form sends no quantity', function (): void {
     $this->visitor();
@@ -47,15 +81,9 @@ it('refuses a quantity that is not a whole number of pieces', function (string|i
     'a word' => ['two'],
 ]);
 
-it('refuses a required text modifier left blank', function (): void {
+it('refuses a required text modifier left blank', function () use ($personalizedMug): void {
     $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'mug']);
-    $personalization = app(CreateOptionAxis::class)($listing, 'Personalization');
-    app(AddOptionValue::class)($personalization, 'Blank', 0, isDefault: true);
-    $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
-    app(GenerateVariants::class)($listing);
-    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(SetModifierScope::class)($text, [$personalized]);
+    [$personalization, $personalized, $text] = $personalizedMug();
 
     $response = $this->post('/cart/mug', ['axis' => [$personalization->id => $personalized->id]]);
 
@@ -63,15 +91,9 @@ it('refuses a required text modifier left blank', function (): void {
     expect(CartItem::count())->toBe(0);
 });
 
-it('accepts a configuration with its required modifier answered', function (): void {
+it('accepts a configuration with its required modifier answered', function () use ($personalizedMug): void {
     $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'mug']);
-    $personalization = app(CreateOptionAxis::class)($listing, 'Personalization');
-    app(AddOptionValue::class)($personalization, 'Blank', 0, isDefault: true);
-    $personalized = app(AddOptionValue::class)($personalization, 'Personalized', 300);
-    app(GenerateVariants::class)($listing);
-    $text = app(CreateModifier::class)($listing, ModifierKind::Text, 'Personalization Text', required: true, charLimit: 16);
-    app(SetModifierScope::class)($text, [$personalized]);
+    [$personalization, $personalized, $text] = $personalizedMug();
 
     $response = $this->post('/cart/mug', [
         'axis' => [$personalization->id => $personalized->id],
@@ -83,11 +105,9 @@ it('accepts a configuration with its required modifier answered', function (): v
     expect($answers[$text->id]['raw'])->toBe('Ada');
 });
 
-it('refuses a required select modifier submitted with no answer at all', function (): void {
+it('refuses a required select modifier submitted with no answer at all', function () use ($requiredFontModifier): void {
     $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'ring']);
-    $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Font', required: true);
-    app(AddModifierOption::class)($font, 'Block', 0, 0);
+    [$font] = $requiredFontModifier();
 
     $response = $this->post('/cart/ring');
 
@@ -95,11 +115,9 @@ it('refuses a required select modifier submitted with no answer at all', functio
     expect(CartItem::count())->toBe(0);
 });
 
-it('accepts a required select modifier answered with a valid option id', function (): void {
+it('accepts a required select modifier answered with a valid option id', function () use ($requiredFontModifier): void {
     $this->visitor();
-    $listing = $this->listing($this->seller(), ['slug' => 'ring']);
-    $font = app(CreateModifier::class)($listing, ModifierKind::Select, 'Font', required: true);
-    $block = app(AddModifierOption::class)($font, 'Block', 0, 0);
+    [$font, $block] = $requiredFontModifier();
 
     $response = $this->post('/cart/ring', ['modifier' => [$font->id => $block->id]]);
 
