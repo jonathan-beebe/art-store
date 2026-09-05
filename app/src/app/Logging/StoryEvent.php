@@ -27,6 +27,7 @@ enum StoryEvent: string
     case OrderPay = 'order.pay';
     case OrderCancel = 'order.cancel';
     case OrderSweep = 'order.sweep';
+    case CustomerSweep = 'customer.sweep';
     case FulfillmentShip = 'fulfillment.ship';
     case FulfillmentDeliver = 'fulfillment.deliver';
     case FulfillmentDecline = 'fulfillment.decline';

@@ -44,3 +44,13 @@ it('schedules the analytics retention sweep daily', function (): void {
     expect($runs)->toHaveCount(1)
         ->and($runs[0]->expression)->toBe('0 3 * * *');
 });
+
+it('schedules the anonymous-customer retention sweep daily, after the other sweeps', function (): void {
+    $runs = array_values(array_filter(
+        app(Schedule::class)->events(),
+        fn (Event $event): bool => str_contains((string) $event->command, 'sweep:customers'),
+    ));
+
+    expect($runs)->toHaveCount(1)
+        ->and($runs[0]->expression)->toBe('30 3 * * *');
+});

@@ -70,7 +70,7 @@ final class MessageController extends ShopController
 
     public function store(PostMessageRequest $request, Conversation $conversation, PostMessage $postMessage, RateLimitGate $rateLimit): RedirectResponse|Response
     {
-        $visitor = $this->visitor();
+        $visitor = $this->knownVisitor();
 
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $visitor->id);

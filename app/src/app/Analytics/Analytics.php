@@ -16,9 +16,10 @@ use Throwable;
 
 /**
  * The one writer to the analytics store (config/database.php). Recording
- * does no I/O: {@see recordEvent()}, {@see recordPageView()}, and
- * {@see recordVisit()} only append to an in-memory buffer, so nothing a
- * shopper or seller is waiting on ever waits on the analytics connection.
+ * does no I/O: {@see recordEvent()}, {@see recordPageView()},
+ * {@see recordVisit()}, and {@see claimVisit()} only append to an
+ * in-memory buffer, so nothing a shopper or seller is waiting on ever waits
+ * on the analytics connection.
  * {@see flush()} is where the buffer
  * becomes rows — {@see \App\Providers\AnalyticsServiceProvider} is what
  * decides when that happens. {@see prune()} is
@@ -67,6 +68,16 @@ final class Analytics
      * @var array<string, AnalyticsVisit>
      */
     private array $visits = [];
+
+    /**
+     * Session id => the actor to claim the visit for, keyed the same way
+     * as {@see $visits} so two claims for one session before a flush keep
+     * only the last — the visitor a session ends a request as is the one
+     * worth claiming it for. {@see claimVisit()}.
+     *
+     * @var array<string, string>
+     */
+    private array $claims = [];
 
     /**
      * Registers the process-exit fallback flush. `$registerShutdown`
@@ -155,6 +166,26 @@ final class Analytics
     }
 
     /**
+     * Buffers a claim on the visit a session's first-touch row belongs to:
+     * once the visitor behind a session becomes a customer,
+     * `App\Shop\CustomerIdentity::commit()` calls this so the row's
+     * `actor_id` — null until then, since the request that opened the
+     * session may not be the one that tracks its first event — is filled
+     * with the id the visit belongs to all along. Applied inside
+     * {@see flush()}'s own transaction, after the visit inserts: a session
+     * whose first touch is this very request finds its row already
+     * carrying the actor, so the update is a no-op, and a session whose
+     * visit row was written by an earlier request finds its null filled.
+     * Flushes immediately once the buffer reaches `FLUSH_AT`.
+     */
+    public function claimVisit(string $sessionId, string $actorId): void
+    {
+        $this->claims[$sessionId] = $actorId;
+
+        $this->flushIfAtCap();
+    }
+
+    /**
      * Writes the buffer in one transaction on the analytics connection and
      * clears it before the write runs — a batch that fails to write is
      * dropped, so a second `flush()` call (the process-exit fallback, after
@@ -163,21 +194,23 @@ final class Analytics
      */
     public function flush(): void
     {
-        if ($this->events === [] && $this->pageViews === [] && $this->visits === []) {
+        if ($this->events === [] && $this->pageViews === [] && $this->visits === [] && $this->claims === []) {
             return;
         }
 
         $events = $this->events;
         $pageViews = $this->pageViews;
         $visits = $this->visits;
+        $claims = $this->claims;
         $this->events = [];
         $this->pageViews = [];
         $this->visits = [];
+        $this->claims = [];
 
         try {
-            $this->writeBatch($events, $pageViews, $visits);
+            $this->writeBatch($events, $pageViews, $visits, $claims);
         } catch (Throwable $e) {
-            $this->reportFailure('flush', $e, count($events) + count($pageViews) + count($visits));
+            $this->reportFailure('flush', $e, count($events) + count($pageViews) + count($visits) + count($claims));
         }
     }
 
@@ -246,7 +279,7 @@ final class Analytics
     /** Buffered rows not yet written — every distinct page-view key counts once, however many hits it carries. */
     public function pending(): int
     {
-        return count($this->events) + count($this->pageViews) + count($this->visits);
+        return count($this->events) + count($this->pageViews) + count($this->visits) + count($this->claims);
     }
 
     private function flushIfAtCap(): void
@@ -268,8 +301,9 @@ final class Analytics
      * @param  list<AnalyticsEvent>  $events
      * @param  array<string, array{site: PageViewSite, pathPattern: string, day: string, hits: int}>  $pageViews
      * @param  array<string, AnalyticsVisit>  $visits
+     * @param  array<string, string>  $claims
      */
-    private function writeBatch(array $events, array $pageViews, array $visits): void
+    private function writeBatch(array $events, array $pageViews, array $visits, array $claims): void
     {
         $pdo = DB::connection('analytics')->getPdo();
         $ownsTransaction = ! $pdo->inTransaction();
@@ -282,6 +316,7 @@ final class Analytics
             $this->insertEvents($events);
             $this->upsertPageViews($pageViews);
             $this->insertVisits($visits);
+            $this->applyClaims($claims);
         } catch (Throwable $e) {
             if ($ownsTransaction) {
                 $pdo->exec('ROLLBACK');
@@ -350,6 +385,27 @@ final class Analytics
         DB::connection('analytics')->table('analytics_visits')->insertOrIgnore(
             array_map(fn (AnalyticsVisit $visit): array => $visit->columns(), $visits),
         );
+    }
+
+    /**
+     * Runs after {@see insertVisits()} in the same transaction, so both
+     * cases a claim exists for are settled in one flush: a session whose
+     * first touch is this very request already inserted its row with the
+     * actor set, so `actor_id IS NULL` no longer matches and the update
+     * touches nothing; a session whose visit row an earlier request
+     * already wrote finds its null filled. `actor_id IS NULL` also means a
+     * claim never overwrites one a merge or an earlier claim already set.
+     *
+     * @param  array<string, string>  $claims
+     */
+    private function applyClaims(array $claims): void
+    {
+        foreach ($claims as $sessionId => $actorId) {
+            DB::connection('analytics')->table('analytics_visits')
+                ->where('session_id', $sessionId)
+                ->whereNull('actor_id')
+                ->update(['actor_id' => $actorId]);
+        }
     }
 
     /**

@@ -23,6 +23,19 @@ abstract class ShopController extends Controller
     }
 
     /**
+     * The visitor, guaranteed a row: unsaved becomes saved, the cookie is
+     * queued, and the actor is named. A page that only reads calls
+     * `visitor()`, tolerating one that is not saved yet; a request that
+     * writes a row for the visitor, or records an analytics event under
+     * their id (a listing view, a store view, a cart add, a favorite, an
+     * order), calls this first so the write has a real id to hang on.
+     */
+    protected function knownVisitor(): Customer
+    {
+        return CustomerIdentity::commit($this->visitor());
+    }
+
+    /**
      * Middleware resolves the visitor; no auth guard tracks them. Every
      * storefront gate check passes the visitor to `Gate::forUser()`
      * explicitly.

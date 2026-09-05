@@ -42,7 +42,7 @@ final class SupportController extends ShopController
 
     public function store(SupportRequest $request, OpenThread $open, RateLimitGate $rateLimit): RedirectResponse|Response
     {
-        $visitor = $this->visitor();
+        $visitor = $this->knownVisitor();
 
         try {
             $rateLimit->check(RateLimitName::ConversationOpen, (string) $visitor->id);

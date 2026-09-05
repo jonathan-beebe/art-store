@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use LogicException;
 use Override;
 
 #[Fillable(['email', 'name', 'email_verified_at'])]
@@ -162,15 +163,34 @@ class Customer extends Authenticatable
      * A customer holds at most one cart. `MergeAnonymousCustomer` merges an
      * anonymous visitor's cart into the verified customer's own and retires
      * the anonymous cart, so there is never a second one to choose between.
+     *
+     * An unsaved row has no id a cart could be keyed by, so this refuses
+     * rather than minting one for a visitor nothing has committed yet — a
+     * caller reaching this on an unsaved row is the bug, not the row.
+     * `cartOrNull()` is how a read tolerates one.
      */
     public function cart(): Cart
     {
+        if (! $this->exists) {
+            throw new LogicException('An unsaved customer has no cart to hold.');
+        }
+
         return $this->carts()->first() ?? $this->carts()->create();
     }
 
     /**
-     * A storefront visitor gets a row before they give an address; that row is
-     * theirs to claim on the day they verify one.
+     * The cart page's read: the customer's cart when one exists, and no
+     * query at all — instead of a create — for a visitor who has never
+     * added anything, saved or not.
+     */
+    public function cartOrNull(): ?Cart
+    {
+        return $this->exists ? $this->carts()->first() : null;
+    }
+
+    /**
+     * A storefront visitor's row, once one exists, holds no address until they
+     * give one; that row is theirs to claim on the day they verify one.
      */
     public function isAnonymous(): bool
     {

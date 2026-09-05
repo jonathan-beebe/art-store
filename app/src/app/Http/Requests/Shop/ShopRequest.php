@@ -36,6 +36,15 @@ abstract class ShopRequest extends FormRequest
         $this->flashExcept(self::CARD_FIELDS);
     }
 
+    /**
+     * Reads the visitor for validation and authorization only — whether they
+     * are verified, whether they own the order or conversation a route
+     * bound — never a row this needs to exist. Committing here would mint a
+     * customer row for a request `authorize()` or `rules()` is about to
+     * refuse, before the controller ever runs; the controller is the one
+     * place that calls `knownVisitor()`, and only once it knows the request
+     * is going somewhere.
+     */
     protected function visitor(): Customer
     {
         return CustomerIdentity::current() ?? throw new RuntimeException('The storefront runs behind the customer.identity middleware.');

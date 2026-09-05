@@ -80,8 +80,9 @@ final readonly class NameRequestVisitor
      * A signed-in seller, customer, or admin is named by their guard. A
      * storefront visitor who has never signed in is named by the identity
      * cookie, because an anonymous `cus_…` joins their lines together just as
-     * well. Only a browser arriving for the very first time has no actor
-     * here, and the identity middleware names the row it creates for them.
+     * well. A browser carrying no cookie has no actor here — it has no row
+     * yet, and gets none unless the request writes something under it
+     * (`ShopController::knownVisitor()`), which is what names it from then on.
      */
     private function nameActor(Request $request): void
     {

@@ -28,6 +28,15 @@ final readonly class ShopLayoutComposer
             return;
         }
 
+        // An unsaved visitor owns nothing yet — a cart, a notification, and
+        // a message all need a row to hang off — so every count is zero
+        // without a query.
+        if (! $visitor->exists) {
+            $view->with(['cartItemCount' => 0, 'unreadNotificationCount' => 0, 'unreadMessageCount' => 0]);
+
+            return;
+        }
+
         /**
          * @var object{
          *     cart_items: int|string|null,

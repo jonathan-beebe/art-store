@@ -7,6 +7,7 @@ namespace App\Http\Middleware;
 use App\Domain\Identifiers\PrefixedId;
 use App\Models\Admin;
 use App\Models\Customer;
+use App\Models\Listing;
 use App\Models\Seller;
 use App\Shop\CustomerIdentity;
 use Tests\CapturedStory;
@@ -92,10 +93,20 @@ it('names an anonymous visitor by the identity cookie they already hold', functi
         ->toHaveKey('actor_id', $visitor->id);
 });
 
-it('names the visitor a first-time browser is given, from the line after it is created', function (): void {
+it('names no actor for a first-time browser on a read-only page', function (): void {
     $log = CapturedStory::capture();
 
     $this->get('/');
+
+    expect($log->line('http.request', 'will'))->not->toHaveKey('actor_id')
+        ->and($log->line('http.request', 'did'))->not->toHaveKey('actor_type');
+});
+
+it('names the visitor a first-time browser is given, from the line after the event that creates it', function (): void {
+    Listing::factory()->create(['slug' => 'harbour-at-dawn']);
+    $log = CapturedStory::capture();
+
+    $this->get('/art/harbour-at-dawn');
 
     expect($log->line('http.request', 'will'))->not->toHaveKey('actor_id')
         ->and($log->line('http.request', 'did'))->toHaveKey('actor_type', 'customer');

@@ -2,8 +2,11 @@
 
 Passwordless sign-in for all three actors — seller, customer, admin — plus the
 anonymous-customer cookie the storefront hangs favorites, carts, and guest
-orders on before anyone verifies an address. Code: `app/Actions/Auth/`,
-`app/Actions/Customers/`, `app/Http/Middleware/ResolveCustomerIdentity.php`,
+orders on before anyone verifies an address. The row behind that cookie is
+minted on the first event tracked under it — see
+"Which identity a storefront request resolves to" below. Code:
+`app/Actions/Auth/`, `app/Actions/Customers/`,
+`app/Http/Middleware/ResolveCustomerIdentity.php`,
 `app/Domain/Customers/CustomerIdentityPlan.php`.
 
 ## Seller magic-link sign-in
@@ -203,7 +206,7 @@ belongs on it.
 ## Which identity a storefront request resolves to
 
 Question: given a request, which customer does `CustomerIdentity::current()`
-return?
+return — and when does that customer become a `customers` row?
 
 ```mermaid
 flowchart TD
@@ -211,15 +214,35 @@ flowchart TD
     guard -- yes --> useGuard["use the signed-in customer"]
     guard -- no --> cookie{"customer_id cookie\nresolves to a row?"}
     cookie -- yes --> useCookie["use that customer\n(ResolveCustomerFromCookie follows\na customer_merges row if merged)"]
-    cookie -- no --> create["Customer::create([])\n(new anonymous row)"]
-    useGuard --> remember["remember in cookie, attach to request"]
-    useCookie --> remember
-    create --> remember
+    cookie -- no --> unsaved["new Customer\n(unsaved, no id yet)"]
+    useGuard --> attach["attach to the request"]
+    useCookie --> attach
+    unsaved --> attach
+    attach --> writes{"controller calls\nknownVisitor()?"}
+    writes -- yes --> commit["save the row, queue the cookie,\nname the actor, claim the session's visit\n(CustomerIdentity::commit)"]
+    writes -- no --> nothing["nothing written —\nreads tolerate the unsaved row"]
 ```
 
 Caveats: this is `App\Http\Middleware\ResolveCustomerIdentity`, wrapping
 every route in `routes/shop.php`. It never runs on `/auth/magic/{token}`,
-`/login`, or `/logout`. `MagicLinkVerificationController` reads the cookie
-through `ResolveCustomerFromCookie`. `/login` never reads it. `/logout`
-calls `CustomerIdentity::forgetCookie()`. A seller clicking a seller link
-therefore creates no customer row.
+`/login`, or `/logout`. A signed-in customer or one the cookie resolves is
+already a row, so `attach` is where the diagram effectively ends for them —
+`ShopController::visitor()` is all a read needs. A browser carrying neither
+gets an unsaved row that writes nothing on its own: only a controller method
+that calls `knownVisitor()` — a cart add, a favorite, a listing view, a store
+view, placing an order, opening a conversation — commits it, at which point
+every later line in the request names the actor it just gained, and the
+session's `analytics_visits` row — first-touch channel and landing page
+included — is claimed for it (`Analytics::claimVisit()`), whether that row
+was written by this same request or an earlier, read-only one. A page that
+only reads (home, search, browse, medium, the cart page, orders, account)
+never reaches `knownVisitor()`, so a crawler, a scanner, or a browser that
+bounces after one page leaves no row and sets no cookie.
+`MagicLinkVerificationController` reads the cookie through
+`ResolveCustomerFromCookie` directly rather than through this middleware's
+request attribute, so a visitor with no cookie — because nothing before this
+request ever committed a row — verifies onto a fresh customer the same way a
+first-time address does (`CustomerIdentityPlan::decide(null, ...)`), never
+onto a ghost. `/login` never reads the cookie. `/logout` calls
+`CustomerIdentity::forgetCookie()`. A seller clicking a seller link therefore
+creates no customer row.

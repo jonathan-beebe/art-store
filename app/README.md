@@ -67,10 +67,11 @@ description per target.
 | `make seed-activity` | `docker compose run --rm app php artisan seed:activity` — fills the store with a ninety-day activity ramp (local dev only) |
 | `make routes`    | `docker compose run --rm app php artisan route:list`                                           |
 | `make payouts`   | `docker compose run --rm app php artisan payouts:run $(if $(AS_OF),--as-of=$(AS_OF))`          |
-| `make sweep`     | runs `sweep:orders`, `sweep:logs`, and `sweep:analytics` in sequence                            |
+| `make sweep`     | runs `sweep:orders`, `sweep:logs`, `sweep:analytics`, and `sweep:customers` in sequence          |
 | `make sweep-orders` | `docker compose run --rm app php artisan sweep:orders`                                      |
 | `make sweep-logs` | `docker compose run --rm app php artisan sweep:logs`                                          |
 | `make sweep-analytics` | `docker compose run --rm app php artisan sweep:analytics`                               |
+| `make sweep-customers` | `docker compose run --rm app php artisan sweep:customers`                               |
 | `make outbox`    | prints that the app has no outbox; notifications are in-app                                    |
 | `make logs`      | `docker compose logs -f`                                                                       |
 | `make image`     | `docker build --target runtime -t art-store-php .` — see Deployment                            |
@@ -320,7 +321,7 @@ app/
     app/Listeners/     who hears about an event
     app/Observers/     LedgerEntryObserver: the ledger.write log line
     app/Notifications/ what they are told, plus Channels/
-    app/Console/       artisan commands: payouts:run, sweep:orders, sweep:logs, sweep:analytics, seed:activity
+    app/Console/       artisan commands: payouts:run, sweep:orders, sweep:logs, sweep:analytics, sweep:customers, seed:activity
     app/Seller/        page-shaped readers for the seller portal
     app/Shop/          storefront readers (browse, medium, featured) and the visitor's CustomerIdentity
     app/Configurator/  the item configurator's page data, presenters, resolver, and pricer

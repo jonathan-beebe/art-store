@@ -137,7 +137,7 @@ that produces it, and every controller calls it.
   `DatabaseNotification::markAsRead()`, which reads `now()` itself — still
   frozen by `travelTo()`, but not handed in.
 - The artisan commands are the other producers, since a console run has no
-  controller: `RunWeeklyPayouts` and the three `App\Console\Commands\Sweep`
+  controller: `RunWeeklyPayouts` and the four `App\Console\Commands\Sweep`
   commands read `now()` or parse `--as-of` through the shared `ReadsAsOf`
   trait; `SeedActivity` reads `now()`.
 
@@ -461,13 +461,18 @@ All of them extend `App\Http\Controllers\Controller`, which holds the clock
   `App\Notifications\Channels\SessionFlashChannel`, which flashes the URL so
   every layout except `error` prints it in a debug alert; `mail` is the framework's mail
   channel, which sends `MagicLinkIssued::toMail()`. An unknown channel raises.
-- Customers: every visitor gets a `customers` row with `email = null`, id stored
-  in an encrypted cookie `customer_id`. Verifying an email either claims that
-  row (first time) or **merges** the anonymous row into the existing verified
-  customer (favorites, cart, orders, listing events re-pointed; a
-  `customer_merges` row records `anonymous_customer_id -> customer_id` so stale
-  cookies resolve to the merged account). The merge decision is a pure
-  function in `app/Domain/Customers`; the re-pointing is an action.
+- Customers: a visitor gets a `customers` row with `email = null` lazily, on
+  the first event tracked under their id — a listing view, a store view, a
+  cart add, a favorite, an order — not on arrival; a read-only visit mints
+  none, so a crawler or a bounced visit leaves no row. The id, once minted,
+  is stored in an encrypted cookie `customer_id`. `sweep:customers` deletes
+  an anonymous row that owns nothing after `ANONYMOUS_CUSTOMER_RETENTION_DAYS`.
+  Verifying an email either claims that row (first time) or **merges** the
+  anonymous row into the existing verified customer (favorites, cart, orders,
+  listing events re-pointed; a `customer_merges` row records
+  `anonymous_customer_id -> customer_id` so stale cookies resolve to the
+  merged account). The merge decision is a pure function in
+  `app/Domain/Customers`; the re-pointing is an action.
 - Guest checkout = place order as the anonymous customer
   (`OrderStatus::PendingVerification`), then require verification before the
   order is finalized (charged). The card is never asked for on that first
@@ -690,7 +695,7 @@ flowchart LR
   `SignOutController::seller`/`customer`/`admin`, and the three
   `LoginController::send` pairs), `App\Domain` and `App\Logging` for enums
   that live beside the concept they model,
-  `App\Console\Commands\RunWeeklyPayouts`, the three
+  `App\Console\Commands\RunWeeklyPayouts`, the four
   `App\Console\Commands\Sweep` commands, and `SeedActivity` for their
   artisan command names, `App\Notifications\Channels` for a
   delivery channel, and `App\Http\Requests\Shop\ShopRequest`, the abstract

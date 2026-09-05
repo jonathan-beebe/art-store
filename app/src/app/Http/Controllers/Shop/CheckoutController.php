@@ -32,9 +32,9 @@ final class CheckoutController extends ShopController
     public function show(Analytics $analytics): View|RedirectResponse
     {
         $visitor = $this->visitor();
-        $cart = $visitor->cart()->load('items.listing.seller');
+        $cart = $visitor->cartOrNull()?->load('items.listing.seller');
 
-        if ($cart->items->isEmpty()) {
+        if ($cart === null || $cart->items->isEmpty()) {
             return redirect()->route('shop.cart');
         }
 
@@ -66,11 +66,16 @@ final class CheckoutController extends ShopController
         RateLimitGate $rateLimit,
     ): View|RedirectResponse|Response {
         $visitor = $this->visitor();
-        $cart = $visitor->cart();
+        $cart = $visitor->cartOrNull();
 
-        if ($cart->items()->doesntExist()) {
+        if ($cart === null || $cart->items()->doesntExist()) {
             return redirect()->route('shop.cart');
         }
+
+        // A cart exists only for a visitor an earlier write already
+        // committed, so this never mints a row of its own — it names the
+        // actor the rest of this request writes under.
+        $visitor = $this->knownVisitor();
 
         $purchaser = $request->toPurchaser($visitor);
         $now = $this->now();

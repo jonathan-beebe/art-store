@@ -20,7 +20,12 @@ final readonly class ResolveCustomerIdentity
 
     /**
      * Every storefront request has a customer behind it, so favorites, carts,
-     * and orders have somewhere to hang before anyone signs in.
+     * and orders have somewhere to hang before anyone signs in. That customer
+     * is not always a row yet: a browser signed in, or already carrying a
+     * cookie, gets the row it names; a browser arriving with neither gets an
+     * unsaved one, and stays unsaved unless the request writes something
+     * under it (`ShopController::knownVisitor()`) — a crawler, a scanner, or
+     * one bounced visit mints no row and sets no cookie.
      *
      * This is an aliased middleware, so the route it guards decides what ran
      * ahead of it. On the storefront `NameRequestVisitor` has already asked
@@ -33,15 +38,14 @@ final readonly class ResolveCustomerIdentity
     {
         $customer = Auth::guard('customer')->user()
             ?? CustomerIdentity::fromCookie($request, $this->resolveFromCookie)
-            ?? Customer::create([]);
+            ?? new Customer;
 
         CustomerIdentity::attachTo($request, $customer);
-        CustomerIdentity::rememberInCookie($customer);
 
-        // A browser arriving for the first time had no id to be named by when
-        // the request opened; from here every line it writes names the row it
-        // was just given.
-        Story::actorIs(ActorType::Customer, (string) $customer->id);
+        if ($customer->exists) {
+            CustomerIdentity::rememberInCookie($customer);
+            Story::actorIs(ActorType::Customer, (string) $customer->id);
+        }
 
         return $next($request);
     }

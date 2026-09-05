@@ -57,9 +57,13 @@ final class StoreController extends ShopController
         return $seller instanceof Seller && $seller->id === $profile->seller_id;
     }
 
+    /**
+     * A store view is an event worth an id (docs/spec.md §4.1), so this is
+     * where a first-time visitor's row gets minted.
+     */
     private function recordView(StoreProfile $profile, Analytics $analytics): void
     {
-        $visitor = $this->visitor();
+        $visitor = $this->knownVisitor();
         $now = $this->now();
 
         $analytics->recordEvent(AnalyticsEvent::forStore(

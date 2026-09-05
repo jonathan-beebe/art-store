@@ -43,6 +43,13 @@ it('sends an empty cart back to the cart page', function (): void {
     $this->get('/checkout')->assertRedirect(route('shop.cart'));
 });
 
+it('mints no customer row for an uncookied visitor with nothing in the cart', function () use ($checkoutFields): void {
+    $this->get('/checkout')->assertRedirect(route('shop.cart'));
+    $this->post('/checkout', $checkoutFields())->assertRedirect(route('shop.cart'));
+
+    expect(Customer::count())->toBe(0);
+});
+
 it('records a checkout.open event for the visitor\'s cart', function () use ($fillCart): void {
     $this->visitor();
     $fillCart();
