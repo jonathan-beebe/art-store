@@ -10,16 +10,17 @@ against the bound or route-parameter model) and `$this->authorize()` in the
 controller otherwise. No controller hand-rolls an ownership check with
 `abort_if`.
 
-Four suffixes carry one meaning each: `*Row` is one rendered row, the
-output of an adapter that reads many, wherever the class holding it
-lives (`App\Domain` or `App\Seller` alike — the suffix names the shape,
-not the layer); `*Facts` is a handful of plain values about one thing,
-an adapter's output but never itself a query (`StoreFacts` holds the
-values, `StoreFactsReader` runs the count that fills them); `*Tally` is
-a pure fold with no I/O, always under `App\Domain`; `NavLink` is the
-one `{label, href, active, ?count}` a seller nav control renders,
-replacing every `*Link` value object a section had built its own version
-of.
+Four suffixes carry one meaning each:
+
+- `*Row` is one rendered row, the output of an adapter that reads many.
+  The suffix names the shape, wherever the class lives (`App\Domain` or
+  `App\Seller`).
+- `*Facts` is a handful of plain values about one thing, an adapter's
+  output; the query that fills it lives in a reader (`StoreFacts` holds
+  the values, `StoreFactsReader` runs the count).
+- `*Tally` is a pure fold with no I/O, always under `App\Domain`.
+- `NavLink` is the one `{label, href, active, ?count}` a seller nav control
+  renders; it replaced every section's own `*Link` value object.
 
 | Section                             | Read it for                                                                                             |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
@@ -27,6 +28,7 @@ of.
 | [Store profile](#store-profile)     | The six store tables, the typed-section rule, addresses as history, the routes, the limits, the seeds, and the public page at `/s/{slug}` |
 | [Listings](#listings)               | List, table, and grid over one detail component; the query vocabulary; sorting as a link; overlay against takeover |
 | [Orders](#orders)                   | Lanes as a query parameter, one rule read two ways, the parcel's detail, the flow editor, the label page |
+| [Workflows](#workflows)             | Where the flow/workflow word split lives, the workflows resource, and how a parcel picks its flow at placement |
 | [Activity feed](#activity-feed)     | The four sources, which one owns which row, and why merging and filtering are pure                        |
 | [Customers](#customers)             | Where the list comes from, the privacy rule, the query vocabulary, the customer page                      |
 | [Messages](#messages)               | The context rail beside the transcript: the buyer's numbers, the piece or the parcel, their other threads  |
@@ -41,7 +43,7 @@ numbers that say how the business is doing, which listings are working, and
 what has to be done today — each one click from the tool that does it?
 
 `GET /seller?range=7|30|90` is the whole vocabulary
-(`App\Http\Requests\Seller\DashboardQueryRequest`, docs/spec.md §5's
+(`App\Http\Requests\Seller\DashboardQueryRequest`, [`spec.md`](../../docs/spec.md) §5's
 idiom: absent/emptied reads as `30`, unrecognised is a bare 400). Every
 figure, delta, line, and strip reads over that one range.
 `Http\Controllers\Seller\DashboardController` reads `Seller\NextPayout`,
@@ -90,7 +92,7 @@ into panels, each counted whole and cut to five rows with a "N more" link.
 | --- | --- | --- |
 | Orders to ship | `FulfillmentLane::ToShip`, oldest first; the age reads in red past `AttentionQueue::SHIP_OVERDUE_DAYS` (2) | `/seller/orders?lane=ship` |
 | Messages waiting on you | buyer threads holding a message the seller has not read, newest first, quoting it | `/seller/messages` |
-| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::tallyFor()`) | `/seller/earnings` |
+| Payout `<Monday>` | what has released and is waiting on the run, and what delivery has yet to free (`PayoutEstimate`, `HeldEscrow::factsFor()`) | `/seller/earnings` |
 | Listings that need work | drafts and sold-out pieces, most recently edited first; a draft's row names its first publish issue and how many more | `/seller/listings` |
 
 The held row opens the earnings page's own held list (`#held-heading`); To
@@ -107,7 +109,7 @@ on the storefront yet".
 The page reads six queues across two connections and renders on a fixed
 number of queries at any row count, which one test pins.
 Two reads are duplicated by design: `Seller::escrowBalance()` is folded
-once for the payout estimate and once for `HeldEscrow::tallyFor()`, and
+once for the payout estimate and once for `HeldEscrow::factsFor()`, and
 the parcels waiting to ship are counted once for the orders tile's footer
 and once for the focus group's heading. Both are cheap aggregates, and
 threading either through would tie two adapters together for one query.
@@ -222,7 +224,7 @@ listing's file, or another store's.
 
 ### What the store does not write
 
-`docs/spec.md` §2.3 closes the log-event vocabulary and §3 closes the
+[`spec.md`](../../docs/spec.md) §2.3 closes the log-event vocabulary and §3 closes the
 rate-limit names. Store writes emit neither: there is no `store.*` event and
 no store limiter until the spec gains them, so the actions here write
 silently; minting a name the spec does not list is what §2.3 forbids.
@@ -297,7 +299,7 @@ detail, unchanged when `from` is absent.
 ### Query vocabulary
 
 `App\Http\Requests\Seller\ListingsQueryRequest` owns every parameter both
-routes share, the `docs/spec.md` §5 idiom: an absent or emptied value
+routes share, the [`spec.md`](../../docs/spec.md) §5 idiom: an absent or emptied value
 reads as its default; an unrecognised value for a named parameter answers
 400, and a key the table does not name is ignored.
 
@@ -407,7 +409,7 @@ first.
 
 `App\Http\Requests\Seller\OrdersQueryRequest` owns `lane` and `kind` for both
 routes and answers a bare 400 on a value outside either vocabulary
-(docs/spec.md §5). An absent `lane` is the default on the index and, on
+([`spec.md`](../../docs/spec.md) §5). An absent `lane` is the default on the index and, on
 a detail reached by a link that named none, the lane the open parcel sits in
 — so the row is always in the pane beside it. Every row's own link carries
 the lane it was opened from, and so does the back link below `lg`.
@@ -624,7 +626,7 @@ name is the account's own where it has one, and the latest order's
 ### Query vocabulary
 
 `App\Http\Requests\Seller\CustomersQueryRequest` owns every parameter both
-routes read, the `docs/spec.md` §5 idiom: an absent or emptied value
+routes read, the [`spec.md`](../../docs/spec.md) §5 idiom: an absent or emptied value
 reads as its default; an unrecognised value for a named parameter answers
 400, and a key the table does not name is ignored.
 
@@ -687,7 +689,7 @@ already share, so the button needs no new kind of conversation.
 
 ## Messages
 
-The inbox and the thread are `docs/messaging.md`. What the seller portal adds
+The inbox and the thread are [`messaging.md`](messaging.md). What the seller portal adds
 beside the transcript is the context rail: who the seller is talking to, and
 what the thread is about.
 
@@ -726,7 +728,7 @@ StatementController}`.
 `PayoutEstimate::from(LedgerBalance, PayoutPeriod, releasedOrderCount)` reads
 its amount straight from `LedgerBalance::available` — released money not yet
 paid out, negative when a refund outran what escrow could cover
-(docs/escrow.md) — for the Monday after the payout period `$now` falls in
+([`escrow.md`](escrow.md)) — for the Monday after the payout period `$now` falls in
 (`PayoutPeriod::containing()`). `NextPayout::for()` counts the delivered
 fulfillments since the seller's last real `payouts` row (every delivered
 fulfillment, when there has never been one) as the released order count.
@@ -741,7 +743,9 @@ seller's own flow steps are a separate lane, not read here. The total is
 
 ### This period, past periods, and statements
 
-the period `$now` falls in. Sales and fees are gross: every fulfillment of
+`EarningsPeriods::for()` reads the last eight payout periods
+(`EarningsPeriods::WINDOW`), oldest first, ending with the period `$now`
+falls in. Sales and fees are gross: every fulfillment of
 a paid order counts, live or since declined or refunded, grouped by
 `orders.placed_at`. Refunds fold separately, from `ledger_entries` of type
 `refunded` grouped by `occurred_at`, so a refund lands in the period it
@@ -833,7 +837,8 @@ than being the `/seller/support` route itself.
 Nine tables, in two groups: six for how a seller presents (`store_profiles`,
 `store_slugs`, `store_images`, `store_sections`, `store_section_images`,
 `store_links`), three for how a seller ships (`fulfillment_flows`,
-`fulfillment_flow_steps`, `fulfillment_events`), plus `listings`' one
-nullable `fulfillment_flow_id` column. Every id is a prefixed ULID
-(`docs/spec.md` §1); the full column list, every relationship, and the
+`fulfillment_flow_steps`, `fulfillment_events`), plus one nullable
+`fulfillment_flow_id` column on each of `listings` and `fulfillments`.
+Every id is a prefixed ULID ([`spec.md`](../../docs/spec.md) §1); the full
+column list, every relationship, and the
 caveats a diagram cannot draw are in [`data-model.md`](data-model.md).

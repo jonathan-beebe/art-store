@@ -2,9 +2,9 @@
 
 A two-sided art marketplace, served from three sites: a seller portal at
 `/seller`, a customer storefront at `/`, and an admin site at `/admin` for
-support and moderation. One Laravel app, one SQLite file, and every page
-works with JavaScript off — the one script in the tree is a progressive
-enhancement, not a requirement.
+support and moderation. One Laravel app, three SQLite files. Every page
+works with JavaScript off; the seven scripts under `src/public/` are
+progressive enhancement.
 
 Read [`docs/architecture.md`](docs/architecture.md) before changing code — it is
 the spec for layers, naming, routes, and testing conventions.
@@ -23,8 +23,10 @@ make up
 The entrypoint copies `.env.example` to `.env`, installs Composer and npm
 dependencies, generates the app key, builds the Tailwind CSS, touches
 `src/database/database.sqlite`, runs migrations, and links the public storage
-disk before starting the server. The first run takes a few minutes while the
-image builds and dependencies download; later runs take seconds.
+disk before starting the server. Local `make up` migrates only; the
+production deploy chain (see Deployment) migrates and seeds. The first run
+takes a few minutes while the image builds and dependencies download; later
+runs take seconds.
 
 Then open:
 
@@ -38,9 +40,10 @@ An empty database shows an empty storefront. `make fresh` loads the demo data.
 
 ## Commands
 
-Every target is a thin `docker compose` wrapper, so either form works. Bare
-`make` (or `make help`) prints this list with a one-line description per
-target.
+Most targets wrap `docker compose`, so either column below works. `image`
+and `run-image` wrap `docker build` and `docker run`; `outbox` prints a
+notice. Bare `make` (or `make help`) prints this list with a one-line
+description per target.
 
 | Make             | Docker Compose                                                                                 |
 | ---------------- | ---------------------------------------------------------------------------------------------- |
@@ -51,8 +54,8 @@ target.
 | `make shell`     | `docker compose run --rm app bash`                                                             |
 | `make test`      | `docker compose run --rm app composer test` (the full Pest suite, ungated)                     |
 | `make smoke`     | `docker compose run --rm app php vendor/bin/pest --testsuite Smoke`                            |
-| `make coverage`  | `docker compose run --rm app composer test:coverage` (Pest under pcov, gated at 100% of lines) |
-| `make lint`      | `docker compose run ... app lint` (Pint `--test`), then `... app analyse` (PHPStan)            |
+| `make coverage`  | `docker compose run --rm app composer test:coverage` (Pest under pcov, gated at 95% of lines)  |
+| `make lint`      | `docker compose run --rm --no-deps --entrypoint composer app lint:all` (Pint `--test`, then PHPStan) |
 | `make lint-fix`  | `docker compose run --rm --no-deps --entrypoint composer app lint:fix`                         |
 | `make analyse`   | `docker compose run --rm --no-deps --entrypoint composer app analyse`                          |
 | `make precommit` | `docker compose run --rm app sh -c "composer lint:all && composer test"` — the per-commit gate  |
@@ -99,8 +102,10 @@ make check                                                   # lint + assets + c
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
-1827 tests (4934 assertions), run by Pest — `it()`/`test()` functions, no
-PHPUnit classes outside `tests/*TestCase.php`. Tests are sidecars: `Money.php`
+Pest runs the suite; the last line of `make test` output carries the test
+and assertion counts. Tests are `it()`/`test()` functions, and the only
+PHPUnit classes are the base cases in `tests/*TestCase.php`. Tests are
+sidecars: `Money.php`
 and `MoneyTest.php` sit in the same directory. `phpunit.xml` scans `app/`,
 `routes/`, and `database/` for `*Test.php` and lists `tests/Arch.php` by name;
 there is no `tests/Feature` or `tests/Unit`. `tests/Pest.php` binds `Tests\CommerceTestCase`,
@@ -115,7 +120,8 @@ reach of sidecars under `app/`, so the suite keeps none there.
 controllers skip the `DB` facade, no debug calls, strict types everywhere)
 plus Pest's `laravel` and `security` presets. `tests/SidecarsTest.php` asserts
 every non-abstract class under `app/` has a sidecar test file, against a
-shrink-only list of exceptions that is currently empty.
+shrink-only list of exceptions (classes covered by another file's tests, or
+with no behavior of their own).
 
 Static analysis (`make analyse`, and half of `make lint`) runs PHPStan/Larastan
 at `level: max` over `app`, `database`, `routes`, and `tests` — the sidecar
@@ -126,15 +132,17 @@ runs on, the two custom expectations, and the arch DSL. Formatting (Pint,
 checked read-only by the other half of `make lint`, auto-fixed by
 `make lint-fix`) enforces `declare(strict_types=1)` on every file.
 
-`src/tests/SmokeTest.php` is the exception to the sidecar rule: one HTTP walk of
-the whole product — seller sign-in, listing, sale, guest checkout, magic-link
-verification, payment, shipment, delivery, weekly payout — with no production
-file of its own to sit beside. It is its own `Smoke` testsuite and runs inside
-`make test` as well.
+`src/tests/SmokeTest.php` and `src/tests/ConfiguratorSmokeTest.php` are the
+exceptions to the sidecar rule: one HTTP walk of the whole product — seller
+sign-in, listing, sale, guest checkout, magic-link verification, payment,
+shipment, delivery, weekly payout — and two walks of the item configurator,
+with no production file of their own to sit beside. The `Smoke` testsuite is
+every `*Test.php` under `tests/`; `make smoke` runs it alone and `make test`
+includes it.
 
-`make coverage` runs the suite under pcov, fails under 100% of lines
-(`--min=100`), prints a text summary, and writes HTML to `src/coverage/`
-(pcov is in the image). Current: **100.0% of lines**.
+`make coverage` runs the suite under pcov, fails under 95% of lines
+(`--min=95`), prints a text summary, and writes HTML to `src/coverage/`
+(pcov is in the image). The summary's last line carries the current figure.
 
 ## Database
 
@@ -154,7 +162,7 @@ make fresh      # clear every database, re-seed the demo data
 
 ## Seeded accounts
 
-`make fresh` seeds two admins, six sellers, two customers, 37 listings, three
+`make fresh` seeds two admins, seven sellers, two customers, 46 listings, three
 orders, one completed payout, and five conversations — one of each messaging
 kind, plus a second listing question. Every account signs in through the
 debug magic link (see below).
@@ -169,6 +177,7 @@ debug magic link (see below).
 | Seller   | Creevey Camera Works     | colin@example.com          |
 | Seller   | Longbottom Botanicals    | neville@example.com        |
 | Seller   | Lovegood Curiosities     | luna@example.com           |
+| Seller   | Weasleys' Wizard Wheezes | george@example.com         |
 | Customer | Hermione Granger         | hermione@example.com       |
 | Customer | Luna Lovegood            | luna@example.com           |
 
@@ -193,7 +202,7 @@ surge across the three months (near 8 / 30 / 80 on a real 92-day run),
 anonymous visitors browsing, favoriting, and abandoning or completing
 carts, some of them verifying partway through and folding their history
 into a signed-up account, sellers creating and publishing new listings
-(the catalog grows from 37 toward 150+), orders placed, paid, shipped,
+(the catalog grows from 46 toward 150+), orders placed, paid, shipped,
 delivered, or cancelled, listing questions and support conversations, and
 weekly payouts — everything `/admin/analytics` and the seller and admin
 portals need to show a store that has been open for a season. Two
@@ -213,7 +222,8 @@ any email address — the first link for a seller address creates the account.
 
 There is no mailbox. The link is an `App\Notifications\MagicLinkIssued`
 notification delivered on `App\Notifications\Channels\SessionFlashChannel`,
-which flashes the URL to the session; both layouts render it in the yellow
+which flashes the URL to the session; the `shop`, `seller`,
+`seller-focused`, `admin`, and `auth` layouts render it in the yellow
 **debug alert** at the top of the page, so the link is on screen right after
 you submit the form. Links expire after 15 minutes and work once.
 
@@ -249,13 +259,14 @@ docker compose run --rm app php artisan payouts:run                  # as of tod
 docker compose run --rm app php artisan payouts:run --as-of=2026-07-16
 ```
 
-`/seller/earnings` also carries a "Run weekly payout now" button. It is a debug
-control: it settles every seller, not just the one signed in.
+`POST /admin/payouts` (the admin payouts page) runs the same action for
+every seller.
 
 ## Styling
 
-Tailwind v4 through Vite. The entrypoint runs `npm run build` on every start, so
-`make down && make up` picks up Blade changes. To rebuild without restarting:
+Tailwind v4 through Vite. The entrypoint rebuilds the CSS when any Tailwind
+input has changed since the last build, so `make down && make up` picks up
+Blade changes. To rebuild without restarting:
 
 ```sh
 make assets
@@ -267,23 +278,28 @@ JavaScript bundle.
 
 ## JavaScript
 
-One file, `src/public/composer.js`, ~15 dependency-free lines served
-directly rather than through Vite. Every layout with a message composer
-(seller, shop, admin) loads it with `<script defer>` and it does two things:
-grows the message textarea's live character counter as you type, and lets
-Cmd/Ctrl+Enter submit the form. A message composer's counter is
-server-rendered first and `Enter` alone stays a newline, so posting a
-message works the same with JavaScript disabled. See `docs/messaging.md`
-§ "The composer" for the shared contract.
+Seven dependency-free scripts under `src/public/`, served directly and
+outside Vite. Each layout or view that needs one loads it with
+`<script defer>`: `composer.js`, `configurator-autosubmit.js`,
+`sort-autosubmit.js`, `nav-drawer.js`, `new-listing-modal.js`,
+`listing-detail-dialog.js`, and `print-button.js`.
+
+`composer.js` (38 lines) does three things for every message composer
+(seller, shop, admin): swaps the keyboard hint to ⌘ on a Mac, updates the
+live character counter as you type, and lets Cmd/Ctrl+Enter submit the
+form. The textarea grows through CSS (`field-sizing: content`). A message
+composer's counter is server-rendered first and `Enter` alone stays a
+newline, so posting a message works the same with JavaScript disabled. See
+`docs/messaging.md` § "The composer" for the shared contract.
 
 ## Layout
 
 ```
 app/
   README.md            this file
-  Dockerfile           php:8.3-cli + composer + node 20 + gd + pcov + sqlite
+  Dockerfile           php:8.3-cli dev/build targets + FrankenPHP runtime
   docker-compose.yml   one service: app
-  docker/entrypoint.sh first-run setup, then the container command
+  docker/              Caddyfile, entrypoint.sh (first-run setup, then the container command), pcov.ini
   Makefile             host-side wrappers over docker compose
   docs/                architecture, diagrams, and reference docs
   src/                 the Laravel application
@@ -295,15 +311,22 @@ app/
     app/Policies/      ownership and "is this form worth offering"
     app/Events/        past-tense business moments
     app/Listeners/     who hears about an event
+    app/Observers/     LedgerEntryObserver: the ledger.write log line
     app/Notifications/ what they are told, plus Channels/
+    app/Console/       artisan commands: payouts:run, orders:sweep, seed:activity
+    app/Seller/        page-shaped readers for the seller portal
+    app/Admin/         page-shaped readers for the admin site
+    app/Analytics/     the Analytics entry point, its rows, and the admin readers
+    app/Logging/       StoryFormatter, StoryEvent, the log store and its tap
     app/View/Composers/ per-site layout data: cart count, notifications, unread messages
+    app/View/Components/ class-backed Blade components: stat tile, list pane row, bar strip
     app/Support/       CustomerIdentity, ActorDisplay, PlaceholderImage
     routes/            web.php requires auth.php, shop.php, seller.php, admin.php
-    resources/views/   components/layouts/{shop,seller,admin}, components/debug-alert,
-                       components/messaging/* (admin), components/seller/messaging/*,
+    resources/views/   components/layouts/{shop,seller,seller-focused,admin,auth,error}, components/debug-alert,
+                       components/messaging/* (shared by admin and seller), components/seller/messaging/*,
                        components/shop/messaging/*, components/listing-card,
                        components/form/field, and a page per route under shop/, seller/, admin/
-    public/            composer.js, served directly rather than through Vite
+    public/            seven vanilla scripts, served directly and outside Vite
     phpstan/           stub files that type Pest's traits for the analyser
     tests/             base test cases, Pest bindings, Arch, Sidecars, Smoke
 ```
@@ -323,12 +346,11 @@ uploaded listing images together. FrankenPHP serves `public/build/*` and
 occupy a PHP process — and hands every other request to PHP in classic
 per-request mode, the same as `artisan serve`; Octane-style worker mode is
 not in use, since `App\Logging\LogStore` assumes one request per process.
-Capacity is governed by FrankenPHP's thread pool. `docker/Caddyfile` pins
-the floor at 16 threads (`FRANKENPHP_NUM_THREADS` overrides) with
-on-demand growth to 40 (`FRANKENPHP_MAX_THREADS`) — sized above the dev
-stack's `artisan serve` workers, because FrankenPHP's own default (2×CPU)
-collapses to two threads on a one-CPU instance. There is no
-`PHP_CLI_SERVER_WORKERS` equivalent; these two variables are the knob.
+Capacity is governed by FrankenPHP's thread pool. `docker/Caddyfile` sets
+the floor at 4 threads (`FRANKENPHP_NUM_THREADS` overrides) with on-demand
+growth to 8 (`FRANKENPHP_MAX_THREADS`), because FrankenPHP's own default
+(2×CPU) is two threads on a one-CPU instance. These two variables are the
+knob.
 
 Build it:
 
@@ -391,9 +413,8 @@ docker run --rm --cap-drop=ALL --security-opt no-new-privileges \
   switch the channel, but `MAIL_MAILER` points at `log`.
 - Shipment tracking is a free-text carrier and number. The customer confirms
   delivery from the order page in place of carrier tracking.
-- Seeded listings render a generated placeholder SVG rather than artwork.
+- A listing with no photograph renders a generated placeholder SVG.
 - The unread badge is a server-rendered count; a new message shows on the
   next page load. See `docs/messaging.md` § "Unread counts".
 - A merged cart keeps a line whose listing carries an active removal, at
-  whatever quantity it clamps to; checkout refuses it and names the item
-  rather than the merge dropping it.
+  whatever quantity it clamps to; checkout refuses it and names the item.

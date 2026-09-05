@@ -13,9 +13,9 @@ The app is containerized so that nothing is installed on the host. The rule:
   the host.
 - Always use `app/Makefile` targets (`make up`, `make test`, `make coverage`,
   `make smoke`, `make shell`, `make routes`, ...). Each one wraps
-  `docker compose run --rm app ...` or `docker compose exec`. When no target
-  fits, run the command through `docker compose run --rm app <cmd>` from
-  `app/`.
+  `docker compose`: `run --rm app ...` for a command, `up`, `down`, `build`,
+  or `logs` for the stack. When no target fits, run the command through
+  `docker compose run --rm app <cmd>` from `app/`.
 - Agents and subagents follow the same rule. A worker that needs to run the
   suite uses `make test` from `app/`.
 

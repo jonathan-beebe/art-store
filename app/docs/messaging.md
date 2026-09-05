@@ -34,8 +34,8 @@ Every thread has exactly two **sides**. That is the invariant the rest of the
 design rests on: one `read_at` per message is unambiguous, because the reader
 is always the side that did not send it. On the two support kinds one side is
 the **desk** — every admin, collectively — rather than one admin row. The
-`admin_id` column no longer gates participation; it records which admin first
-answered ("handled by") and is null until one does.
+`admin_id` column records which admin first answered ("handled by") and is
+null until one does.
 
 `listing_question` is the conversation a seller and a customer have **before**
 any order exists: a shopper asking about a piece they have not bought. It
@@ -137,9 +137,9 @@ ignores.
 
 `OpenThread` runs the insert, the `post` gate, and `PostMessage` inside a
 single `DB::transaction`, so a refused first message (a blocked customer)
-rolls the row back with it and leaves nothing behind. It replaces
-`OpenConversationWithMessage`, calling the same `OpenConversation` action
-(now typed `ConversationSubject|ThreadOpening`) for the insert. A fulfillment
+rolls the row back with it and leaves nothing behind. `OpenThread` calls
+`OpenConversation` (typed `ConversationSubject|ThreadOpening`) for the
+insert. A fulfillment
 route still calls `OpenConversation` directly and opens an empty thread to
 redirect to, since the actor types the first message on the page they land
 on; the other three kinds only ever reach it through `OpenThread`.
@@ -220,8 +220,10 @@ Publishing an FAQ resolves the question thread its source message belongs to,
 when it is still open: the answer is on the listing for everyone, which is
 what answering meant.
 
-Inboxes default to open threads. The status filter (`open`, `resolved`,
-`all`) is a query parameter on every inbox route, as `filter` is.
+The storefront inbox defaults to open threads. Its status filter (`open`,
+`resolved`, `all`) is the `?status=` query parameter, beside `?filter=`
+(`ShopMessagesIndexRequest`). The seller and admin inboxes take `?domain=`
+only and list open and resolved threads together (§ "Inbox domains").
 
 ## Replying to a message
 
@@ -243,13 +245,14 @@ column means a quoted message that is ever removed leaves its replies intact.
 
 One behaviour on three sites, each in its own dress. The Blade pieces are per
 site (`components/seller/messaging/composer.blade.php`,
-`components/messaging/body-form.blade.php` for the admin, the storefront's own
-partial); the behaviour is shared:
+`components/messaging/body-form.blade.php` for the admin,
+`components/shop/messaging/composer.blade.php` for the storefront); the
+behaviour is shared:
 
 - The textarea grows with its content (`field-sizing: content`, between three
   and twelve rows; browsers without it keep three rows and scroll).
 - `Cmd`/`Ctrl`+`Enter` submits; `Enter` alone is a newline. `public/composer.js`
-  (~15 lines, `<script defer>` on every layout that has a composer) does only
+  (38 lines, `<script defer>` on every layout that has a composer) does only
   that and the live counter; without it the form still posts.
 - A counter shows `1,240 / 2,000`; the limit is read from
   `MessageBody::MAX_LENGTH` in the Blade file, and the same constant fills
@@ -294,7 +297,7 @@ sequenceDiagram
     Open->>Open: one DB::transaction: insert, gate post, PostMessage
     Open->>Notify: MessagePosted (after commit) -> MessageReceived to the seller
     Ask-->>Shopper: redirect shop.messages.show
-    Seller->>Thread: GET /seller/messages?filter=questions
+    Seller->>Thread: GET /seller/messages?domain=buyers
     Seller->>Thread: GET /seller/messages/{conversation}: marks read
     Seller->>Thread: POST reply (PostMessageRequest)
     Thread-->>Seller: "Publish as FAQ" disclosure, pre-filled from the thread
@@ -320,18 +323,22 @@ which answer an entry was lifted from and is `nullOnDelete`.
 The limits are domain constants the form requests read:
 `MessageBody::MAX_LENGTH` (2000), `ThreadTitle::MAX_LENGTH` (120),
 `FaqDraft::QUESTION_MAX_LENGTH` (500), `FaqDraft::ANSWER_MAX_LENGTH` (2000).
-`PostMessageRequest::body()` returns a `MessageBody`, `OpenThreadRequest`
-returns a `ThreadTitle` and a `MessageBody`, `PublishFaqRequest::draft()`
+`PostMessageRequest::body()` returns a `MessageBody`; the four opening
+requests (`Seller\OpenSupportThreadRequest`, `Shop\SupportRequest`,
+`Admin\OpenSellerThreadRequest`, `Admin\OpenCustomerThreadRequest`)
+return a `ThreadTitle` and a `MessageBody`; `PublishFaqRequest::draft()`
 returns a `FaqDraft`, so a controller receives the value object rather than a
 string bag. Every `maxlength` in Blade reads the constant.
 
 ## What a block does
 
 An admin blocks a customer with a reason (`customer_blocks`, at most one
-active per customer). `Customer::canShop()` turns false: `AddToCart`,
-`PlaceOrder`, `FinalizeOrder` refuse with a `DomainRuleViolation`, and
-`ConversationPolicy::post` denies, so the composer is not rendered and a
-submission anyway is refused with the policy's words. Browsing, favoriting
+active per customer). `Customer::canShop()` turns false. `AddToCart`,
+`PlaceOrder`, and `FinalizeOrder` call `CustomerStanding::assertCanShop()`
+on the customer's block reason, which refuses with a `DomainRuleViolation`.
+`ConversationPolicy::post` reads `canShop()` and denies, so the composer is
+not rendered and a submission anyway is refused with the policy's words.
+`BlockCustomer` reads `canShop()` to refuse a second active block. Browsing, favoriting
 and reading threads stay open. `OpenThread`'s transaction means a blocked
 customer's ask leaves no row. Lifting the block (`lifted_at`) restores all of
 it.
@@ -366,9 +373,11 @@ desk is waited on there.
 ## Inbox domains
 
 The seller and admin inboxes each take one domain tab (`?domain=`); an
-unrecognised value answers 400 the way `docs/spec.md` §5 says.
+unrecognised value answers 400 the way [spec.md](../../docs/spec.md) §5 says.
 `App\Http\Requests\{Seller,Admin}\MessagesQueryRequest` own validation and
-defaulting (`domain(): string`), which the controllers read to build the
+defaulting. The seller request's `domain()` returns an
+`App\Domain\Seller\MessageDomain`; the admin request's returns a `string`.
+The controllers read it to build the
 Eloquent query and the `x-messaging.inbox-tabs` component reads to render the
 tabs. The shop inbox is unchanged: it still takes `?filter=` and `?status=`
 (`all`/`unread` and `open`/`resolved`/`all`).
@@ -427,13 +436,14 @@ Seller portal (`routes/seller.php`), all behind `auth.seller`:
 
 | Method | Path                                      | Name                      | Purpose                                                       |
 | ------ | ----------------------------------------- | ------------------------- | ------------------------------------------------------------- |
-| GET    | `/seller/messages`                        | `seller.messages.index`   | Inbox; `?filter=`, `?status=`                                 |
+| GET    | `/seller/messages`                        | `seller.messages.index`   | Inbox; `?domain=`                                             |
 | GET    | `/seller/messages/{conversation}`         | `seller.messages.show`    | Thread; marks read; `?reply_to=`; FAQ disclosure on questions |
 | POST   | `/seller/messages/{conversation}`         | `seller.messages.store`   | Reply (`reply_to_message_id` optional)                        |
 | POST   | `/seller/messages/{conversation}/resolve` | `seller.messages.resolve` | Mark resolved                                                 |
 | POST   | `/seller/messages/{conversation}/reopen`  | `seller.messages.reopen`  | Reopen                                                        |
-| GET    | `/seller/support`                         | `seller.support`          | New support thread: title, message, optional order            |
-| POST   | `/seller/support`                         | `seller.support.store`    | Opens the `admin_seller` thread                               |
+| GET    | `/seller/support`                         | `seller.support`          | Support hub: help articles and the seller's desk threads      |
+| GET    | `/seller/support/new`                     | `seller.support.create`   | New support thread form: title, message, optional order       |
+| POST   | `/seller/support/new`                     | `seller.support.store`    | Opens the `admin_seller` thread                               |
 | POST   | `/seller/orders/{fulfillment}/messages`   | `seller.orders.messages`  | Finds or opens the `fulfillment` thread                       |
 | …      | `/seller/listings/{listing}/faqs…`        | `seller.listings.faqs.*`  | Publish / reword / unpublish (unchanged)                      |
 
@@ -454,7 +464,7 @@ Admin site (`routes/admin.php`), all behind `auth.admin`:
 
 | Method | Path                                     | Name                       | Purpose                                                     |
 | ------ | ---------------------------------------- | -------------------------- | ----------------------------------------------------------- |
-| GET    | `/admin/messages`                        | `admin.messages.index`     | Every thread; `?filter=`, `?status=`                        |
+| GET    | `/admin/messages`                        | `admin.messages.index`     | Every thread; `?domain=`                                    |
 | GET    | `/admin/messages/{conversation}`         | `admin.messages.show`      | Thread; marks read on desk kinds; oversight otherwise       |
 | POST   | `/admin/messages/{conversation}`         | `admin.messages.store`     | Reply (desk kinds)                                          |
 | POST   | `/admin/messages/{conversation}/resolve` | `admin.messages.resolve`   | Mark resolved                                               |
@@ -476,7 +486,7 @@ a fresh-opened thread (`subject_key` null) simply takes the new
 `ConversationSubject::for(kind, ids)`, and where the verified customer already
 holds that order's thread the moved one folds into it (messages re-point,
 `last_message_at` is read back, the row is deleted). `customer_blocks` moves
-with `CustomerOwnedTables`. See `docs/identity.md`.
+with `CustomerOwnedTables`. See [identity.md](identity.md).
 
 ## Costs stated
 
@@ -489,8 +499,9 @@ with `CustomerOwnedTables`. See `docs/identity.md`.
 
 ## Follow-ups
 
-- `Admin::platformAdmin()` is unused in production code now that `admin_id`
-  no longer gates opening a desk thread; a candidate for removal.
+- `Admin::platformAdmin()` has no production caller: `admin_id` records the
+  first admin to answer and gates nothing. The method is a candidate for
+  removal.
 - `ThreadOpening::adminSeller()` and `adminCustomer()` take only a
   fulfillment/order id, no listing id, so an oversight listing-question
   thread's "Message seller" / "Message customer" buttons carry no context,

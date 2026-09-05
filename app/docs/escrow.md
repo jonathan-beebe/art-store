@@ -14,7 +14,7 @@ Running a payout is a platform action: the CLI (`payouts:run`) and
 `RunWeeklyPayout` — the admin route for every seller in one run, the same as
 the CLI. The seller portal shows a seller their held / available / paid-out
 balance and their payout history on `/seller/earnings` and offers no control
-that runs one: paying sellers is a platform action (docs/spec.md §5).
+that runs one: paying sellers is a platform action ([spec.md](../../docs/spec.md) §5).
 
 ## Ledger entry types through hold → release → payout
 
@@ -35,7 +35,7 @@ flowchart LR
 
 Caveats: `amount_cents` is signed — `held` and `released` are positive,
 `paid_out` and `refunded` are negative (`LedgerMovement::payout()` and
-`::refund()` negate them). Only a seller with `available > 0` (`isPayable()`)
+`LedgerMovement::refund()` negate them). Only a seller with `available > 0` (`isPayable()`)
 gets a payout row, which is also what makes a negative balance carry forward.
 
 ## Where a refund comes out of
@@ -77,10 +77,11 @@ settles it.
 |                                                | `refunded −net`                                 |                               |                 |
 
 Escrow is released on **delivery**, so an admin refund of a
-`shipped` fulfillment is still a refund before release. §4.2 of
-`docs/spec.md` groups shipped and delivered together as "after release";
-the arithmetic is the same either way, because the fold reads which of the two
-happened from the fulfillment's own entries rather than from its status.
+`shipped` fulfillment is still a refund before release.
+[spec.md](../../docs/spec.md) §4.2 calls a refund of a shipped or delivered
+parcel "after release". The fold ignores the status: it reads whether a
+`released` entry exists for that fulfillment, so the arithmetic is the same
+in both readings.
 
 A payout of `≤ 0` writes no `paid_out` row at all, so the negative available
 balance survives the period and is netted against the seller's next sale
@@ -88,9 +89,10 @@ before anything is paid — `RunWeeklyPayoutTest` walks both halves of that.
 
 The platform fee on a refunded fulfillment is **forgone**: the `refunded` entry
 runs the whole `net_cents` back out and the `fee_cents` is never collected as
-revenue. Accounting reads `fees_earned_cents` over fulfillments that are not
-declined or refunded (`FulfillmentStatus::isLive()`) and reports
-`fees_refunded_cents` beside it; `/admin/accounting` surfaces both.
+revenue. `PlatformFees` sums `fee_cents` over the fulfillments where
+`FulfillmentStatus::isLive()` is true into `PlatformMoney::$feesEarned` and
+over the declined and refunded ones into `PlatformMoney::$feesRefunded`;
+`/admin` and `/admin/accounting` show both.
 
 ## `payouts:run`
 

@@ -3,10 +3,11 @@
 Every JSON line the app logs — server and CLI runs alike — is also
 written to a queryable SQLite store, and the admin site reads it back: a
 filterable time series at `/admin/logs` and a per-request story view. Stdout
-stays exactly as `docs/spec.md` §2 specifies; the store is a mirror of
+stays exactly as [spec.md](../../docs/spec.md) §2 specifies; the store is a mirror of
 it. Lines older than a retention window are pruned by `orders:sweep`.
 
-Code: `app/Logging/{LogStore,LogLine,LogStoreHandler,LogStoreTap,LogRetentionDays,LogDomain}.php`,
+Code: `app/Logging/{LogStore,LogLine,LogStoreHandler,LogStoreTap,LogDomain}.php`,
+`app/Support/RetentionDays.php`,
 `app/Providers/LogStoreServiceProvider.php`, `config/log_store.php`,
 `app/Logging/Admin/*.php`, `app/Http/Requests/Admin/LogsQueryRequest.php`,
 `app/Http/Controllers/Admin/LogController.php`, `app/Support/Page.php`,
@@ -21,7 +22,7 @@ Three invariants govern the design:
    sees it. Every other step is best-effort.
 2. **The store is a mirror; the store validates nothing.** It stores what
    was emitted, including lines it cannot parse and events added to the
-   `docs/spec.md` §2.3 vocabulary after this DDL was written. The
+   [spec.md](../../docs/spec.md) §2.3 vocabulary after this DDL was written. The
    vocabulary is enforced at the emitter — `App\Logging\StoryEvent` and its
    siblings.
 3. **The store's failure is never the app's failure.** Every public method
@@ -64,12 +65,11 @@ opened lazily the first time something resolves it — in practice
 `LogStoreTap`, the first time a line logs. PHP serves one request per
 process: there is no event loop to schedule a flush on, so `LogStore`
 buffers rows in memory and flushes at a row-count cap or when the process
-exits. The exit flush is `register_shutdown_function`, not
-`$app->terminating()` — `App\Providers\LoggingServiceProvider` fires the
-`app.shutdown` line from inside `terminating()`, and that line must itself
-reach the buffer before the final flush runs; a shutdown function registered
-by `LogStore::open()` at boot is guaranteed to run after every
-`terminating()` callback Laravel has already queued. One handle per process
+exits. The exit flush is a `register_shutdown_function` callback.
+`App\Providers\LoggingServiceProvider` writes `app.shutdown` from
+`terminating()`, and that line must reach the buffer before the last flush.
+A shutdown function registered by `LogStore::open()` at boot runs after
+every `terminating()` callback. One handle per process
 is what lets the ingest path and the retention prune share a connection
 rather than open the file twice, and what makes a test's temp-file store
 visible to both the writer and the admin reader.
@@ -87,7 +87,7 @@ buffer the way `app.shutdown` still needs to reach `LogStore`'s. See
 ## Table
 
 One table, `log_lines`. The DDL, the column mapping, the rowid exception to
-`docs/spec.md` §1, and the three departures from the commerce-table idiom are
+[spec.md](../../docs/spec.md) §1, and the three departures from the commerce-table idiom are
 fixed in [`docs/logging.md`](../../docs/logging.md) § "Table" and not
 repeated here — `LogStore::DDL` is the literal SQL that document describes.
 
@@ -149,9 +149,10 @@ the store would only make the mirror disagree with stdout.
 
 `LogStore`'s default stdout/stderr writers open `php://stdout` and
 `php://stderr` per write rather than referencing the `STDOUT`/`STDERR`
-constants: those constants exist only in the CLI SAPI, and `php artisan
-serve`'s workers run under `cli-server`, where referencing an undefined
-constant is a fatal error the store's own `open()` guard cannot catch. The
+constants. Those constants exist only in the CLI SAPI. The dev server
+(`php artisan serve`, the `cli-server` SAPI) and the FrankenPHP runtime
+both serve requests outside it, and referencing an undefined constant
+there is a fatal error the store's own `open()` guard cannot catch. The
 writers are also injectable parameters on `open()`, so a test can capture
 what would otherwise go to the real streams.
 
@@ -224,7 +225,7 @@ default. Any query parameter present, even an empty one (`?domain=`), is
 a deliberate visit and skips the redirect; the check is `$request->query()
 === []` in `LogController::index`, run before the store is touched. This
 is a URL-shape convenience — the filter semantics underneath (empty means
-all, per `docs/spec.md` §5) do not change, and every filter is still
+all, per [spec.md](../../docs/spec.md) §5) do not change, and every filter is still
 reachable at `?domain=` to see everything.
 
 The header bar puts three controls at primary weight — domain (a
@@ -270,29 +271,29 @@ hidden · show" pair and the current result count ("N requests match" /
 
 The Requests (`group=1`) view is a columnar grid — time, request
 (method+path), status, a tinted duration, line count, actor, session, a
-story chevron — one native `<details>`/`<summary>` per request; that
+story chevron — one native `<details>`/`<summary>` per request. That
 disclosure pair is the accessible pattern for expand-in-place, so the row
-carries no ARIA table role laid over it (a `role="row"` on `<summary>`
-would override its own native disclosure semantics, and the structure
-fails ARIA table requirements regardless — the role-less `<details>`
-sits between table and row, and the expanded panel is an illegal owned
-child of a table row). The header strip and every row share one
-`$rowGridCols` fixed-pixel `grid-cols-[...]` template (only the
-method+path track is `minmax(0,1fr)`), so every column starts at the same
-x regardless of content; the actor and session columns additionally carry
-`min-w-0` — without it, a grid item's default automatic minimum size is
-its content's own min-content width, which for an unbreakable pill (or a
-pill plus the actor's chevron button) can exceed a fixed-width track and
-overflow into the next column rather than shrinking or wrapping to fit
-it. The visual column-header strip above the rows is `aria-hidden="true"`;
-the chevron's own `aria-label="Open request story for <request_id>"` is
-the row's accessible name for that action, and the page's own "Logs"
-`<h1>` is the list's accessible context — no extra heading needed. The
-Lines (ungrouped) view keeps the existing `<table>`, restyled to
-the same columnar rhythm: tabular numerals, a level badge, a tinted
-duration; every body cell is `align-top`, so a line's `data`/`error`/`ids`
-`<details>` grows the row downward when opened rather than re-centering
-it.
+carries no ARIA table role. A `role="row"` on `<summary>` would override
+its native disclosure semantics, and the structure fails ARIA table
+requirements regardless: the role-less `<details>` sits between table and
+row, and the expanded panel is an illegal owned child of a table row.
+
+The header strip and every row share one `$rowGridCols` fixed-pixel
+`grid-cols-[...]` template (only the method+path track is
+`minmax(0,1fr)`), so every column starts at the same x regardless of
+content. The actor and session columns also carry `min-w-0`. Without it, a
+grid item's automatic minimum size is its content's min-content width; an
+unbreakable pill, or a pill plus the actor's chevron button, can exceed a
+fixed-width track and overflow into the next column.
+
+The visual column-header strip above the rows is `aria-hidden="true"`. The
+chevron's own `aria-label="Open request story for <request_id>"` is the
+row's accessible name for that action, and the page's "Logs" `<h1>` is the
+list's accessible context. The Lines (ungrouped) view keeps the existing
+`<table>`, restyled to the same columnar rhythm: tabular numerals, a level
+badge, a tinted duration. Every body cell is `align-top`, so a line's
+`data`/`error`/`ids` `<details>` grows the row downward when opened.
+
 Expanding a grouped row opens `components/admin/log-filter-rail.blade.php`
 (the request's own id rail — see below) above its lines,
 `components/admin/log-lines.blade.php` unchanged underneath — its own
@@ -311,7 +312,7 @@ carried through both links. `Page::of()` clamps an out-of-range page onto
 the nearest real one rather than answering 400.
 
 The logs pages (list and story) render inside `x-layouts.admin
-:full-width="true"`, which opts the `<main>` out of the shell's `max-w-6xl`
+mode="content-wide"`, which opts the `<main>` out of the shell's `max-w-6xl`
 reading column; every other admin page keeps the narrower default.
 
 ### Truncated row id chips
@@ -357,7 +358,7 @@ wraps each in an anchor where one resolves: `ord_`/`cus_`/`sel_`/`lst_`/`ful_`/`
 route to that record's admin detail page by Laravel route name (`hrefFor()`
 draws its map from the same route names `routes/admin.php` registers);
 `txn_` and `ses_` link back into `/admin/logs` as a `txn`/`session` filter;
-everything else — a `msg_` id, an outbox message id with no admin page —
+everything else — a `msg_` id, or any prefix with no admin page —
 renders plain, escaped the same as any other text. Because the map is route
 names rather than hand-built URLs, a link this class produces never 404s.
 `linkify()` is what both `log-lines.blade.php` and the list's inline `data`/
@@ -381,23 +382,23 @@ data/error blocks, so the normal per-line rows tuck `txn_id`/`session_id`
 there while `log-lines.blade.php` (the `group=1` view's expanded lines and
 the story view) tucks all four, since none of them get a column there.
 
-The actor is the one id that still leads somewhere besides a filter: next
-to the id-as-filter-link pill, `components/admin/log-actor.blade.php`
-renders a chevron button — visually identical to the request cell's own
-story chevron, same border/rounded/size classes and inline right-chevron
-svg — to the actor's own admin detail page, using the same
-`LogIdLinks::hrefFor()` map the linkifier draws from, so an admin actor,
-which has no detail page, never grows it. There is no separate visible
-"customer"/"seller" label any more — the pill's own id prefix already
-carries the type, and the chevron's `aria-label="View <actor_type>
-<actor_id>"` is its accessible name. The same component renders the actor
-everywhere it appears: Lines rows, Requests rows
-(`App\Logging\Admin\LogStoryHeader::of($group->lines)` reads a group's
-actor/session/txn off its own lines the same way the story header does,
-so the two never carry two read-models for one fact), the story header,
-and the expanded row's/story's own `components/admin/log-filter-rail.blade.php`
-"Filter by" rail, which renders the actor through this same component
-rather than duplicating its markup.
+The actor is the one id that also leads to a detail page. Next to the
+id-as-filter-link pill, `components/admin/log-actor.blade.php` renders a
+chevron button to the actor's own admin detail page. The button matches
+the request cell's story chevron: the same border, rounded, and size
+classes and the same inline right-chevron svg. It draws its `href` from
+the same `LogIdLinks::hrefFor()` map the linkifier uses, so an admin actor,
+which has no detail page, gets no button. There is no separate visible
+"customer"/"seller" label: the pill's own id prefix carries the type, and
+the chevron's `aria-label="View <actor_type> <actor_id>"` is its
+accessible name.
+
+The same component renders the actor everywhere it appears: Lines rows,
+Requests rows, the story header, and the "Filter by" rail
+(`components/admin/log-filter-rail.blade.php`) in an expanded row and on
+the story view. A Requests row reads its actor, session, and txn through
+`App\Logging\Admin\LogStoryHeader::of($group->lines)`, the same read-model
+the story header uses.
 
 ### The story view
 
@@ -436,18 +437,18 @@ it.
 
 ## Retention
 
-`App\Logging\LogRetentionDays::parse()` reads `LOG_RETENTION_DAYS` (default
+`App\Support\RetentionDays::parse()` reads `LOG_RETENTION_DAYS` (default
 `14`, `off` disables pruning) while `config/log_store.php` loads, so a
 malformed value refuses the process at boot rather than on the sweep run
 that would have needed it.
 
 The prune runs inside `orders:sweep` (`App\Console\Commands\SweepOrders`),
-beside the stale-order cancellation it already performs, honoring `--as-of`
-(cutoff = as-of minus the retention window). Failure isolation runs both
-directions: a stale-order sweep failure does not skip the prune, and a
-prune failure does not unwind the stale-order sweep's completed work —
-`SweepOrders::handle()` runs both, sets the command's exit code to failure
-if either one failed, and lets each report its own error. `LogStore::prune()`
+beside the stale-order cancellation and the analytics prune, honoring
+`--as-of` (cutoff = as-of minus the retention window). Failure isolation
+runs every direction: a stale-order sweep failure does not skip either
+prune, and a prune failure does not unwind the other steps' completed work —
+`SweepOrders::handle()` runs all three, sets the command's exit code to
+failure if any one failed, and lets each report its own error. `LogStore::prune()`
 itself is the one method that does not swallow its own exceptions — a
 disabled store (`connection === null`) is a silent no-op, but a prune that
 starts and fails throws, and `SweepOrders` decides what that means for the
@@ -491,11 +492,11 @@ value 400s, `value` without `key` 400s, round-tripping through
 story route end to end, signed in as an admin. `SweepOrdersTest` covers the
 retention prune's batching and both directions of failure isolation beside
 the stale-order sweep's own tests. `make coverage` holds the whole suite,
-this code included, to the project's 100%-line coverage gate.
+this code included, to the project's 95%-line coverage gate.
 
 ## Seeded activity
 
-`make seed-activity` (`docs/analytics.md` § "Seeded activity") writes
+`make seed-activity` ([analytics.md](analytics.md) § "Seeded activity") writes
 directly to this store rather than through the `Log` facade: it never runs
 inside a real HTTP request, so `LogRequestStory`'s `http.request` will/did
 pair never fires on its own, and `App\Console\Commands\SeedActivity` builds
@@ -512,4 +513,4 @@ fixed there. This document describes how the app implements that contract —
 Laravel's Monolog tap in place of a stream-mirror seam, one PDO handle
 behind a service-provider singleton in place of an event-loop-scheduled
 flush, `register_shutdown_function` in place of a process exit hook. The app
-implements `docs/logging.md` in full.
+implements [logging.md](../../docs/logging.md) in full.

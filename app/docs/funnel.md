@@ -5,7 +5,7 @@ component that draws them, and the contract that crosses it. Code:
 `app/Analytics/Admin/{Funnel,FunnelView,FunnelStep}.php`,
 `app/Domain/Analytics/{FunnelDefinition,FunnelRate,FunnelShare,RangeChange,BarStrip}.php`,
 `resources/views/components/admin/analytics/funnel.blade.php`. See
-`docs/analytics.md` § "The funnel" for the event vocabulary and scopes
+[analytics.md](analytics.md) § "The funnel" for the event vocabulary and scopes
 (`forRange`/`forListing`/`forSeller`) the query reads.
 
 ## Data flow
@@ -39,11 +39,13 @@ flowchart LR
     View --> Component
 ```
 
-`Funnel` is the one class that reads `analytics_events`; it takes a range
-and a scope and returns a `FunnelView`. `FunnelRate`, `RangeChange`, and
-`FunnelShare` are pure — no I/O, no reference to the request or the
-database. All three live under `App\Domain\Analytics`; `Funnel` is their
-only caller. `x-admin.analytics.funnel` receives a `FunnelView` and
+`App\Analytics\Admin\Funnel` is the one class on this boundary that reads
+`analytics_events`; it takes a range and a scope and returns a
+`FunnelView`. `FunnelRate`, `RangeChange`, and `FunnelShare` are pure — no
+I/O, no reference to the request or the database. All three live under
+`App\Domain\Analytics`; `Funnel` is their only caller on this boundary.
+`FunnelTiles` and the seller overview reuse them.
+`x-admin.analytics.funnel` receives a `FunnelView` and
 renders it: values only, formatted numbers and pre-computed widths, the
 query and every percentage already done by the time the component sees
 them.
@@ -123,9 +125,8 @@ chevron beside a colored percentage, next to the label).
 **Bars.** Both bars scale to a share of the first step's count — the top
 of the funnel — so the row narrows left to right the way a funnel does.
 Every bar floors at 2% width so a real zero still reads as a sliver
-distinct from an empty cell. The ghost bar is the one exception: when the
-previous range's own first-step count is zero (nothing to be a share of —
-the "new" case), it draws at 0% width, with no data to represent.
+distinct from an empty cell. When a range's own first-step count is zero,
+that range's bar draws at 0% (`FunnelShare::of()`).
 
 **The largest-drop badge.** Placed on whichever step has the lowest `rate`
 among the steps that carry one (every step but the first) — a computed
@@ -147,7 +148,7 @@ redesigned for the narrow width.
 
 ## How it works
 
-A funnel is a `Funnel` row: a name plus `steps`, an ordered list of two or
+A funnel is an `App\Models\Funnel` row: a name plus `steps`, an ordered list of two or
 more `AnalyticsEventName` values `FunnelDefinition::of()` validates —
 unknown or repeated names are refused at save time. Visitors is every
 funnel's implied first step and is never stored in `steps`.
@@ -160,11 +161,10 @@ its detail page, drawn by `x-admin.analytics.funnel`. The built-in
 storefront funnel (`FunnelDefinition::storefront()`) is a row like any
 other, seeded by `FunnelSeeder` on `make fresh` and edited the same way.
 
-`Funnel::build()` resolves a step's prerequisite as the entry before it in
-the definition's own list, visitors for the first named step. Favorites
-never occupying a slot in that list (see above) is what keeps cart add's
-prerequisite the entry the rule would already give it — listing views,
-with no exception to carry. Because the component only ever draws a
+`App\Analytics\Admin\Funnel::build()` resolves a step's prerequisite as the
+entry before it in the definition's own list, visitors for the first named
+step. Favorites holds no slot in that list (see above), so cart add's
+prerequisite is listing views by the same rule. Because the component only ever draws a
 `FunnelView`, a two-step funnel and the five-step storefront funnel render
 through the same markup: the grid's column count follows the step count,
 capped at seven with wrap beyond.

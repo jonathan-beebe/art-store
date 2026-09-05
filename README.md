@@ -1,11 +1,11 @@
 # Art Store
 
-An online marketplace where artists sell their handmade art and buyers. One 
+An online marketplace where artists sell their handmade art to buyers. One
 Laravel application serves three sites from one server:
 
 - the storefront at `/`
 - the seller portal at `/seller`
-- and the admin site at `/admin`. 
+- the admin site at `/admin`
 
 ## Running it
 
@@ -33,7 +33,8 @@ deployment.
 ## Contributing
 
 `make hooks` at the root installs the commit gate. Each commit that touches
-`app/` runs lint and the test suite; `make check` runs the full gate (lint,
-assets, coverage-gated tests) once before a PR opens, and CI runs it again.
+`app/` outside `app/docs/` and `app/README.md` runs lint and the test suite;
+`make check` runs the full gate (lint, assets, coverage-gated tests) once
+before a PR opens, and CI runs it again.
 `CLAUDE.md` holds the working rules, including that nothing runs on the
 host outside Docker.

@@ -24,22 +24,20 @@ flowchart LR
 - `config/theme.php` holds every token: semantic color roles
   (`canvas`, `surface`, `ink`, `ink-muted`, `ink-faint`, `line`,
   `line-strong`, the `accent` family, `danger`/`success`/`notice`
-  families, `tint-1..5`/`on-tint`), each with a light and a dark value,
-  plus the two font stacks and the two radii.
+  families, `tint-1..5`/`on-tint`, `on-photo`/`photo-scrim`), each with
+  a light and a dark value, plus the two font stacks and the two radii.
 - `App\Support\DesignTokens` renders that registry as CSS custom
   properties. Every layout's `<head>` includes `<x-theme-css />`, which
   emits light values on `:root` and dark values inside
   `@media (prefers-color-scheme: dark) { .supports-dark { … } }` — the
-  same opt-in class the seller and admin layouts already carry, and the
-  shop layout now carries too.
+  `supports-dark` opt-in class every layout carries.
 - `resources/css/app.css` maps Tailwind utilities onto those properties
   with `@theme inline` (`bg-canvas` → `var(--ui-canvas)`, `font-display`
   → `var(--ui-font-display)`, `rounded-card` → `var(--ui-radius-card)`,
   …). Utilities re-resolve at runtime, so no view ever names a color.
 
-Changing the theme is editing `config/theme.php`. Dark mode is not a
-second stylesheet — it is the same tokens with their dark values, so
-views need no `dark:` variants.
+Changing the theme is editing `config/theme.php`. Dark mode is the same
+tokens with their dark values, so views need no `dark:` variants.
 
 ## Rules
 

@@ -13,7 +13,7 @@ Every primary key and every foreign key below is text 30 characters long:
 a three-letter table prefix, an underscore, and the 26-character body of a
 ULID in uppercase Crockford base32 — `ord_01J5X3M9A2K8YB7Q4R6T1V0WZE`. The id
 is the public identifier; there is no second column and no separate order
-number. `docs/spec.md` §1 fixes the format and the prefix table.
+number. [`spec.md`](../../docs/spec.md) §1 fixes the format and the prefix table.
 
 | Table                  | Prefix | Table                | Prefix |
 | ---------------------- | ------ | -------------------- | ------ |
@@ -42,6 +42,10 @@ number. `docs/spec.md` §1 fixes the format and the prefix table.
 | units                  | `unt`  | modifiers             | `mdf`  |
 | modifier_options       | `mdo`  | modifier_scopes       | `mds`  |
 | quantity_breaks        | `qbk`  | description_sections  | `dsc`  |
+| seed_runs              | `sdr`  | analytics_visits      | none   |
+
+`seed_runs` mints `sdr_` ids (`SeedActivity`). `analytics_visits` has no
+prefixed id: its primary key is the `sid` cookie's value, `session_id`.
 
 The sixteen configurator tables above (`categories` through
 `description_sections`) hold a listing's structured configuration — units,
@@ -61,28 +65,29 @@ for a message and `placed_at` for an order — never by the id alone. Second
 resolution leaves ties, so the id breaks them; a ULID sorts in the order it
 was minted.
 
-`page_view_counts` and `analytics_events` live in the analytics store
-(`docs/spec.md` §2.6), a SQLite file of its own beside this database,
-written by `App\Analytics\Analytics` and never in the request that triggers
-them. They are drawn in the diagram below for their shape; the two
-relationship lines running into `analytics_events` are dotted because they
-are logical only — no foreign key crosses the two files, so the columns that
-would otherwise carry `FK` carry a reference note instead.
+`page_view_counts`, `analytics_events`, and `analytics_visits` live in the
+analytics store ([`spec.md`](../../docs/spec.md) §2.6), a SQLite file of its
+own beside this database. `App\Analytics\Analytics` buffers their rows and
+writes them after the response has gone back, in `$app->terminating()`.
+They are drawn in the diagram below for their shape; the relationship lines
+running into `analytics_events` and `analytics_visits` are dotted because
+they are logical only — no foreign key crosses the two files, so the columns
+that would otherwise carry `FK` carry a reference note instead.
 
 ```mermaid
 erDiagram
     sellers {
         text id PK
         string email UK
-        string name
-        string shop_name
-        timestamp email_verified_at
+        string name "nullable"
+        string shop_name "nullable"
+        timestamp email_verified_at "nullable"
     }
     customers {
         text id PK
         string email UK "nullable, anonymous rows have none"
-        string name
-        timestamp email_verified_at
+        string name "nullable"
+        timestamp email_verified_at "nullable"
     }
     admins {
         text id PK
@@ -106,6 +111,7 @@ erDiagram
     listing_removals {
         text id PK
         text listing_id FK "indexed with lifted_at"
+        text seller_id FK "the listing's seller, copied down"
         string kind "temporary | permanent"
         string reason "shown to the seller on their own listing page"
         timestamp lifted_at "nullable, null while the removal stands"
@@ -115,7 +121,24 @@ erDiagram
         string site "shop | seller | admin, read off the route pattern"
         string path_pattern "the route's pattern, not the concrete URL"
         date day "unique with site and path_pattern"
-        unsigned count "incremented by the roll-up's upsert"
+        unsigned count "default 1, incremented by the roll-up's upsert"
+    }
+    analytics_visits {
+        string session_id PK "the sid cookie's value, one row per session"
+        timestamp first_seen_at "indexed"
+        string landing_path
+        string referrer_host "nullable"
+        string utm_source "nullable, indexed with utm_medium"
+        string utm_medium "nullable"
+        string utm_campaign "nullable"
+        string utm_content "nullable"
+        string utm_term "nullable"
+        text actor_id "nullable, indexed, analytics store, references e.g. customers.id"
+    }
+    seed_runs {
+        text id PK
+        integer seed
+        unsigned day_count
     }
     customer_merges {
         text id PK
@@ -214,7 +237,9 @@ erDiagram
         timestamp occurred_at "the instant recorded, not the instant written"
         string subject_type "nullable, e.g. listing"
         text subject_id "nullable, analytics store, references e.g. listings.id"
-        text actor_id "nullable, analytics store, references e.g. customers.id"
+        text actor_id "nullable, indexed, analytics store, references e.g. customers.id"
+        string ip "nullable, 45 chars, indexed"
+        string session_id "nullable, indexed"
         string dedupe_key "nullable, UK; the listing-view hour collapse"
         json data
     }
@@ -230,16 +255,23 @@ erDiagram
     cart_items {
         text id PK
         text cart_id FK
+        text customer_id FK "indexed"
         text listing_id FK
+        text variant_id FK "nullable, nullOnDelete"
+        text unit_id FK "nullable, nullOnDelete"
         unsigned quantity
+        text configuration_json "nullable, the axis selections at add time"
+        text answers_json "nullable, the modifier answers"
+        string fingerprint "unique with cart_id and listing_id"
     }
     orders {
         text id PK
         text customer_id FK
-        string email
+        string email "nullable"
         string status
         string shipping_name
         string shipping_line1
+        string shipping_line2 "nullable"
         string shipping_city
         string shipping_region
         string shipping_postal_code
@@ -253,15 +285,22 @@ erDiagram
     order_items {
         text id PK
         text order_id FK
+        text customer_id FK "indexed"
         text listing_id FK
         text seller_id FK
         string title "snapshot"
         unsigned unit_price_cents "snapshot"
         unsigned quantity
+        text variant_id FK "nullable, nullOnDelete"
+        text unit_id FK "nullable, nullOnDelete"
+        text configuration_json "nullable, snapshot"
+        text answers_json "nullable, snapshot"
+        text price_breakdown_json "nullable, snapshot"
     }
     payments {
         text id PK
         text order_id FK "one row per attempt"
+        text customer_id FK "indexed with processed_at"
         string status "approved|declined"
         unsigned amount_cents
         string card_last_four
@@ -273,6 +312,7 @@ erDiagram
         text order_id FK "UK with seller_id"
         text customer_id FK
         text seller_id FK
+        text fulfillment_flow_id FK "nullable, nullOnDelete; the flow stamped at placement"
         string status "awaiting_shipment|shipped|delivered|declined|refunded"
         string carrier "nullable"
         string tracking_number "nullable"
@@ -285,7 +325,9 @@ erDiagram
     refunds {
         text id PK
         text order_id FK
+        text customer_id FK "indexed with created_at"
         text fulfillment_id FK "UK, one refund per fulfillment"
+        text seller_id FK "indexed"
         text payment_id FK "nullable, the charge it reverses"
         unsigned amount_cents "always the whole fulfillment subtotal"
         string reason "1-500 chars"
@@ -312,7 +354,7 @@ erDiagram
     notifications {
         text id PK
         string type "the notification class that wrote the row"
-        string notifiable_type "seller|customer (morph alias)"
+        string notifiable_type "seller|customer|admin (morph alias)"
         text notifiable_id "id within that table"
         json data "subject, body, url"
         timestamp read_at "nullable"
@@ -321,7 +363,7 @@ erDiagram
         text id PK
         string kind "admin_seller|admin_customer|fulfillment|listing_question"
         string title "nullable; every kind but fulfillment carries one"
-        string subject_key UK "nullable; the fulfillment kind alone, e.g. fulfillment:sSEL…:cCUS…:fFUL…"
+        string subject_key UK "nullable; the fulfillment kind alone, fulfillment:ssel_…:ccus_…:fful_…"
         text seller_id FK "nullable, indexed with last_message_at"
         text customer_id FK "nullable, indexed with last_message_at"
         text admin_id FK "nullable, indexed with last_message_at; who first answered a desk thread"
@@ -346,6 +388,7 @@ erDiagram
     listing_faqs {
         text id PK
         text listing_id FK "cascade on delete"
+        text seller_id FK "the listing's seller, copied down"
         string question "<= 500 characters"
         text answer "<= 2000 characters"
         text source_message_id FK "nullable, -> messages, null on delete"
@@ -368,6 +411,7 @@ erDiagram
     sellers ||--o{ ledger_entries : entries
     sellers ||--o{ payouts : receives
     customers ||..o{ analytics_events : acts_as
+    customers ||..o{ analytics_visits : arrives_as
     customers ||--o{ favorites : has
     customers ||--o{ carts : has
     customers ||--o{ orders : places
@@ -408,6 +452,7 @@ erDiagram
     sellers ||--o{ fulfillment_flows : owns
     fulfillment_flows ||--o{ fulfillment_flow_steps : orders
     listings }o--o| fulfillment_flows : ships_by
+    fulfillment_flows ||--o{ fulfillments : started_under
     fulfillments ||--o{ fulfillment_events : is_the_record_of
     fulfillment_flow_steps ||--o{ fulfillment_events : completed_as
 ```
@@ -441,7 +486,7 @@ Caveats:
   the one kind whose thread is found again on a second ask; `AdminSeller`,
   `AdminCustomer`, and `ListingQuestion` open a fresh row every time and
   carry a `title`, with no `subject_key`. An anonymous-customer merge moves
-  `customer_id` and `subject_key` together — see `docs/messaging.md` §
+  `customer_id` and `subject_key` together — see [`messaging.md`](messaging.md) §
   "The merge".
 - `conversations.resolved_at` / `resolved_by_type` / `resolved_by_id` record
   who closed a thread and when; `resolved_by` is a morph pair the way
@@ -460,7 +505,7 @@ Caveats:
   relationship line above. `steps` never stores visitors, every funnel's
   implied first step; the built-in "Storefront" row is seeded the same way
   `admins` is, unconditionally, so it survives a database that already
-  holds demo data. See `docs/analytics.md` § "The funnel".
+  holds demo data. See [`analytics.md`](analytics.md) § "The funnel".
 - `customer_blocks` keeps every block a customer has ever had; the active one
   is the row with `lifted_at` null. "At most one active block" is
   `BlockCustomer`'s rule rather than a partial unique index, which SQLite does
@@ -469,13 +514,13 @@ Caveats:
   declined card followed by a retry leaves two rows. The order's current
   payment is the latest one by `processed_at` (`Order::latestPayment()`).
 - `ledger_entries.amount_cents` is signed: `held` and `released` are
-  positive, `paid_out` and `refunded` are negative. See `docs/escrow.md`.
+  positive, `paid_out` and `refunded` are negative. See [`escrow.md`](escrow.md).
 - `refunds` has `unique(fulfillment_id)`: the amount is always the whole
   fulfillment subtotal, so a second row would be a second full refund. It
   names who issued it with `issued_by_type` / `issued_by_id` rather than a
   foreign key, because a seller and an admin live in different tables; the
   column holds the same `seller` / `admin` words the morph map uses, read back
-  through `Refund::issuer()`. See `docs/orders.md`.
+  through `Refund::issuer()`. See [`orders.md`](orders.md).
 - `carts.customer_id` is not unique — `MergeAnonymousCustomer` can re-point
   a second cart onto a customer that already has one.
 - `store_profiles.portrait_image_id` and `cover_image_id` hold a `sim_` id
@@ -486,7 +531,7 @@ Caveats:
 - `store_slugs.slug` is unique across the whole table, retired rows included.
   The current address also sits on `store_profiles.slug` for the lookup; a
   rename retires one row, brings in another, and updates the profile in one
-  transaction. See `docs/seller-portal.md` § "Addresses are history".
+  transaction. See [`seller-portal.md`](seller-portal.md) § "Addresses are history".
 - `store_sections`, `store_section_images`, and `store_links` each hold their
   order in a `position` unique with their parent. `store_section_images` and
   `store_links` carry a second unique index — on the image and on the link
@@ -503,11 +548,14 @@ Caveats:
   `fulfillment_flow_step_id` is `nullOnDelete`, so removing a step from a
   flow leaves the log reading as it did. It names its actor with
   `actor_type` / `actor_id` rather than a foreign key, the way `refunds`
-  does. See `docs/orders.md` § "The fulfillment event log and the seller's
-  flow".
+  does. See [`orders.md`](orders.md) § "The fulfillment event log and the
+  seller's flow".
 - `listings.fulfillment_flow_id` is nullable and `nullOnDelete`: a listing
   that names no flow ships by its seller's default
-  (`Fulfillment::flowInEffect()`).
+  (`App\Seller\FulfillmentFlowReader::read()`).
+- `fulfillments.fulfillment_flow_id` is nullable and `nullOnDelete`: the flow
+  the parcel started under, stamped at placement. On a null value the reader
+  resolves the flow live.
 - `listings.category_id` is nullable and `nullOnDelete`, drawn without a
   relationship line above since `categories` sits outside this diagram —
   [`item-configurator.md`](item-configurator.md) has the full
