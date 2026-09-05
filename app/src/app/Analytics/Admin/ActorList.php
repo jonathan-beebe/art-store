@@ -20,6 +20,8 @@ use App\Support\Page;
  */
 final class ActorList
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     public static function forRange(AnalyticsRange $range, ActorSort $sort, ActorKindFilter $kind, ?string $search, int $page, int $perPage = 25): ActorsPage
     {
         $summaries = ActorAggregates::forRange($range, $kind, $search);

@@ -16,6 +16,8 @@ use App\Domain\Analytics\AnalyticsRange;
  */
 final class ActorLeaderboard
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return list<ActorSummary>
      */

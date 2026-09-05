@@ -36,6 +36,8 @@ use stdClass;
  */
 final class EntityActivity
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /** The event feed never shows more than this many rows — an operator
      * chasing one actor or listing scrolls the feed, not the whole range. */
     private const int FEED_LIMIT = 100;

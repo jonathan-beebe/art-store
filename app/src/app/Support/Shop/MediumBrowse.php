@@ -28,6 +28,8 @@ use LogicException;
  */
 final class MediumBrowse
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return list<array{value: string, label: string, count: int, coverUrl: string}>
      */

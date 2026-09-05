@@ -13,6 +13,8 @@ namespace App\Logging\Admin;
  */
 final class LogIdLinks
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /** The prefixes with a detail page, per `routes/admin.php`. A table
      * with no admin page is simply absent here, so its ids render plain. */
     private const array DETAIL_ROUTES = [

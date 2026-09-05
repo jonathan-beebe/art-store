@@ -17,6 +17,8 @@ use App\Models\PropertyValue;
  */
 final class MediumOptions
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return list<array{value: string, label: string}>
      */
