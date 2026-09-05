@@ -28,11 +28,11 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsIdempotent]
 final class SearchLogs extends Tool
 {
+    use RefusesWithoutLogStore;
+
     public const int DEFAULT_LIMIT = 50;
 
     public const int MAX_LIMIT = 200;
-
-    public const string STORE_UNAVAILABLE = 'The log store is unavailable in this process; see app/docs/log-store.md.';
 
     /**
      * @return array<string, mixed>
@@ -56,8 +56,8 @@ final class SearchLogs extends Tool
 
     public function handle(Request $request, LogStore $store): Response|ResponseFactory
     {
-        if ($store->connection === null) {
-            return Response::error(self::STORE_UNAVAILABLE);
+        if ($response = $this->refuseWithoutLogStore($store)) {
+            return $response;
         }
 
         $request->merge(LogFilterInput::blanked($request->all()));
