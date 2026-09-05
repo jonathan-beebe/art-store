@@ -245,6 +245,11 @@ them. The story view ignores it, so a viewer request stays addressable by
 id. A line with no `request_id` is never treated as viewer traffic; a
 lookalike path (`/admin/logs-export`) is never hidden.
 
+The MCP endpoint's own requests (opening path `/mcp`, exact) are hidden
+the same way — an agent session's tool calls are the viewer's kind of
+noise — with one difference: `domain=mcp` asks for exactly those requests,
+so it shows them without `mcp=1`.
+
 ### Grouped by request
 
 The `group=1` checkbox switches the list from one row per line to one row

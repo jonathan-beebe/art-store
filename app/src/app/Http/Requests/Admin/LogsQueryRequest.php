@@ -28,6 +28,7 @@ final class LogsQueryRequest extends FormRequest
             'group' => ['nullable', 'in:1'],
             'health' => ['nullable', 'in:1'],
             'viewer' => ['nullable', 'in:1'],
+            'mcp' => ['nullable', 'in:1'],
             'page' => ['nullable', 'string'],
         ];
     }
@@ -59,6 +60,7 @@ final class LogsQueryRequest extends FormRequest
             $input,
             hideHealth: $this->input('health') !== '1',
             hideViewer: $this->input('viewer') !== '1',
+            hideMcp: $this->input('mcp') !== '1',
         );
     }
 
@@ -79,7 +81,7 @@ final class LogsQueryRequest extends FormRequest
      */
     public function roundTrippedFilters(): array
     {
-        $fields = [...LogFilterInput::FIELDS, 'group', 'health', 'viewer'];
+        $fields = [...LogFilterInput::FIELDS, 'group', 'health', 'viewer', 'mcp'];
         $filters = [];
 
         foreach ($fields as $field) {

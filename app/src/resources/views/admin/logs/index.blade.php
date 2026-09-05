@@ -170,6 +170,13 @@
                     Log viewer traffic shown &middot; <a href="{{ $viewerToggle['href'] }}" class="underline">hide</a>
                 @endif
             </span>
+            <span>
+                @if ($mcpToggle['hidden'])
+                    MCP traffic hidden &middot; <a href="{{ $mcpToggle['href'] }}" class="underline">show</a>
+                @else
+                    MCP traffic shown &middot; <a href="{{ $mcpToggle['href'] }}" class="underline">hide</a>
+                @endif
+            </span>
             <span class="flex-1"></span>
             <span>{{ number_format($page->totalCount) }} {{ $grouped ? 'request' : 'line' }}{{ $page->totalCount === 1 ? '' : 's' }} match</span>
         </div>

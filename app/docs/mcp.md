@@ -58,8 +58,10 @@ stateless POST per JSON-RPC message. The package answers GET and DELETE
 on the path with 405 and stamps a `WWW-Authenticate` challenge on every
 401. The global middleware still applies, so every call opens a request
 story with a `req_…` id, and `PageViewCountability` — GET, 2xx, HTML —
-keeps MCP traffic out of the page-view roll-up. The log viewer's
-`domain=mcp` filter selects this endpoint's own lines.
+keeps MCP traffic out of the page-view roll-up. The endpoint's own
+requests are hidden from the log viewer and the log tools by default, the
+way the viewer's own requests are (`mcp=1` in the viewer, `include_mcp`
+in a tool); `domain=mcp` selects exactly them.
 
 ## Keys
 
@@ -108,7 +110,7 @@ committed and the secret is not. Point it at the deployed host with
 The three log tools take the `/admin/logs` filters by their query-string
 names (`domain`, `level`, `phase`, `event`, `request`, `txn`, `session`,
 `actor`, `msg`, `from`, `to`, `key`, `value`) plus `include_health` and
-`include_viewer`; the analytics tools take `days` (7, 30, or 90) and
+`include_viewer`, and `include_mcp`; the analytics tools take `days` (7, 30, or 90) and
 `ends_on`. Every answer is `structuredContent` JSON with the same text
 in `content`, rows flattened to snake_case by `App\Mcp\ToolRows`. A
 value outside the vocabulary answers a tool error naming the field; a

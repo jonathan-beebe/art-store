@@ -639,9 +639,11 @@ Decisions carried by this table:
   probe lives at Laravel's built-in `/up`, which the
   viewer names. `group=1` renders one summarized row
   per request and pages count groups. Health-check requests (the probe
-  path, exact) are hidden unless `health=1`, and the viewer's own requests
+  path, exact) are hidden unless `health=1`, the viewer's own requests
   (path `/admin/logs` at a segment boundary, the story view included) are
-  hidden unless `viewer=1`; the level tallies count the visible set. The
+  hidden unless `viewer=1`, and the MCP endpoint's own requests (path
+  `/mcp`, exact) are hidden unless `mcp=1` or `domain=mcp`; the level
+  tallies count the visible set. The
   story view ignores all of it — a request stays addressable by id.
 - `/admin/logs` ids are filter links: a line's request, transaction,
   session, and actor ids apply that filter in place, carrying the other
@@ -690,6 +692,9 @@ validate it. Rules:
   bearer challenge; GET and DELETE on the path answer 405. The route sits
   outside the `web` group: no session, no CSRF.
 - Every call spends `mcp_request` (§3).
+- The endpoint's own requests are hidden from the log viewer and the log
+  tools by default (`mcp=1` / `include_mcp`, or `domain=mcp`), the way the
+  viewer's own requests are.
 - A tool answers `structuredContent` JSON with the same text in `content`;
   a value outside the vocabulary answers a tool error naming the field.
 

@@ -215,6 +215,9 @@ subsections, which this implementation matches:
   `?domain=` — `domain=admin` alone does not show them. The story view
   itself ignores this filter, so a hidden viewer request's story stays
   addressable by id.
+- `mcp=1` — includes the MCP endpoint's own requests (`/mcp`, exact),
+  hidden by default the same way; `domain=mcp` shows them on its own,
+  since selecting that domain asks for exactly them.
 
 ### Layout: workflow-first, columnar
 

@@ -47,7 +47,7 @@ final class LogController extends Controller
      * own primary controls and health/viewer have their own quiet strip
      * affordances — what an inactive/active indicator on the disclosure is
      * computed over. */
-    private const array MORE_FILTER_FIELDS = ['phase', 'request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'health', 'viewer'];
+    private const array MORE_FILTER_FIELDS = ['phase', 'request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'health', 'viewer', 'mcp'];
 
     /** Labels for the applied-state strip's removable chips, in the order
      * they appear. `key`/`value` render as one combined chip. */
@@ -100,6 +100,7 @@ final class LogController extends Controller
             'moreFiltersActive' => $this->moreFiltersActive($roundTripped),
             'healthToggle' => $this->toggleAffordance($roundTripped, 'health'),
             'viewerToggle' => $this->toggleAffordance($roundTripped, 'viewer'),
+            'mcpToggle' => $this->toggleAffordance($roundTripped, 'mcp'),
             'filters' => $roundTripped,
             'domains' => LogDomain::cases(),
             'levels' => StoryLevel::cases(),

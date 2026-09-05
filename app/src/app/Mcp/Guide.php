@@ -61,7 +61,7 @@ final class Guide
             '- `http.request` is the opening line of every request; its `data` carries `method`, `path`, and on the closing `did` line `status` and `duration_ms`.',
             '- `rate_limit.exceed` and `query.exceed` are the two `warn` lines an operator watches for; `failed` lines at any event are errors.',
             '- Filter by any attribute with `key` (a dotted path such as `data.order_id` or `error.type`) and `value`. `from`/`to` bound `ts`. `msg` matches anywhere in the message.',
-            '- Health probes (`/up`) and the admin log viewer\'s own requests are hidden unless `include_health` / `include_viewer` is set.',
+            '- Health probes (`/up`), the admin log viewer\'s own requests, and this endpoint\'s own `/mcp` requests are hidden unless `include_health` / `include_viewer` / `include_mcp` is set; `domain: mcp` selects the endpoint\'s requests on its own.',
             '',
             '## Analytics',
             '',

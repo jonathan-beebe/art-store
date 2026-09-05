@@ -22,7 +22,7 @@ it('builds filters from every field, reading a blank or absent field as no filte
         'to' => '2026-09-02T00:00:00Z',
         'key' => 'data.order_id',
         'value' => 'ord_1',
-    ], hideHealth: false, hideViewer: true);
+    ], hideHealth: false, hideViewer: true, hideMcp: false);
 
     expect($filters->domain)->toBe(LogDomain::Mcp)
         ->and($filters->level)->toBe('warn')
@@ -38,7 +38,8 @@ it('builds filters from every field, reading a blank or absent field as no filte
         ->and($filters->key)->toBe('data.order_id')
         ->and($filters->value)->toBe('ord_1')
         ->and($filters->hideHealth)->toBeFalse()
-        ->and($filters->hideViewer)->toBeTrue();
+        ->and($filters->hideViewer)->toBeTrue()
+        ->and($filters->hideMcp)->toBeFalse();
 });
 
 it('validates every field with the viewer rules and refuses a value without a key', function (): void {

@@ -246,6 +246,20 @@ final readonly class LogRowQuery
             array_push($params, ...$attributeParams);
         }
 
+        return [[...$conditions, ...$this->hiddenTrafficConditions($filters)], $params];
+    }
+
+    /**
+     * The three kinds of traffic the viewer hides unless asked: the health
+     * probe, its own requests, and the MCP endpoint's — the last one only
+     * while the domain is not `mcp`, which asks for exactly those.
+     *
+     * @return list<string>
+     */
+    private function hiddenTrafficConditions(LogRowFilters $filters): array
+    {
+        $conditions = [];
+
         if ($filters->hideHealth) {
             $conditions[] = 'NOT '.$this->healthCheckSql();
         }
@@ -254,7 +268,11 @@ final readonly class LogRowQuery
             $conditions[] = 'NOT '.$this->viewerRequestSql();
         }
 
-        return [$conditions, $params];
+        if ($filters->hideMcp && $filters->domain !== LogDomain::Mcp) {
+            $conditions[] = 'NOT '.$this->mcpRequestSql();
+        }
+
+        return $conditions;
     }
 
     /**
@@ -366,6 +384,25 @@ final readonly class LogRowQuery
               AND viewerLine.event = 'http.request'
               AND viewerLine.phase = 'will'
               AND ({$path} = '".self::VIEWER_PATH."' OR {$path} LIKE '".self::VIEWER_PATH."/%')
+        )";
+    }
+
+    /**
+     * A line's request opened on the MCP endpoint's path, by the same
+     * correlation, exact — the endpoint is one path. An agent session's
+     * tool calls are the viewer's own kind of noise: hidden by default,
+     * and selected on purpose with `domain=mcp`.
+     */
+    private function mcpRequestSql(): string
+    {
+        $path = "(CASE WHEN json_valid(mcpLine.data) THEN json_extract(mcpLine.data, '$.path') END)";
+
+        return "EXISTS (
+            SELECT 1 FROM log_lines mcpLine
+            WHERE mcpLine.request_id = log_lines.request_id
+              AND mcpLine.event = 'http.request'
+              AND mcpLine.phase = 'will'
+              AND {$path} = '".self::MCP_PATH."'
         )";
     }
 

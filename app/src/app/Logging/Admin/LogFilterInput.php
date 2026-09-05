@@ -91,7 +91,7 @@ final class LogFilterInput
     /**
      * @param  array<string, mixed>  $input  already validated against {@see rules()}
      */
-    public static function filters(array $input, bool $hideHealth = true, bool $hideViewer = true): LogRowFilters
+    public static function filters(array $input, bool $hideHealth = true, bool $hideViewer = true, bool $hideMcp = true): LogRowFilters
     {
         $domain = self::stringOrNull($input, 'domain');
 
@@ -111,6 +111,7 @@ final class LogFilterInput
             value: self::stringOrNull($input, 'value'),
             hideHealth: $hideHealth,
             hideViewer: $hideViewer,
+            hideMcp: $hideMcp,
         );
     }
 

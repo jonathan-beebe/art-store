@@ -44,6 +44,20 @@ it('pages with limit and offset and reads a blank filter as absent', function ()
             ->etc());
 });
 
+it('hides the endpoint\'s own requests unless asked, or unless the mcp domain is selected', function (): void {
+    $this->app->instance(LogStore::class, Fixtures::store([
+        Fixtures::line(['request_id' => 'req_mcp', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'POST /mcp', 'data' => ['method' => 'POST', 'path' => '/mcp']]),
+        Fixtures::line(['request_id' => 'req_shop', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
+    ]));
+
+    AdminServer::tool(SearchLogs::class, [])
+        ->assertStructuredContent(fn (AssertableJson $json) => $json->where('total', 1)->where('rows.0.msg', 'GET /checkout')->etc());
+    AdminServer::tool(SearchLogs::class, ['include_mcp' => true])
+        ->assertStructuredContent(fn (AssertableJson $json) => $json->where('total', 2)->etc());
+    AdminServer::tool(SearchLogs::class, ['domain' => 'mcp'])
+        ->assertStructuredContent(fn (AssertableJson $json) => $json->where('total', 1)->where('rows.0.msg', 'POST /mcp')->etc());
+});
+
 it('refuses a value outside the vocabulary and a value without a key', function (): void {
     AdminServer::tool(SearchLogs::class, ['event' => 'not.an.event'])
         ->assertHasErrors();

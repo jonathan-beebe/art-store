@@ -28,13 +28,14 @@ it('answers 400 for an unrecognised filter value', function (string $query): voi
     'group not 1' => ['group=0'],
     'health not 1' => ['health=yes'],
     'viewer not 1' => ['viewer=yes'],
+    'mcp not 1' => ['mcp=yes'],
 ]);
 
 it('treats an empty filter value as absent', function (string $field): void {
     $response = $this->actingAs($this->admin(), 'admin')->get("/admin/logs?{$field}=");
 
     $response->assertOk();
-})->with(['domain', 'level', 'phase', 'event', 'request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'group', 'health', 'viewer']);
+})->with(['domain', 'level', 'phase', 'event', 'request', 'txn', 'session', 'actor', 'msg', 'from', 'to', 'key', 'value', 'group', 'health', 'viewer', 'mcp']);
 
 it('accepts every well-formed filter value', function (string $query): void {
     $response = $this->actingAs($this->admin(), 'admin')->get("/admin/logs?{$query}");
@@ -61,6 +62,7 @@ it('accepts every well-formed filter value', function (string $query): void {
     'group' => ['group=1'],
     'health' => ['health=1'],
     'viewer' => ['viewer=1'],
+    'mcp' => ['mcp=1'],
 ]);
 
 it('sends a guest to the admin login page before any filter is validated', function (): void {

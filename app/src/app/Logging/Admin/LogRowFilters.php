@@ -39,6 +39,10 @@ final readonly class LogRowFilters
          * under it) are excluded when this is `true` — the viewer's
          * default. `false` includes them. */
         public bool $hideViewer = true,
+        /** The MCP endpoint's own requests (`/mcp`) are excluded when this
+         * is `true` — the viewer's default — unless `domain` is `mcp`,
+         * which asks for exactly them. `false` includes them. */
+        public bool $hideMcp = true,
     ) {}
 
     /** The four stat tiles tally the current filters minus `level` itself,
@@ -61,6 +65,7 @@ final readonly class LogRowFilters
             value: $this->value,
             hideHealth: $this->hideHealth,
             hideViewer: $this->hideViewer,
+            hideMcp: $this->hideMcp,
         );
     }
 }

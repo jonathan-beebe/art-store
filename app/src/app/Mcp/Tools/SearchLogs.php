@@ -45,6 +45,8 @@ final class SearchLogs extends Tool
                 ->description('Include the `/up` health-probe requests, hidden by default.'),
             'include_viewer' => $schema->boolean()
                 ->description('Include the admin log viewer\'s own `/admin/logs` requests, hidden by default.'),
+            'include_mcp' => $schema->boolean()
+                ->description('Include this endpoint\'s own `/mcp` requests, hidden by default unless `domain` is `mcp`.'),
             'limit' => $schema->integer()->min(1)->max(self::MAX_LIMIT)->default(self::DEFAULT_LIMIT)
                 ->description('Rows to answer, newest first.'),
             'offset' => $schema->integer()->min(0)->default(0)
@@ -64,6 +66,7 @@ final class SearchLogs extends Tool
             ...LogFilterInput::rules(),
             'include_health' => ['nullable', 'boolean'],
             'include_viewer' => ['nullable', 'boolean'],
+            'include_mcp' => ['nullable', 'boolean'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:'.self::MAX_LIMIT],
             'offset' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -76,6 +79,7 @@ final class SearchLogs extends Tool
             $input,
             hideHealth: ! ToolInput::boolean($input, 'include_health'),
             hideViewer: ! ToolInput::boolean($input, 'include_viewer'),
+            hideMcp: ! ToolInput::boolean($input, 'include_mcp'),
         );
         $limit = ToolInput::integer($input, 'limit', self::DEFAULT_LIMIT);
         $offset = ToolInput::integer($input, 'offset', 0);

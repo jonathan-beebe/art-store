@@ -42,6 +42,8 @@ final class TallyLogs extends Tool
                 ->description('Include the `/up` health-probe requests, hidden by default.'),
             'include_viewer' => $schema->boolean()
                 ->description('Include the admin log viewer\'s own `/admin/logs` requests, hidden by default.'),
+            'include_mcp' => $schema->boolean()
+                ->description('Include this endpoint\'s own `/mcp` requests, hidden by default unless `domain` is `mcp`.'),
         ];
     }
 
@@ -57,6 +59,7 @@ final class TallyLogs extends Tool
             ...LogFilterInput::rules(),
             'include_health' => ['nullable', 'boolean'],
             'include_viewer' => ['nullable', 'boolean'],
+            'include_mcp' => ['nullable', 'boolean'],
         ]);
 
         if (LogFilterInput::valueLacksKey($input)) {
@@ -67,6 +70,7 @@ final class TallyLogs extends Tool
             $input,
             hideHealth: ! ToolInput::boolean($input, 'include_health'),
             hideViewer: ! ToolInput::boolean($input, 'include_viewer'),
+            hideMcp: ! ToolInput::boolean($input, 'include_mcp'),
         );
         $tallies = (new LogRowQuery($store->connection))->levelTallies($filters);
 

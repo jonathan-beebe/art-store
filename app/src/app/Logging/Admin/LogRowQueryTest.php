@@ -84,6 +84,20 @@ it('hides a health-check requests lines by default, shows them with health=1, an
         ->and($query->count(new LogRowFilters(domain: LogDomain::Shop, hideHealth: false)))->toBe(1);
 });
 
+it('hides the MCP endpoints own requests by default, shows them with mcp=1 or domain=mcp', function (): void {
+    $query = Fixtures::query([
+        Fixtures::line(['request_id' => 'req_mcp', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'POST /mcp', 'data' => ['method' => 'POST', 'path' => '/mcp']]),
+        Fixtures::line(['request_id' => 'req_mcp', 'event' => 'http.request', 'phase' => 'did', 'msg' => 'POST /mcp 200', 'data' => ['status' => 200]]),
+        Fixtures::line(['request_id' => 'req_shop', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /checkout', 'data' => ['method' => 'GET', 'path' => '/checkout']]),
+        Fixtures::line(['request_id' => null, 'msg' => 'boot line, no request id']),
+    ]);
+
+    expect($query->count(new LogRowFilters))->toBe(2)
+        ->and($query->count(new LogRowFilters(hideMcp: false)))->toBe(4)
+        ->and($query->count(new LogRowFilters(domain: LogDomain::Mcp)))->toBe(2)
+        ->and($query->count(new LogRowFilters(domain: LogDomain::Shop, hideMcp: false)))->toBe(1);
+});
+
 it('hides the log viewers own requests by default, shows them with viewer=1, and composes with domain', function (): void {
     $query = Fixtures::query([
         Fixtures::line(['request_id' => 'req_viewer', 'event' => 'http.request', 'phase' => 'will', 'msg' => 'GET /admin/logs', 'data' => ['method' => 'GET', 'path' => '/admin/logs']]),
