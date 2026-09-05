@@ -21,11 +21,10 @@ use Illuminate\View\View;
  * along. Each count is a bare `count()` — one row, no joins — which is what
  * "cheap" means here; a section with nothing that cheap to show (accounting,
  * ledger, payouts, stats, logs, the dashboard itself) carries no count at
- * all rather than one worth a real query.
+ * all — a meaningful count there would cost a real query.
  *
- * The six counts read as scalar subqueries of one row, rather than one
- * query apiece — a page renders the same six numbers for one round trip
- * to the database instead of six.
+ * The six counts read as scalar subqueries of one row — a page renders
+ * the same six numbers for one round trip to the database.
  */
 final readonly class AdminLayoutComposer
 {

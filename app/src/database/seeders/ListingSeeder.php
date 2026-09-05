@@ -56,7 +56,7 @@ class ListingSeeder extends Seeder
      * value beyond the one every listing gets automatically. It also
      * demonstrates the no-choice case for a specific-type property
      * (FEAT-032, §2.1 "Attribute altitude"): a fixed-species piece states
-     * Wood Species as an attribute rather than building an axis for it.
+     * Wood Species as an attribute.
      */
     private const MULTIVALUED_MEDIUM_TITLE = 'Garden Gnome in Reclaimed Oak';
 
@@ -105,8 +105,8 @@ class ListingSeeder extends Seeder
 
     /**
      * Writes one listing_attributes row directly — reference data, the same
-     * way {@see TaxonomySeeder} writes its own rows rather than going
-     * through the seller-facing {@see \App\Actions\Configurator\SetListingAttributes}.
+     * way {@see TaxonomySeeder} writes its own rows, bypassing the
+     * seller-facing {@see \App\Actions\Configurator\SetListingAttributes}.
      */
     private function attribute(Listing $listing, string $propertyName, string $label): void
     {

@@ -12,8 +12,8 @@ use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 
 /**
  * The counterpart of whoever issued a refund hears about it once the money is
- * committed: the customer always, and the seller when it was an admin who
- * decided rather than the seller themselves.
+ * committed: the customer always, and the seller only when the decision was
+ * an admin's.
  */
 final readonly class NotifyOfRefund implements ShouldHandleEventsAfterCommit
 {

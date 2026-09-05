@@ -10,8 +10,8 @@ use Illuminate\Auth\Access\Response;
 
 /**
  * A listing belongs to one seller. Another seller's listing answers "not
- * found" rather than "forbidden", so an id outside a seller's own catalogue
- * is never confirmed to exist.
+ * found", never "forbidden", so an id outside a seller's own catalogue is
+ * never confirmed to exist.
  */
 final class ListingPolicy
 {

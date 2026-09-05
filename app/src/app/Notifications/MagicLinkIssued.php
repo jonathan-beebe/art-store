@@ -19,8 +19,9 @@ final class MagicLinkIssued extends Notification implements FlashesUrlToSession
     public function __construct(private readonly string $url) {}
 
     /**
-     * The channel `config/magic_links.php` names. The recipient is an address
-     * rather than a model, so the sender routes it on this same channel.
+     * The channel `config/magic_links.php` names. The recipient is a bare
+     * address, which cannot route itself the way a model can, so the
+     * sender fixes the channel here.
      */
     public static function channel(): string
     {

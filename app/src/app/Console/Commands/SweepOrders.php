@@ -92,8 +92,8 @@ final class SweepOrders extends Command
     }
 
     /**
-     * `ANALYTICS_RETENTION_DAYS=off` skips pruning silently — not a
-     * failure. A prune failure sets the command's exit code but leaves the
+     * `ANALYTICS_RETENTION_DAYS=off` skips pruning silently and still
+     * succeeds. A prune failure sets the command's exit code but leaves the
      * other two steps' completed work standing; it never escapes as an
      * uncaught exception. `Analytics::prune()`'s count spans both tables it
      * deletes from — events and visits — so the printed line does too.

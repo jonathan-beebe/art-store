@@ -67,8 +67,8 @@ return [
             ],
             // docs/logging.md: every stdout line is also mirrored into the
             // log store. The tap runs after the handler above is built, and
-            // appends the store's handler rather than pushing it, so stdout
-            // always writes a line before the store ever sees it.
+            // appends the store's handler to the end of the stack, so
+            // stdout always writes a line before the store ever sees it.
             'tap' => [LogStoreTap::class],
         ],
 

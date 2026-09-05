@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('id', 30)->primary();
             $table->foreignUlid('customer_id', 30)->constrained()->cascadeOnDelete();
             $table->string('reason');
-            // "At most one active block" is the action's rule, not a partial
-            // unique index here — SQLite has no partial unique index.
+            // "At most one active block" is the action's rule. SQLite has no
+            // partial unique index, so the schema does not enforce it here.
             $table->timestamp('lifted_at')->nullable();
             $table->timestamps();
 

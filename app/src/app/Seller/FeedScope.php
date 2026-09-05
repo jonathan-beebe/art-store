@@ -12,8 +12,8 @@ use App\Support\ActorDisplay;
 /**
  * Which story a feed tells: everything between one seller and one buyer, or
  * everything on one order. Both scopes carry the same shape, so a source
- * never asks which one it is answering — beyond narrowing threads, which
- * only an order scope does.
+ * treats them alike, except when narrowing threads, which only an order
+ * scope supports.
  */
 final readonly class FeedScope
 {

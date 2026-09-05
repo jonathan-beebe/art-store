@@ -34,10 +34,10 @@ use Illuminate\Database\Seeder;
 
 /**
  * The eight configurator archetypes from `__local__/item-configuration/etsy-product-configuration.md`
- * §2.1–2.2, each built through the real seller-facing actions rather than raw
- * `Model::create`, so this seeder proves the schema and the pricing math
- * against the hard cases the design doc set out to fix — not just a unit
- * test's happy path. Depends on {@see TaxonomySeeder} having already run.
+ * §2.1–2.2, each built through the real seller-facing actions, so this
+ * seeder proves the schema and the pricing math against the hard cases the
+ * design doc set out to fix, beyond a unit test's happy path. Depends on
+ * {@see TaxonomySeeder} having already run.
  */
 class ConfiguratorArchetypeSeeder extends Seeder
 {
@@ -201,9 +201,10 @@ class ConfiguratorArchetypeSeeder extends Seeder
     /**
      * Two dimension axes with a sparse, hand-priced matrix — only the
      * combinations the seller actually sells get a variant row, each with a
-     * `price_override_cents` rather than a summed surcharge, the primitive
-     * that replaces the 136-cell hand-priced matrix — crossed with a third,
-     * dense Wood axis: every priced cell exists in both Walnut and Oak.
+     * `price_override_cents` fixing the whole cell's price directly, the
+     * primitive that replaces the 136-cell hand-priced matrix — crossed with
+     * a third, dense Wood axis: every priced cell exists in both Walnut and
+     * Oak.
      */
     private function walnutTable(Seller $seller): Listing
     {
@@ -226,8 +227,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $w24 = $this->value($width, '24 in', 0);
         $w30 = $this->value($width, '30 in', 0);
 
-        // Which wood is the buyer's choice, not a second attribute vocabulary
-        // (FEAT-031): the attribute below says Wood, this axis says which.
+        // Which wood is the buyer's choice (FEAT-031): the attribute below
+        // says Wood, this axis says which.
         // Catalog-backed (FEAT-032): the axis references Wood Species and
         // each option value references its catalog property_value_id, so
         // the walnut variant is structurally the walnut one (§2.1).
@@ -239,10 +240,9 @@ class ConfiguratorArchetypeSeeder extends Seeder
         $createVariant = app(CreateVariant::class);
         // Sparse: four of the six possible Length x Width cells, each
         // hand-priced. 36x30 and 60x24 are never created — a seller who does
-        // not offer them adds no row for them, rather than materializing
-        // every cell of the grid. Each priced cell carries its price to both
-        // Wood options — the wood choice is stylistic, not a size surcharge —
-        // so the sparse grid crosses with the full Wood axis.
+        // not offer them adds no row for them. Each priced cell carries its
+        // price to both Wood options — the wood choice carries no price of
+        // its own — so the sparse grid crosses with the full Wood axis.
         $createVariant($listing, [$l36, $w24, $walnut], priceOverrideCents: 80000);
         $createVariant($listing, [$l36, $w24, $oak], priceOverrideCents: 80000);
         $createVariant($listing, [$l48, $w24, $walnut], priceOverrideCents: 95000);
@@ -260,10 +260,9 @@ class ConfiguratorArchetypeSeeder extends Seeder
     }
 
     /**
-     * One serialized variant with no axes: the 52-option-axis-of-numbered-lots
+     * One serialized variant, axis-free: the 52-option-axis-of-numbered-lots
      * hack, fixed. Twelve units, each with its own condition and measured
-     * specs; the variant's available quantity derives from them rather than
-     * a stored number.
+     * specs; the variant's available quantity derives from them.
      */
     private function vintageCandlesticks(Seller $seller): Listing
     {
@@ -339,7 +338,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
     /**
      * Pet count and pose as two independent axes — each option label carries
-     * one decision, rather than the "1 Pet, Sitting" / "2 Pets, Sitting
+     * one decision, replacing the "1 Pet, Sitting" / "2 Pets, Sitting
      * Together" compound-string hack (IMPRV-010) — alongside a size/framing
      * axis where the two values are genuinely distinct products. Three axes,
      * generated as their full cross product.
@@ -379,7 +378,7 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
     /**
      * DSGN-002's standalone-pricing archetype: Size is `standalone` — each
-     * size just has a price, none is a "base" — crossed with Frame, an
+     * size carries its own price; none is a "base" — crossed with Frame, an
      * ordinary `add_on` axis. `listings.price_cents` is never set directly
      * here; {@see \App\Support\Configurator\ListingPriceSync}, run from
      * inside {@see AddOptionValue}, derives it from the default (8x10)
@@ -458,8 +457,8 @@ class ConfiguratorArchetypeSeeder extends Seeder
 
     /**
      * Writes one listing_attributes row directly — reference data, the way
-     * {@see TaxonomySeeder} writes its own rows rather than going through a
-     * seller-facing action.
+     * {@see TaxonomySeeder} writes its own rows, bypassing a seller-facing
+     * action.
      */
     private function attribute(Listing $listing, string $propertyName, string $label): void
     {
