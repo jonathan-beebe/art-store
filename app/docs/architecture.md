@@ -55,8 +55,12 @@ flowchart TD
 |              |                                                                  | constructor so it cannot be instantiated; enums answer questions |
 |              |                                                                  | about themselves (`ListingStatus::isOnStorefront()`,             |
 |              |                                                                  | `OrderStatus::awaitsPayment()`, `label()`) rather than being     |
-|              |                                                                  | read from outside. Receives time/ids as parameters. Unit tested  |
-|              |                                                                  | without doubles.                                                 |
+|              |                                                                  | read from outside. Receives time/ids as parameters. A class      |
+|              |                                                                  | belongs here when a change to the business rule changes it and a |
+|              |                                                                  | change to the design leaves it alone; a class the design changes |
+|              |                                                                  | belongs beside the adapter that renders it (`FeedIconPath` and   |
+|              |                                                                  | `AttentionToolLink` sit in `app/Seller` for this reason). Unit   |
+|              |                                                                  | tested without doubles.                                          |
 | Adapters     | `app/Models/`, `app/Seller/`, `app/Shop/`, `app/Admin/`,         | Eloquent models own their relations, casts, scopes, and the      |
 |              | `app/Configurator/`, `app/Orders/`, `app/Analytics/`,            | writes that keep their own invariants — a model method applies a |
 |              | `app/Logging/`, `app/RateLimiting/`, `app/Identifiers/`,         | decision the core made and writes the row (`Listing::sell()`,    |

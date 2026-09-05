@@ -25,7 +25,7 @@
                         'bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400' => ! $event->isAccented(),
                     ])>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-4" aria-hidden="true">
-                        <path d="{{ $event->icon->path() }}" />
+                        <path d="{{ \App\Seller\FeedIconPath::of($event->icon) }}" />
                     </svg>
                 </span>
 

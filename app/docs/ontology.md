@@ -903,7 +903,7 @@ from a scope.
 - filters by kind: `browse`, `order`, `shipping`, `messages`
 
 **In code.** `App\Domain\Seller\{ActivityFeed,FeedEvent,ActivityKind,FeedIcon}`,
-`App\Seller\{ActivityFeedReader,ActivityFeedSource,FeedScope,AnalyticsSource,OrderSource,FulfillmentSource,MessagingSource}`,
+`App\Seller\{ActivityFeedReader,ActivityFeedSource,FeedScope,AnalyticsSource,OrderSource,FulfillmentSource,MessagingSource,FeedIconPath}`,
 `x-seller.feed` (no table). See [`seller-portal.md`](seller-portal.md)
 § "Activity feed".
 

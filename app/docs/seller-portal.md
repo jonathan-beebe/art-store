@@ -590,9 +590,10 @@ null kind (an absent `?kind=`) is the whole feed. Both are unit tested with
 no database.
 
 `FeedEvent` is readonly: `occurredAt`, `kind`, `icon`, `actor`, `text`, and
-the optional `quote` and `link`. `FeedIcon` carries the heroicon path, so a
-row brings its own picture and `x-seller.feed` stays a renderer — a 32px
-round icon on a rail, the body, the instant.
+the optional `quote` and `link`. `FeedIcon` names which glyph a row wears;
+`App\Seller\FeedIconPath::of()` draws it as the heroicon path, so a row
+brings its own picture and `x-seller.feed` stays a renderer — a 32px round
+icon on a rail, the body, the instant.
 
 ## Customers
 

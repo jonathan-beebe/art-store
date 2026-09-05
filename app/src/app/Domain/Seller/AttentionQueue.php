@@ -34,7 +34,6 @@ final readonly class AttentionQueue
         AttentionRows $payout,
         AttentionRows $listings,
         DateTimeImmutable $payoutDate,
-        AttentionLinks $links,
     ): array {
         return [
             new AttentionGroup(
@@ -42,7 +41,7 @@ final readonly class AttentionQueue
                 title: self::counted($toShip->total, 'order to ship', 'orders to ship'),
                 supporting: 'Oldest first. Buyers expect a parcel within three days.',
                 actionLabel: 'Open orders',
-                actionHref: $links->orders,
+                tool: AttentionTool::Orders,
                 rows: $toShip->shown,
                 total: $toShip->total,
                 emptySentence: 'Nothing is waiting to ship.',
@@ -52,7 +51,7 @@ final readonly class AttentionQueue
                 title: self::counted($waiting->total, 'message waiting on you', 'messages waiting on you'),
                 supporting: 'Buyers who wrote and have not heard back.',
                 actionLabel: 'Open messages',
-                actionHref: $links->messages,
+                tool: AttentionTool::Messages,
                 rows: $waiting->shown,
                 total: $waiting->total,
                 emptySentence: 'Every buyer has heard back from you.',
@@ -62,7 +61,7 @@ final readonly class AttentionQueue
                 title: 'Payout '.$payoutDate->format('l, M j'),
                 supporting: 'What has released so far, and what is still on its way.',
                 actionLabel: 'See earnings',
-                actionHref: $links->earnings,
+                tool: AttentionTool::Earnings,
                 rows: $payout->shown,
                 total: $payout->total,
                 emptySentence: 'Nothing has settled yet.',
@@ -72,7 +71,7 @@ final readonly class AttentionQueue
                 title: self::counted($listings->total, 'listing needs work', 'listings need work'),
                 supporting: 'Drafts waiting to go live, and pieces that sold out.',
                 actionLabel: 'Open listings',
-                actionHref: $links->listings,
+                tool: AttentionTool::Listings,
                 rows: $listings->shown,
                 total: $listings->total,
                 emptySentence: 'Every listing is published and in stock.',

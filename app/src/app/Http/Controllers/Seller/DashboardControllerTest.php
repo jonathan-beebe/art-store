@@ -25,6 +25,7 @@ use App\Models\OptionAxis;
 use App\Models\OptionValue;
 use App\Models\Seller;
 use App\Models\Variant;
+use App\Seller\AttentionToolLink;
 use App\Seller\ListingActivity;
 use App\Seller\NavLink;
 use App\Seller\OverviewListingRow;
@@ -295,7 +296,7 @@ it('leads the focus row with the parcels waiting to ship, oldest first', functio
         $orders = groupAt($groups, 0);
 
         return $orders->title === '2 orders to ship'
-            && $orders->actionHref === route('seller.orders.index', ['lane' => 'ship'])
+            && AttentionToolLink::hrefOf($orders->tool) === route('seller.orders.index', ['lane' => 'ship'])
             && count($orders->rows) === 2
             && str_contains($orders->rows[0]->meta, '15 days ago');
     });
