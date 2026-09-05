@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
  * The configurator page's modifier questions, each folded against the
  * buyer's raw answer (or its default) into the shape the panel renders,
  * alongside the raw answers and their display snapshot that
- * {@see ConfigurationPricer} and the add-to-cart fingerprint need. A
+ * {@see \App\Domain\Configurator\ConfigurationPricing} and the add-to-cart fingerprint need. A
  * modifier out of scope for the buyer's current axis selection is left out
  * entirely.
  */

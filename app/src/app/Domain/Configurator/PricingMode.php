@@ -16,4 +16,9 @@ enum PricingMode: string
 {
     case Standalone = 'standalone';
     case AddOn = 'add_on';
+
+    public function isStandalone(): bool
+    {
+        return $this === self::Standalone;
+    }
 }

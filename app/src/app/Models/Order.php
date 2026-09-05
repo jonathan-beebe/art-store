@@ -10,7 +10,6 @@ use App\Domain\Orders\OrderStatus;
 use App\Domain\Orders\PlaceableLine;
 use App\Domain\Payments\PaymentStatus;
 use App\Models\Concerns\HasPrefixedUlid;
-use App\Orders\PlaceableLineBuilder;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Scope;
@@ -157,7 +156,7 @@ class Order extends Model
     public function placementPlan(): OrderPlacementPlan
     {
         return OrderPlacementPlan::for(array_values($this->items->map(
-            fn (OrderItem $item): PlaceableLine => PlaceableLineBuilder::for($item),
+            fn (OrderItem $item): PlaceableLine => $item->toPlaceableLine(),
         )->all()));
     }
 

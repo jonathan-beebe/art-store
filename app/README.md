@@ -321,7 +321,7 @@ app/
     app/Seller/        page-shaped readers for the seller portal
     app/Shop/          storefront readers (browse, medium, featured) and the visitor's CustomerIdentity
     app/Configurator/  the item configurator's page data, presenters, resolver, and pricer
-    app/Orders/        StockMovement, PlaceableLineBuilder, OrderListingIds
+    app/Orders/        StockMovement, OrderListingIds
     app/RateLimiting/  RateLimitGate, the one place a limit is checked and hit
     app/Identifiers/   IdMint, the shell side of the prefixed-ULID contract
     app/Paging/        ListPaneWindow, the list/detail pane window over a query

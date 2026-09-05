@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\View;
 
+use App\Domain\Messaging\ParticipantName;
 use App\Domain\Seller\Initials;
 use App\Models\Admin;
 use App\Models\Customer;
 use App\Models\Seller;
 
 /**
- * One name for the three actors a message thread can hold. A seller and an
- * admin already carry a `displayName()`; a customer has none, so a page that
- * names one reads it the way the admin site's customer pages already do —
- * their given name, or their id where they have not given one.
+ * One name for the three actors a message thread can hold, for a view that
+ * holds the actor and needs the string. Each actor answers
+ * `participantName()` itself; this adds the fallback for an account that is
+ * gone and the initials a transcript avatar shows.
  */
 final class ActorDisplay
 {
@@ -21,17 +22,13 @@ final class ActorDisplay
      * How a seller or a customer sees the desk: every admin is one voice on
      * a support thread, so no single admin's name stands for it.
      */
-    public const string SUPPORT_DESK = 'Art Store Support';
+    public const string SUPPORT_DESK = ParticipantName::DESK;
 
     private function __construct() {} // @codeCoverageIgnore
 
     public static function nameOf(Seller|Customer|Admin|null $actor): string
     {
-        return match (true) {
-            $actor instanceof Customer => $actor->name ?? 'Customer '.$actor->id,
-            $actor instanceof Seller, $actor instanceof Admin => $actor->displayName(),
-            default => 'Deleted account',
-        };
+        return $actor?->participantName() ?? ParticipantName::DELETED;
     }
 
     /**

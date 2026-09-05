@@ -53,3 +53,11 @@ it('reads an empty breakdown for a legacy line that never froze one', function (
 
     expect($item->priceBreakdown()->lines)->toBe([]);
 });
+
+it('reads its placeable line\'s title off its own frozen snapshot', function (): void {
+    $listing = Listing::factory()->create(['title' => 'Harbour at Dusk']);
+    $item = OrderItem::factory()->create(['listing_id' => $listing->id, 'title' => 'Harbour at Dusk', 'quantity' => 1])->load('listing');
+    $listing->update(['title' => 'Harbour at Dawn']);
+
+    expect($item->toPlaceableLine()->title)->toBe('Harbour at Dusk');
+});

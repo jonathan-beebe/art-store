@@ -10,6 +10,7 @@ use App\Actions\Configurator\CreateOptionAxis;
 use App\Actions\Configurator\GenerateVariants;
 use App\Domain\Configurator\CartLineFingerprint;
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Listings\ListingStatus;
 
 it('converts itself into the cart line the listing it holds prices', function (): void {
     $seller = $this->seller();
@@ -152,4 +153,50 @@ it('reports a configured line unavailable once its variant is disabled', functio
 
     expect($item->currentAvailability()->selectable)->toBeFalse()
         ->and($item->currentAvailability()->reason)->toBe('not offered');
+});
+
+it('maps a legacy line to a placeable line off the live listing', function (): void {
+    $listing = Listing::factory()->create(['title' => 'Harbour at Dusk', 'status' => ListingStatus::ForSale, 'quantity' => 3]);
+    $item = CartItem::factory()->create(['listing_id' => $listing->id, 'quantity' => 1])->load('listing');
+
+    $line = $item->toPlaceableLine();
+
+    expect($line->lineId)->toBe($item->id)
+        ->and($line->title)->toBe('Harbour at Dusk')
+        ->and($line->availableQuantity)->toBe(3)
+        ->and($line->configured)->toBeFalse();
+});
+
+it('maps a configured line to a placeable line off its variant', function (): void {
+    $listing = Listing::factory()->create();
+    $variant = Variant::factory()->create(['listing_id' => $listing->id, 'enabled' => true, 'quantity' => 4]);
+    $item = CartItem::factory()->create([
+        'listing_id' => $listing->id,
+        'variant_id' => $variant->id,
+        'quantity' => 2,
+    ])->load('listing', 'variant');
+
+    $line = $item->toPlaceableLine();
+
+    expect($line->configured)->toBeTrue()
+        ->and($line->variantEnabled)->toBeTrue()
+        ->and($line->serialized)->toBeFalse()
+        ->and($line->variantRemainingQuantity)->toBe(4);
+});
+
+it('reads a serialized line\'s unit availability into its placeable line', function (): void {
+    $listing = Listing::factory()->create();
+    $variant = Variant::factory()->serialized()->create(['listing_id' => $listing->id]);
+    $unit = Unit::factory()->sold()->create(['variant_id' => $variant->id]);
+    $item = CartItem::factory()->create([
+        'listing_id' => $listing->id,
+        'variant_id' => $variant->id,
+        'unit_id' => $unit->id,
+        'quantity' => 1,
+    ])->load('listing', 'variant', 'unit');
+
+    $line = $item->toPlaceableLine();
+
+    expect($line->serialized)->toBeTrue()
+        ->and($line->unitAvailable)->toBeFalse();
 });

@@ -68,4 +68,12 @@ class Admin extends Authenticatable
     {
         return self::query()->oldest('created_at')->oldest('id')->first();
     }
+
+    /**
+     * How a thread names this account: the same name every other page shows.
+     */
+    public function participantName(): string
+    {
+        return $this->displayName();
+    }
 }

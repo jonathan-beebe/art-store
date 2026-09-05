@@ -148,4 +148,12 @@ class Seller extends Authenticatable
     {
         $query->orderBy('shop_name')->orderBy('email');
     }
+
+    /**
+     * How a thread names this account: the same name every other page shows.
+     */
+    public function participantName(): string
+    {
+        return $this->displayName();
+    }
 }

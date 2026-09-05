@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Domain\Configurator\ModifierKind;
+use App\Domain\Configurator\PricedModifier;
+use App\Domain\Configurator\PricedModifierOption;
+use App\Domain\Money\Money;
 use App\Models\Concerns\HasPrefixedUlid;
 use Database\Factories\ModifierFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -91,5 +94,22 @@ class Modifier extends Model
         $scopedTo = array_map(fn (mixed $value): string => is_scalar($value) ? (string) $value : '', $this->scopes()->pluck('option_value_id')->all());
 
         return $scopedTo === [] || array_intersect($scopedTo, $selectedOptionValueIds) !== [];
+    }
+
+    /**
+     * This modifier as the pricer reads it. Reads the `options` and `scopes`
+     * relations the caller has already loaded.
+     */
+    public function toPriced(): PricedModifier
+    {
+        return PricedModifier::of(
+            id: $this->id,
+            prompt: $this->prompt,
+            kind: $this->kind,
+            addOn: Money::fromCents($this->add_on_price_cents),
+            ratePerUnit: $this->rate_cents_per_unit === null ? null : Money::fromCents($this->rate_cents_per_unit),
+            options: array_values($this->options->map(fn (ModifierOption $option): PricedModifierOption => PricedModifierOption::of($option->id, $option->label, $option->addOn()))->all()),
+            scopedTo: array_values($this->scopes->map(fn (ModifierScope $scope): string => $scope->option_value_id)->all()),
+        );
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Configurator;
 
 use App\Domain\Configurator\ComboKey;
+use App\Domain\Configurator\ConfigurationPricing;
 use App\Domain\Configurator\OptionAvailability;
 use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\QuantityDiscount;
@@ -63,7 +64,10 @@ final class ConfiguratorPageResolver
         $breakModels = $listing->quantityBreaks()->orderBy('min_qty')->get();
         $quantityTiers = self::buildQuantityTiers($breakModels, $input->quantity);
 
-        $breakdown = ConfigurationPricer::price($listing, $selectedOptionValues, $matchedVariant, $selectedUnit, $rawAnswers, $input->quantity);
+        $breakdown = ConfigurationPricing::price(
+            $listing->pricingConfiguration($selectedOptionValues, $matchedVariant, $selectedUnit, $rawAnswers),
+            $input->quantity,
+        );
 
         $overallAvailability = OptionAvailability::resolve($comboKey, $enabledByComboKey, $availableByComboKey);
         $canAddToCart = $overallAvailability->selectable && (! $isSerialized || $selectedUnitId !== null);
