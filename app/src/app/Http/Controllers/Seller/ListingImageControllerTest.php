@@ -10,6 +10,10 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 
+beforeEach(function (): void {
+    Storage::fake('public');
+});
+
 it('lists the images cover-first with the cover tagged', function (): void {
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -23,7 +27,6 @@ it('lists the images cover-first with the cover tagged', function (): void {
 });
 
 it('adds an uploaded image at the end', function (): void {
-    Storage::fake('public');
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $this->listingImage($listing, ['position' => 0]);
@@ -66,7 +69,6 @@ it('refuses a ninth image with a craft-worded cap message', function (): void {
 });
 
 it('removes an image', function (): void {
-    Storage::fake('public');
     $seller = $this->seller();
     $listing = $this->listing($seller);
     $image = $this->listingImage($listing);
@@ -79,7 +81,6 @@ it('removes an image', function (): void {
 });
 
 it('trips the listing-write limit adding an image', function (): void {
-    Storage::fake('public');
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);
@@ -96,7 +97,6 @@ it('trips the listing-write limit adding an image', function (): void {
 });
 
 it('trips the listing-write limit removing an image', function (): void {
-    Storage::fake('public');
     Config::set('rate_limits.listing_write', RateLimitValue::parse('1/1h', 'RATE_LIMIT_LISTING_WRITE'));
     $seller = $this->seller();
     $listing = $this->listing($seller);

@@ -7,9 +7,11 @@ namespace App\Actions\Listings;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-it('puts the upload in the listings folder of the public disk', function (): void {
+beforeEach(function (): void {
     Storage::fake('public');
+});
 
+it('puts the upload in the listings folder of the public disk', function (): void {
     $path = (new StoreListingImage)(UploadedFile::fake()->image('harbour.jpg'));
 
     expect($path)->toStartWith('listings/');
@@ -17,7 +19,6 @@ it('puts the upload in the listings folder of the public disk', function (): voi
 });
 
 it('gives two uploads of the same name separate paths', function (): void {
-    Storage::fake('public');
     $storeListingImage = new StoreListingImage;
 
     $first = $storeListingImage(UploadedFile::fake()->image('harbour.jpg'));
