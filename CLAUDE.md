@@ -55,8 +55,8 @@ before changing any of those.
 runs `make -C app precommit` (lint with Pint + PHPStan, then the ungated
 test suite, in one container) for every commit that touches `app/` outside
 `app/docs/` and `app/README.md`. `make check` (lint → assets →
-coverage-gated tests) is the full gate: it runs once per branch before a PR
-opens, and CI (`.github/workflows/check.yml`) runs it again on push/PR as
-the backstop.
+coverage-gated tests) is the full gate: it runs locally, once per branch,
+before a PR opens. CI (`.github/workflows/check.yml`) runs `make ci` (lint
+and the ungated suite) on push/PR; coverage is not part of CI.
 
 A red test suite blocks a commit either way.

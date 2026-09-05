@@ -738,8 +738,8 @@ See `app/docs/mcp.md`.
 | `lint-fix`                     | the auto-fixable subset applied (`pint`)                                                    |
 | `analyse`                      | PHPStan alone, against the file tree                                                        |
 | `precommit`                    | the commit gate: `lint` + the ungated `test` suite, one container spawn                     |
-| `check`                        | `lint` → `assets` → `coverage`; the full gate, run once per branch before a PR (and again   |
-|                                | by CI)                                                                                      |
+| `ci`                           | `lint` → the ungated `test` suite; what CI runs on every push and PR                        |
+| `check`                        | `lint` → `assets` → `coverage`; the full gate, run locally once per branch before a PR      |
 | `migrate`, `fresh`, `seed`     | schema and data                                                                             |
 | `seed-activity`                | fill a `make fresh`-seeded database with a deterministic ninety-plus day ramp of store      |
 |                                | activity, local dev only                                                                    |
@@ -763,9 +763,10 @@ checkouts is refused by Docker, as intended.
 (lint + the ungated suite, one container) for every commit with staged
 changes under `app/` outside `app/docs/` and `app/README.md`; `make hooks`
 at the root installs it. `make check` — lint → assets → the coverage-gated
-suite — runs once per branch instead, at PR time: whoever opens the PR runs
-`make check` by hand or lets CI run it.
+suite — runs once per branch instead, at PR time, by hand: whoever opens the
+PR runs it and the coverage floor is theirs to hold.
 
-CI (`.github/workflows/check.yml`) runs `make check` on every push and
-pull request. The hook runs `precommit` only, so CI is the full gate before
-merge. A red test suite blocks a commit either way.
+CI (`.github/workflows/check.yml`) runs `make ci` — lint and the ungated
+suite — on every push and pull request. Coverage stays out of CI:
+instrumenting the suite is the slowest step of the gate, and the floor is
+checked locally. A red test suite blocks a commit either way.

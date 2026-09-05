@@ -59,7 +59,8 @@ description per target.
 | `make lint-fix`  | `docker compose run --rm --no-deps --entrypoint composer app lint:fix`                         |
 | `make analyse`   | `docker compose run --rm --no-deps --entrypoint composer app analyse`                          |
 | `make precommit` | `docker compose run --rm app sh -c "composer lint:all && composer test"` — the per-commit gate  |
-| `make check`     | `lint`, then `assets`, then `coverage` — the pre-PR gate                                        |
+| `make ci`        | `lint`, then `test` — what CI runs on every push and PR                                        |
+| `make check`     | `lint`, then `assets`, then `coverage` — the pre-PR gate, run locally                          |
 | `make migrate`   | `docker compose run --rm app php artisan migrate`                                              |
 | `make fresh`     | clears every database and re-seeds the demo data                                               |
 | `make seed`      | `docker compose run --rm app php artisan db:seed`                                              |
@@ -84,8 +85,10 @@ for a static run).
 `app/` outside `app/docs/` and `app/README.md`: lint, then the ungated test
 suite, in one container spawn. `make check` — lint, the asset build, then the
 coverage-gated suite — runs once per branch before a PR opens rather than on
-every commit; CI (`.github/workflows/check.yml`) runs `make check` again on
-push/PR as the backstop. A red test suite blocks a commit either way.
+every commit, by hand. CI (`.github/workflows/check.yml`) runs `make ci`,
+lint and the ungated suite, on push/PR; coverage stays out of CI because
+instrumenting the suite is the slowest step. A red test suite blocks a
+commit either way.
 
 Run any other tool the same way:
 
@@ -98,7 +101,8 @@ docker compose exec app php artisan tinker      # against the running server
 ```sh
 make test                                                    # whole suite
 make smoke                                                   # the end-to-end walk alone
-make check                                                   # lint + assets + coverage
+make check                                                   # lint + assets + coverage, before a PR
+make ci                                                      # lint + tests, what CI runs
 docker compose run --rm app composer test -- --filter Money  # one class or method
 ```
 
