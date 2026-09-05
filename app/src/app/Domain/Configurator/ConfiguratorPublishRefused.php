@@ -34,7 +34,7 @@ final class ConfiguratorPublishRefused extends DomainRuleViolation implements Ca
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{issues: list<array{code: string, message: string}>}
      */
     public function refusalData(): array
     {
