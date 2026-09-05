@@ -29,6 +29,12 @@ it('refuses a rate limit trip at warn', function (): void {
     expect(StoryEvent::RateLimitExceed->refusalLevel())->toBe(StoryLevel::Warn);
 });
 
+it('refuses an MCP call the key guard turned away at warn', function (): void {
+    expect(StoryEvent::McpCall->refusalLevel())->toBe(StoryLevel::Warn)
+        ->and(StoryEvent::McpCall->level())->toBe(StoryLevel::Info)
+        ->and(StoryEvent::McpCall->opensUnitOfWork())->toBeTrue();
+});
+
 it('refuses any other event at info by default', function (): void {
     expect(StoryEvent::OrderPlace->refusalLevel())->toBe(StoryLevel::Info);
 });

@@ -47,6 +47,7 @@ enum StoryEvent: string
     case ModerationBlockCustomer = 'moderation.block_customer';
     case ModerationLiftCustomerBlock = 'moderation.lift_customer_block';
     case RateLimitExceed = 'rate_limit.exceed';
+    case McpCall = 'mcp.call';
     case QueryExceed = 'query.exceed';
     case MigrateRun = 'migrate.run';
     case MigrateApply = 'migrate.apply';
@@ -82,14 +83,15 @@ enum StoryEvent: string
      * A refusal is `info`: a rule held, and the reader is meant to see it.
      * The listing-view collapse refuses every view after the first in an
      * hour and would drown the stream at `info`, so it is `debug` instead. A
-     * rate-limit trip is the one refusal an operator wants paged on, so it
-     * is `warn`.
+     * rate-limit trip is a refusal an operator wants paged on, so it is
+     * `warn`; so is an MCP call the key guard turned away — a stranger
+     * presenting keys.
      */
     public function refusalLevel(): StoryLevel
     {
         return match ($this) {
             self::ListingView => StoryLevel::Debug,
-            self::RateLimitExceed => StoryLevel::Warn,
+            self::RateLimitExceed, self::McpCall => StoryLevel::Warn,
             default => StoryLevel::Info,
         };
     }

@@ -222,6 +222,12 @@ app emits every event below that its features support.
 | `moderation.block_customer`, `moderation.lift_customer_block`           |                                                                          |
 | `rate_limit.exceed`                                                     | any limit trip (`warn`), `data` carries `limit`, `key`,                  |
 |                                                                         | `retry_after_seconds`                                                    |
+| `mcp.call`                                                              | every JSON-RPC message `POST /mcp` receives (§5.1): `will` before the    |
+|                                                                         | key is checked, `data` carrying `method`, `rpc_id`, `tool` or           |
+|                                                                         | `resource`, and a tool's `arguments` (redacted per §2.1); `did` with     |
+|                                                                         | `status`, `key_id`, and `outcome` (`ok` \| `tool_error` \| `rpc_error` |
+|                                                                         | \| `streamed` \| `unreadable`); `refused` at `warn` when the key was   |
+|                                                                         | missing, malformed, unknown, revoked, or over its limit                  |
 | `query.exceed`                                                          | any DB query slower than `LOG_SLOW_QUERY_MS` (`warn`), `data` carries    |
 |                                                                         | `source`, `duration_ms`, `sql`, `threshold_ms`                           |
 | `migrate.run`, `migrate.apply`, `seed.run`                              | CLI                                                                      |
@@ -697,6 +703,8 @@ validate it. Rules:
   bearer challenge; GET and DELETE on the path answer 405. The route sits
   outside the `web` group: no session, no CSRF.
 - Every call spends `mcp_request` (§3).
+- Every message is an `mcp.call` line pair (§2.3), a refused key a `warn`,
+  so every access — and every attempt — is on the record.
 - The endpoint's own requests are hidden from the log viewer and the log
   tools by default (`mcp=1` / `include_mcp`, or `domain=mcp`), the way the
   viewer's own requests are.

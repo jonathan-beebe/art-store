@@ -63,6 +63,21 @@ requests are hidden from the log viewer and the log tools by default, the
 way the viewer's own requests are (`mcp=1` in the viewer, `include_mcp`
 in a tool); `domain=mcp` selects exactly them.
 
+## Every call is logged
+
+`LogMcpCall` wraps the key guard and writes one `mcp.call` line pair per
+JSON-RPC message (docs/spec.md §2.3): `will` names the method and the
+tool or resource, with a tool's arguments redacted the way a query string
+is; `did` carries the HTTP status, the key that opened the call, and the
+outcome read off the answer (`ok`, `tool_error`, `rpc_error`, or
+`streamed` when the answer went out as an event stream). A missing,
+malformed, unknown, revoked, or rate-limited key ends the line `refused`
+at `warn`, so an attempt by a stranger is the kind of line
+`/admin/logs?level=warn` exists for. The key guard leaves the key id on
+the request under `LogMcpCall::KEY_ATTRIBUTE` for the closing line.
+`domain=mcp` in the viewer, or `search-logs` with `event: mcp.call`, is
+the access record.
+
 ## Keys
 
 `api_keys` (docs/spec.md §1 prefix `key`) holds one row per key:

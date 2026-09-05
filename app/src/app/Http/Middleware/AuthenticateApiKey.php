@@ -27,7 +27,8 @@ use Symfony\Component\HttpFoundation\Response;
  * to a login page never applies; the package's own global middleware
  * stamps the `WWW-Authenticate` challenge on every 401 — and the
  * `mcp_request` limit (docs/spec.md §3) is spent per key before the
- * server runs.
+ * server runs. The key's id is left on the request for `LogMcpCall`,
+ * which wraps this guard and closes the call's `mcp.call` line.
  */
 final readonly class AuthenticateApiKey
 {
@@ -58,6 +59,7 @@ final readonly class AuthenticateApiKey
                 ->header('Retry-After', (string) $exceeded->retryAfterSeconds);
         }
 
+        $request->attributes->set(LogMcpCall::KEY_ATTRIBUTE, $key->id);
         $admin = $key->admin;
 
         if ($admin === null) {
