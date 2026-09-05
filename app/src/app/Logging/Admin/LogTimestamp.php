@@ -13,6 +13,8 @@ namespace App\Logging\Admin;
  */
 final class LogTimestamp
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     private const int TIME_OFFSET = 11;
 
     private const int TIME_LENGTH = 12;

@@ -22,6 +22,8 @@ use stdClass;
  */
 final class ChannelTable
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /** `analytics_events.name` values the report counts, and the metric on
      * {@see ChannelRow} each accumulates into. */
     private const array EVENT_METRICS = [

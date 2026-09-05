@@ -13,6 +13,8 @@ namespace App\Support;
  */
 final class DesignTokens
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return array<string, array{light: string, dark: string, group: string, role: string}>
      */

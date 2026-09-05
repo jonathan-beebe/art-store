@@ -19,6 +19,8 @@ namespace App\Support;
  */
 final class DataRedaction
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     private const string REDACTED = '[redacted]';
 
     private const string EMAIL = '/^[^@\s]+@[^@\s]+\.[^@\s]+$/';

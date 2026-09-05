@@ -13,6 +13,8 @@ namespace App\Logging\Admin;
  */
 final class LogFilterLinks
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @param  'request'|'txn'|'session'|'actor'  $param
      * @param  array<string, string>  $currentFilters  the round-tripped

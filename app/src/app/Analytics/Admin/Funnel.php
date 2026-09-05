@@ -39,6 +39,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class Funnel
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     private const string VISITORS_KEY = 'visitors';
 
     private const string VISITORS_LABEL = 'Visitors';

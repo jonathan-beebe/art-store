@@ -18,6 +18,8 @@ use Illuminate\Support\Collection;
  */
 final class FunnelTiles
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     private const int LIMIT = 8;
 
     /**

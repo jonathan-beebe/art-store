@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class ActorAggregates
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return list<ActorSummary>
      */

@@ -663,7 +663,8 @@ flowchart LR
   `Illuminate\Database`, or facades, and calls no clock/random functions;
   every class under `App\Actions` is final and invokable; controllers do not
   use the `DB` facade; no debug functions anywhere; `env()` only in
-  `config/`, never under `App`; every file declares strict types — plus
+  `config/`, never under `App`; every file declares strict types; every
+  static-only class under `App` keeps a private constructor — plus
   Pest's `laravel` and `security` presets. The preset's `ignoring` list names
   one class at a time rather than a namespace: the ten controllers whose
   route methods are action verbs (`CartController::add`,

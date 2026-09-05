@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Symfony\Component\Finder\Finder;
+
 /*
 |--------------------------------------------------------------------------
 | Layer rules
@@ -68,6 +70,58 @@ arch('env() is read only while building config, never at runtime')
 arch('every class under App declares strict types')
     ->expect('App')
     ->toUseStrictTypes();
+
+/**
+ * Pest's arch DSL has no expectation for constructor visibility, so this
+ * reflects on every class under app/. A class with an instance property or
+ * an instance public method holds state or an instance API; it is
+ * skipped. A class with no public static method has nothing to gate; it
+ * is skipped. The rest are static-only helpers and must keep a private
+ * constructor.
+ */
+it('every static-only class under App keeps a private constructor', function (): void {
+    $base = dirname(__DIR__);
+
+    $offenders = [];
+
+    foreach (Finder::create()->files()->name('*.php')->notName('*Test.php')->in($base.'/app') as $file) {
+        $relative = 'app/'.ltrim(str_replace($base.'/app', '', $file->getPathname()), '/');
+        $fqcn = 'App\\'.str_replace('/', '\\', substr($relative, 4, -4));
+
+        if (! class_exists($fqcn)) {
+            continue;
+        }
+
+        $reflection = new ReflectionClass($fqcn);
+
+        if ($reflection->isInterface() || $reflection->isEnum() || $reflection->isTrait() || $reflection->isAbstract()) {
+            continue;
+        }
+
+        if (collect($reflection->getProperties())->contains(fn (ReflectionProperty $property): bool => ! $property->isStatic())) {
+            continue;
+        }
+
+        $publicMethods = collect($reflection->getMethods(ReflectionMethod::IS_PUBLIC))
+            ->reject(fn (ReflectionMethod $method): bool => $method->getName() === '__construct');
+
+        if ($publicMethods->contains(fn (ReflectionMethod $method): bool => ! $method->isStatic())) {
+            continue;
+        }
+
+        if ($publicMethods->isEmpty()) {
+            continue;
+        }
+
+        $constructor = $reflection->getConstructor();
+
+        if ($constructor === null || ! $constructor->isPrivate()) {
+            $offenders[] = $fqcn;
+        }
+    }
+
+    expect($offenders)->toBe([]);
+});
 
 /*
 |--------------------------------------------------------------------------

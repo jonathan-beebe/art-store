@@ -25,6 +25,8 @@ use stdClass;
  */
 final class EventDetail
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     public static function forRange(string $name, AnalyticsRange $range, EventBreakdown $by): EventDetailView
     {
         return $name === EventBreakdown::PAGE_VIEW_EVENT_NAME
