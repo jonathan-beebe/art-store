@@ -66,9 +66,9 @@ enum StoryEvent: string
     }
 
     /**
-     * Every ledger entry is written, so the money trail is a debug stream
-     * under the story rather than part of it. A slow query is the one `did`
-     * line an operator wants paged on, so it is `warn`.
+     * Every ledger entry is written, so the money trail runs as its own
+     * debug stream beneath the story. A slow query is the one `did` line
+     * an operator wants paged on, so it is `warn`.
      */
     public function level(): StoryLevel
     {

@@ -6,8 +6,8 @@ namespace App\Logging;
 
 /**
  * The four severities a log line carries. PSR-3 spells the third one
- * `warning`; the payload spells it `warn`, so the two spellings meet here
- * rather than at every call site.
+ * `warning`; the payload spells it `warn`. This one place translates
+ * between them so no call site has to.
  */
 enum StoryLevel: string
 {

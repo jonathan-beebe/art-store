@@ -282,8 +282,8 @@ final class Story
     }
 
     /**
-     * A fact nobody has is not a fact, so an id that came back null leaves
-     * the line rather than sitting in it as a null.
+     * A fact nobody has is not a fact, so an id that came back null is
+     * dropped from the line.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>|null

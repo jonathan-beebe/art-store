@@ -19,9 +19,8 @@ use Monolog\Logger as Monolog;
  * It splices `App\Logging\LogStoreHandler` onto the underlying Monolog
  * logger's handler stack — AFTER every handler already there. Monolog runs
  * the front-of-stack handler first and `pushHandler()` prepends, so
- * rebuilding the stack with `setHandlers([...existing, $store])` is what
- * keeps the invariant that stdout writes a line before the store ever sees
- * it, rather than a runtime guard enforcing the order.
+ * rebuilding the stack with `setHandlers([...existing, $store])` keeps the
+ * invariant that stdout writes a line before the store ever sees it.
  */
 final readonly class LogStoreTap
 {

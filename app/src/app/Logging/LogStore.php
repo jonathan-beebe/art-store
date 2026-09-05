@@ -20,10 +20,9 @@ use Throwable;
  *    `append()` runs after the stdout handler, per `App\Logging\LogStoreTap`.
  * 2. The store is a mirror; it validates nothing (`App\Logging\LogLine`
  *    already turned the line into a row, malformed lines included).
- * 3. The store's failure is never the app's failure — every public method
- *    here swallows its own errors rather than throwing into the logger,
- *    except `prune()`, whose caller (`orders:sweep`) is expected to report
- *    it and carries on regardless.
+ * 3. The store's failure is never the app's failure. Every public method
+ *    here swallows its own errors, except `prune()`, whose caller
+ *    (`orders:sweep`) is expected to report it and carries on regardless.
  *
  * PHP serves one request per process, so there is no event loop to schedule
  * a flush on: rows buffer in memory and flush at the row cap or when the
@@ -122,9 +121,10 @@ final class LogStore
      * store after one `app.log`-shaped warn line on stdout; nothing thrown
      * here reaches the caller. `stdoutWriter`/`stderrWriter` are injectable
      * so a test can watch what would otherwise go to the real streams;
-     * `registerShutdown` so a test can trigger the exit flush itself rather
-     * than waiting for the process to end; `bufferCap` so a test can reach
-     * the drop path in rows rather than the production `BUFFER_CAP` count.
+     * `registerShutdown` so a test can trigger the exit flush itself,
+     * without waiting for the process to end; `bufferCap` so a test can
+     * reach the drop path at a row count far below the production
+     * `BUFFER_CAP`.
      */
     public static function open(
         string $file,
@@ -232,8 +232,9 @@ final class LogStore
             return 0;
         }
 
-        // PDO::ATTR_ERRMODE_EXCEPTION (set in open()) makes a failing prepare()
-        // throw rather than return false, so the statement here is always real.
+        // PDO::ATTR_ERRMODE_EXCEPTION (set in open()) turns a failing prepare()'s
+        // default false return into a thrown exception, so the statement here is
+        // always real.
         /** @var PDOStatement $delete */
         $delete = $this->connection->prepare(
             'DELETE FROM log_lines WHERE id IN (SELECT id FROM log_lines WHERE ts < ? LIMIT ?)',
@@ -272,7 +273,7 @@ final class LogStore
         } catch (Throwable $e) {
             // A ROLLBACK failing here (no transaction left to roll back —
             // SQLite already auto-rolled back a fatal error) propagates its
-            // own exception instead of $e; either way flush()'s catch
+            // own exception in $e's place; either way flush()'s catch
             // contains it and re-buffers the batch.
             $connection->exec('ROLLBACK');
 
@@ -289,8 +290,9 @@ final class LogStore
         $placeholders = implode(', ', array_fill(0, $rows, self::ROW_PLACEHOLDERS));
         $sql = 'INSERT INTO log_lines ('.self::INSERT_COLUMNS.') VALUES '.$placeholders;
 
-        // PDO::ATTR_ERRMODE_EXCEPTION (set in open()) makes a failing prepare()
-        // throw rather than return false, so the statement here is always real.
+        // PDO::ATTR_ERRMODE_EXCEPTION (set in open()) turns a failing prepare()'s
+        // default false return into a thrown exception, so the statement here is
+        // always real.
         /** @var PDOStatement $statement */
         $statement = $connection->prepare($sql);
 
@@ -371,8 +373,8 @@ final class LogStore
             $connection->exec('PRAGMA user_version = '.self::SCHEMA_VERSION);
             $connection->exec('COMMIT');
         } catch (Throwable $e) {
-            // A ROLLBACK failing here propagates its own exception instead
-            // of $e; either way open()'s catch disables the store.
+            // A ROLLBACK failing here propagates its own exception in $e's
+            // place; either way open()'s catch disables the store.
             $connection->exec('ROLLBACK');
 
             throw $e;
@@ -381,8 +383,9 @@ final class LogStore
 
     private static function userVersion(PDO $connection): int
     {
-        // PDO::ATTR_ERRMODE_EXCEPTION (set in open()) makes a failing query()
-        // throw rather than return false, so the statement here is always real.
+        // PDO::ATTR_ERRMODE_EXCEPTION (set in open()) turns a failing query()'s
+        // default false return into a thrown exception, so the statement here is
+        // always real.
         /** @var PDOStatement $statement */
         $statement = $connection->query('PRAGMA user_version');
         $value = $statement->fetchColumn();

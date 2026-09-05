@@ -94,7 +94,7 @@ final class ConfiguratorPageResolver
     /**
      * Each variant's enablement, stock availability, and row, keyed by its
      * combo key, so a candidate combination can be judged by
-     * {@see OptionAvailability} in one lookup rather than a table scan.
+     * {@see OptionAvailability} in one lookup.
      *
      * @param  Collection<int, Variant>  $variantModels
      * @return array{0: array<string, bool>, 1: array<string, bool>, 2: array<string, Variant>}

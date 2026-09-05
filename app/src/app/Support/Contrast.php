@@ -43,9 +43,9 @@ final class Contrast
 
     /**
      * Alpha-blends a translucent `#rrggbb` fill over an opaque `#rrggbb`
-     * ground, per-channel, and returns the resulting opaque `#rrggbb`. What
-     * a contrast check needs before rating a translucent fill: the ratio
-     * belongs to what the eye actually sees, not the fill's own color.
+     * ground, per-channel, and returns the resulting opaque `#rrggbb`. A
+     * contrast check needs this before rating a translucent fill: the
+     * ratio belongs to the blended color the eye actually sees.
      */
     public static function compositeOver(string $fillHex, float $alpha, string $groundHex): string
     {

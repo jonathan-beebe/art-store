@@ -6,8 +6,7 @@ namespace App\Support;
 
 /**
  * The English ordinal word for a 1-based position — "1st", "2nd", "3rd",
- * "4th" — used wherever a seller reads a row's place in a list rather than
- * its raw index.
+ * "4th". A seller reads this in place of a list's raw index.
  */
 final class Ordinal
 {

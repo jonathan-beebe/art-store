@@ -22,11 +22,11 @@ use Illuminate\Support\Collection;
  * browse page's own 404).
  *
  * The count and cover for every root are drawn from one pass over the
- * for-sale catalogue rather than a query per root: the catalogue is fetched
- * once, ordered by the same tie-break rule a single root's cover would use
- * (favorites desc, then created_at, then id), and each root's winner is the
- * first survivor of that order still in its subtree — so the query count
- * holds steady as the number of roots, or the size of the catalogue, grows.
+ * for-sale catalogue: the catalogue is fetched once, ordered by the same
+ * tie-break rule a single root's cover would use (favorites desc, then
+ * created_at, then id), and each root's winner is the first survivor of
+ * that order still in its subtree. The query count holds steady as the
+ * number of roots, or the size of the catalogue, grows.
  */
 final class CategoryBrowse
 {

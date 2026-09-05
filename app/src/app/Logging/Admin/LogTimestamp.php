@@ -20,7 +20,7 @@ final class LogTimestamp
     private const int TIME_LENGTH = 12;
 
     /** A `ts` shorter than the fixed shape (the mirror invariant admits
-     * one) renders as given rather than a mangled slice of it. */
+     * one) renders as given, not a mangled slice of it. */
     public static function timeOfDay(string $ts): string
     {
         return strlen($ts) >= self::TIME_OFFSET + self::TIME_LENGTH

@@ -9,7 +9,7 @@ namespace App\Logging\Admin;
  * span, the root request's method/path/status/duration, and the
  * session/actor/txn the first line that carries them names. The grouped
  * list row reuses this over one group's own lines for the same facts,
- * rather than a second read-model.
+ * sparing a second read-model.
  */
 final readonly class LogStoryHeader
 {

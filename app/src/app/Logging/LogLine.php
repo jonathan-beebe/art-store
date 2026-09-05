@@ -114,9 +114,9 @@ final readonly class LogLine
     }
 
     /**
-     * A JSON object, decoded with `stdClass` rather than an associative array
-     * so an empty object (`{}`) and a JSON array are told apart the way
-     * `json_decode` cannot with `$associative = true` alone.
+     * A JSON object, decoded with `stdClass` so an empty object (`{}`) and a
+     * JSON array are told apart — `json_decode` cannot tell them apart with
+     * `$associative = true` alone.
      *
      * @return array<string, mixed>|null
      */

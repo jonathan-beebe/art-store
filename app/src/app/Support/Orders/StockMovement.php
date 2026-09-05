@@ -18,7 +18,7 @@ use LogicException;
  * Shared by {@see \App\Actions\Orders\PlaceOrder} (claim), and
  * {@see \App\Actions\Orders\CancelOrder}, {@see \App\Actions\Fulfillment\DeclineFulfillment},
  * and {@see \App\Actions\Orders\FinalizeOrder} (claim on retry, release on
- * decline/cancel) so the branch lives in one place rather than four.
+ * decline/cancel) so the branch lives in one place.
  *
  * The caller is responsible for eager-loading `listing`/`variant`/`unit`
  * locked for update before calling either method — this class only applies

@@ -17,11 +17,11 @@ use Illuminate\Database\Eloquent\Collection;
 
 /**
  * A serialized variant's unit picker: every unit still available, ordered
- * the way the buyer reads labels rather than the way the database stored
- * them, each priced with the buyer's standalone and add-on selections
- * folded in — and which one is selected, the buyer's requested unit where
- * it is still available, the first available unit otherwise. A listing with
- * no matched, serialized variant has no units to offer at all.
+ * by `UnitLabelOrder`, the way a buyer reads labels, each priced with the
+ * buyer's standalone and add-on selections folded in — and which one is
+ * selected, the buyer's requested unit where it is still available, the
+ * first available unit otherwise. A listing with no matched, serialized
+ * variant has no units to offer at all.
  */
 final class SerializedUnitsPresentation
 {

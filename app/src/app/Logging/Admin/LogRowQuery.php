@@ -25,7 +25,7 @@ final readonly class LogRowQuery
     private const string ROW_COLUMNS = 'id, ts, level, event, phase, msg, request_id, session_id, actor_type, actor_id, txn_id, duration_ms, data, error';
 
     /** The orphan-group key prefix: a line with no `request_id` groups
-     * alone rather than by `txn_id`. */
+     * alone, not by `txn_id`. */
     private const string LINE_GROUP_PREFIX = 'line:';
 
     /** The orchestrator's healthcheck path — Laravel's built-in `/up`
@@ -169,8 +169,7 @@ final readonly class LogRowQuery
 
     /**
      * One page of groups, newest activity first. Each group opens into its
-     * whole request — every line the request logged, not only the ones
-     * that matched the filter that surfaced it.
+     * whole request: every line the request logged, matched or not.
      *
      * @return list<LogRequestGroup>
      */
@@ -351,8 +350,8 @@ final readonly class LogRowQuery
      * A line's request opened on the healthcheck path, by the same
      * correlation `domainCondition` uses: the request's opening
      * `http.request` will-line's `data.path`. The `CASE` guard answers
-     * `NULL` rather than throwing when `data` is present but not valid
-     * JSON — a line can be stored with text that never parses.
+     * `NULL` when `data` is present but not valid JSON — a line can be
+     * stored with text that never parses.
      */
     private function healthCheckSql(): string
     {
@@ -371,8 +370,8 @@ final readonly class LogRowQuery
      * `http.request` will-line's `data.path`, `/admin/logs` exact or
      * anything under `/admin/logs/` — a segment boundary, so a path like
      * `/admin/logs-export` (were one ever added) would not match. The
-     * `CASE` guard answers `NULL` rather than throwing when `data` is
-     * present but not valid JSON.
+     * `CASE` guard answers `NULL` when `data` is present but not valid
+     * JSON.
      */
     private function viewerRequestSql(): string
     {
@@ -461,7 +460,7 @@ final readonly class LogRowQuery
     /**
      * One page of group keys, newest activity first — `MAX(ts) desc` with
      * the key itself as the tiebreak, both folded in SQL over the whole
-     * filtered set rather than materialized in PHP just to sort and slice.
+     * filtered set, never materialized in PHP just to sort and slice.
      *
      * @return list<string>
      */

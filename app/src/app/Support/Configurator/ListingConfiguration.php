@@ -36,8 +36,8 @@ final readonly class ListingConfiguration
         // axes, no variant) and still price and check stock straight off
         // `listings.price_cents`/`quantity` the way the legacy path does.
         // True here is what makes a combination with no matching variant
-        // (the sparse table's "not offered" cell) refuse as unavailable
-        // rather than silently falling back to that legacy check.
+        // (the sparse table's "not offered" cell) refuse as unavailable;
+        // the legacy check never runs for it.
         public bool $hasVariants,
         public array $axes,
         public array $selectedOptionValueIdsByAxis,

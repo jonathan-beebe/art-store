@@ -9,8 +9,7 @@ namespace App\Logging\Admin;
  * places that read fields off it: the grouped list row
  * (`LogRowQuery::summarizeRequestGroup`) and the story header
  * (`LogStoryHeader::of`). The mirror invariant means a line can be stored
- * with `data` that never parses, so unparsable text answers no fields
- * rather than throwing.
+ * with `data` that never parses, so unparsable text answers no fields.
  */
 final class LogRequestData
 {

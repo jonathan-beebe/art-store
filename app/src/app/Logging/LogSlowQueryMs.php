@@ -10,9 +10,9 @@ use InvalidArgumentException;
  * `LOG_SLOW_QUERY_MS` per docs/spec.md §2.3: a positive integer number
  * of milliseconds, or `"off"` to disable the `query.exceed` line. `parse()`
  * is the one place a raw env string becomes that value; `config/log_store.php`
- * calls it while the config file loads, so a malformed value throws at boot
- * rather than on the first query that would have needed it — the same
- * eager-parse shape as `LogRetentionDays::parse`.
+ * calls it while the config file loads, so a malformed value throws at boot,
+ * before the first query that would need it runs. Same eager-parse shape
+ * as `LogRetentionDays::parse`.
  */
 final readonly class LogSlowQueryMs
 {

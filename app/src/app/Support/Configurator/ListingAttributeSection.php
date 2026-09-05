@@ -9,8 +9,8 @@ use App\Models\Listing;
 use Illuminate\Support\Collection;
 
 /**
- * The seller edit screen's attributes section, read rather than written: one
- * control per grant the listing's current category makes `usable_as_attribute`,
+ * The seller edit screen's attributes section, read-only: one control per
+ * grant the listing's current category makes `usable_as_attribute`,
  * pre-selected from whatever the listing already holds. Shared by
  * {@see \App\Http\Controllers\Seller\ListingController} and
  * {@see \App\Http\Controllers\Seller\ListingAttributeController} so a
