@@ -36,9 +36,9 @@ final class PostMessageRequest extends FormRequest
 
     /**
      * The message a reply quotes, read off the hidden field the composer's
-     * "Reply" link rode in on — an id belonging to another thread is left
-     * for the controller to ignore rather than validated here, the same way
-     * `?reply_to` on the thread's GET route is ignored rather than refused.
+     * "Reply" link rode in on. An id belonging to another thread is left
+     * for the controller to ignore; this class leaves it unvalidated.
+     * `?reply_to` on the thread's GET route is ignored the same way.
      */
     public function replyToMessageId(): ?string
     {

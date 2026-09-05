@@ -102,7 +102,7 @@ enum AnalyticsEventName: string
      * — a listing's or a store's own event-filter segmented control reads
      * this instead of every case, so it offers only the names that page's
      * feed can ever hold. An actor's feed can hold any case, so the actor
-     * page reads {@see cases()} directly rather than through this method.
+     * page reads {@see cases()} directly.
      *
      * @return list<self>
      */

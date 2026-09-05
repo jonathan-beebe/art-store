@@ -32,9 +32,10 @@ final class LedgerController extends Controller
         return view('admin.ledger.index', [
             'entries' => $window->items,
             'entriesTotal' => $window->total,
-            // The filtered set's own balance, not the platform's — a
-            // partial ledger reads as a partial balance. The fold needs
-            // every matching movement, not just the rendered window.
+            // The filtered set's own balance, distinct from the platform's:
+            // a partial ledger reads as a partial balance. The fold reads
+            // every matching movement, regardless of the rendered window's
+            // page size.
             'totals' => LedgerBalance::from(array_values($filtered->get()->map(fn (LedgerEntry $entry): LedgerMovement => $entry->toMovement())->all())),
             'sellers' => Seller::query()->orderedForFilter()->get(),
             'entryTypes' => LedgerEntryType::cases(),

@@ -22,10 +22,11 @@ use Illuminate\Support\Facades\DB;
  */
 final class EventTotals
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * `$search` narrows by event name or label, case-insensitively — the
-     * same free-text box the actor leaderboard reads, applied to what an
-     * event row carries instead of an actor's id, email, or ip.
+     * same free-text box the actor leaderboard reads.
      *
      * @return list<EventTotal>
      */

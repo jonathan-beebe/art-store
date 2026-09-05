@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\DB;
  */
 final class AnalyticsJump
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /** The shortest prefix worth resolving — a shorter one would routinely
      * name more than one row. */
     private const int MIN_ID_LENGTH = 6;
@@ -92,7 +94,7 @@ final class AnalyticsJump
     {
         $identity = ActorIdentity::of($customer);
 
-        return new Jump($customer->id, "{$identity->kind} customer · {$identity->who}", JumpKind::Actor);
+        return new Jump($customer->id, "{$identity->kind->value} customer · {$identity->who}", JumpKind::Actor);
     }
 
     private static function looksLikePrefix(string $q, string $prefix): bool

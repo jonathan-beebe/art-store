@@ -33,10 +33,9 @@ final class CustomerMessageController extends AdminController
         try {
             $rateLimit->check(RateLimitName::ConversationOpen, (string) $admin->id);
         } catch (RateLimitExceeded $exceeded) {
-            // docs/spec.md §3: a form that trips comes back rather than
-            // being replaced by the site's bare 429 page, so the customer
-            // page the form sits on re-renders with the message still in the
-            // box.
+            // docs/spec.md §3: a form that trips comes back on its own page
+            // at 429, so the customer page the form sits on re-renders with
+            // the message still in the box.
             $request->flash();
 
             return $this->tooManyRequests($exceeded, 'admin.customers.show', $this->customerPage($customer));

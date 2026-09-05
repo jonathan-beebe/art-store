@@ -12,6 +12,8 @@ namespace App\Logging\Admin;
  */
 final class LogJson
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     public static function pretty(string $text): string
     {
         $decoded = json_decode($text);

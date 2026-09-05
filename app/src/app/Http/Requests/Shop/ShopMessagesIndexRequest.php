@@ -11,8 +11,8 @@ use Illuminate\Validation\Rule;
 
 /**
  * `/messages`'s two filter pills — docs/spec.md §5: an empty value
- * means "all", an unrecognised one answers 400 rather than the framework's
- * default validation redirect.
+ * means "all". An unrecognised one answers a bare 400; the framework's
+ * default validation redirect never fires.
  */
 final class ShopMessagesIndexRequest extends ShopRequest
 {
@@ -27,8 +27,8 @@ final class ShopMessagesIndexRequest extends ShopRequest
         ];
     }
 
-    /** An empty value — a cleared query parameter — reads as absent rather
-     * than as a value the rules above would otherwise have to admit. */
+    /** An empty value — a cleared query parameter — reads as absent, so the
+     * rules above never have to admit it as a value. */
     protected function prepareForValidation(): void
     {
         $blanked = array_map(

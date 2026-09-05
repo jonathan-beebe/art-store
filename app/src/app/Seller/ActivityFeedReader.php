@@ -12,8 +12,9 @@ use App\Domain\Seller\ActivityFeed;
  * `App\Providers\ActivityFeedServiceProvider` binds them in — so a page
  * reading the same scope twice reads the same feed.
  *
- * A filter narrows what the pure feed hands back, never what the sources
- * return, so a page can never disagree with itself about what happened.
+ * A filter narrows what the merged feed shows. The sources themselves
+ * always return their full set, so a page can never disagree with itself
+ * about what happened.
  */
 final readonly class ActivityFeedReader
 {

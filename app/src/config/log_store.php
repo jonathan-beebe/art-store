@@ -19,8 +19,8 @@ use App\Support\RetentionDays;
 | database query's elapsed time must pass to write a query.exceed line
 | (docs/spec.md §2.3; "off" disables the line). This file loads on
 | every boot, so a malformed value RetentionDays::parse() or
-| LogSlowQueryMs::parse() cannot read refuses the process before it answers
-| a request rather than on the sweep or query that would have needed it.
+| LogSlowQueryMs::parse() cannot read refuses the process at boot, before
+| any sweep or query needs it.
 |
 */
 

@@ -10,6 +10,8 @@ namespace App\Support;
  */
 final class Contrast
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * The WCAG contrast ratio between two colors, 1.0 through 21.0.
      */

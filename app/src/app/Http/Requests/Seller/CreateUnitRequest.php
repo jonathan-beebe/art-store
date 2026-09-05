@@ -14,12 +14,12 @@ use Illuminate\Validation\Rule;
 use RuntimeException;
 
 /**
- * `specs` arrives as labeled measurement rows (`specs[0][label]`,
- * `specs[0][value]`, …) rather than named fields, because what a unit
- * measures differs by listing (height for a candlestick, weight for a
+ * `specs` arrives as a list of labeled measurement rows (`specs[0][label]`,
+ * `specs[0][value]`, …): each row pairs a label with a value because what a
+ * unit measures differs by listing (height for a candlestick, weight for a
  * vintage lot) — the same reason `units.specs_json` itself is schemaless.
- * Blank rows are how a seller leaves a measurement unused; they drop out
- * rather than becoming empty spec entries.
+ * Blank rows are how a seller leaves a measurement unused, so they drop
+ * out and never become empty spec entries.
  */
 final class CreateUnitRequest extends FormRequest
 {
@@ -66,9 +66,9 @@ final class CreateUnitRequest extends FormRequest
 
     /**
      * Folds the labeled rows into the assoc array `AddUnit`/`UpdateUnit`
-     * store as `specs_json` — a row missing either half of the pair
-     * contributes nothing, and a set with no complete row at all comes back
-     * `null` rather than an empty array.
+     * store as `specs_json`. A row missing either half of the pair
+     * contributes nothing. A set with no complete row at all comes back
+     * `null`, never an empty array.
      *
      * @return array<string, string>|null
      */

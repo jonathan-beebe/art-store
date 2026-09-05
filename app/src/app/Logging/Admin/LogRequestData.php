@@ -13,6 +13,8 @@ namespace App\Logging\Admin;
  */
 final class LogRequestData
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return array<array-key, mixed>
      */

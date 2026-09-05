@@ -14,8 +14,8 @@ use App\Support\RetentionDays;
 | is useful for isolating a bad actor. ANALYTICS_RETENTION_DAYS bounds how
 | long a row survives before the maintenance sweep prunes it ("off"
 | disables pruning). This file loads on every boot, so a malformed value
-| RetentionDays::parse() cannot read refuses the process before it answers
-| a request rather than on the sweep that would have needed it.
+| RetentionDays::parse() cannot read refuses the process at boot, before
+| any sweep needs it.
 |
 */
 

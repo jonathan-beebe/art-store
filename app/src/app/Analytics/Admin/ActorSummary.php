@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Domain\Analytics\ActorKind;
 use DateTimeImmutable;
 
 /**
@@ -20,7 +21,7 @@ final readonly class ActorSummary
      */
     public function __construct(
         public string $id,
-        public string $kind,
+        public ActorKind $kind,
         public string $who,
         public array $ips,
         public int $events,

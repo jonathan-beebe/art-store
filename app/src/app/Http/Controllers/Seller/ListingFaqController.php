@@ -33,10 +33,9 @@ final class ListingFaqController extends SellerController
 
         // The disclosure this form sits in (docs/messaging.md § "Open and
         // resolved": publishing an FAQ is one of the two things that
-        // resolves a thread) carries the thread it was opened from, so the
-        // seller lands back on it — with the answer out — rather than on
-        // the listing's own FAQ page, which offers the same form with no
-        // thread behind it.
+        // resolves a thread) carries the thread it was opened from. The
+        // seller lands back on that thread, with the answer out. The
+        // listing's own FAQ page offers the same form standalone.
         $conversation = $request->conversation();
 
         if ($conversation !== null) {

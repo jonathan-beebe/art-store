@@ -17,9 +17,9 @@ use Illuminate\Validation\Rule;
 use RuntimeException;
 
 /**
- * One sparse variant row: one option value per axis, picked from a select per
- * axis rather than a free-text combination — the form behind "the seller
- * creates only the combinations that actually sell".
+ * One sparse variant row: one option value per axis, picked from a select
+ * per axis. This is the form behind "the seller creates only the
+ * combinations that actually sell".
  */
 final class CreateVariantRequest extends FormRequest
 {

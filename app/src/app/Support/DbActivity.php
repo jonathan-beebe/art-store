@@ -21,6 +21,8 @@ use Illuminate\Database\Events\QueryExecuted;
  */
 final class DbActivity
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     private static int $queries = 0;
 
     private static float $totalMs = 0.0;

@@ -11,7 +11,7 @@ return new class extends Migration
     /**
      * A row here is the marker `php artisan seed:activity` checks before it
      * runs: one row means the command has already filled the store with a
-     * ramp of activity, and a second run refuses rather than doubling it.
+     * ramp of activity, so a second run refuses to add another.
      */
     public function up(): void
     {

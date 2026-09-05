@@ -14,9 +14,9 @@ use Illuminate\Database\Seeder;
 /**
  * A small believable category tree — enough to host the eight configurator
  * archetypes — with the properties each category grants and how
- * (attribute, axis, required). Reference data: written directly rather than
- * through an action, the way the rest of the app's config-only rows
- * are (docs/architecture.md's model-layer writes).
+ * (attribute, axis, required). Reference data: written directly, the way
+ * the rest of the app's config-only rows are (docs/architecture.md's
+ * model-layer writes).
  */
 class TaxonomySeeder extends Seeder
 {

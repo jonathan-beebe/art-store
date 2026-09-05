@@ -25,7 +25,7 @@ final class OrderPlacementRefused extends DomainRuleViolation implements Carries
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{blocked: list<array{listing_id: string, title: string, reason: string}>}
      */
     public function refusalData(): array
     {

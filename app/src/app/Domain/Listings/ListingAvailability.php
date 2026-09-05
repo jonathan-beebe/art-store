@@ -28,9 +28,9 @@ final class ListingAvailability
     }
 
     /**
-     * The status half of {@see isOnStorefront}, as a set a `where` clause can
-     * hold: a page that turns many rows into visible listings asks the
-     * question of the whole set at once rather than once per row.
+     * The status half of {@see isOnStorefront}, as a set a `where` clause
+     * can hold. A page that turns many rows into visible listings asks
+     * this question once, for the whole set.
      *
      * @return list<ListingStatus>
      */

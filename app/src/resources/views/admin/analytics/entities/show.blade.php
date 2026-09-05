@@ -11,9 +11,9 @@
     $badgeTint = $activity->kind === 'verified' ? 'ok' : 'neutral';
 
     $otherHref = fn (\App\Analytics\Admin\EntityFeedRow $row): string => match ($row->otherKind) {
-        'listing' => route('admin.analytics.listings.show', ['listing' => $row->otherId]),
-        'order' => route('admin.orders.show', ['order' => $row->otherId]),
-        'store' => route('admin.analytics.stores.show', ['store' => $row->otherId]),
+        \App\Domain\Analytics\FeedOtherKind::Listing => route('admin.analytics.listings.show', ['listing' => $row->otherId]),
+        \App\Domain\Analytics\FeedOtherKind::Order => route('admin.orders.show', ['order' => $row->otherId]),
+        \App\Domain\Analytics\FeedOtherKind::Store => route('admin.analytics.stores.show', ['store' => $row->otherId]),
         default => route('admin.analytics.actors.show', ['customer' => $row->otherId]),
     };
 @endphp
@@ -164,7 +164,7 @@
                                         @else
                                             <span class="font-medium text-stone-900 dark:text-stone-100">{{ $row->otherLabel }}</span>
                                         @endif
-                                        @unless ($row->otherKind === 'help_article')
+                                        @unless ($row->otherKind->isHelpArticle())
                                             <x-admin.log-id-chip :id="$row->otherId" />
                                         @endunless
                                         @if ($row->listingTitles !== [])

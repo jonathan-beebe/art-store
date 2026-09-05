@@ -10,8 +10,8 @@ use Illuminate\Auth\Access\Response;
 
 /**
  * A cart line belongs to one customer's one cart. Another customer's line
- * answers "not found" rather than "forbidden", so an id outside a visitor's
- * own cart is never confirmed to exist.
+ * answers "not found", never "forbidden", so an id outside a visitor's own
+ * cart is never confirmed to exist.
  */
 final class CartItemPolicy
 {

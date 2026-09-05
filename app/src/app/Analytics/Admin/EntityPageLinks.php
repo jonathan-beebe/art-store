@@ -13,8 +13,7 @@ use App\Domain\Analytics\AnalyticsRange;
  * {@see AnalyticsRange::SIZES} or per event name, every other query
  * parameter carried through unchanged. `$routeName` and `$paramKey` name
  * the page's own route and the id its URI binds under, so one pair of
- * builders serves every entity page rather than each controller writing
- * its own copy.
+ * builders serves every entity page.
  */
 final class EntityPageLinks
 {

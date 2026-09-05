@@ -15,6 +15,6 @@ Artisan::command('inspire', function (): void {
 Schedule::command('payouts:run')->weeklyOn(1, '02:00');
 
 // An abandoned checkout holds its stock off the storefront until the sweep
-// takes it back, so the sweep runs often enough that the wait is measured in
-// minutes past the cutoff rather than hours.
+// takes it back, so the sweep runs often enough that the wait past the
+// cutoff stays in minutes.
 Schedule::command('orders:sweep')->hourly();

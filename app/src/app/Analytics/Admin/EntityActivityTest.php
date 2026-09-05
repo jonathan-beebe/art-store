@@ -9,6 +9,7 @@ use App\Analytics\AnalyticsEvent;
 use App\Analytics\AnalyticsVisit;
 use App\Domain\Analytics\AnalyticsEventName;
 use App\Domain\Analytics\AnalyticsRange;
+use App\Domain\Analytics\FeedOtherKind;
 use App\Http\Middleware\LogRequestStory;
 use App\Models\CustomerMerge;
 use App\Models\Favorite;
@@ -346,7 +347,7 @@ it('names an order subject "order {id}" on an actor\'s feed, linked, with its li
 
     expect($view->feed)->toHaveCount(1)
         ->and($view->feed[0]->otherLabel)->toBe("order {$order->id}")
-        ->and($view->feed[0]->otherKind)->toBe('order')
+        ->and($view->feed[0]->otherKind)->toBe(FeedOtherKind::Order)
         ->and($view->feed[0]->otherId)->toBe($order->id)
         ->and($view->feed[0]->otherExists)->toBeTrue()
         ->and($view->feed[0]->listingTitles)->toBe(['Starry Night', 'Snowy Owl']);
@@ -374,7 +375,7 @@ it('names a cart subject "cart {id}" on an actor\'s feed, unlinked, with its lis
 
     expect($view->feed)->toHaveCount(1)
         ->and($view->feed[0]->otherLabel)->toBe("cart {$cart->id}")
-        ->and($view->feed[0]->otherKind)->toBe('cart')
+        ->and($view->feed[0]->otherKind)->toBe(FeedOtherKind::Cart)
         ->and($view->feed[0]->otherId)->toBe($cart->id)
         ->and($view->feed[0]->otherExists)->toBeFalse()
         ->and($view->feed[0]->listingTitles)->toBe(['Starry Night', 'Snowy Owl']);
@@ -400,7 +401,7 @@ it('names a store subject on an actor\'s feed, linked, by the store\'s name, wit
         ->and($view->feed[0]->name)->toBe('store.view')
         ->and($view->feed[0]->verb)->toBe('opened')
         ->and($view->feed[0]->otherLabel)->toBe('Weasleys\' Wizard Wheezes')
-        ->and($view->feed[0]->otherKind)->toBe('store')
+        ->and($view->feed[0]->otherKind)->toBe(FeedOtherKind::Store)
         ->and($view->feed[0]->otherId)->toBe($profile->id)
         ->and($view->feed[0]->otherExists)->toBeTrue()
         ->and($view->feed[0]->listingTitles)->toBe([]);
@@ -453,7 +454,7 @@ it('names a help article subject "article {slug}" on an actor\'s feed, unlinked,
         ->and($view->feed[0]->name)->toBe('help.answered')
         ->and($view->feed[0]->verb)->toBe('marked an article helpful')
         ->and($view->feed[0]->otherLabel)->toBe('article printing-a-label-from-an-order')
-        ->and($view->feed[0]->otherKind)->toBe('help_article')
+        ->and($view->feed[0]->otherKind)->toBe(FeedOtherKind::HelpArticle)
         ->and($view->feed[0]->otherId)->toBe('printing-a-label-from-an-order')
         ->and($view->feed[0]->otherExists)->toBeFalse()
         ->and($view->feed[0]->listingTitles)->toBe([]);
@@ -488,7 +489,7 @@ it('names an anonymous actor "Anonymous visitor" on a listing\'s feed', function
 
     expect($view->feed)->toHaveCount(1)
         ->and($view->feed[0]->otherLabel)->toBe('Anonymous visitor')
-        ->and($view->feed[0]->otherKind)->toBe('actor')
+        ->and($view->feed[0]->otherKind)->toBe(FeedOtherKind::Actor)
         ->and($view->feed[0]->otherId)->toBe($customer->id);
 });
 

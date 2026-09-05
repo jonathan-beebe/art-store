@@ -15,8 +15,8 @@ use Illuminate\Validation\Rule;
  * `/admin/analytics`'s query parameters — docs/spec.md §5: an empty
  * value means "all", an unrecognised one answers 400. The same explicit
  * validate-then-400 shape {@see LogsQueryRequest} uses, since
- * `$request->enum()`/`->integer()` both read a bad value as absent rather
- * than refusing it.
+ * `$request->enum()`/`->integer()` both read a bad value as absent and
+ * never refuse it directly.
  */
 final class AnalyticsQueryRequest extends FormRequest
 {
@@ -47,8 +47,9 @@ final class AnalyticsQueryRequest extends FormRequest
         $this->merge($blanked);
     }
 
-    /** docs/spec.md §5: an unrecognised filter value answers 400 —
-     * not the framework's default redirect back with flashed errors. */
+    /** docs/spec.md §5: an unrecognised filter value answers a bare 400.
+     * The framework's default redirect back with flashed errors never
+     * fires. */
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response('', 400));

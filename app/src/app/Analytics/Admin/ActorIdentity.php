@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Analytics\Admin;
 
+use App\Domain\Analytics\ActorKind;
 use App\Models\Customer;
 
 /**
@@ -16,7 +17,7 @@ use App\Models\Customer;
 final readonly class ActorIdentity
 {
     private function __construct(
-        public string $kind,
+        public ActorKind $kind,
         public string $who,
     ) {}
 
@@ -25,7 +26,7 @@ final readonly class ActorIdentity
         $verified = $customer->isVerified();
 
         return new self(
-            $verified ? 'verified' : 'anonymous',
+            $verified ? ActorKind::Verified : ActorKind::Anonymous,
             $verified && $customer->email !== null ? $customer->email : 'never signed in',
         );
     }

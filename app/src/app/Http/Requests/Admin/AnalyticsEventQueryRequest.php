@@ -51,8 +51,9 @@ final class AnalyticsEventQueryRequest extends FormRequest
         $this->merge($blanked);
     }
 
-    /** docs/spec.md §5: an unrecognised filter value answers 400 —
-     * not the framework's default redirect back with flashed errors. */
+    /** docs/spec.md §5: an unrecognised filter value answers a bare 400.
+     * The framework's default redirect back with flashed errors never
+     * fires. */
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response('', 400));

@@ -30,6 +30,8 @@ use Illuminate\Support\Collection;
  */
 final class CategoryBrowse
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * @return list<array{category: Category, count: int, coverUrl: ?string}>
      */

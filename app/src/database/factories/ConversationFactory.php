@@ -87,8 +87,8 @@ class ConversationFactory extends Factory
      * Builds the row a given fulfillment subject already names, so a test
      * that overrides a participant column (`->forSubject($subject)->create(['seller_id' =>
      * $seller->id])` with the subject built from that same seller) writes a
-     * `subject_key` that agrees with the columns rather than one a later
-     * override contradicts. Fulfillment is the only kind with a `subject_key`
+     * `subject_key` that agrees with the columns, so a later override never
+     * contradicts it. Fulfillment is the only kind with a `subject_key`
      * to keep consistent this way — the other three states above set their
      * own columns directly, since a fresh thread's `subject_key` is always
      * null regardless of which participant a test overrides.

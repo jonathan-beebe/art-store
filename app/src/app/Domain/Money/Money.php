@@ -22,8 +22,9 @@ final readonly class Money implements Stringable
     }
 
     /**
-     * Reads the dollars-and-cents string a price field submits. String parsing
-     * rather than a float multiply so a large price keeps every cent.
+     * Reads the dollars-and-cents string a price field submits. Parsing the
+     * string directly keeps every cent. A float multiply loses cents on a
+     * large price.
      */
     public static function fromDollars(string $dollars): self
     {

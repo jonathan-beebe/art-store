@@ -12,9 +12,10 @@ use App\Domain\DomainRuleViolation;
  * option value would silently leave a variant with a gap in its axis
  * coverage, or a stale price nobody chose any more; nulling a variant's id
  * out of a cart or order row (the foreign key is nullable, not restricting)
- * would silently reprice that row as unconfigured. Deleting any of the three
- * is refused instead while the dependent row still exists, the same way a
- * sale a listing's stock cannot cover is refused rather than let negative.
+ * would silently reprice that row as unconfigured. Deleting any of the
+ * three is refused while the dependent row still exists. The same rule
+ * refuses a sale a listing's stock cannot cover, keeping stock at zero or
+ * above.
  */
 final class ConfiguratorDeletionGuard
 {

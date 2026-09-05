@@ -14,8 +14,8 @@ use App\Domain\Analytics\BarStripBar;
  * for both entity kinds — `$kind` is `listing` for a listing page,
  * `anonymous` or `verified` for an actor page, the same vocabulary
  * {@see ActorIdentity::of()} and the admin chrome's badge tints use
- * elsewhere. `$visits` is empty for a listing — a visit belongs to a
- * session, not to a listing.
+ * elsewhere. `$visits` is empty for a listing; a visit belongs to a
+ * session.
  */
 final readonly class EntityActivityView
 {

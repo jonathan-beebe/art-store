@@ -81,9 +81,9 @@ final class MessageController extends AdminController
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $admin->id);
         } catch (RateLimitExceeded $exceeded) {
-            // docs/spec.md §3: a form that trips comes back rather than
-            // being replaced by the site's bare 429 page, so the thread the
-            // admin was reading re-renders with the reply still in the box.
+            // docs/spec.md §3: a form that trips comes back on its own page
+            // at 429, so the thread the admin was reading re-renders with
+            // the reply still in the box.
             $request->flash();
 
             $pane = $this->paneFor($domain, $conversation);
@@ -168,7 +168,7 @@ final class MessageController extends AdminController
     }
 
     /** `?reply_to` on the thread's GET route — a blank or absent value is
-     * no reply target, not an id to look up. */
+     * no reply target. */
     private function queryReplyTo(Request $request): ?string
     {
         $value = $request->string('reply_to')->toString();
@@ -178,9 +178,9 @@ final class MessageController extends AdminController
 
     /**
      * The message a reply quotes, from either the "Reply" link's `?reply_to`
-     * query parameter or the composer's hidden field — an id naming a
-     * message from another thread, or no message at all, is ignored rather
-     * than refused (docs/messaging.md § "Replying to a message").
+     * query parameter or the composer's hidden field. An id naming a
+     * message from another thread, or no message at all, is ignored
+     * (docs/messaging.md § "Replying to a message").
      */
     private function replyTo(Conversation $conversation, ?string $messageId): ?Message
     {

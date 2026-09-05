@@ -8,9 +8,9 @@ declare(strict_types=1);
 |--------------------------------------------------------------------------
 |
 | The single source of truth for the storefront's visual language. Every
-| color is a semantic role, not a raw palette entry: storefront views only
-| ever say `bg-canvas` or `text-ink-muted`, and this file decides what
-| those mean — in light and in dark. Seller and admin views style
+| color is a semantic role: storefront views only ever say `bg-canvas` or
+| `text-ink-muted`, and this file decides what those mean — in light and
+| in dark. Seller and admin views style
 | themselves in raw Tailwind and stay outside this contract. `App\Support\DesignTokens`
 | turns this file into the CSS custom properties every layout emits
 | (`<x-theme-css />`), and `resources/css/app.css` maps Tailwind utilities
@@ -80,7 +80,7 @@ return [
         'notice-line' => ['light' => '#e2c895', 'dark' => '#5c4726', 'group' => 'status', 'role' => 'Warning panel border'],
 
         // Tints — object colors for category tiles and avatars. The same
-        // in both modes: they color things, not chrome.
+        // in both modes: they color these objects, never the app's chrome.
         'tint-1' => ['light' => '#d99a6c', 'dark' => '#d99a6c', 'group' => 'tint', 'role' => 'Category and avatar fill'],
         'tint-2' => ['light' => '#c9b28a', 'dark' => '#c9b28a', 'group' => 'tint', 'role' => 'Category and avatar fill'],
         'tint-3' => ['light' => '#b9895f', 'dark' => '#b9895f', 'group' => 'tint', 'role' => 'Category and avatar fill'],

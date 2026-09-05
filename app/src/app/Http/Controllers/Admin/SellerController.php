@@ -28,8 +28,8 @@ final class SellerController extends Controller
         return view('admin.sellers.index', [
             'sellers' => $window->items,
             'sellersTotal' => $window->total,
-            // One read of the whole ledger, folded per seller, rather than a
-            // balance query for each row on the page.
+            // One read of the whole ledger, folded per seller. This avoids
+            // a balance query for each row on the page.
             'balances' => LedgerEntry::balancesBySeller(),
         ]);
     }

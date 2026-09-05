@@ -23,8 +23,9 @@ abstract class ShopController extends Controller
     }
 
     /**
-     * The visitor is resolved by middleware rather than signed in on a guard,
-     * so every storefront gate check names them instead of reading one.
+     * Middleware resolves the visitor; no auth guard tracks them. Every
+     * storefront gate check passes the visitor to `Gate::forUser()`
+     * explicitly.
      */
     protected function authorizeVisitor(string $ability, mixed $subject): void
     {

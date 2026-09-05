@@ -13,8 +13,8 @@ return new class extends Migration
         Schema::create('sessions', function (Blueprint $table): void {
             $table->string('id')->primary();
             // The framework's own table keeps the framework's key, but the
-            // signed-in actor it records is one of ours, so the column holds a
-            // prefixed id rather than an autoincrement key.
+            // signed-in actor it records is one of ours, so the column holds
+            // a prefixed id.
             $table->string('user_id', 30)->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();

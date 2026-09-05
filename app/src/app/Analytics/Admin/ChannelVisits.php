@@ -24,6 +24,8 @@ use stdClass;
  */
 final class ChannelVisits
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     public static function forRange(AnalyticsRange $range, string $channelKey, int $page, int $perPage = 25): ?ChannelVisitsPage
     {
         // Every visit in the range is read into PHP before the derived key

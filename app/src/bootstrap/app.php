@@ -29,9 +29,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
     // sidecar test beside each listener is one of them. AppServiceProvider
     // names the event/listener pairs instead.
     ->withEvents(discover: false)
-    // Named explicitly rather than left to the default directory scan:
-    // `App\Console\Kernel` (bound below) is what turns that scan off, and
-    // this is what fills the gap it leaves — see the class's docblock.
+    // Named explicitly here, since `App\Console\Kernel` (bound below) turns
+    // that scan off, and this is what fills the gap it leaves — see the
+    // class's docblock.
     ->withCommands([RunWeeklyPayouts::class, SweepOrders::class, SeedActivity::class, MintMcpKey::class])
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -44,17 +44,18 @@ $app = Application::configure(basePath: dirname(__DIR__))
         // requests the log has to account for.
         $middleware->prepend(LogRequestStory::class);
 
-        // Global rather than the `web` group, for the same reason: a route
-        // that matches nothing still answers with every header docs/
-        // spec.md's security-headers section names, the way its 404
-        // already carries `X-Request-Id` from the middleware above.
+        // Applied to every route, including ones outside the `web` group,
+        // for the same reason: a route that matches nothing still answers
+        // with every header docs/spec.md's security-headers section names,
+        // the way its 404 already carries `X-Request-Id` from the
+        // middleware above.
         $middleware->append(SecurityHeaders::class);
 
         // Global for the same reason again: a hit against any of the three
         // sites rolls up, and a route that matches nothing is counted
-        // against nothing. Terminable rather than answered from `handle()`
-        // — the write happens after the response has already gone back, so
-        // it costs the roll-up nothing on the request it counts.
+        // against nothing. Its write happens in `terminate()`, after the
+        // response has already gone back, so it costs the roll-up nothing
+        // on the request it counts.
         $middleware->append(RollUpPageViews::class);
 
         // Appended to the group instead, because the `sid` cookie is only
@@ -134,8 +135,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
         });
 
         // The response to a request that threw is built past the middleware
-        // that opened it, so the id that finds the request's log lines is
-        // stamped on it here rather than there.
+        // that opened it, so this handler stamps the id that finds the
+        // request's log lines onto the new response itself.
         $exceptions->respond(function (Response $response, Throwable $error, Request $request): Response {
             $requestId = $request->attributes->get(LogRequestStory::REQUEST_ID_ATTRIBUTE);
 

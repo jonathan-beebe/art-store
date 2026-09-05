@@ -10,8 +10,8 @@ use InvalidArgumentException;
  * The `<count>/<window>` shape docs/spec.md §3 gives every rate limit's
  * env variable, or `"off"` to disable it. `parse()` is the one place a raw
  * env string becomes a budget; `config/rate_limits.php` calls it while the
- * config file loads, so a malformed value throws at boot rather than on the
- * first request that would have needed it.
+ * config file loads, so a malformed value throws at boot, before any
+ * request needs it.
  */
 final readonly class RateLimitValue
 {

@@ -40,8 +40,8 @@ final class OrderPaymentController extends ShopController
             return $this->tooManyRequests($exceeded, 'shop.pay', $this->viewData($order));
         } catch (OrderPlacementRefused $refusal) {
             // A card sat declined long enough that a listing this order held
-            // went stale in the meantime: the pay page names it the same way
-            // checkout would have, rather than a generic failure.
+            // went stale in the meantime. The pay page names that listing
+            // the same way checkout would have.
             return response()->view('shop.pay', $this->viewData($order->refresh(), $refusal->blocked), 422);
         }
 

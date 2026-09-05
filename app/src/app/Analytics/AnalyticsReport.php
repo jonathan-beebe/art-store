@@ -22,6 +22,8 @@ use stdClass;
  */
 final class AnalyticsReport
 {
+    private function __construct() {} // @codeCoverageIgnore
+
     /**
      * How many views, favorites, and cart-adds one listing has recorded —
      * the seller and admin listing-detail pages' source.

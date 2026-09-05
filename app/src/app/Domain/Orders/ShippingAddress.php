@@ -17,8 +17,8 @@ final readonly class ShippingAddress
     ) {}
 
     /**
-     * Seven strings in a row transpose without a word of complaint, so the one
-     * way in takes them by name.
+     * Seven string parameters share the same type, so a positional call can
+     * transpose two unnoticed. The named factory takes each one by name.
      */
     public static function to(
         string $name,

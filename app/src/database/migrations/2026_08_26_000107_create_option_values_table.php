@@ -14,8 +14,8 @@ return new class extends Migration
             $table->string('id', 30)->primary();
             $table->foreignUlid('axis_id', 30)->constrained('option_axes')->cascadeOnDelete();
             $table->foreignUlid('seller_id', 30)->constrained()->cascadeOnDelete();
-            // Null for a custom axis, which enumerates its own labels rather
-            // than pointing at the property-value catalog.
+            // Null for a custom axis, which enumerates its own labels
+            // and skips the property-value catalog.
             $table->foreignUlid('property_value_id', 30)->nullable()->constrained()->nullOnDelete();
             $table->string('label');
             $table->integer('surcharge_cents')->default(0);
@@ -28,8 +28,9 @@ return new class extends Migration
             $table->unsignedInteger('position')->default(0);
             $table->timestamps();
 
-            // "At most one default per axis" is the action's rule, not a
-            // partial unique index here — SQLite has no partial unique index.
+            // "At most one default per axis" is the action's rule. SQLite
+            // has no partial unique index, so the schema does not enforce
+            // it here.
             $table->index('axis_id');
             $table->index('seller_id');
         });

@@ -47,9 +47,9 @@ class AppServiceProvider extends ServiceProvider
         Model::shouldBeStrict(! $this->app->isProduction());
 
         // A notification or a message names its recipient or sender by one
-        // of these three words rather than a class string, so
-        // `notifications.notifiable_type` and `messages.sender_type` read the
-        // way the domain talks and survive a class moving.
+        // of these three fixed words, so `notifications.notifiable_type` and
+        // `messages.sender_type` read the way the domain talks and survive a
+        // class moving.
         Relation::enforceMorphMap([
             ActorType::Seller->value => Seller::class,
             ActorType::Customer->value => Customer::class,
@@ -57,7 +57,7 @@ class AppServiceProvider extends ServiceProvider
         ]);
 
         // The inbox rows are the framework's model, so the policy that guards
-        // them is registered rather than discovered.
+        // them is registered explicitly.
         Gate::policy(DatabaseNotification::class, NotificationPolicy::class);
         Gate::policy(ApiKey::class, ApiKeyPolicy::class);
 
@@ -77,9 +77,9 @@ class AppServiceProvider extends ServiceProvider
         View::composer('components.layouts.seller-focused', SellerLayoutComposer::class);
         View::composer('components.layouts.admin', AdminLayoutComposer::class);
 
-        // The storefront visitor is resolved by middleware rather than signed
-        // in on a guard, so `@can` has no user to read there. `@visitorCan`
-        // asks the same policies about the visitor the request carries.
+        // The storefront visitor is resolved by middleware. No guard signs
+        // them in, so `@can` has no user to read there. `@visitorCan` asks
+        // the same policies about the visitor the request carries.
         Blade::if('visitorCan', function (string $ability, mixed $subject): bool {
             $visitor = CustomerIdentity::current();
 

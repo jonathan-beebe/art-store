@@ -16,8 +16,8 @@ final readonly class Purchaser
     ) {}
 
     /**
-     * The purchaser their account already describes, with no form field in
-     * play — a re-paid order, a seeded history, a test fixture.
+     * The purchaser as their account already describes them: a re-paid
+     * order, a seeded history, a test fixture.
      */
     public static function onAccount(string $customerId, ?string $email, ?DateTimeImmutable $emailVerifiedAt): self
     {
@@ -25,8 +25,9 @@ final readonly class Purchaser
     }
 
     /**
-     * A verified customer buys under the address on their account, so a
-     * submitted field cannot move an order onto someone else's identity.
+     * A verified customer buys under their account's verified email,
+     * keeping the order under that identity regardless of what the
+     * checkout form submits.
      */
     public static function forCheckout(
         string $customerId,

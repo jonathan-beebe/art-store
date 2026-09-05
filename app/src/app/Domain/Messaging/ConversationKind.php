@@ -10,9 +10,9 @@ use App\Domain\Auth\ActorType;
  * Four pairings share one message store. Every kind has exactly two
  * participants, which is what makes one `read_at` per message unambiguous:
  * the reader is always the participant who did not send it. On the two
- * support kinds one side is the desk — every admin, collectively — rather
- * than one admin row, so `admin_id` records who first answered rather than
- * gating participation.
+ * support kinds, one side is the desk: every admin, collectively, holds
+ * that role. `admin_id` records who first answered. Every admin keeps the
+ * ability to participate afterward.
  */
 enum ConversationKind: string
 {
@@ -37,7 +37,8 @@ enum ConversationKind: string
 
     /**
      * The `conversations` column naming the subject a fulfillment thread's
-     * `subject_key` is keyed by — the one kind that finds rather than opens.
+     * `subject_key` is keyed by. Fulfillment is the one kind that finds an
+     * existing thread instead of opening a new one.
      */
     public function subjectColumn(): ?string
     {
@@ -76,8 +77,7 @@ enum ConversationKind: string
     }
 
     /**
-     * The two support kinds, where one side is every admin collectively
-     * rather than one participant row.
+     * The two support kinds, where one side is every admin collectively.
      */
     public function isDesk(): bool
     {

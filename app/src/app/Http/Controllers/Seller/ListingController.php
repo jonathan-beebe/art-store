@@ -156,7 +156,7 @@ final class ListingController extends SellerController
 
         // One read of the seller's rows serves both the workspace behind
         // the overlay and the opened listing's own detail, so a listing's
-        // sold, revenue, and ranged counts are read once, not twice.
+        // sold, revenue, and ranged counts are read exactly once.
         $rows = RowSort::apply($sort, ListingTable::forSeller($this->seller(), $range), fn (ListingTableRow $row): string => $row->id);
         $detail = $this->detailData($listing, $range, self::rowFor($rows, $listing, $range));
 
