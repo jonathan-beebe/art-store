@@ -9,7 +9,9 @@
             <h2 id="minted-heading" class="font-semibold text-amber-900 dark:text-amber-200">Your new key</h2>
             <p class="mt-1 text-amber-900 dark:text-amber-200">Copy it now. It will not be shown again.</p>
             <output class="mt-2 block select-all overflow-x-auto rounded bg-white dark:bg-stone-900 px-3 py-2 font-mono text-sm text-stone-900 dark:text-stone-100">{{ $mintedKey }}</output>
-            <p class="mt-2 text-sm text-amber-900 dark:text-amber-200">Connect Claude Code with <code class="font-mono">claude mcp add --transport http art-store {{ route('mcp') }} --header "Authorization: Bearer &lt;key&gt;"</code></p>
+            <p class="mt-3 text-sm text-amber-900 dark:text-amber-200">Connect Claude Code with:</p>
+            <pre class="mt-1 overflow-x-auto rounded bg-white dark:bg-stone-900 px-3 py-2 font-mono text-sm text-stone-900 dark:text-stone-100"><code>claude mcp add --transport http art-store {{ route('mcp') }} \
+  --header "Authorization: Bearer {{ $mintedKey }}"</code></pre>
         </section>
     @endif
 
