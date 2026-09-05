@@ -86,9 +86,9 @@ final class UnitController extends SellerController
             'counts' => UnitStateCounts::tally($units),
             'pieces' => $units->map(fn (Unit $unit): array => self::piece($unit, $combinationPrice)),
             'editingUnitId' => $editingUnitId,
-            // Opens on the exact combination this screen manages rather than
-            // the listing's own defaults; a live change in the panel then
-            // round-trips on this URL and overrides it (IMPRV-015).
+            // Opens on the exact combination this screen manages. A live
+            // change in the panel round-trips on this URL and overrides it
+            // (IMPRV-015).
             'buyerViewInput' => ConfiguratorInput::fromQuery($request ?? request(), self::axisSelections($variant), null, 1),
         ];
     }
@@ -126,9 +126,8 @@ final class UnitController extends SellerController
     }
 
     /**
-     * The axis selections that pick this exact combination, so the buyer-view
-     * panel resolves to the same pieces this screen manages rather than the
-     * listing's default choices.
+     * The axis selections that pick this exact combination. The buyer-view
+     * panel resolves to the same pieces this screen manages.
      *
      * @return array<string, string>
      */

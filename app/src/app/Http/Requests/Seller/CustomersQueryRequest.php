@@ -100,10 +100,9 @@ final class CustomersQueryRequest extends SellerQueryRequest
 
     /**
      * The page of fifty the seller asked for, off `$totalCount` matching
-     * buyers. A page past the end refuses rather than clamping to the
-     * last one, the way `Page::of()`'s own admin callers do — the table
-     * has nothing sane to fall back to when the page asked for holds no
-     * rows.
+     * buyers. A page past the end refuses. `Page::of()`'s own admin
+     * callers clamp to the last page instead: this table has nothing sane
+     * to fall back to when the page asked for holds no rows.
      */
     public function page(int $totalCount): Page
     {

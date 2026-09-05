@@ -76,8 +76,8 @@ final class FulfillmentFlowRequest extends FormRequest
     }
 
     /**
-     * A blank id is the page saying "this row is new", which `distinct` and
-     * `exists` both have to read as absent rather than as a value.
+     * A blank id is the page saying "this row is new". `distinct` and
+     * `exists` both need to read it as absent.
      */
     protected function prepareForValidation(): void
     {

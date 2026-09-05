@@ -42,9 +42,9 @@ final class MessageController extends ShopController
 
         $status = $request->status();
 
-        // `unread` mirrors the header's own unread count (every unread
-        // thread, open or resolved) rather than the status scope every
-        // other filter reads through, so the two never disagree.
+        // `unread` mirrors the header's own unread count: every unread
+        // thread, open or resolved. Every other filter reads through the
+        // status scope. The two counts always agree.
         if ($status !== null && $filter !== 'unread') {
             $query->withStatus($status);
         }
@@ -75,19 +75,19 @@ final class MessageController extends ShopController
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $visitor->id);
         } catch (RateLimitExceeded $exceeded) {
-            // docs/spec.md §3: a form that trips comes back rather than
-            // being replaced by the site's bare 429 page, so the thread the
-            // shopper was reading re-renders with the reply still in the box.
+            // docs/spec.md §3: a form that trips comes back on its own page
+            // at 429, so the thread the shopper was reading re-renders with
+            // the reply still in the box.
             $request->flash();
 
             return $this->tooManyRequests($exceeded, 'shop.messages.show', $this->threadView($conversation, $request->replyTo()));
         }
 
         // Read before the post, which may itself clear `resolved_at` — the
-        // reopen rule the redirect's flash reports on. Re-fetched afterward
-        // rather than read off the same instance, since `PostMessage`'s
-        // update happens in the database it is not this object's job to
-        // narrate.
+        // reopen rule the redirect's flash reports on. `PostMessage` writes
+        // that change straight to the database, bypassing this object's
+        // own state, so the code re-fetches the conversation afterward to
+        // see it.
         $wasResolved = $conversation->status() === ConversationStatus::Resolved;
 
         $postMessage($conversation, $visitor, $request->body(), $this->now(), $request->replyTo());
@@ -99,8 +99,7 @@ final class MessageController extends ShopController
 
     /**
      * `?reply_to=` names the message a "Reply" link quoted, when it belongs
-     * to this thread — a stale or hand-edited id is ignored rather than
-     * refused.
+     * to this thread. A stale or hand-edited id is ignored.
      */
     private function replyTo(Request $request, Conversation $conversation): ?Message
     {

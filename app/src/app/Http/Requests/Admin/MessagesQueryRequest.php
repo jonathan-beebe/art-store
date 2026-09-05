@@ -12,8 +12,8 @@ use Illuminate\Validation\Rule;
 /**
  * `/admin/messages`'s `?domain=` (docs/messaging.md § "Inbox domains"): an
  * absent or emptied value reads as the default, and an unrecognised value
- * answers a bare 400 (docs/spec.md §5) rather than the framework's
- * default redirect back with flashed errors.
+ * answers a bare 400 (docs/spec.md §5). The framework's default redirect
+ * back with flashed errors never fires.
  */
 final class MessagesQueryRequest extends FormRequest
 {
@@ -31,8 +31,8 @@ final class MessagesQueryRequest extends FormRequest
         ];
     }
 
-    /** An emptied `domain` reads as absent rather than as a value the rule
-     * above would otherwise have to admit. */
+    /** An emptied `domain` reads as absent, so the rule above never has to
+     * admit it as a value. */
     protected function prepareForValidation(): void
     {
         $this->merge([
@@ -40,8 +40,8 @@ final class MessagesQueryRequest extends FormRequest
         ]);
     }
 
-    /** docs/spec.md §5: an unrecognised value answers a bare 400, not
-     * the framework's redirect-back-with-errors. */
+    /** docs/spec.md §5: an unrecognised value answers a bare 400. The
+     * framework's redirect-back-with-errors never fires. */
     protected function failedValidation(Validator $validator): void
     {
         throw new HttpResponseException(response('', 400));

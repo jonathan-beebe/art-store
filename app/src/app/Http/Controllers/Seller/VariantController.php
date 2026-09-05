@@ -38,10 +38,10 @@ final class VariantController extends SellerController
         $optionValues = $request->optionValues();
         $variant = $create($listing, $optionValues, $request->priceOverrideCents(), $request->quantity(), $request->isSerialized(), true, $request->sku());
 
-        // The one path with no option values and marked one-of-a-kind is the
-        // no-choices "Start listing pieces" entry — it lands the seller on
-        // that combination's own pieces screen rather than back on a grid
-        // that, with no axes, would have nothing else to show.
+        // The no-choices "Start listing pieces" entry has no option values
+        // and is marked one-of-a-kind. It lands the seller on that
+        // combination's own pieces screen; an axis-free grid has nothing
+        // else to show.
         if ($optionValues === [] && $variant->is_serialized) {
             return redirect()->route('seller.listings.variants.units.index', [$listing, $variant])
                 ->with('status', 'Piece tracking started — add your first piece below.');

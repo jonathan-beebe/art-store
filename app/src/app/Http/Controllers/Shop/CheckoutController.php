@@ -53,9 +53,10 @@ final class CheckoutController extends ShopController
     }
 
     /**
-     * The card is only asked for once the address behind the order is verified,
-     * which is why a guest leaves here with a link instead of a receipt: an
-     * unverified order has nowhere to hold a card number until it is.
+     * The card is only asked for once the address behind the order is
+     * verified, so an unverified guest leaves here with a link to pay
+     * later: an unverified order has nowhere to hold a card number until
+     * then.
      */
     public function place(
         CheckoutRequest $request,
@@ -77,10 +78,10 @@ final class CheckoutController extends ShopController
         try {
             $rateLimit->check(RateLimitName::Checkout, (string) $visitor->id);
 
-            // An unverified guest leaves this method with a magic link
-            // rather than a receipt (below), so that budget is spent here
-            // too — ahead of placing the order, the same as the checkout
-            // budget just above, so a trip on either leaves no order behind.
+            // An unverified guest leaves this method with a magic link,
+            // spending that budget here too — ahead of placing the order,
+            // the same as the checkout budget just above, so a trip on
+            // either leaves no order behind.
             if (! $purchaser->isEmailVerified()) {
                 $rateLimit->checkEach(RateLimitName::MagicLinkRequest, [
                     EmailRateLimitKey::for($request->email()),
@@ -99,9 +100,9 @@ final class CheckoutController extends ShopController
             );
         } catch (OrderPlacementRefused $refusal) {
             // Checkout is where the shopper is already looking at every
-            // line: the whole cart re-renders with each blocked one named,
-            // rather than a redirect that loses the form to fill in again.
-            // `flash()` leaves the card fields behind (`ShopRequest`).
+            // line: the whole cart re-renders with each blocked one named.
+            // A redirect would lose the form to fill in again. `flash()`
+            // leaves the card fields behind (`ShopRequest`).
             $request->flash();
 
             return response()->view(
@@ -110,9 +111,9 @@ final class CheckoutController extends ShopController
                 422,
             );
         } catch (DomainRuleViolation $violation) {
-            // A refusal that is not about a specific line — the customer's
-            // own standing — sends the shopper to the cart instead: it still
-            // holds every line, and there is no per-line blame to show here.
+            // A refusal over the customer's own standing sends the shopper
+            // to the cart instead: it still holds every line, and there is
+            // no per-line blame to show here.
             return redirect()->route('shop.cart')->withErrors($violation->getMessage());
         }
 

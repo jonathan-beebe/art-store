@@ -38,9 +38,8 @@ final class LogController extends Controller
 
     /** A landing visit — no query string at all — opens on the shop
      * domain, grouped by request: the view a founder means by "the log
-     * viewer", not the union of every filter left at its widest default.
-     * Any query parameter present, even an empty one, is a deliberate
-     * visit and skips this. */
+     * viewer". Any query parameter present, even an empty one, is a
+     * deliberate visit and skips this. */
     private const array DEFAULT_LANDING_QUERY = ['domain' => 'shop', 'group' => '1'];
 
     /** The filters `More filters` holds, once domain/level/event have their

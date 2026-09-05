@@ -21,10 +21,11 @@ use Throwable;
  * The two lines that open and close every request, and the id that ties them
  * to each other and to the response the caller holds.
  *
- * This is the outermost middleware in the application rather than one of the
- * `web` group's, because a request that matches no route and one the forgery
- * guard refuses never reach a group, and a 404 is the line an operator goes
- * looking for first. Both come back through here as an ordinary response:
+ * This middleware sits outside the `web` group, as the application's
+ * outermost layer, because a request that matches no route and one the
+ * forgery guard refuses never reach a group, and a 404 is the line an
+ * operator goes looking for first. Both come back through here as an
+ * ordinary response:
  * the framework's pipeline renders an exception into one at the stage that
  * raised it.
  *
@@ -46,10 +47,10 @@ final readonly class LogRequestStory
     /**
      * The response to a request that threw is built by the exception handler
      * and never passes back through this middleware, so the id it must carry
-     * travels on the request instead. bootstrap/app.php reads it there, and
+     * travels on the request instead. bootstrap/app.php reads it there.
      * {@see \App\Analytics\RequestFacts} reads the same constant off
-     * {@see RequestMarks} rather than off this class, since nothing outside
-     * `App\Http` may depend on a middleware directly.
+     * {@see RequestMarks}, since nothing outside `App\Http` may depend on a
+     * middleware directly.
      */
     public const string REQUEST_ID_ATTRIBUTE = RequestMarks::REQUEST_ID_ATTRIBUTE;
 
@@ -58,15 +59,16 @@ final readonly class LogRequestStory
     /**
      * A caller's own request id is honoured only in this shape: it is echoed
      * in a header and written into a log line, and neither should carry
-     * whatever else a caller might send. `\A` and `\z` rather than `^` and
-     * `$`, which would admit a value with a newline on the end of it.
+     * whatever else a caller might send. `\A` and `\z` anchor the whole
+     * string; `^` and `$` would admit a value with a newline on the end of
+     * it.
      */
     private const string GIVEN_REQUEST_ID = '/\A[A-Za-z0-9_-]{1,64}\z/';
 
     /**
      * The one path in this application whose URL is itself a credential. The
-     * router has resolved nothing this early, so the path is matched rather
-     * than the route; the sidecar test holds the two together.
+     * router has resolved nothing this early, so this matches the raw path
+     * string; the sidecar test keeps that in sync with the actual route.
      */
     private const string TOKEN_PATH = '/auth/magic/';
 
@@ -90,8 +92,8 @@ final readonly class LogRequestStory
             'method' => $request->method(),
             'path' => $path,
             // §2.1's redaction rule applies to the query string the same as
-            // every other `data` field (§2.2) — a visitor's own typing, not
-            // a fact the story wrote for itself.
+            // every other `data` field (§2.2), since it is a visitor's own
+            // typing.
             'query' => DataRedaction::redact($request->query()),
             // And to the body, which is the same person's typing —
             // `LoggedRequestBody` names what it leaves out.

@@ -24,12 +24,11 @@ final class ListingStatusController extends SellerController
             'status_from' => $from->value,
             'status_to' => $next->value,
         ], function (Story $story) use ($listing, $from, $next): RedirectResponse {
-            // Every issue publish validation holds against this listing's
-            // configurator state, judged here rather than inside
-            // `changeStatusTo()` — that state machine knows nothing about
-            // axes, variants, or units. A refusal sends the seller back to
-            // the edit screen, which lists each issue linked to the screen
-            // that owns it, rather than one undifferentiated error.
+            // This action judges every issue publish validation holds
+            // against the listing's configurator state. `changeStatusTo()`'s
+            // state machine knows nothing about axes, variants, or units. A
+            // refusal sends the seller back to the edit screen, which links
+            // each issue to the screen that owns it.
             if ($next === ListingStatus::ForSale) {
                 $issues = $listing->publishIssues();
 

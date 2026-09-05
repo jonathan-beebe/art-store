@@ -17,10 +17,10 @@ use RuntimeException;
 
 /**
  * The ≤15-section cap is enforced here, on a new section only, reading
- * {@see ConfiguratorPublishValidation::MAX_SECTIONS} rather than repeating it.
- * A row-editing kind (specs, a size chart, Q & A) arrives as labeled rows —
- * `spec[]`, `size_chart[]`, `faq[]` — rather than a raw JSON field a seller
- * would have to hand-author; {@see self::completeRows()} folds whichever one
+ * {@see ConfiguratorPublishValidation::MAX_SECTIONS} directly, with no
+ * repeated number. A row-editing kind (specs, a size chart, Q & A) arrives
+ * as labeled rows — `spec[]`, `size_chart[]`, `faq[]` — so a seller never
+ * hand-authors raw JSON; {@see self::completeRows()} folds whichever one
  * the section's kind uses into the list `body_json` stores.
  */
 final class DescriptionSectionRequest extends FormRequest
@@ -105,10 +105,10 @@ final class DescriptionSectionRequest extends FormRequest
 
     /**
      * Zips one field's array-of-rows input into the list `body_json` stores,
-     * keeping only rows where every named column is filled — the fixed
+     * keeping only rows where every named column is filled. The fixed
      * blank rows a JS-off "add a row" leaves behind when a seller ignores
-     * them contribute nothing, and a half-filled row is not a shape any
-     * renderer expects.
+     * them contribute nothing, and a half-filled row would break the shape
+     * every renderer expects.
      *
      * @param  list<string>  $columns
      * @return list<array<string, string>>|null

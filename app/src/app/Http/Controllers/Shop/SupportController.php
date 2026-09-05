@@ -47,9 +47,9 @@ final class SupportController extends ShopController
         try {
             $rateLimit->check(RateLimitName::ConversationOpen, (string) $visitor->id);
         } catch (RateLimitExceeded $exceeded) {
-            // docs/spec.md §3: a form that trips comes back rather than
-            // being replaced by the site's bare 429 page, so the visitor's
-            // subject and message stay in the boxes.
+            // docs/spec.md §3: a form that trips comes back on its own page
+            // at 429, so the visitor's subject and message stay in the
+            // boxes.
             $request->flash();
 
             return $this->tooManyRequests($exceeded, 'shop.support', [
@@ -89,9 +89,8 @@ final class SupportController extends ShopController
     }
 
     /**
-     * `?order=` preselects the picker, when it names an order that is
-     * actually the visitor's — one that is not is ignored rather than
-     * refused.
+     * `?order=` preselects the picker when it names one of the visitor's
+     * own orders. Any other value is ignored.
      */
     private function preselectedOrderId(Request $request, Customer $visitor): ?string
     {

@@ -37,9 +37,8 @@ final class PostMessageRequest extends FormRequest
 
     /**
      * The message a "Reply" link named, or null for a plain reply and for a
-     * `reply_to_message_id` naming no message of this thread — the composer
-     * reads a stray or cross-thread id as if it had named none at all,
-     * rather than refusing the reply over it.
+     * `reply_to_message_id` naming no message of this thread. The composer
+     * treats a stray or cross-thread id as absent and lets the reply post.
      */
     public function replyTo(): ?Message
     {

@@ -27,8 +27,9 @@ final class ChangeListingStatusRequest extends FormRequest
     {
         $transitions = $this->listing()->availableTransitions();
 
-        // An empty `only` set admits every case, so a status with nowhere left
-        // to go refuses the field rather than narrowing it.
+        // An empty `only` set would admit every case, so a status with
+        // nowhere left to go marks the field `prohibited`, refusing it
+        // outright.
         return [
             'status' => $transitions === []
                 ? ['prohibited']

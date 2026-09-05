@@ -78,9 +78,9 @@ final class MessageController extends SellerController
         try {
             $rateLimit->check(RateLimitName::MessagePost, (string) $seller->id);
         } catch (RateLimitExceeded $exceeded) {
-            // docs/spec.md §3: a form that trips comes back rather than
-            // being replaced by the site's bare 429 page, so the thread the
-            // seller was reading re-renders with the reply still in the box.
+            // docs/spec.md §3: a form that trips comes back on its own page
+            // at 429, so the thread the seller was reading re-renders with
+            // the reply still in the box.
             $request->flash();
 
             $pane = $this->paneFor($seller, $domain, $conversation);
@@ -175,9 +175,9 @@ final class MessageController extends SellerController
     /**
      * `?reply_to=` names a message on the URL; a failed reply flashes the
      * same id back through `old()` so the "Replying to…" block survives the
-     * round trip. Either way it is read against the thread's own messages,
-     * already loaded, rather than a fresh query — which is what makes a
-     * stray or cross-thread id resolve to nothing rather than 500.
+     * round trip. Either way it is read against the thread's own
+     * already-loaded messages, so a stray or cross-thread id finds no
+     * match and resolves to null, never a 500.
      */
     private function replyToId(MessagesQueryRequest $request): ?string
     {

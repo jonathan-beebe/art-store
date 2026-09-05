@@ -14,10 +14,9 @@ use Illuminate\Http\Request;
 /**
  * `/search` — free text over the catalogue's titles, descriptions, and
  * Medium attribute labels. Search does not compose with `/medium` or
- * `/browse`: an absent or blank `q` runs no query at all, rather than
- * standing in for "every listing" — `/` itself no longer does that either
- * (DSGN-007); nowhere on the storefront does an empty filter mean "show
- * everything".
+ * `/browse`. An absent or blank `q` runs no query at all and never stands
+ * in for "every listing", matching `/` (DSGN-007). No storefront filter
+ * treats an empty value as "show everything".
  */
 final class SearchController extends ShopController
 {
