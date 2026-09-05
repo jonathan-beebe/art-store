@@ -24,7 +24,7 @@ use Illuminate\Database\Events\QueryExecuted;
 final class SlowQueryWatch
 {
     private function __construct() {} // @codeCoverageIgnore
-  
+
     /** Flags a frame as framework code, skipped when `sourceFrame()` looks
      * for the call site that triggered the query. */
     private const string VENDOR_MARKER = '/vendor/';
