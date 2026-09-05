@@ -78,7 +78,6 @@ it('stamps admin_id on a desk thread\'s first admin reply, and leaves it alone a
 });
 
 it('leaves admin_id alone on a non-desk thread', function (): void {
-    $admin = Admin::factory()->create();
     $seller = $this->seller();
     $conversation = Conversation::factory()->listingQuestion()->create(['seller_id' => $seller->id]);
 
