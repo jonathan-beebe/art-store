@@ -61,7 +61,7 @@ the dashboard?
 sequenceDiagram
     actor Admin
     participant Login as AdminLoginController
-    participant Admits as SendAdminMagicLinkRequest::admits()
+    participant Admits as Admin::admitsEmail()
     participant Send as SendMagicLink
     participant MagicLinks as magic_links
     participant Issued as MagicLinkIssued
@@ -87,8 +87,8 @@ sequenceDiagram
 ```
 
 Caveats: unlike the seller and customer flows, **admins are seeded, never
-signed up** — `SendAdminMagicLinkRequest::admits()` checks whether the address
-already has an `admins` row before `AdminLoginController::send()` ever calls
+signed up** — `Admin::admitsEmail()` checks whether the address already has
+an `admins` row before `AdminLoginController::send()` ever calls
 `SendMagicLink`, and the redirect and flash are identical whether or not it
 does, so `/admin/login` never reveals which addresses are admins. `SignInAdmin`
 answers 404 (`ModelNotFoundException`) rather than creating a row, which only

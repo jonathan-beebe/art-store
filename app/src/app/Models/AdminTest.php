@@ -26,3 +26,13 @@ it('names the first admin by id as the platform admin', function (): void {
 it('has no platform admin when none is seeded', function (): void {
     expect(Admin::platformAdmin())->toBeNull();
 });
+
+it('admits an address with an admin row', function (): void {
+    Admin::factory()->create(['email' => 'ops@example.com']);
+
+    expect(Admin::admitsEmail('Ops@Example.com'))->toBeTrue();
+});
+
+it('does not admit an address with no admin row', function (): void {
+    expect(Admin::admitsEmail('nobody@example.com'))->toBeFalse();
+});
