@@ -26,6 +26,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsIdempotent]
 final class ShowRequest extends Tool
 {
+    use RefusesWithoutLogStore;
+
     /**
      * @return array<string, mixed>
      */
@@ -41,8 +43,8 @@ final class ShowRequest extends Tool
 
     public function handle(Request $request, LogStore $store): Response|ResponseFactory
     {
-        if ($store->connection === null) {
-            return Response::error(SearchLogs::STORE_UNAVAILABLE);
+        if ($response = $this->refuseWithoutLogStore($store)) {
+            return $response;
         }
 
         $input = $request->validate([

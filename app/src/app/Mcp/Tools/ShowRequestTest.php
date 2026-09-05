@@ -39,5 +39,5 @@ it('says so when the log store is unavailable', function (): void {
     $this->app->instance(LogStore::class, LogStore::open('off'));
 
     AdminServer::tool(ShowRequest::class, ['request_id' => 'req_a'])
-        ->assertHasErrors([SearchLogs::STORE_UNAVAILABLE]);
+        ->assertHasErrors([ShowRequest::STORE_UNAVAILABLE]);
 });

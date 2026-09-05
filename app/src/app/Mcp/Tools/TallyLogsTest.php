@@ -36,5 +36,5 @@ it('says so when the log store is unavailable', function (): void {
     $this->app->instance(LogStore::class, LogStore::open('off'));
 
     AdminServer::tool(TallyLogs::class, [])
-        ->assertHasErrors([SearchLogs::STORE_UNAVAILABLE]);
+        ->assertHasErrors([TallyLogs::STORE_UNAVAILABLE]);
 });
