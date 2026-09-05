@@ -6,7 +6,6 @@ namespace App\Http\Requests\Seller;
 
 use App\Configurator\AbsolutePriceInput;
 use App\Configurator\PriceDifferenceInput;
-use App\Domain\Configurator\PricingMode;
 use App\Models\Listing;
 use App\Models\OptionAxis;
 use App\Models\PropertyValue;
@@ -108,7 +107,7 @@ final class OptionValueRequest extends FormRequest
         return function (string $attribute, mixed $value, Closure $fail): void {
             $raw = is_string($value) ? $value : null;
 
-            if ($this->optionAxis()->pricing_mode !== PricingMode::Standalone) {
+            if (! $this->optionAxis()->pricing_mode->isStandalone()) {
                 return;
             }
 

@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\DescriptionSection;
+use Illuminate\Support\Facades\DB;
 
 final readonly class DeleteDescriptionSection
 {
@@ -16,15 +17,17 @@ final readonly class DeleteDescriptionSection
             'listing_id' => $section->listing_id,
             'description_section_id' => $section->id,
         ], function (Story $story) use ($section): void {
-            $listingId = $section->listing_id;
-            $sectionId = $section->id;
+            DB::transaction(function () use ($story, $section): void {
+                $listingId = $section->listing_id;
+                $sectionId = $section->id;
 
-            $section->delete();
+                $section->delete();
 
-            $story->did('deleted the description section', [
-                'listing_id' => $listingId,
-                'description_section_id' => $sectionId,
-            ]);
+                $story->did('deleted the description section', [
+                    'listing_id' => $listingId,
+                    'description_section_id' => $sectionId,
+                ]);
+            });
         });
     }
 }

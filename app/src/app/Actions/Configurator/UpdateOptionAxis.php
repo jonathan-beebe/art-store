@@ -11,6 +11,7 @@ use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\OptionAxis;
 use App\Models\Property;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class UpdateOptionAxis
@@ -21,25 +22,27 @@ final readonly class UpdateOptionAxis
             'listing_id' => $axis->listing_id,
             'axis_id' => $axis->id,
         ], function (Story $story) use ($axis, $name, $property, $position, $pricingMode): OptionAxis {
-            PricingModeChangeGuard::forAxis($axis->pricing_mode !== $pricingMode, $axis->optionValues()->exists());
+            return DB::transaction(function () use ($story, $axis, $name, $property, $position, $pricingMode): OptionAxis {
+                PricingModeChangeGuard::forAxis($axis->pricing_mode !== $pricingMode, $axis->optionValues()->exists());
 
-            $axis->update([
-                'property_id' => $property?->id,
-                'name' => $name,
-                'position' => $position,
-                'pricing_mode' => $pricingMode,
-            ]);
+                $axis->update([
+                    'property_id' => $property?->id,
+                    'name' => $name,
+                    'position' => $position,
+                    'pricing_mode' => $pricingMode,
+                ]);
 
-            ListingPriceSync::sync($axis->listing ?? throw new LogicException('An option axis always belongs to a listing.'));
+                ListingPriceSync::sync($axis->listing ?? throw new LogicException('An option axis always belongs to a listing.'));
 
-            $story->did('updated the option axis', [
-                'listing_id' => $axis->listing_id,
-                'axis_id' => $axis->id,
-                'name' => $axis->name,
-                'pricing_mode' => $pricingMode->value,
-            ]);
+                $story->did('updated the option axis', [
+                    'listing_id' => $axis->listing_id,
+                    'axis_id' => $axis->id,
+                    'name' => $axis->name,
+                    'pricing_mode' => $pricingMode->value,
+                ]);
 
-            return $axis;
+                return $axis;
+            });
         });
     }
 }

@@ -90,7 +90,7 @@ final class ListingConfiguratorSummaries
             $totalCombinations *= $values->count();
 
             $displayed = $values->take(self::MAX_DISPLAYED_OPTIONS);
-            $isStandalone = $axis->pricing_mode === PricingMode::Standalone;
+            $isStandalone = $axis->pricing_mode->isStandalone();
 
             $axisLines[] = [
                 'name' => $axis->name,

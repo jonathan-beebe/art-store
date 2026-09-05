@@ -8,6 +8,7 @@ use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Unit;
 use App\Models\Variant;
+use Illuminate\Support\Facades\DB;
 
 final readonly class AddUnit
 {
@@ -25,22 +26,24 @@ final readonly class AddUnit
             'listing_id' => $variant->listing_id,
             'variant_id' => $variant->id,
         ], function (Story $story) use ($variant, $label, $conditionNote, $specs, $priceOverrideCents): Unit {
-            $unit = $variant->units()->create([
-                'seller_id' => $variant->seller_id,
-                'label' => $label,
-                'condition_note' => $conditionNote,
-                'specs_json' => $specs,
-                'price_override_cents' => $priceOverrideCents,
-            ]);
+            return DB::transaction(function () use ($story, $variant, $label, $conditionNote, $specs, $priceOverrideCents): Unit {
+                $unit = $variant->units()->create([
+                    'seller_id' => $variant->seller_id,
+                    'label' => $label,
+                    'condition_note' => $conditionNote,
+                    'specs_json' => $specs,
+                    'price_override_cents' => $priceOverrideCents,
+                ]);
 
-            $story->did('added the unit', [
-                'listing_id' => $variant->listing_id,
-                'variant_id' => $variant->id,
-                'unit_id' => $unit->id,
-                'label' => $unit->label,
-            ]);
+                $story->did('added the unit', [
+                    'listing_id' => $variant->listing_id,
+                    'variant_id' => $variant->id,
+                    'unit_id' => $unit->id,
+                    'label' => $unit->label,
+                ]);
 
-            return $unit;
+                return $unit;
+            });
         });
     }
 }

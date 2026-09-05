@@ -9,6 +9,7 @@ use App\Domain\Configurator\ConfiguratorDeletionGuard;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\OptionAxis;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class DeleteOptionAxis
@@ -19,18 +20,20 @@ final readonly class DeleteOptionAxis
             'listing_id' => $axis->listing_id,
             'axis_id' => $axis->id,
         ], function (Story $story) use ($axis): void {
-            ConfiguratorDeletionGuard::forAxis($axis->optionValues()->whereHas('variantOptions')->exists());
+            DB::transaction(function () use ($story, $axis): void {
+                ConfiguratorDeletionGuard::forAxis($axis->optionValues()->whereHas('variantOptions')->exists());
 
-            $listing = $axis->listing ?? throw new LogicException('An option axis always belongs to a listing.');
+                $listing = $axis->listing ?? throw new LogicException('An option axis always belongs to a listing.');
 
-            $axis->delete();
+                $axis->delete();
 
-            ListingPriceSync::sync($listing);
+                ListingPriceSync::sync($listing);
 
-            $story->did('deleted the option axis', [
-                'listing_id' => $axis->listing_id,
-                'axis_id' => $axis->id,
-            ]);
+                $story->did('deleted the option axis', [
+                    'listing_id' => $axis->listing_id,
+                    'axis_id' => $axis->id,
+                ]);
+            });
         });
     }
 }

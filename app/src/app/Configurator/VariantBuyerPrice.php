@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Configurator;
 
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\VariantPrice;
 use App\Domain\Money\Money;
 use App\Models\Variant;
@@ -34,7 +33,7 @@ final class VariantBuyerPrice
             $value = $option->optionValue ?? throw new LogicException('A variant option always names an option value.');
             $axis = $value->axis ?? throw new LogicException('An option value always belongs to an axis.');
 
-            if ($axis->pricing_mode === PricingMode::Standalone) {
+            if ($axis->pricing_mode->isStandalone()) {
                 $standalonePrices[] = $value->price();
             } else {
                 $addonSurcharges[] = $value->surcharge();

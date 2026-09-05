@@ -11,6 +11,7 @@ use App\Models\Listing;
 use App\Models\ListingAttribute;
 use App\Models\PropertyValue;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The attributes section on the listing edit screen: replaces a listing's
@@ -33,28 +34,30 @@ final readonly class SetListingAttributes
         return Story::for(StoryEvent::ListingUpdate)->tell('setting a listing’s attributes', [
             'listing_id' => $listing->id,
         ], function (Story $story) use ($listing, $selections): array {
-            /** @var Collection<int, CategoryProperty> $grants */
-            $grants = $listing->category_id === null
-                ? new Collection
-                : CategoryProperty::query()
-                    ->where('category_id', $listing->category_id)
-                    ->where('usable_as_attribute', true)
-                    ->get();
+            return DB::transaction(function () use ($story, $listing, $selections): array {
+                /** @var Collection<int, CategoryProperty> $grants */
+                $grants = $listing->category_id === null
+                    ? new Collection
+                    : CategoryProperty::query()
+                        ->where('category_id', $listing->category_id)
+                        ->where('usable_as_attribute', true)
+                        ->get();
 
-            $attributes = [];
+                $attributes = [];
 
-            foreach ($grants as $grant) {
-                foreach ($this->set($listing, $grant, $selections[$grant->property_id] ?? []) as $attribute) {
-                    $attributes[] = $attribute;
+                foreach ($grants as $grant) {
+                    foreach ($this->set($listing, $grant, $selections[$grant->property_id] ?? []) as $attribute) {
+                        $attributes[] = $attribute;
+                    }
                 }
-            }
 
-            $story->did('set the listing’s attributes', [
-                'listing_id' => $listing->id,
-                'property_ids' => array_values($grants->pluck('property_id')->all()),
-            ]);
+                $story->did('set the listing’s attributes', [
+                    'listing_id' => $listing->id,
+                    'property_ids' => array_values($grants->pluck('property_id')->all()),
+                ]);
 
-            return $attributes;
+                return $attributes;
+            });
         });
     }
 

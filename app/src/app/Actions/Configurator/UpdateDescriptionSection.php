@@ -8,6 +8,7 @@ use App\Domain\Configurator\DescriptionSectionKind;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\DescriptionSection;
+use Illuminate\Support\Facades\DB;
 
 final readonly class UpdateDescriptionSection
 {
@@ -25,20 +26,22 @@ final readonly class UpdateDescriptionSection
             'listing_id' => $section->listing_id,
             'description_section_id' => $section->id,
         ], function (Story $story) use ($section, $kind, $title, $bodyMd, $bodyJson): DescriptionSection {
-            $section->update([
-                'kind' => $kind,
-                'title' => $title,
-                'body_md' => $bodyMd,
-                'body_json' => $bodyJson,
-            ]);
+            return DB::transaction(function () use ($story, $section, $kind, $title, $bodyMd, $bodyJson): DescriptionSection {
+                $section->update([
+                    'kind' => $kind,
+                    'title' => $title,
+                    'body_md' => $bodyMd,
+                    'body_json' => $bodyJson,
+                ]);
 
-            $story->did('updated the description section', [
-                'listing_id' => $section->listing_id,
-                'description_section_id' => $section->id,
-                'kind' => $section->kind->value,
-            ]);
+                $story->did('updated the description section', [
+                    'listing_id' => $section->listing_id,
+                    'description_section_id' => $section->id,
+                    'kind' => $section->kind->value,
+                ]);
 
-            return $section;
+                return $section;
+            });
         });
     }
 }

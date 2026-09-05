@@ -45,7 +45,7 @@
                     class="select-caret mt-2 block w-full rounded-field border border-line-strong bg-surface py-3 pl-4 pr-10 text-base focus:border-accent focus:outline-none">
                 @foreach ($axis['options'] as $option)
                     <option value="{{ $option['id'] }}" @selected($option['selected']) @disabled(! $option['selectable'])>
-                        @if ($axis['pricingMode'] === PricingMode::Standalone)
+                        @if ($axis['pricingMode']->isStandalone())
                             {{ $option['label'] }} ({{ $option['price']->format() }})
                         @else
                             {{ $option['label'] }}@if (! $option['delta']->isZero()) ({{ $option['delta']->cents > 0 ? '+' : '' }}{{ $option['delta']->format() }})@endif

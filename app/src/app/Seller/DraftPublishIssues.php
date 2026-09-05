@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Seller;
 
 use App\Domain\Configurator\ConfiguratorPublishValidation;
-use App\Domain\Configurator\PricingMode;
 use App\Domain\Configurator\PublishIssue;
 use App\Domain\Configurator\StandaloneOptionSnapshot;
 use App\Domain\Configurator\UnitState;
@@ -211,7 +210,7 @@ final readonly class DraftPublishIssues
         $snapshots = [];
 
         foreach ($axes as $axis) {
-            if ($axis->pricing_mode !== PricingMode::Standalone) {
+            if (! $axis->pricing_mode->isStandalone()) {
                 continue;
             }
 

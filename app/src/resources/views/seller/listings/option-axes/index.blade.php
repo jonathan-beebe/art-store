@@ -25,7 +25,7 @@
     <p class="mt-1 max-w-2xl text-gray-600 dark:text-gray-400">Each choice becomes a dropdown on your listing. Say up front whether its options are each priced on their own, or add to your price — every option follows that choice's rule.</p>
 
             @forelse ($axes as $axis)
-                @php $isStandalone = $axis->pricing_mode === PricingMode::Standalone; @endphp
+                @php $isStandalone = $axis->pricing_mode->isStandalone(); @endphp
                 <div class="rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
                     <div class="flex flex-wrap items-baseline gap-2">
                         <p class="font-semibold text-gray-700 dark:text-gray-300">{{ $axis->name }}</p>
@@ -193,7 +193,7 @@
                         </form>
                     @endif
 
-                    @if ($selectedMode === PricingMode::Standalone)
+                    @if ($selectedMode->isStandalone())
                         <p class="mt-2 text-gray-600 dark:text-gray-400">A catalog choice links to your catalog property, searchable — you still give each option its own price yourself.</p>
                     @else
                         <p class="mt-2 text-gray-600 dark:text-gray-400">A catalog choice starts with its standard options filled in; keep the ones you make.</p>

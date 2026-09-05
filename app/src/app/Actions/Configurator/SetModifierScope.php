@@ -9,6 +9,7 @@ use App\Logging\StoryEvent;
 use App\Models\Modifier;
 use App\Models\ModifierScope;
 use App\Models\OptionValue;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The scope picker's "show this question only when…" screen: replaces a
@@ -30,23 +31,25 @@ final readonly class SetModifierScope
             'listing_id' => $modifier->listing_id,
             'modifier_id' => $modifier->id,
         ], function (Story $story) use ($modifier, $optionValues): array {
-            $modifier->scopes()->whereNotIn('option_value_id', array_map(fn (OptionValue $value): string => $value->id, $optionValues))->delete();
+            return DB::transaction(function () use ($story, $modifier, $optionValues): array {
+                $modifier->scopes()->whereNotIn('option_value_id', array_map(fn (OptionValue $value): string => $value->id, $optionValues))->delete();
 
-            $scopes = array_map(
-                fn (OptionValue $value): ModifierScope => $modifier->scopes()->firstOrCreate(
-                    ['option_value_id' => $value->id],
-                    ['seller_id' => $modifier->seller_id],
-                ),
-                $optionValues,
-            );
+                $scopes = array_map(
+                    fn (OptionValue $value): ModifierScope => $modifier->scopes()->firstOrCreate(
+                        ['option_value_id' => $value->id],
+                        ['seller_id' => $modifier->seller_id],
+                    ),
+                    $optionValues,
+                );
 
-            $story->did('set the modifier’s scope', [
-                'listing_id' => $modifier->listing_id,
-                'modifier_id' => $modifier->id,
-                'option_value_ids' => array_map(fn (OptionValue $value): string => $value->id, $optionValues),
-            ]);
+                $story->did('set the modifier’s scope', [
+                    'listing_id' => $modifier->listing_id,
+                    'modifier_id' => $modifier->id,
+                    'option_value_ids' => array_map(fn (OptionValue $value): string => $value->id, $optionValues),
+                ]);
 
-            return $scopes;
+                return $scopes;
+            });
         });
     }
 }

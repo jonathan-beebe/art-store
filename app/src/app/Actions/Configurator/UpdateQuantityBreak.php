@@ -8,6 +8,7 @@ use App\Domain\Configurator\QuantityDiscount;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\QuantityBreak;
+use Illuminate\Support\Facades\DB;
 
 final readonly class UpdateQuantityBreak
 {
@@ -17,18 +18,20 @@ final readonly class UpdateQuantityBreak
             'listing_id' => $break->listing_id,
             'quantity_break_id' => $break->id,
         ], function (Story $story) use ($break, $minQty, $discountBps): QuantityBreak {
-            QuantityDiscount::of($minQty, $discountBps);
+            return DB::transaction(function () use ($story, $break, $minQty, $discountBps): QuantityBreak {
+                QuantityDiscount::of($minQty, $discountBps);
 
-            $break->update(['min_qty' => $minQty, 'discount_bps' => $discountBps]);
+                $break->update(['min_qty' => $minQty, 'discount_bps' => $discountBps]);
 
-            $story->did('updated the quantity break', [
-                'listing_id' => $break->listing_id,
-                'quantity_break_id' => $break->id,
-                'min_qty' => $break->min_qty,
-                'discount_bps' => $break->discount_bps,
-            ]);
+                $story->did('updated the quantity break', [
+                    'listing_id' => $break->listing_id,
+                    'quantity_break_id' => $break->id,
+                    'min_qty' => $break->min_qty,
+                    'discount_bps' => $break->discount_bps,
+                ]);
 
-            return $break;
+                return $break;
+            });
         });
     }
 }

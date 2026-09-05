@@ -255,7 +255,7 @@ final class ListingController extends SellerController
     private function addRows(OptionAxis $axis, array $rows, AddOptionValue $addOptionValue): void
     {
         foreach ($rows as $index => $row) {
-            $addOptionValue($axis, $row['label'], $row['cents'], $index === 0, $index, null, $axis->pricing_mode === PricingMode::Standalone ? $row['cents'] : null);
+            $addOptionValue($axis, $row['label'], $row['cents'], $index === 0, $index, null, $axis->pricing_mode->isStandalone() ? $row['cents'] : null);
         }
     }
 

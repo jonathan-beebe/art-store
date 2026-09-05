@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Variant;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The per-cell edit the variant grid offers on a row already generated or
@@ -27,22 +28,24 @@ final readonly class UpdateVariant
             'listing_id' => $variant->listing_id,
             'variant_id' => $variant->id,
         ], function (Story $story) use ($variant, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
-            $variant->update([
-                'sku' => $sku,
-                'price_override_cents' => $priceOverrideCents,
-                'quantity' => $isSerialized ? null : $quantity,
-                'is_serialized' => $isSerialized,
-                'enabled' => $enabled,
-            ]);
+            return DB::transaction(function () use ($story, $variant, $priceOverrideCents, $quantity, $isSerialized, $enabled, $sku): Variant {
+                $variant->update([
+                    'sku' => $sku,
+                    'price_override_cents' => $priceOverrideCents,
+                    'quantity' => $isSerialized ? null : $quantity,
+                    'is_serialized' => $isSerialized,
+                    'enabled' => $enabled,
+                ]);
 
-            $story->did('updated the variant', [
-                'listing_id' => $variant->listing_id,
-                'variant_id' => $variant->id,
-                'price_override_cents' => $variant->price_override_cents,
-                'enabled' => $variant->enabled,
-            ]);
+                $story->did('updated the variant', [
+                    'listing_id' => $variant->listing_id,
+                    'variant_id' => $variant->id,
+                    'price_override_cents' => $variant->price_override_cents,
+                    'enabled' => $variant->enabled,
+                ]);
 
-            return $variant;
+                return $variant;
+            });
         });
     }
 }

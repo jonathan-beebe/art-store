@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Modifier;
+use Illuminate\Support\Facades\DB;
 
 final readonly class DeleteModifier
 {
@@ -16,15 +17,17 @@ final readonly class DeleteModifier
             'listing_id' => $modifier->listing_id,
             'modifier_id' => $modifier->id,
         ], function (Story $story) use ($modifier): void {
-            $listingId = $modifier->listing_id;
-            $modifierId = $modifier->id;
+            DB::transaction(function () use ($story, $modifier): void {
+                $listingId = $modifier->listing_id;
+                $modifierId = $modifier->id;
 
-            $modifier->delete();
+                $modifier->delete();
 
-            $story->did('deleted the modifier', [
-                'listing_id' => $listingId,
-                'modifier_id' => $modifierId,
-            ]);
+                $story->did('deleted the modifier', [
+                    'listing_id' => $listingId,
+                    'modifier_id' => $modifierId,
+                ]);
+            });
         });
     }
 }

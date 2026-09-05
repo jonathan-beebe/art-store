@@ -7,6 +7,7 @@ namespace App\Actions\Configurator;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\ModifierOption;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class DeleteModifierOption
@@ -20,17 +21,19 @@ final readonly class DeleteModifierOption
             'modifier_id' => $option->modifier_id,
             'modifier_option_id' => $option->id,
         ], function (Story $story) use ($option, $modifier): void {
-            $listingId = $modifier->listing_id;
-            $modifierId = $option->modifier_id;
-            $optionId = $option->id;
+            DB::transaction(function () use ($story, $option, $modifier): void {
+                $listingId = $modifier->listing_id;
+                $modifierId = $option->modifier_id;
+                $optionId = $option->id;
 
-            $option->delete();
+                $option->delete();
 
-            $story->did('deleted the modifier option', [
-                'listing_id' => $listingId,
-                'modifier_id' => $modifierId,
-                'modifier_option_id' => $optionId,
-            ]);
+                $story->did('deleted the modifier option', [
+                    'listing_id' => $listingId,
+                    'modifier_id' => $modifierId,
+                    'modifier_option_id' => $optionId,
+                ]);
+            });
         });
     }
 }

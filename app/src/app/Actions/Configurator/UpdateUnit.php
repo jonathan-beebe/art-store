@@ -8,6 +8,7 @@ use App\Domain\Configurator\UnitState;
 use App\Logging\Story;
 use App\Logging\StoryEvent;
 use App\Models\Unit;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 final readonly class UpdateUnit
@@ -30,22 +31,24 @@ final readonly class UpdateUnit
             'variant_id' => $unit->variant_id,
             'unit_id' => $unit->id,
         ], function (Story $story) use ($unit, $variant, $label, $state, $conditionNote, $specs, $priceOverrideCents): Unit {
-            $unit->update([
-                'label' => $label,
-                'state' => $state,
-                'condition_note' => $conditionNote,
-                'specs_json' => $specs,
-                'price_override_cents' => $priceOverrideCents,
-            ]);
+            return DB::transaction(function () use ($story, $unit, $variant, $label, $state, $conditionNote, $specs, $priceOverrideCents): Unit {
+                $unit->update([
+                    'label' => $label,
+                    'state' => $state,
+                    'condition_note' => $conditionNote,
+                    'specs_json' => $specs,
+                    'price_override_cents' => $priceOverrideCents,
+                ]);
 
-            $story->did('updated the unit', [
-                'listing_id' => $variant->listing_id,
-                'variant_id' => $unit->variant_id,
-                'unit_id' => $unit->id,
-                'state' => $unit->state->value,
-            ]);
+                $story->did('updated the unit', [
+                    'listing_id' => $variant->listing_id,
+                    'variant_id' => $unit->variant_id,
+                    'unit_id' => $unit->id,
+                    'state' => $unit->state->value,
+                ]);
 
-            return $unit;
+                return $unit;
+            });
         });
     }
 }
